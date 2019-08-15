@@ -2,101 +2,160 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51EBDC31E40
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 10:16:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D8A0C433FF
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 11:28:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 21BE421744
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 10:16:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21BE421744
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C56612064A
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 11:28:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C56612064A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A987E6B026F; Thu, 15 Aug 2019 06:16:42 -0400 (EDT)
+	id 3842B6B0271; Thu, 15 Aug 2019 07:28:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A22CB6B0270; Thu, 15 Aug 2019 06:16:42 -0400 (EDT)
+	id 335766B0272; Thu, 15 Aug 2019 07:28:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C2906B0271; Thu, 15 Aug 2019 06:16:42 -0400 (EDT)
+	id 24AF26B0273; Thu, 15 Aug 2019 07:28:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
-	by kanga.kvack.org (Postfix) with ESMTP id 632EA6B026F
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:16:42 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 159B021FA
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:16:42 +0000 (UTC)
-X-FDA: 75824258244.30.dogs38_1d455e471c11e
-X-HE-Tag: dogs38_1d455e471c11e
-X-Filterd-Recvd-Size: 2695
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:16:41 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8A73130832E1;
-	Thu, 15 Aug 2019 10:16:39 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id D50D12C8C6;
-	Thu, 15 Aug 2019 10:16:36 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Thu, 15 Aug 2019 12:16:39 +0200 (CEST)
-Date: Thu, 15 Aug 2019 12:16:36 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <matthew.wilcox@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
- THP
-Message-ID: <20190815101635.GD32051@redhat.com>
-References: <20190808163303.GB7934@redhat.com>
- <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
- <20190809152404.GA21489@redhat.com>
- <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
- <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
- <20190812121144.f46abvpg6lvxwwzs@box>
- <20190812132257.GB31560@redhat.com>
- <20190812144045.tkvipsyit3nccvuk@box>
- <2D11C742-BB7E-4296-9E97-5114FA58474B@fb.com>
- <857DA509-D891-4F4C-A55C-EE58BC2CC452@fb.com>
+Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
+	by kanga.kvack.org (Postfix) with ESMTP id F0BAC6B0271
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 07:28:50 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 9D6D0181AC9B4
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:28:50 +0000 (UTC)
+X-FDA: 75824440020.08.bun27_4d0d39fe4d501
+X-HE-Tag: bun27_4d0d39fe4d501
+X-Filterd-Recvd-Size: 5552
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:28:49 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4A2E0360;
+	Thu, 15 Aug 2019 04:28:48 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CD5DA3F694;
+	Thu, 15 Aug 2019 04:28:46 -0700 (PDT)
+Date: Thu, 15 Aug 2019 12:28:44 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Daniel Axtens <dja@axtens.net>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
+	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
+	linux-kernel@vger.kernel.org, dvyukov@google.com,
+	linuxppc-dev@lists.ozlabs.org, gor@linux.ibm.com
+Subject: Re: [PATCH v4 0/3] kasan: support backing vmalloc space with real
+ shadow memory
+Message-ID: <20190815112844.GC22153@lakrids.cambridge.arm.com>
+References: <20190815001636.12235-1-dja@axtens.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <857DA509-D891-4F4C-A55C-EE58BC2CC452@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Thu, 15 Aug 2019 10:16:39 +0000 (UTC)
+In-Reply-To: <20190815001636.12235-1-dja@axtens.net>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Song,
+On Thu, Aug 15, 2019 at 10:16:33AM +1000, Daniel Axtens wrote:
+> Currently, vmalloc space is backed by the early shadow page. This
+> means that kasan is incompatible with VMAP_STACK, and it also provides
+> a hurdle for architectures that do not have a dedicated module space
+> (like powerpc64).
+> 
+> This series provides a mechanism to back vmalloc space with real,
+> dynamically allocated memory. I have only wired up x86, because that's
+> the only currently supported arch I can work with easily, but it's
+> very easy to wire up other architectures.
 
-sorry, I forgot to reply to this email,
+I'm happy to send patches for arm64 once we've settled some conflicting
+rework going on for 52-bit VA support.
 
-On 08/13, Song Liu wrote:
->
-> Do you have further comments for the version below? If not, could you
-> please reply with your Acked-by or Reviewed-by?
+> 
+> This has been discussed before in the context of VMAP_STACK:
+>  - https://bugzilla.kernel.org/show_bug.cgi?id=202009
+>  - https://lkml.org/lkml/2018/7/22/198
+>  - https://lkml.org/lkml/2019/7/19/822
+> 
+> In terms of implementation details:
+> 
+> Most mappings in vmalloc space are small, requiring less than a full
+> page of shadow space. Allocating a full shadow page per mapping would
+> therefore be wasteful. Furthermore, to ensure that different mappings
+> use different shadow pages, mappings would have to be aligned to
+> KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
+> 
+> Instead, share backing space across multiple mappings. Allocate
+> a backing page the first time a mapping in vmalloc space uses a
+> particular page of the shadow region. Keep this page around
+> regardless of whether the mapping is later freed - in the mean time
+> the page could have become shared by another vmalloc mapping.
+> 
+> This can in theory lead to unbounded memory growth, but the vmalloc
+> allocator is pretty good at reusing addresses, so the practical memory
+> usage appears to grow at first but then stay fairly stable.
+> 
+> If we run into practical memory exhaustion issues, I'm happy to
+> consider hooking into the book-keeping that vmap does, but I am not
+> convinced that it will be an issue.
 
-I see nothing wrong in the last series, no objections from me.
+FWIW, I haven't spotted such memory exhaustion after a week of Syzkaller
+fuzzing with the last patchset, across 3 machines, so that sounds fine
+to me.
 
-I don't think I can't ack the changes in this area, but feel free to
-add my Reviewed-by.
+Otherwise, this looks good to me now! For the x86 and fork patch, feel
+free to add:
 
-Oleg.
+Acked-by: Mark Rutland <mark.rutland@arm.com>
 
+Mark.
+
+> 
+> v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.net/
+> v2: https://lore.kernel.org/linux-mm/20190729142108.23343-1-dja@axtens.net/
+>  Address review comments:
+>  - Patch 1: use kasan_unpoison_shadow's built-in handling of
+>             ranges that do not align to a full shadow byte
+>  - Patch 3: prepopulate pgds rather than faulting things in
+> v3: https://lore.kernel.org/linux-mm/20190731071550.31814-1-dja@axtens.net/
+>  Address comments from Mark Rutland:
+>  - kasan_populate_vmalloc is a better name
+>  - handle concurrency correctly
+>  - various nits and cleanups
+>  - relax module alignment in KASAN_VMALLOC case
+> v4: Changes to patch 1 only:
+>  - Integrate Mark's rework, thanks Mark!
+>  - handle the case where kasan_populate_shadow might fail
+>  - poision shadow on free, allowing the alloc path to just
+>      unpoision memory that it uses
+> 
+> Daniel Axtens (3):
+>   kasan: support backing vmalloc space with real shadow memory
+>   fork: support VMAP_STACK with KASAN_VMALLOC
+>   x86/kasan: support KASAN_VMALLOC
+> 
+>  Documentation/dev-tools/kasan.rst | 60 +++++++++++++++++++++++++++
+>  arch/Kconfig                      |  9 +++--
+>  arch/x86/Kconfig                  |  1 +
+>  arch/x86/mm/kasan_init_64.c       | 61 ++++++++++++++++++++++++++++
+>  include/linux/kasan.h             | 24 +++++++++++
+>  include/linux/moduleloader.h      |  2 +-
+>  include/linux/vmalloc.h           | 12 ++++++
+>  kernel/fork.c                     |  4 ++
+>  lib/Kconfig.kasan                 | 16 ++++++++
+>  lib/test_kasan.c                  | 26 ++++++++++++
+>  mm/kasan/common.c                 | 67 +++++++++++++++++++++++++++++++
+>  mm/kasan/generic_report.c         |  3 ++
+>  mm/kasan/kasan.h                  |  1 +
+>  mm/vmalloc.c                      | 28 ++++++++++++-
+>  14 files changed, 308 insertions(+), 6 deletions(-)
+> 
+> -- 
+> 2.20.1
+> 
 
