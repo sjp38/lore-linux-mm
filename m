@@ -2,190 +2,147 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FF99C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:02:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65291C3A59B
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:12:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F091E206C1
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:02:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F091E206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 32630205F4
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:12:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32630205F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BAF06B02D6; Thu, 15 Aug 2019 13:02:50 -0400 (EDT)
+	id B362E6B02D9; Thu, 15 Aug 2019 13:12:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76C186B02D8; Thu, 15 Aug 2019 13:02:50 -0400 (EDT)
+	id AE8276B02DA; Thu, 15 Aug 2019 13:12:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 681776B02D9; Thu, 15 Aug 2019 13:02:50 -0400 (EDT)
+	id 9FC136B02DB; Thu, 15 Aug 2019 13:12:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0016.hostedemail.com [216.40.44.16])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E516B02D6
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:02:50 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0060663E6
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:02:49 +0000 (UTC)
-X-FDA: 75825281700.16.hope81_52e15058a370c
-X-HE-Tag: hope81_52e15058a370c
-X-Filterd-Recvd-Size: 7792
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:02:49 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 95638AFF3;
-	Thu, 15 Aug 2019 17:02:47 +0000 (UTC)
-Date: Thu, 15 Aug 2019 19:02:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
-	dan.j.williams@intel.com, osalvador@suse.de,
-	richard.weiyang@gmail.com, hannes@cmpxchg.org,
-	arunks@codeaurora.org, rppt@linux.vnet.ibm.com, jgg@ziepe.ca,
-	amir73il@gmail.com, alexander.h.duyck@linux.intel.com,
-	linux-mm@kvack.org, linux-kernel-mentees@lists.linuxfoundation.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH 0/2] Add predictive memory reclamation and compaction
-Message-ID: <20190815170215.GQ9477@dhcp22.suse.cz>
-References: <20190813014012.30232-1-khalid.aziz@oracle.com>
- <20190813140553.GK17933@dhcp22.suse.cz>
- <3cb0af00-f091-2f3e-d6cc-73a5171e6eda@oracle.com>
- <20190814085831.GS17933@dhcp22.suse.cz>
- <d3895804-7340-a7ae-d611-62913303e9c5@oracle.com>
+Received: from forelay.hostedemail.com (smtprelay0087.hostedemail.com [216.40.44.87])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F7C46B02D9
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:12:03 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 367068248AA5
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:12:03 +0000 (UTC)
+X-FDA: 75825304926.21.slave87_11cd38ee4c13d
+X-HE-Tag: slave87_11cd38ee4c13d
+X-Filterd-Recvd-Size: 4812
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:12:02 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 732FD30832E1;
+	Thu, 15 Aug 2019 17:12:00 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 9562687A9;
+	Thu, 15 Aug 2019 17:11:58 +0000 (UTC)
+Date: Thu, 15 Aug 2019 13:11:56 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190815171156.GB30916@redhat.com>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814235805.GB11200@ziepe.ca>
+ <20190815065829.GA7444@phenom.ffwll.local>
+ <20190815122344.GA21596@ziepe.ca>
+ <20190815132127.GI9477@dhcp22.suse.cz>
+ <20190815141219.GF21596@ziepe.ca>
+ <20190815155950.GN9477@dhcp22.suse.cz>
+ <20190815165631.GK21596@ziepe.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <d3895804-7340-a7ae-d611-62913303e9c5@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190815165631.GK21596@ziepe.ca>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Thu, 15 Aug 2019 17:12:00 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 15-08-19 10:27:26, Khalid Aziz wrote:
-> On 8/14/19 2:58 AM, Michal Hocko wrote:
-> > On Tue 13-08-19 09:20:51, Khalid Aziz wrote:
-> >> On 8/13/19 8:05 AM, Michal Hocko wrote:
-> >>> On Mon 12-08-19 19:40:10, Khalid Aziz wrote:
-> >>> [...]
-> >>>> Patch 1 adds code to maintain a sliding lookback window of (time, number
-> >>>> of free pages) points which can be updated continuously and adds code to
-> >>>> compute best fit line across these points. It also adds code to use the
-> >>>> best fit lines to determine if kernel must start reclamation or
-> >>>> compaction.
-> >>>>
-> >>>> Patch 2 adds code to collect data points on free pages of various orders
-> >>>> at different points in time, uses code in patch 1 to update sliding
-> >>>> lookback window with these points and kicks off reclamation or
-> >>>> compaction based upon the results it gets.
-> >>>
-> >>> An important piece of information missing in your description is why
-> >>> do we need to keep that logic in the kernel. In other words, we have
-> >>> the background reclaim that acts on a wmark range and those are tunable
-> >>> from the userspace. The primary point of this background reclaim is to
-> >>> keep balance and prevent from direct reclaim. Why cannot you implement
-> >>> this or any other dynamic trend watching watchdog and tune watermarks
-> >>> accordingly? Something similar applies to kcompactd although we might be
-> >>> lacking a good interface.
-> >>>
-> >>
-> >> Hi Michal,
-> >>
-> >> That is a very good question. As a matter of fact the initial prototype
-> >> to assess the feasibility of this approach was written in userspace for
-> >> a very limited application. We wrote the initial prototype to monitor
-> >> fragmentation and used /sys/devices/system/node/node*/compact to trigger
-> >> compaction. The prototype demonstrated this approach has merits.
-> >>
-> >> The primary reason to implement this logic in the kernel is to make the
-> >> kernel self-tuning.
-> > 
-> > What makes this particular self-tuning an universal win? In other words
-> > there are many ways to analyze the memory pressure and feedback it back
-> > that I can think of. It is quite likely that very specific workloads
-> > would have very specific demands there. I have seen cases where are
-> > trivial increase of min_free_kbytes to normally insane value worked
-> > really great for a DB workload because the wasted memory didn't matter
-> > for example.
-> 
-> Hi Michal,
-> 
-> The problem is not so much as do we have enough knobs available, rather
-> how do we tweak them dynamically to avoid allocation stalls. Knobs like
-> watermarks and min_free_kbytes are set once typically and left alone.
+On Thu, Aug 15, 2019 at 01:56:31PM -0300, Jason Gunthorpe wrote:
+> On Thu, Aug 15, 2019 at 06:00:41PM +0200, Michal Hocko wrote:
+>=20
+> > > AFAIK 'GFP_NOWAIT' is characterized by the lack of __GFP_FS and
+> > > __GFP_DIRECT_RECLAIM..
+> > >
+> > > This matches the existing test in __need_fs_reclaim() - so if you a=
+re
+> > > OK with GFP_NOFS, aka __GFP_IO which triggers try_to_compact_pages(=
+),
+> > > allocations during OOM, then I think fs_reclaim already matches wha=
+t
+> > > you described?
+> >=20
+> > No GFP_NOFS is equally bad. Please read my other email explaining wha=
+t
+> > the oom_reaper actually requires. In short no blocking on direct or
+> > indirect dependecy on memory allocation that might sleep.
+>=20
+> It is much easier to follow with some hints on code, so the true
+> requirement is that the OOM repear not block on GFP_FS and GFP_IO
+> allocations, great, that constraint is now clear.
+>=20
+> > If you can express that in the existing lockdep machinery. All
+> > fine. But then consider deployments where lockdep is no-no because
+> > of the overhead.
+>=20
+> This is all for driver debugging. The point of lockdep is to find all
+> these paths without have to hit them as actual races, using debug
+> kernels.
+>=20
+> I don't think we need this kind of debugging on production kernels?
+>=20
+> > > The best we got was drivers tested the VA range and returned succes=
+s
+> > > if they had no interest. Which is a big win to be sure, but it look=
+s
+> > > like getting any more is not really posssible.
+> >=20
+> > And that is already a great win! Because many notifiers only do care
+> > about particular mappings. Please note that backing off unconditioanl=
+ly
+> > will simply cause that the oom reaper will have to back off not doing
+> > any tear down anything.
+>=20
+> Well, I'm working to propose that we do the VA range test under core
+> mmu notifier code that cannot block and then we simply remove the idea
+> of blockable from drivers using this new 'range notifier'.=20
+>=20
+> I think this pretty much solves the concern?
 
-Does anything prevent from tuning these knobs more dynamically based on
-already exported metrics?
+I am not sure i follow what you propose here ? Like i pointed out in
+another email for GPU we do need to be able to sleep (we might get
+lucky and not need too but this is runtime thing) within notifier
+range_start callback. This has been something allow by notifier since
+it has been introduced in the kernel.
 
-> Allocation stalls show up even on much smaller scale than large DB or
-> cloud platforms. I have seen it on a desktop class machine running a few
-> services in the background. Desktop is running gnome3, I would lock the
-> screen and come back to unlock it a day or two later. In that time most
-> of memory has been consumed by buffer/page cache. Just unlocking the
-> screen can take 30+ seconds while system reclaims pages to be able swap
-> back in all the processes that were inactive so far.
-
-This sounds like a bug to me.
-
-> It is true different workloads will have different requirements and that
-> is what I am attempting to address here. Instead of tweaking the knobs
-> statically based upon one workload requirements, I am looking at the
-> trend of memory consumption instead. A best fit line showing recent
-> trend can be quite indicative of what the workload is doing in terms of
-> memory.
-
-Is there anything preventing from following that trend from the
-userspace and trigger background reclaim earlier to not even get to the
-direct reclaim though?
-
-> For instance, a cloud server might be running a certain number
-> of instances for a few days and it can end up using any memory not used
-> up by tasks, for buffer/page cache. Now the sys admin gets a request to
-> launch another instance and when they try to to do that, system starts
-> to allocate pages and soon runs out of free pages. We are now in direct
-> reclaim path and it can take significant amount of time to find all free
-> pages the new task needs. If the kernel were watching the memory
-> consumption trend instead, it could see that the trend line shows a
-> complete exhaustion of free pages or 100% fragmentation in near future,
-> irrespective of what the workload is.
-
-I am confused now. How can an unpredictable action (like sys admin
-starting a new workload) be handled by watching a memory consumption
-history trend? From the above description I would expect that the system
-would be in a balanced state for few days when a new instance is
-launched. The only reasonable thing to do then is to trigger the reclaim
-before the workload is spawned but then what is the actual difference
-between direct reclaim and an early reclaim?
-
-[...]
-> > I agree on this point. Is the current set of tunning sufficient? What
-> > would be missing if not?
-> > 
-> 
-> We have knob available to force compaction immediately. That is helpful
-> and in some case, sys admins have resorted to forcing compaction on all
-> zones before launching a new cloud instance or loading a new database.
-> Some admins have resorted to using /proc/sys/vm/drop_caches to force
-> buffer/page cache pages to be freed up. Either of these solutions causes
-> system load to go up immediately while kswapd/kcompactd run to free up
-> and compact pages. This is far from ideal. Other knobs available seem to
-> be hard to set correctly especially on servers that run mixed workloads
-> which results in a regular stream of customer complaints coming in about
-> system stalling at most inopportune times.
-
-Then let's talk about what is missing in the existing tuning we already
-provide. I do agree that compaction needs some love but I am under
-impression that min_free_kbytes and watermark_*_factor should give a
-decent abstraction to control the background reclaim. If that is not the
-case then I am really interested on examples because I might be easily
-missing something there.
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Cheers,
+J=E9r=F4me
 
