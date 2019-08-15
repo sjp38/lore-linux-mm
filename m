@@ -2,61 +2,71 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93CC6C31E40
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 08:35:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D82EFC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 08:44:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F9C92084D
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 08:35:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F9C92084D
+	by mail.kernel.org (Postfix) with ESMTP id A6EEC21855
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 08:44:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6EEC21855
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F04286B000D; Thu, 15 Aug 2019 04:35:39 -0400 (EDT)
+	id 2063C6B0003; Thu, 15 Aug 2019 04:44:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC1986B000E; Thu, 15 Aug 2019 04:35:39 -0400 (EDT)
+	id 1B7286B0005; Thu, 15 Aug 2019 04:44:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DA5266B0010; Thu, 15 Aug 2019 04:35:39 -0400 (EDT)
+	id 0CDFE6B0010; Thu, 15 Aug 2019 04:44:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4D06B000D
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:35:39 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 659A7181AC9AE
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 08:35:39 +0000 (UTC)
-X-FDA: 75824003598.06.crack54_1437243232f43
-X-HE-Tag: crack54_1437243232f43
-X-Filterd-Recvd-Size: 5359
+Received: from forelay.hostedemail.com (smtprelay0254.hostedemail.com [216.40.44.254])
+	by kanga.kvack.org (Postfix) with ESMTP id DF6A96B0003
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:44:38 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 84656440C
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 08:44:38 +0000 (UTC)
+X-FDA: 75824026236.22.stick90_62b0187ad7955
+X-HE-Tag: stick90_62b0187ad7955
+X-Filterd-Recvd-Size: 4181
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 08:35:38 +0000 (UTC)
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 08:44:38 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6EB69B601;
-	Thu, 15 Aug 2019 08:35:37 +0000 (UTC)
-Date: Thu, 15 Aug 2019 10:35:36 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 39BCDAE84;
+	Thu, 15 Aug 2019 08:44:31 +0000 (UTC)
+Date: Thu, 15 Aug 2019 10:44:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Kernel Team <Kernel-team@fb.com>
-Subject: Re: [PATCH 2/2] mm: memcontrol: flush percpu slab vmstats on kmem
- offlining
-Message-ID: <20190815083536.GD9477@dhcp22.suse.cz>
-References: <20190812222911.2364802-1-guro@fb.com>
- <20190812222911.2364802-3-guro@fb.com>
- <20190814113242.GV17933@dhcp22.suse.cz>
- <20190814215408.GA5584@tower.dhcp.thefacebook.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190815084429.GE9477@dhcp22.suse.cz>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190814215408.GA5584@tower.dhcp.thefacebook.com>
+In-Reply-To: <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -64,93 +74,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 14-08-19 21:54:12, Roman Gushchin wrote:
-> On Wed, Aug 14, 2019 at 01:32:42PM +0200, Michal Hocko wrote:
-> > On Mon 12-08-19 15:29:11, Roman Gushchin wrote:
-> > > I've noticed that the "slab" value in memory.stat is sometimes 0,
-> > > even if some children memory cgroups have a non-zero "slab" value.
-> > > The following investigation showed that this is the result
-> > > of the kmem_cache reparenting in combination with the per-cpu
-> > > batching of slab vmstats.
-> > > 
-> > > At the offlining some vmstat value may leave in the percpu cache,
-> > > not being propagated upwards by the cgroup hierarchy. It means
-> > > that stats on ancestor levels are lower than actual. Later when
-> > > slab pages are released, the precise number of pages is substracted
-> > > on the parent level, making the value negative. We don't show negative
-> > > values, 0 is printed instead.
+On Wed 14-08-19 13:45:58, Andrew Morton wrote:
+> On Wed, 14 Aug 2019 22:20:24 +0200 Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+> 
+> > In some special cases we must not block, but there's not a
+> > spinlock, preempt-off, irqs-off or similar critical section already
+> > that arms the might_sleep() debug checks. Add a non_block_start/end()
+> > pair to annotate these.
 > > 
-> > So the difference with other counters is that slab ones are reparented
-> > and that's why we have treat them specially? I guess that is what the
-> > comment in the code suggest but being explicit in the changelog would be
-> > nice.
-> 
-> Right. And I believe the list can be extended further. Objects which
-> are often outliving the origin memory cgroup (e.g. pagecache pages)
-> are pinning dead cgroups, so it will be cool to reparent them all.
-> 
+> > This will be used in the oom paths of mmu-notifiers, where blocking is
+> > not allowed to make sure there's forward progress. Quoting Michal:
 > > 
-> > [...]
-> > > -static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg)
-> > > +static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg, bool slab_only)
-> > >  {
-> > >  	unsigned long stat[MEMCG_NR_STAT];
-> > >  	struct mem_cgroup *mi;
-> > >  	int node, cpu, i;
-> > > +	int min_idx, max_idx;
-> > >  
-> > > -	for (i = 0; i < MEMCG_NR_STAT; i++)
-> > > +	if (slab_only) {
-> > > +		min_idx = NR_SLAB_RECLAIMABLE;
-> > > +		max_idx = NR_SLAB_UNRECLAIMABLE;
-> > > +	} else {
-> > > +		min_idx = 0;
-> > > +		max_idx = MEMCG_NR_STAT;
-> > > +	}
+> > "The notifier is called from quite a restricted context - oom_reaper -
+> > which shouldn't depend on any locks or sleepable conditionals. The code
+> > should be swift as well but we mostly do care about it to make a forward
+> > progress. Checking for sleepable context is the best thing we could come
+> > up with that would describe these demands at least partially."
 > > 
-> > This is just ugly has hell! I really detest how this implicitly makes
-> > counters value very special without any note in the node_stat_item
-> > definition. Is it such a big deal to have a per counter flush and do
-> > the loop over all counters resp. specific counters around it so much
-> > worse? This should be really a slow path to safe few instructions or
-> > cache misses, no?
+> > Peter also asked whether we want to catch spinlocks on top, but Michal
+> > said those are less of a problem because spinlocks can't have an
+> > indirect dependency upon the page allocator and hence close the loop
+> > with the oom reaper.
 > 
-> I believe that it is a big deal, because it's
-> NR_VMSTAT_ITEMS * all memory cgroups * online cpus * numa nodes.
-
-I am not sure I follow. I just meant to remove all for (i = 0; i < MEMCG_NR_STAT; i++)
-from flushing and do that loop around the flushing function. That would
-mean that the NR_SLAB_$FOO wouldn't have to play tricks and simply call
-the flushing for the two counters.
-
-> If the goal is to merge it with cpu hotplug code, I'd think about passing
-> cpumask to it, and do the opposite. Also I'm not sure I understand
-> why reordering loops will make it less ugly.
-
-And adding a cpu/nodemasks would just work with that as well, right.
-
+> I continue to struggle with this.  It introduces a new kernel state
+> "running preemptibly but must not call schedule()".  How does this make
+> any sense?
 > 
-> But you're right, a comment nearby NR_SLAB_(UN)RECLAIMABLE definition
-> is totaly worth it. How about something like:
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 8b5f758942a2..231bcbe5dcc6 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -215,8 +215,9 @@ enum node_stat_item {
->         NR_INACTIVE_FILE,       /*  "     "     "   "       "         */
->         NR_ACTIVE_FILE,         /*  "     "     "   "       "         */
->         NR_UNEVICTABLE,         /*  "     "     "   "       "         */
-> -       NR_SLAB_RECLAIMABLE,
-> -       NR_SLAB_UNRECLAIMABLE,
-> +       NR_SLAB_RECLAIMABLE,    /* Please, do not reorder this item */
-> +       NR_SLAB_UNRECLAIMABLE,  /* and this one without looking at
-> +                                * memcg_flush_percpu_vmstats() first. */
->         NR_ISOLATED_ANON,       /* Temporary isolated pages from anon lru */
->         NR_ISOLATED_FILE,       /* Temporary isolated pages from file lru */
->         WORKINGSET_NODES,
+> Perhaps a much, much more detailed description of the oom_reaper
+> situation would help out.
+ 
+The primary point here is that there is a demand of non blockable mmu
+notifiers to be called when the oom reaper tears down the address space.
+As the oom reaper is the primary guarantee of the oom handling forward
+progress it cannot be blocked on anything that might depend on blockable
+memory allocations. These are not really easy to track because they
+might be indirect - e.g. notifier blocks on a lock which other context
+holds while allocating memory or waiting for a flusher that needs memory
+to perform its work. If such a blocking state happens that we can end up
+in a silent hang with an unusable machine.
+Now we hope for reasonable implementations of mmu notifiers (strong
+words I know ;) and this should be relatively simple and effective catch
+all tool to detect something suspicious is going on.
 
-Thanks, that is an improvement.
+Does that make the situation more clear?
+
 -- 
 Michal Hocko
 SUSE Labs
