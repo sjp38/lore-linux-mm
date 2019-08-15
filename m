@@ -2,106 +2,157 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 771AEC3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:24:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31421C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:26:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45D882133F
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:24:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45D882133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EED8D2171F
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:26:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EED8D2171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8E756B0281; Thu, 15 Aug 2019 09:24:26 -0400 (EDT)
+	id 8AA866B0283; Thu, 15 Aug 2019 09:26:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3F046B0282; Thu, 15 Aug 2019 09:24:26 -0400 (EDT)
+	id 85A916B0284; Thu, 15 Aug 2019 09:26:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C53C76B0283; Thu, 15 Aug 2019 09:24:26 -0400 (EDT)
+	id 74A076B0285; Thu, 15 Aug 2019 09:26:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0163.hostedemail.com [216.40.44.163])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A466B0281
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:24:26 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 4C5D38248AA7
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:24:26 +0000 (UTC)
-X-FDA: 75824731332.30.idea94_43ca4519b200f
-X-HE-Tag: idea94_43ca4519b200f
-X-Filterd-Recvd-Size: 3263
+Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 54CCE6B0283
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:26:25 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DEDD4442B
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:26:24 +0000 (UTC)
+X-FDA: 75824736288.23.star78_5504a374c2236
+X-HE-Tag: star78_5504a374c2236
+X-Filterd-Recvd-Size: 5035
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf42.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:24:25 +0000 (UTC)
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:26:24 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 64041AE12;
-	Thu, 15 Aug 2019 13:24:24 +0000 (UTC)
-Date: Thu, 15 Aug 2019 15:24:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	by mx1.suse.de (Postfix) with ESMTP id C4A59AE12;
+	Thu, 15 Aug 2019 13:26:22 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 1C66F1E4200; Thu, 15 Aug 2019 15:26:22 +0200 (CEST)
+Date: Thu, 15 Aug 2019 15:26:22 +0200
+From: Jan Kara <jack@suse.cz>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815132423.GJ9477@dhcp22.suse.cz>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-3-daniel.vetter@ffwll.ch>
- <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
- <20190815084429.GE9477@dhcp22.suse.cz>
- <20190815130415.GD21596@ziepe.ca>
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+Message-ID: <20190815132622.GG14313@quack2.suse.cz>
+References: <20190812015044.26176-1-jhubbard@nvidia.com>
+ <20190812015044.26176-3-jhubbard@nvidia.com>
+ <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+ <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
+ <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
+ <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
+ <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
+ <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+ <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
+ <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190815130415.GD21596@ziepe.ca>
+In-Reply-To: <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 15-08-19 10:04:15, Jason Gunthorpe wrote:
-> On Thu, Aug 15, 2019 at 10:44:29AM +0200, Michal Hocko wrote:
-> 
-> > As the oom reaper is the primary guarantee of the oom handling forward
-> > progress it cannot be blocked on anything that might depend on blockable
-> > memory allocations. These are not really easy to track because they
-> > might be indirect - e.g. notifier blocks on a lock which other context
-> > holds while allocating memory or waiting for a flusher that needs memory
-> > to perform its work.
-> 
-> But lockdep *does* track all this and fs_reclaim_acquire() was created
-> to solve exactly this problem.
-> 
-> fs_reclaim is a lock and it flows through all the usual lockdep
-> schemes like any other lock. Any time the page allocator wants to do
-> something the would deadlock with reclaim it takes the lock.
+On Wed 14-08-19 20:01:07, John Hubbard wrote:
+> On 8/14/19 5:02 PM, John Hubbard wrote:
+> > On 8/14/19 4:50 PM, Ira Weiny wrote:
+> > > On Tue, Aug 13, 2019 at 05:56:31PM -0700, John Hubbard wrote:
+> > > > On 8/13/19 5:51 PM, John Hubbard wrote:
+> > > > > On 8/13/19 2:08 PM, Ira Weiny wrote:
+> > > > > > On Mon, Aug 12, 2019 at 05:07:32PM -0700, John Hubbard wrote:
+> > > > > > > On 8/12/19 4:49 PM, Ira Weiny wrote:
+> > > > > > > > On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gm=
+ail.com wrote:
+> > > > > > > > > From: John Hubbard <jhubbard@nvidia.com>
+> > > > > > > ...
+> > > > > > Finally, I struggle with converting everyone to a new call.=A0=
+ It is more
+> > > > > > overhead to use vaddr_pin in the call above because now the G=
+UP code is going
+> > > > > > to associate a file pin object with that file when in ODP we =
+don't need that
+> > > > > > because the pages can move around.
+> > > > >=20
+> > > > > What if the pages in ODP are file-backed?
+> > > > >=20
+> > > >=20
+> > > > oops, strike that, you're right: in that case, even the file syst=
+em case is covered.
+> > > > Don't mind me. :)
+> > >=20
+> > > Ok so are we agreed we will drop the patch to the ODP code?=A0 I'm =
+going to keep
+> > > the FOLL_PIN flag and addition in the vaddr_pin_pages.
+> > >=20
+> >=20
+> > Yes. I hope I'm not overlooking anything, but it all seems to make se=
+nse to
+> > let ODP just rely on the MMU notifiers.
+> >=20
+>=20
+> Hold on, I *was* forgetting something: this was a two part thing, and
+> you're conflating the two points, but they need to remain separate and
+> distinct. There were:
+>=20
+> 1. FOLL_PIN is necessary because the caller is clearly in the use case =
+that
+> requires it--however briefly they might be there. As Jan described it,
+>=20
+> "Anything that gets page reference and then touches page data (e.g.
+> direct IO) needs the new kind of tracking so that filesystem knows
+> someone is messing with the page data." [1]
 
-Our emails have crossed. Even if fs_reclaim can be re-purposed for other
-than FS/IO reclaim contexts which I am not sure about I think that
-lockdep is too heavy weight for the purpose of this debugging aid in the
-first place. The non block mode is really something as simple as "hey
-mmu notifier you are only allowed to do a lightweight processing, if you
-cannot guarantee that then just back off". The annotation will give us a
-warning if the notifier gets out of this promise.
+So when the GUP user uses MMU notifiers to stop writing to pages whenever
+they are writeprotected with page_mkclean(), they don't really need page
+pin - their access is then fully equivalent to any other mmap userspace
+access and filesystem knows how to deal with those. I forgot out this cas=
+e
+when I wrote the above sentence.
 
--- 
-Michal Hocko
-SUSE Labs
+So to sum up there are three cases:
+1) DIO case - GUP references to pages serving as DIO buffers are needed f=
+or
+   relatively short time, no special synchronization with page_mkclean() =
+or
+   munmap() =3D> needs FOLL_PIN
+2) RDMA case - GUP references to pages serving as DMA buffers needed for =
+a
+   long time, no special synchronization with page_mkclean() or munmap()
+   =3D> needs FOLL_PIN | FOLL_LONGTERM
+   This case has also a special case when the pages are actually DAX. The=
+n
+   the caller additionally needs file lease and additional file_pin
+   structure is used for tracking this usage.
+3) ODP case - GUP references to pages serving as DMA buffers, MMU notifie=
+rs
+   used to synchronize with page_mkclean() and munmap() =3D> normal page
+   references are fine.
+
+								Honza
+--=20
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
