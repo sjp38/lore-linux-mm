@@ -2,90 +2,84 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49FE6C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:01:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0111EC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:04:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD63C2064A
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:00:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B472F2064A
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:04:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UzD9s477"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD63C2064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZoBtX6rd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B472F2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43FE06B0005; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
+	id 65F6C6B0005; Thu, 15 Aug 2019 19:04:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F02B6B0006; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
+	id 5EB076B0006; Thu, 15 Aug 2019 19:04:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3069C6B0007; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
+	id 4B0966B0007; Thu, 15 Aug 2019 19:04:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0020.hostedemail.com [216.40.44.20])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC106B0005
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id AD7AF1EF3
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:00:58 +0000 (UTC)
-X-FDA: 75826184196.11.power75_8785a30c3e49
-X-HE-Tag: power75_8785a30c3e49
-X-Filterd-Recvd-Size: 10485
-Received: from mail-io1-f67.google.com (mail-io1-f67.google.com [209.85.166.67])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:00:58 +0000 (UTC)
-Received: by mail-io1-f67.google.com with SMTP id j6so2547372ioa.5
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:00:58 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0156.hostedemail.com [216.40.44.156])
+	by kanga.kvack.org (Postfix) with ESMTP id 23F5F6B0005
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:04:43 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CF71F81C6
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:04:42 +0000 (UTC)
+X-FDA: 75826193604.28.eggs30_2914662e80807
+X-HE-Tag: eggs30_2914662e80807
+X-Filterd-Recvd-Size: 5768
+Received: from mail-oi1-f195.google.com (mail-oi1-f195.google.com [209.85.167.195])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:04:42 +0000 (UTC)
+Received: by mail-oi1-f195.google.com with SMTP id c15so3492306oic.3
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:04:42 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=kG92dCPdeEwjoRAhcJ0Jn0GMtXx5bG5wbAOXlf/NWg8=;
-        b=UzD9s477YeC4Nx55ghI9V5XO9LG7lxXSqT76wRXdvn936YENf5xjIJgtx6ms7glVq/
-         eHZuORZVmX9GFUx19mpD+Ln+O8nRP6HVZokbTm3PCRPP6AJyxF9dCDPdvxlcmue6zl4+
-         3yvawxyDdU1mZLOIobl5sNHGYz+wBnBD54T8YHmfws57ustZAIhnzcPV42+tuFNlFNFG
-         bB2ytxvc2K3uwVG+rHzaxT04OlceQQqNYlEkC4B6FzRpMn04er1/GWFAgj4KvBRheK+B
-         ksASKviVB4cwfCkgRJhUnHz9R3Y40feal8Aqese4NEec8yuH5Vr5HMBPspI5vBBpei2j
-         LcEg==
+        bh=bnDOmTGQ3o7pm2PlYm7DMFTWVVgS28bW8niUC3OmY3w=;
+        b=ZoBtX6rd9BDK0KbI0rdwSqYZ5NJuK/I/7QzlLuzyFuLG4CeV/MRR6lDFRJ4Vj+m8hu
+         2iuvJhLlV17nJ21xUhIT0C959raTCLBgmzW+O852hn7pGsMFNY+NOhTJ1Ef9QTyUojq9
+         swfe8RnSnO37cxLPnVY+TMl0VRyf6vxf61R6tuQ+DFqXjN16tHhZDpB4GT46EBCNXXO2
+         2bIxnToWeWl4mCb+h6kj17XvjUZYO1LTA6ah2Ili4tZGL7+RGzZXokiPgZ2+wZI5cwQc
+         5cc9ciThS+NvfmgJWLoGU3V2+2LwhJEZo75j5HvOAzg+42UzxBMu/y5rmWyI8AXAGr+u
+         hNiQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=kG92dCPdeEwjoRAhcJ0Jn0GMtXx5bG5wbAOXlf/NWg8=;
-        b=SyUR8xTe97GIQSYWHqrR04B6XXxrYvtUrLIvnLT5PBd8r5qkp6CMp/Xj1dkHzm6F2w
-         ah3wD87BdLbSApD2gbOmVo4z7bpR4p2b5SEe8giXNbHmijcsCgIKqx1H1M7llYsnjRcI
-         DgYBBDxibP/ISzSVVrlMn/fNXc64y7a8/mQmgJtvmZeNAcWqDX9m09QAGygnSxih28OX
-         VYeq/SDVnnEc5GzzlGuZsG7lcukPA9q7HBWzobBlqViR2YTy9uiRG1wYo7F328zsXI77
-         Se3UtNcOUaKiu5i8zdkDA6ETzCgDVWJ2Bdy42RLKkFpCdiBImy3GmaCnx1lhUuVL+6Q5
-         tGZg==
-X-Gm-Message-State: APjAAAWvAfJqL/jTiFQcnayHo7OrN+C2fjxTzW4hCaJqMaxtWX8ppk7k
-	A4vtU4sFMsXDb4Nh5mEPi9AyqJYJOP3LYcLmP/I=
-X-Google-Smtp-Source: APXvYqx9CEr6PuNgFt5Dq9UaLmcsvFhGgGccjwzF2tEUI24gnH2D2zKoCeeKICMbkNLO8k19FSyV1ZWKoCyXAQMiiZM=
-X-Received: by 2002:a6b:7805:: with SMTP id j5mr8255299iom.42.1565910057260;
- Thu, 15 Aug 2019 16:00:57 -0700 (PDT)
+        bh=bnDOmTGQ3o7pm2PlYm7DMFTWVVgS28bW8niUC3OmY3w=;
+        b=W0e0MGXNlOGOuLDHGGvzHBzZNVRicBf7kdZnMUzF5/WyLCS13YlSSx0ihK0PZkyXZx
+         qfP8Hvyp3YDBk7xTQlQGThIE2cBHcOuVbM8sErPF6ffgZ8V4AAKpX/jnYl1ITAltDsS4
+         PB/4x0ghQldt61cDXLhyZDHKNYJBfNmIWIci+YDTaF8TFSEuNXiXQf/rkc9/ipCtndjj
+         QTsSOHMxd7pmfkUtBA23/CWrMGvTOQzmoUCGN8WOzuekxhMzMlYva3hT6v6JCT0S8nRW
+         dxeI2YDtTLO7vj1Ig7mHtCaZQ4JPIQCF4ZC0e/rLVfr3i1th7XZoKcfFXE+WYYNuS8Wu
+         z/ag==
+X-Gm-Message-State: APjAAAV0Pko5ovQA+0f9pBpU8erL0bPJWA6olb3lDnDoBkrSEbX6ezxK
+	fxuHzQQxmcpr+H4qC9YQFBkCOcIBL4cwxTpzcqWfXw==
+X-Google-Smtp-Source: APXvYqw4Yy5bzXdUc9Snyyz9V723NmP08UwPtEG2zwOktsUlVvQZUP2oDqYSYHcxv1vC8VABNTqpWTgoqi4Jyxhndq0=
+X-Received: by 2002:aca:cfcb:: with SMTP id f194mr3333675oig.103.1565910281015;
+ Thu, 15 Aug 2019 16:04:41 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190812131235.27244-1-nitesh@redhat.com> <20190812131235.27244-2-nitesh@redhat.com>
- <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
- <6d5b57ca-41ff-5c54-ab20-2b1631a6ce29@redhat.com> <CAKgT0UfavuUT4ZvfxVdm3h25qc86ksxPO=GFpFkf8zbGAjHPvg@mail.gmail.com>
- <09c6fbef-fa53-3a25-d3d6-460b9b6b2020@redhat.com> <6241ef40-9403-1cb0-4e91-a1b86fcf1388@redhat.com>
-In-Reply-To: <6241ef40-9403-1cb0-4e91-a1b86fcf1388@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 15 Aug 2019 16:00:46 -0700
-Message-ID: <CAKgT0UduKXTMHD2qWqEa7wQPOFYtaQ5Sx3XS9Ki8i8-_kTdmkg@mail.gmail.com>
-Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org, 
-	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
-	Pankaj Gupta <pagupta@redhat.com>, "Wang, Wei W" <wei.w.wang@intel.com>, 
-	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
-	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
-	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
+References: <20190808231340.53601-1-almasrymina@google.com>
+ <20190808231340.53601-5-almasrymina@google.com> <47cfc50d-bea3-0247-247e-888d2942f134@oracle.com>
+ <9872cec9-a0fe-cfe0-0df6-90b6dd909f04@oracle.com>
+In-Reply-To: <9872cec9-a0fe-cfe0-0df6-90b6dd909f04@oracle.com>
+From: Mina Almasry <almasrymina@google.com>
+Date: Thu, 15 Aug 2019 16:04:30 -0700
+Message-ID: <CAHS8izOv3GjKhnzVmksfH0U9xZ6OnC0R-XEZsqVxOvrJ5u_BBw@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 4/5] hugetlb_cgroup: Add accounting for shared mappings
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
+	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
+	linux-kselftest@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -93,129 +87,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 12:23 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+On Wed, Aug 14, 2019 at 9:46 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
 >
->
-> On 8/15/19 9:15 AM, Nitesh Narayan Lal wrote:
-> > On 8/14/19 12:11 PM, Alexander Duyck wrote:
-> >> On Wed, Aug 14, 2019 at 8:49 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
-> >>> On 8/12/19 2:47 PM, Alexander Duyck wrote:
-> >>>> On Mon, Aug 12, 2019 at 6:13 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
-> >>>>> This patch introduces the core infrastructure for free page reporting in
-> >>>>> virtual environments. It enables the kernel to track the free pages which
-> >>>>> can be reported to its hypervisor so that the hypervisor could
-> >>>>> free and reuse that memory as per its requirement.
-> >>>>>
-> >>>>> While the pages are getting processed in the hypervisor (e.g.,
-> >>>>> via MADV_DONTNEED), the guest must not use them, otherwise, data loss
-> >>>>> would be possible. To avoid such a situation, these pages are
-> >>>>> temporarily removed from the buddy. The amount of pages removed
-> >>>>> temporarily from the buddy is governed by the backend(virtio-balloon
-> >>>>> in our case).
-> >>>>>
-> >>>>> To efficiently identify free pages that can to be reported to the
-> >>>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
-> >>>>> chunks are reported to the hypervisor - especially, to not break up THP
-> >>>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
-> >>>>> in the bitmap are an indication whether a page *might* be free, not a
-> >>>>> guarantee. A new hook after buddy merging sets the bits.
-> >>>>>
-> >>>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
-> >>>>> asynchronously processes the bitmaps, trying to isolate and report pages
-> >>>>> that are still free. The backend (virtio-balloon) is responsible for
-> >>>>> reporting these batched pages to the host synchronously. Once reporting/
-> >>>>> freeing is complete, isolated pages are returned back to the buddy.
-> >>>>>
-> >>>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
-> >>> [...]
-> >>>>> +}
-> >>>>> +
-> >>>>> +/**
-> >>>>> + * __page_reporting_enqueue - tracks the freed page in the respective zone's
-> >>>>> + * bitmap and enqueues a new page reporting job to the workqueue if possible.
-> >>>>> + */
-> >>>>> +void __page_reporting_enqueue(struct page *page)
-> >>>>> +{
-> >>>>> +       struct page_reporting_config *phconf;
-> >>>>> +       struct zone *zone;
-> >>>>> +
-> >>>>> +       rcu_read_lock();
-> >>>>> +       /*
-> >>>>> +        * We should not process this page if either page reporting is not
-> >>>>> +        * yet completely enabled or it has been disabled by the backend.
-> >>>>> +        */
-> >>>>> +       phconf = rcu_dereference(page_reporting_conf);
-> >>>>> +       if (!phconf)
-> >>>>> +               return;
-> >>>>> +
-> >>>>> +       zone = page_zone(page);
-> >>>>> +       bitmap_set_bit(page, zone);
-> >>>>> +
-> >>>>> +       /*
-> >>>>> +        * We should not enqueue a job if a previously enqueued reporting work
-> >>>>> +        * is in progress or we don't have enough free pages in the zone.
-> >>>>> +        */
-> >>>>> +       if (atomic_read(&zone->free_pages) >= phconf->max_pages &&
-> >>>>> +           !atomic_cmpxchg(&phconf->refcnt, 0, 1))
-> >>>> This doesn't make any sense to me. Why are you only incrementing the
-> >>>> refcount if it is zero? Combining this with the assignment above, this
-> >>>> isn't really a refcnt. It is just an oversized bitflag.
-> >>> The intent for having an extra variable was to ensure that at a time only one
-> >>> reporting job is enqueued. I do agree that for that purpose I really don't need
-> >>> a reference counter and I should have used something like bool
-> >>> 'page_hinting_active'. But with bool, I think there could be a possible chance
-> >>> of race. Maybe I should rename this variable and keep it as atomic.
-> >>> Any thoughts?
-> >> You could just use a bitflag to achieve what you are doing here. That
-> >> is the primary use case for many of the test_and_set_bit type
-> >> operations. However one issue with doing it as a bitflag is that you
-> >> have no way of telling that you took care of all requesters.
-> > I think you are right, I might end up missing on certain reporting
-> > opportunities in some special cases. Specifically when the pages which are
-> > part of this new reporting request belongs to a section of the bitmap which
-> > has already been scanned. Although, I have failed to reproduce this kind of
-> > situation in an actual setup.
+> On 8/13/19 4:54 PM, Mike Kravetz wrote:
+> > On 8/8/19 4:13 PM, Mina Almasry wrote:
+> >> For shared mappings, the pointer to the hugetlb_cgroup to uncharge lives
+> >> in the resv_map entries, in file_region->reservation_counter.
+> >>
+> >> When a file_region entry is added to the resv_map via region_add, we
+> >> also charge the appropriate hugetlb_cgroup and put the pointer to that
+> >> in file_region->reservation_counter. This is slightly delicate since we
+> >> need to not modify the resv_map until we know that charging the
+> >> reservation has succeeded. If charging doesn't succeed, we report the
+> >> error to the caller, so that the kernel fails the reservation.
 > >
-> >>  That is
-> >> where having an actual reference count comes in handy as you know
-> >> exactly how many zones are requesting to be reported on.
-> >
-> > True.
-> >
-> >>>> Also I am pretty sure this results in the opportunity to miss pages
-> >>>> because there is nothing to prevent you from possibly missing a ton of
-> >>>> pages you could hint on if a large number of pages are pushed out all
-> >>>> at once and then the system goes idle in terms of memory allocation
-> >>>> and freeing.
-> >>> I was looking at how you are enqueuing/processing reporting jobs for each zone.
-> >>> I am wondering if I should also consider something on similar lines as having
-> >>> that I might be able to address the concern which you have raised above. But it
-> >>> would also mean that I have to add an additional flag in the zone_flags. :)
-> >> You could do it either in the zone or outside the zone as yet another
-> >> bitmap. I decided to put the flags inside the zone because there was a
-> >> number of free bits there and it should be faster since we were
-> >> already using the zone structure.
-> > There are two possibilities which could happen while I am reporting:
-> > 1. Another request might come in for a different zone.
-> > 2. Another request could come in for the same zone and the pages belong to a
-> >     section of the bitmap which has already been scanned.
-> >
-> > Having a per zone flag to indicate reporting status will solve the first
-> > issue and to an extent the second as well. Having refcnt will possibly solve
-> > both of them. What I am wondering about is that in my case I could easily
-> > impact the performance negatively by performing more bitmap scanning.
-> >
+> > I wish we did not need to modify these region_() routines as they are
+> > already difficult to understand.  However, I see no other way with the
+> > desired semantics.
 > >
 >
-> I realized that it may not be possible for me to directly adopt either refcnt
-> or zone flags just because of the way I have page reporting setup right now.
->
-> For now, I will just replace the refcnt with a bitflag as that should work
-> for most of the cases.  Nevertheless, I will also keep looking for a better way.
+> I suspect you have considered this, but what about using the return value
+> from region_chg() in hugetlb_reserve_pages() to charge reservation limits?
+> There is a VERY SMALL race where the value could be too large, but that
+> can be checked and adjusted at region_add time as is done with normal
+> accounting today.
 
-If nothing else something you could consider is a refcnt for the
-number of bits you have set in your bitfield. Then all you would need
-to be doing is replace the cmpxchg with just a atomic_fetch_inc and
-what you would need to do is have your worker thread track how many
-bits it has cleared and subtract that from the refcnt at the end.
+I have not actually until now; I didn't consider doing stuff with the
+resv_map while not holding onto the resv_map->lock. I guess that's the
+small race you're talking about. Seems fine to me, but I'm more
+worried about hanging off the vma below.
+
+> If the question is, where would we store the information
+> to uncharge?, then we can hang a structure off the vma.  This would be
+> similar to what is done for private mappings.  In fact, I would suggest
+> making them both use a new cgroup reserve structure hanging off the vma.
+>
+
+I actually did consider hanging off the info to uncharge off the vma,
+but I didn't for a couple of reasons:
+
+1. region_del is called from hugetlb_unreserve_pages, and I don't have
+access to the vma there. Maybe there is a way to query the proper vma
+I don't know about?
+2. hugetlb_reserve_pages seems to be able to conduct a reservation
+with a NULL *vma. Not sure what to do in that case.
+
+Is there a way to get around these that I'm missing here?
+
+FWIW I think tracking is better in resv_map since the reservations are
+in resv_map themselves. If I do another structure, then for each
+reservation there will be an entry in resv_map and an entry in the new
+structure and they need to be kept in sync and I need to handle errors
+for when they get out of sync.
+
+> One issue I see is what to do if a vma is split?  The private mapping case
+> 'should' handle this today, but I would not be surprised if such code is
+> missing or incorrect.
+>
+> --
+> Mike Kravetz
 
