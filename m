@@ -2,275 +2,164 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65938C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:41:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E069C41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:43:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3450F2086C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:41:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3450F2086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id EA3F520644
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:43:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="JYRuFfn7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA3F520644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA7266B0292; Thu, 15 Aug 2019 10:41:29 -0400 (EDT)
+	id 84B086B0294; Thu, 15 Aug 2019 10:43:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B57796B0294; Thu, 15 Aug 2019 10:41:29 -0400 (EDT)
+	id 7FA466B0296; Thu, 15 Aug 2019 10:43:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A6D4C6B0295; Thu, 15 Aug 2019 10:41:29 -0400 (EDT)
+	id 710E66B0297; Thu, 15 Aug 2019 10:43:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0209.hostedemail.com [216.40.44.209])
-	by kanga.kvack.org (Postfix) with ESMTP id 812696B0292
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:41:29 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 104988248AAA
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:41:29 +0000 (UTC)
-X-FDA: 75824925498.22.plate38_ce399ad3cf00
-X-HE-Tag: plate38_ce399ad3cf00
-X-Filterd-Recvd-Size: 9147
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:41:28 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1B5CAAE03;
-	Thu, 15 Aug 2019 14:41:25 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id EBA241E4200; Thu, 15 Aug 2019 16:41:23 +0200 (CEST)
-Date: Thu, 15 Aug 2019 16:41:23 +0200
-From: Jan Kara <jack@suse.cz>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 1/4] writeback: Generalize and expose wb_completion
-Message-ID: <20190815144123.GL14313@quack2.suse.cz>
-References: <20190803140155.181190-1-tj@kernel.org>
- <20190803140155.181190-2-tj@kernel.org>
+Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C406B0294
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:43:51 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id F26D48248AAA
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:43:50 +0000 (UTC)
+X-FDA: 75824931420.29.tin18_2187520df4a4b
+X-HE-Tag: tin18_2187520df4a4b
+X-Filterd-Recvd-Size: 6587
+Received: from mail-oi1-f196.google.com (mail-oi1-f196.google.com [209.85.167.196])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:43:50 +0000 (UTC)
+Received: by mail-oi1-f196.google.com with SMTP id k22so2234032oiw.11
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 07:43:50 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ffwll.ch; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=EcYg2sxDc/ZPh1T6muHTeyf6D7+2ZcuVsE1FpQg6dIU=;
+        b=JYRuFfn7Urv5lm2qIS15ol2FS8DwFIVG8OmWWYMrXmD0Y8R7ysGKlNMvt3KB9qcDzN
+         a6Kx7zNWcIphDglLEOAwkTDGtkZEST11XQuWmWBPoVjWS+zZWiun6XIXVgDPHSeyw+S6
+         Mixv9rxX3YTPc7/9YynJMiIFHb7t7+ZPgoLpg=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=EcYg2sxDc/ZPh1T6muHTeyf6D7+2ZcuVsE1FpQg6dIU=;
+        b=WwpN6zDJjFFPIJ++E92A3Lz+uEvZpG1lk2vC70DUWRysymG5ps0CYm6QfB8bGq/XXU
+         Si2MedJmBu4MDVQMcqneKeYQSZh/j4u3B4OdYuf5e8ctZFrysq+ZTMBSMHzgSacB2Nhi
+         bV/kjMfAg4kpXIeJwGgjhZl7mt1/+nAoFu2HKfvJWQhP3lCrEJL1CdBsJ727ckDTa7Gt
+         kx3+00mgw/B5rsh54QR8Ta7iYiXTl7cbfP6Ldcn0P9LBO+95i4cElCaPep5EK0xAIkgR
+         QD/cLVTBSljlLjYXv756G2zyJMjI4GzJ3gHUmBfbIEGhCZrqlm6RaMK1RV42jnBDWxgH
+         neSQ==
+X-Gm-Message-State: APjAAAXsAp6Ux7dRL3DU+SWrUARUpDN81DUCRAo1O9t3CDUEoWbAC6FG
+	ictCVipDnUTn9mW0b19ifRks/T6vMNaNmAcJTKwPCA==
+X-Google-Smtp-Source: APXvYqySm/Ahp86UOdMXb+iRgyDRu4sKHNQjbABa4M9MuTxMEzBGIBaeNRuX3C9mf0zipUFJG00ZJ30GOlZewnICp5Q=
+X-Received: by 2002:a54:4f89:: with SMTP id g9mr1910952oiy.110.1565880229376;
+ Thu, 15 Aug 2019 07:43:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190803140155.181190-2-tj@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch> <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
+ <20190815084429.GE9477@dhcp22.suse.cz> <20190815130415.GD21596@ziepe.ca>
+ <CAKMK7uE9zdmBuvxa788ONYky=46GN=5Up34mKDmsJMkir4x7MQ@mail.gmail.com> <20190815143759.GG21596@ziepe.ca>
+In-Reply-To: <20190815143759.GG21596@ziepe.ca>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date: Thu, 15 Aug 2019 16:43:38 +0200
+Message-ID: <CAKMK7uEJQ6mPQaOWbT_6M+55T-dCVbsOxFnMC6KzLAMQNa-RGg@mail.gmail.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	DRI Development <dri-devel@lists.freedesktop.org>, 
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Peter Zijlstra <peterz@infradead.org>, 
+	Ingo Molnar <mingo@redhat.com>, David Rientjes <rientjes@google.com>, 
+	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Wei Wang <wvw@google.com>, 
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, 
+	Jann Horn <jannh@google.com>, Feng Tang <feng.tang@intel.com>, 
+	Kees Cook <keescook@chromium.org>, Randy Dunlap <rdunlap@infradead.org>, 
+	Daniel Vetter <daniel.vetter@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 03-08-19 07:01:52, Tejun Heo wrote:
-> wb_completion is used to track writeback completions.  We want to use
-> it from memcg side for foreign inode flushes.  This patch updates it
-> to remember the target waitq instead of assuming bdi->wb_waitq and
-> expose it outside of fs-writeback.c.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+On Thu, Aug 15, 2019 at 4:38 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Thu, Aug 15, 2019 at 03:12:11PM +0200, Daniel Vetter wrote:
+> > On Thu, Aug 15, 2019 at 3:04 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > >
+> > > On Thu, Aug 15, 2019 at 10:44:29AM +0200, Michal Hocko wrote:
+> > >
+> > > > As the oom reaper is the primary guarantee of the oom handling forward
+> > > > progress it cannot be blocked on anything that might depend on blockable
+> > > > memory allocations. These are not really easy to track because they
+> > > > might be indirect - e.g. notifier blocks on a lock which other context
+> > > > holds while allocating memory or waiting for a flusher that needs memory
+> > > > to perform its work.
+> > >
+> > > But lockdep *does* track all this and fs_reclaim_acquire() was created
+> > > to solve exactly this problem.
+> > >
+> > > fs_reclaim is a lock and it flows through all the usual lockdep
+> > > schemes like any other lock. Any time the page allocator wants to do
+> > > something the would deadlock with reclaim it takes the lock.
+> > >
+> > > Failure is expressed by a deadlock cycle in the lockdep map, and
+> > > lockdep can handle arbitary complexity through layers of locks, work
+> > > queues, threads, etc.
+> > >
+> > > What is missing?
+> >
+> > Lockdep doens't seen everything by far. E.g. a wait_event will be
+> > caught by the annotations here, but not by lockdep.
+>
+> Sure, but the wait_event might be OK if its progress isn't contingent
+> on fs_reclaim, ie triggered from interrupt, so why ban it?
 
-The patch looks good to me. You can add:
+For normal notifiers sure (but lockdep won't help you proof that at
+all). For oom_reaper apparently not, but that's really Michal's thing,
+I have not much idea about that.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> > And since we're talking about mmu notifiers here and gpus/dma engines.
+> > We have dma_fence_wait, which can wait for any hw/driver in the system
+> > that takes part in shared/zero-copy buffer processing. Which at least
+> > on the graphics side is everything. This pulls in enormous amounts of
+> > deadlock potential that lockdep simply is blind about and will never
+> > see.
+>
+> It seems very risky to entagle a notifier widely like that.
 
-								Honza
+That's why I've looked into all possible ways to annotate them with
+debug infrastructure.
 
-> ---
->  fs/fs-writeback.c                | 47 ++++++++++----------------------
->  include/linux/backing-dev-defs.h | 20 ++++++++++++++
->  include/linux/backing-dev.h      |  2 ++
->  3 files changed, 36 insertions(+), 33 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 542b02d170f8..6129debdc938 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -36,10 +36,6 @@
->   */
->  #define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_SHIFT - 10))
->  
-> -struct wb_completion {
-> -	atomic_t		cnt;
-> -};
-> -
->  /*
->   * Passed into wb_writeback(), essentially a subset of writeback_control
->   */
-> @@ -60,19 +56,6 @@ struct wb_writeback_work {
->  	struct wb_completion *done;	/* set if the caller waits */
->  };
->  
-> -/*
-> - * If one wants to wait for one or more wb_writeback_works, each work's
-> - * ->done should be set to a wb_completion defined using the following
-> - * macro.  Once all work items are issued with wb_queue_work(), the caller
-> - * can wait for the completion of all using wb_wait_for_completion().  Work
-> - * items which are waited upon aren't freed automatically on completion.
-> - */
-> -#define DEFINE_WB_COMPLETION_ONSTACK(cmpl)				\
-> -	struct wb_completion cmpl = {					\
-> -		.cnt		= ATOMIC_INIT(1),			\
-> -	}
-> -
-> -
->  /*
->   * If an inode is constantly having its pages dirtied, but then the
->   * updates stop dirtytime_expire_interval seconds in the past, it's
-> @@ -182,7 +165,7 @@ static void finish_writeback_work(struct bdi_writeback *wb,
->  	if (work->auto_free)
->  		kfree(work);
->  	if (done && atomic_dec_and_test(&done->cnt))
-> -		wake_up_all(&wb->bdi->wb_waitq);
-> +		wake_up_all(done->waitq);
->  }
->  
->  static void wb_queue_work(struct bdi_writeback *wb,
-> @@ -206,20 +189,18 @@ static void wb_queue_work(struct bdi_writeback *wb,
->  
->  /**
->   * wb_wait_for_completion - wait for completion of bdi_writeback_works
-> - * @bdi: bdi work items were issued to
->   * @done: target wb_completion
->   *
->   * Wait for one or more work items issued to @bdi with their ->done field
-> - * set to @done, which should have been defined with
-> - * DEFINE_WB_COMPLETION_ONSTACK().  This function returns after all such
-> - * work items are completed.  Work items which are waited upon aren't freed
-> + * set to @done, which should have been initialized with
-> + * DEFINE_WB_COMPLETION().  This function returns after all such work items
-> + * are completed.  Work items which are waited upon aren't freed
->   * automatically on completion.
->   */
-> -static void wb_wait_for_completion(struct backing_dev_info *bdi,
-> -				   struct wb_completion *done)
-> +void wb_wait_for_completion(struct wb_completion *done)
->  {
->  	atomic_dec(&done->cnt);		/* put down the initial count */
-> -	wait_event(bdi->wb_waitq, !atomic_read(&done->cnt));
-> +	wait_event(*done->waitq, !atomic_read(&done->cnt));
->  }
->  
->  #ifdef CONFIG_CGROUP_WRITEBACK
-> @@ -843,7 +824,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
->  restart:
->  	rcu_read_lock();
->  	list_for_each_entry_continue_rcu(wb, &bdi->wb_list, bdi_node) {
-> -		DEFINE_WB_COMPLETION_ONSTACK(fallback_work_done);
-> +		DEFINE_WB_COMPLETION(fallback_work_done, bdi);
->  		struct wb_writeback_work fallback_work;
->  		struct wb_writeback_work *work;
->  		long nr_pages;
-> @@ -890,7 +871,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
->  		last_wb = wb;
->  
->  		rcu_read_unlock();
-> -		wb_wait_for_completion(bdi, &fallback_work_done);
-> +		wb_wait_for_completion(&fallback_work_done);
->  		goto restart;
->  	}
->  	rcu_read_unlock();
-> @@ -2362,7 +2343,8 @@ static void wait_sb_inodes(struct super_block *sb)
->  static void __writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr,
->  				     enum wb_reason reason, bool skip_if_busy)
->  {
-> -	DEFINE_WB_COMPLETION_ONSTACK(done);
-> +	struct backing_dev_info *bdi = sb->s_bdi;
-> +	DEFINE_WB_COMPLETION(done, bdi);
->  	struct wb_writeback_work work = {
->  		.sb			= sb,
->  		.sync_mode		= WB_SYNC_NONE,
-> @@ -2371,14 +2353,13 @@ static void __writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr,
->  		.nr_pages		= nr,
->  		.reason			= reason,
->  	};
-> -	struct backing_dev_info *bdi = sb->s_bdi;
->  
->  	if (!bdi_has_dirty_io(bdi) || bdi == &noop_backing_dev_info)
->  		return;
->  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
->  
->  	bdi_split_work_to_wbs(sb->s_bdi, &work, skip_if_busy);
-> -	wb_wait_for_completion(bdi, &done);
-> +	wb_wait_for_completion(&done);
->  }
->  
->  /**
-> @@ -2440,7 +2421,8 @@ EXPORT_SYMBOL(try_to_writeback_inodes_sb);
->   */
->  void sync_inodes_sb(struct super_block *sb)
->  {
-> -	DEFINE_WB_COMPLETION_ONSTACK(done);
-> +	struct backing_dev_info *bdi = sb->s_bdi;
-> +	DEFINE_WB_COMPLETION(done, bdi);
->  	struct wb_writeback_work work = {
->  		.sb		= sb,
->  		.sync_mode	= WB_SYNC_ALL,
-> @@ -2450,7 +2432,6 @@ void sync_inodes_sb(struct super_block *sb)
->  		.reason		= WB_REASON_SYNC,
->  		.for_sync	= 1,
->  	};
-> -	struct backing_dev_info *bdi = sb->s_bdi;
->  
->  	/*
->  	 * Can't skip on !bdi_has_dirty() because we should wait for !dirty
-> @@ -2464,7 +2445,7 @@ void sync_inodes_sb(struct super_block *sb)
->  	/* protect against inode wb switch, see inode_switch_wbs_work_fn() */
->  	bdi_down_write_wb_switch_rwsem(bdi);
->  	bdi_split_work_to_wbs(bdi, &work, false);
-> -	wb_wait_for_completion(bdi, &done);
-> +	wb_wait_for_completion(&done);
->  	bdi_up_write_wb_switch_rwsem(bdi);
->  
->  	wait_sb_inodes(sb);
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-> index 6a1a8a314d85..8fb740178d5d 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -67,6 +67,26 @@ enum wb_reason {
->  	WB_REASON_MAX,
->  };
->  
-> +struct wb_completion {
-> +	atomic_t		cnt;
-> +	wait_queue_head_t	*waitq;
-> +};
-> +
-> +#define __WB_COMPLETION_INIT(_waitq)	\
-> +	(struct wb_completion){ .cnt = ATOMIC_INIT(1), .waitq = (_waitq) }
-> +
-> +/*
-> + * If one wants to wait for one or more wb_writeback_works, each work's
-> + * ->done should be set to a wb_completion defined using the following
-> + * macro.  Once all work items are issued with wb_queue_work(), the caller
-> + * can wait for the completion of all using wb_wait_for_completion().  Work
-> + * items which are waited upon aren't freed automatically on completion.
-> + */
-> +#define WB_COMPLETION_INIT(bdi)		__WB_COMPLETION_INIT(&(bdi)->wb_waitq)
-> +
-> +#define DEFINE_WB_COMPLETION(cmpl, bdi)	\
-> +	struct wb_completion cmpl = WB_COMPLETION_INIT(bdi)
-> +
->  /*
->   * For cgroup writeback, multiple wb's may map to the same blkcg.  Those
->   * wb's can operate mostly independently but should share the congested
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 35b31d176f74..02650b1253a2 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -44,6 +44,8 @@ void wb_start_background_writeback(struct bdi_writeback *wb);
->  void wb_workfn(struct work_struct *work);
->  void wb_wakeup_delayed(struct bdi_writeback *wb);
->  
-> +void wb_wait_for_completion(struct wb_completion *done);
-> +
->  extern spinlock_t bdi_lock;
->  extern struct list_head bdi_list;
->  
-> -- 
-> 2.17.1
-> 
+> It looks pretty sure that notifiers are fs_reclaim, so at a minimum
+> that wait_event can't be contingent on anything that is doing
+> GFP_KERNEL or it will deadlock - and blockable doesn't make that sleep
+> safe.
+>
+> Avoiding an uncertain wait_event under notifiers would seem to be the
+> only reasonable design here..
+
+You have to wait for the gpu to finnish current processing in
+invalidate_range_start. Otherwise there's no point to any of this
+really. So the wait_event/dma_fence_wait are unavoidable really.
+
+That's also why I'm throwing in the lockdep annotation on top, and why
+it would be really nice if we somehow can get the cross-release work
+landed. But it looks like all the people who could make it happen are
+busy with smeltdown :-/
+-Daniel
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
