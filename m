@@ -2,187 +2,172 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46071C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2138C3A59C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:17:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED7E1205F4
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 99188205F4
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:17:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="pKHPfBNQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED7E1205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lrLcqqVV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99188205F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C1556B02DC; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
+	id 3DF456B0005; Thu, 15 Aug 2019 13:17:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8732C6B02DD; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
+	id 3901B6B0295; Thu, 15 Aug 2019 13:17:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73AB96B02DE; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
+	id 27F2B6B02AB; Thu, 15 Aug 2019 13:17:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 53E6D6B02DC
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 0CB98180AD802
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:33 +0000 (UTC)
-X-FDA: 75825316266.21.angle34_391abc2c2e604
-X-HE-Tag: angle34_391abc2c2e604
-X-Filterd-Recvd-Size: 7134
-Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:32 +0000 (UTC)
-Received: by mail-ed1-f67.google.com with SMTP id x19so2681721eda.12
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:16:32 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0249.hostedemail.com [216.40.44.249])
+	by kanga.kvack.org (Postfix) with ESMTP id 057046B0005
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:17:51 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id A10A66C33
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:17:51 +0000 (UTC)
+X-FDA: 75825319542.05.neck01_4491db00c1c0a
+X-HE-Tag: neck01_4491db00c1c0a
+X-Filterd-Recvd-Size: 6869
+Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:17:51 +0000 (UTC)
+Received: by mail-qt1-f195.google.com with SMTP id e8so3094784qtp.7
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:17:50 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
-        bh=HvH/9QkJPpLkWxDBArczHr4uoHoZvdo767/gla+0Cq4=;
-        b=pKHPfBNQUfx3iIaUdBEjdoQBnwVE33BsffdbfdtS4c7cz0NChF2ssj7n0oUNYvLBml
-         1GW7C9tC38qeN54CAe2livGh5ZgyPHx1kBuk/IvtFXrnFpJB8Ek/GI0NZfSHqLaPD9oi
-         2UtsZ5gQknSqtRiljMnlxI6c8SaAZBr3tZ3nhrRXJUZrIF7INC4o3B2dXzMQTBEzum7c
-         jLOY3vrE7M080p/0Pboi6nDaUWr6lRajGfmDoPJJol5qFQmqtvJbODsLpb22T2hQaxvL
-         NgnhaiHSKPHsKDlHk1m/gx0MjaiOiKCkfxPxDFJOO4hcsmg0h7rmTCnKZY6RTOJVN9Jc
-         fE/g==
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=z8ffACx97UoCYoWbcK20vb+vJc46Di7ZY3J/Q+sVrN4=;
+        b=lrLcqqVVbBaaW5DmpJaOL2mAta1VuHGEWegYy4v8k9O/KYbA6trUfUtSwOXUA310uN
+         zuvisW/tOnzl/qIbzDfd4s3DNn2oJk4o0dxwnY/ZA56xooLiBHwRGX7/e/IRF4uCvJRB
+         gB253hM+6t/Z3jYXj3AHAc09XhS2/PZIrdxHVerl0xsJ/so5ncLIXCUE4xzYVLJEjsPP
+         GkcGuLjNzYWjfCaXPfSyoxq6CfnLddPdNdVqoeGSnNtvn/yy7fnMHG5zCWqXToBvxETG
+         SAyXDrs7d4csk5SF9eMf58/iCQdcp2DH2M7Cmh4WFK4tJIJ45uHTq8hpFiNJmrDGh4h8
+         A8YQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to;
-        bh=HvH/9QkJPpLkWxDBArczHr4uoHoZvdo767/gla+0Cq4=;
-        b=fO7jbxVxbXCQVUuBBscUmBOezKy+D+OZHEM3dLJfQJcu2ziDUf3mx6zFeaVWOyr3kL
-         iLyZZY4VwAQA/koN2Ej2H+hr39F1/xgjAXIMHFYlgIYsxaMZRr9xNU0AW07BFz3OOQFz
-         6s5hGEh2dHzsHOq7jzcJyYjDDZJZ7SmmULrzGs3ZbKMxmFnU2gWGqY+DnBflRZ1jyhkp
-         sxhs83ia4a4Uo+QgT9djIJvtUYcITG9UyCW9hEEKEsxqwewguFGJoAWfHJy0K3XV1gtq
-         lyUOuneYAF8K/ShfU3wGU9veMMJqE0+ZM3RcgbFR7AMGzTRo/hPAefdzVPywlnAPoWIs
-         BHBQ==
-X-Gm-Message-State: APjAAAUr3Nyo0mu4vLNBfv8CsGFuJq3uh9PVcqRf+HULX6VSteOto4t1
-	1dWzofxy0WBk7rEUBtaYmmT+xGg7aubgbyCWZtSIcIwG
-X-Google-Smtp-Source: APXvYqxjQMegw/1NCxtxkMv+zw0eXzahg5VKDPdm64IBjqfvOgF3V96t+tXb8M/4zCohVqTP+H/B/YvKeSv6kTxEdbs=
-X-Received: by 2002:aa7:d48c:: with SMTP id b12mr6512796edr.170.1565889391108;
- Thu, 15 Aug 2019 10:16:31 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=z8ffACx97UoCYoWbcK20vb+vJc46Di7ZY3J/Q+sVrN4=;
+        b=L9DRIwZJ57U17oIXdw8mQpMcXevBPWn1+0RIFIrK3p+NXzomFy2GqbXvhJOWfB6Ud0
+         dPXnMXTVWC68mYaQe34b6JhK/KAzR5tfxw0FRee5DV1AsZY2IQhoo8L4EtkQhMQajObU
+         7g1KbtlZTSnnUWwqkjiR6TLuGetDxV7JbL27M7WsPLv+sH+P6i34c2EEm3ByrZnoVAtE
+         es5UWygGHAnthn8B1UIzEmHmPUfNlkOK7AkFjxabFMScgQVzemCVJYhblXREujClz136
+         /e7kOHBRmkd7B6JvWiUPvMfCueT4UD5OED/0ECkqHXTrKRiYtJ+6WbrOVJh4AOapV7Mg
+         JvoQ==
+X-Gm-Message-State: APjAAAXtzRNBpLxKUCJfqdQmxz6mQ7cbTScmGlNWBouhhRKMpYvyVvXc
+	FEp9WVgPDBxkj4Z9YimGgPD4HA==
+X-Google-Smtp-Source: APXvYqy8bClE2PtYhlNsbzNy3sfuIfpzHgK8LEd061uqbj3o3CPG3Uelsdo/F1E4oVxX/Cn3DR0XDA==
+X-Received: by 2002:ac8:6b45:: with SMTP id x5mr4726244qts.329.1565889470494;
+        Thu, 15 Aug 2019 10:17:50 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id x28sm1853523qtk.8.2019.08.15.10.17.50
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Aug 2019 10:17:50 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hyJNl-0006n3-Lb; Thu, 15 Aug 2019 14:17:49 -0300
+Date: Thu, 15 Aug 2019 14:17:49 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190815171749.GM21596@ziepe.ca>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814235805.GB11200@ziepe.ca>
+ <20190815065829.GA7444@phenom.ffwll.local>
+ <20190815122344.GA21596@ziepe.ca>
+ <20190815132127.GI9477@dhcp22.suse.cz>
+ <20190815141219.GF21596@ziepe.ca>
+ <20190815155950.GN9477@dhcp22.suse.cz>
+ <20190815165631.GK21596@ziepe.ca>
+ <20190815171156.GB30916@redhat.com>
 MIME-Version: 1.0
-References: <20190801152439.11363-1-pasha.tatashin@soleen.com> <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
-In-Reply-To: <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 15 Aug 2019 13:16:20 -0400
-Message-ID: <CA+CK2bD6e2WGxuPG+jX8c_qyHNZOC=8NZ-wVZXQuMS2ncBNndg@mail.gmail.com>
-Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
-To: Pavel Tatashin <pasha.tatashin@soleen.com>, James Morris <jmorris@namei.org>, 
-	Sasha Levin <sashal@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, 
-	kexec mailing list <kexec@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
-	James Morse <james.morse@arm.com>, Vladimir Murzin <vladimir.murzin@arm.com>, 
-	Matthias Brugger <matthias.bgg@gmail.com>, Bhupesh Sharma <bhsharma@redhat.com>, 
-	linux-mm <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190815171156.GB30916@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, Aug 15, 2019 at 01:11:56PM -0400, Jerome Glisse wrote:
+> On Thu, Aug 15, 2019 at 01:56:31PM -0300, Jason Gunthorpe wrote:
+> > On Thu, Aug 15, 2019 at 06:00:41PM +0200, Michal Hocko wrote:
+> > 
+> > > > AFAIK 'GFP_NOWAIT' is characterized by the lack of __GFP_FS and
+> > > > __GFP_DIRECT_RECLAIM..
+> > > >
+> > > > This matches the existing test in __need_fs_reclaim() - so if you are
+> > > > OK with GFP_NOFS, aka __GFP_IO which triggers try_to_compact_pages(),
+> > > > allocations during OOM, then I think fs_reclaim already matches what
+> > > > you described?
+> > > 
+> > > No GFP_NOFS is equally bad. Please read my other email explaining what
+> > > the oom_reaper actually requires. In short no blocking on direct or
+> > > indirect dependecy on memory allocation that might sleep.
+> > 
+> > It is much easier to follow with some hints on code, so the true
+> > requirement is that the OOM repear not block on GFP_FS and GFP_IO
+> > allocations, great, that constraint is now clear.
+> > 
+> > > If you can express that in the existing lockdep machinery. All
+> > > fine. But then consider deployments where lockdep is no-no because
+> > > of the overhead.
+> > 
+> > This is all for driver debugging. The point of lockdep is to find all
+> > these paths without have to hit them as actual races, using debug
+> > kernels.
+> > 
+> > I don't think we need this kind of debugging on production kernels?
+> > 
+> > > > The best we got was drivers tested the VA range and returned success
+> > > > if they had no interest. Which is a big win to be sure, but it looks
+> > > > like getting any more is not really posssible.
+> > > 
+> > > And that is already a great win! Because many notifiers only do care
+> > > about particular mappings. Please note that backing off unconditioanlly
+> > > will simply cause that the oom reaper will have to back off not doing
+> > > any tear down anything.
+> > 
+> > Well, I'm working to propose that we do the VA range test under core
+> > mmu notifier code that cannot block and then we simply remove the idea
+> > of blockable from drivers using this new 'range notifier'. 
+> > 
+> > I think this pretty much solves the concern?
+> 
+> I am not sure i follow what you propose here ? Like i pointed out in
+> another email for GPU we do need to be able to sleep (we might get
+> lucky and not need too but this is runtime thing) within notifier
+> range_start callback. This has been something allow by notifier since
+> it has been introduced in the kernel.
 
-It is been two weeks, and no review activity yet. Please help with
-reviewing this work.
+Sorry, I mean remove the idea of the blockable flag from the
+drivers. Drivers will always be able to block, within the existing
+limitation of fs_reclaim
 
-Thank you,
-Pasha
-
-On Thu, Aug 8, 2019 at 2:44 PM Pavel Tatashin <pasha.tatashin@soleen.com> wrote:
->
-> Just a friendly reminder, please send your comments on this series.
-> It's been a week since I sent out these patches, and no feedback yet.
-> Also, I'd appreciate if anyone could test this series on vhe hardware
-> with vhe kernel, it does not look like QEMU can emulate it yet
->
-> Thank you,
-> Pasha
->
-> On Thu, Aug 1, 2019 at 11:24 AM Pavel Tatashin
-> <pasha.tatashin@soleen.com> wrote:
-> >
-> > Enable MMU during kexec relocation in order to improve reboot performance.
-> >
-> > If kexec functionality is used for a fast system update, with a minimal
-> > downtime, the relocation of kernel + initramfs takes a significant portion
-> > of reboot.
-> >
-> > The reason for slow relocation is because it is done without MMU, and thus
-> > not benefiting from D-Cache.
-> >
-> > Performance data
-> > ----------------
-> > For this experiment, the size of kernel plus initramfs is small, only 25M.
-> > If initramfs was larger, than the improvements would be greater, as time
-> > spent in relocation is proportional to the size of relocation.
-> >
-> > Previously:
-> > kernel shutdown 0.022131328s
-> > relocation      0.440510736s
-> > kernel startup  0.294706768s
-> >
-> > Relocation was taking: 58.2% of reboot time
-> >
-> > Now:
-> > kernel shutdown 0.032066576s
-> > relocation      0.022158152s
-> > kernel startup  0.296055880s
-> >
-> > Now: Relocation takes 6.3% of reboot time
-> >
-> > Total reboot is x2.16 times faster.
-> >
-> > Previous approaches and discussions
-> > -----------------------------------
-> > https://lore.kernel.org/lkml/20190709182014.16052-1-pasha.tatashin@soleen.com
-> > reserve space for kexec to avoid relocation, involves changes to generic code
-> > to optimize a problem that exists on arm64 only:
-> >
-> > https://lore.kernel.org/lkml/20190716165641.6990-1-pasha.tatashin@soleen.com
-> > The first attempt to enable MMU, some bugs that prevented performance
-> > improvement. The page tables unnecessary configured idmap for the whole
-> > physical space.
-> >
-> > https://lore.kernel.org/lkml/20190731153857.4045-1-pasha.tatashin@soleen.com
-> > No linear copy, bug with EL2 reboots.
-> >
-> > Pavel Tatashin (8):
-> >   kexec: quiet down kexec reboot
-> >   arm64, mm: transitional tables
-> >   arm64: hibernate: switch to transtional page tables.
-> >   kexec: add machine_kexec_post_load()
-> >   arm64, kexec: move relocation function setup and clean up
-> >   arm64, kexec: add expandable argument to relocation function
-> >   arm64, kexec: configure transitional page table for kexec
-> >   arm64, kexec: enable MMU during kexec relocation
-> >
-> >  arch/arm64/Kconfig                     |   4 +
-> >  arch/arm64/include/asm/kexec.h         |  51 ++++-
-> >  arch/arm64/include/asm/pgtable-hwdef.h |   1 +
-> >  arch/arm64/include/asm/trans_table.h   |  68 ++++++
-> >  arch/arm64/kernel/asm-offsets.c        |  14 ++
-> >  arch/arm64/kernel/cpu-reset.S          |   4 +-
-> >  arch/arm64/kernel/cpu-reset.h          |   8 +-
-> >  arch/arm64/kernel/hibernate.c          | 261 ++++++-----------------
-> >  arch/arm64/kernel/machine_kexec.c      | 199 ++++++++++++++----
-> >  arch/arm64/kernel/relocate_kernel.S    | 196 +++++++++---------
-> >  arch/arm64/mm/Makefile                 |   1 +
-> >  arch/arm64/mm/trans_table.c            | 273 +++++++++++++++++++++++++
-> >  kernel/kexec.c                         |   4 +
-> >  kernel/kexec_core.c                    |   8 +-
-> >  kernel/kexec_file.c                    |   4 +
-> >  kernel/kexec_internal.h                |   2 +
-> >  16 files changed, 758 insertions(+), 340 deletions(-)
-> >  create mode 100644 arch/arm64/include/asm/trans_table.h
-> >  create mode 100644 arch/arm64/mm/trans_table.c
-> >
-> > --
-> > 2.22.0
-> >
+Jason
 
