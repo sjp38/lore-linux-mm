@@ -2,156 +2,114 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 882E9C3A59B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:22:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C454C3A59C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:31:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D94820644
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:22:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D94820644
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D5A4C205C9
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:31:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="N47XHCOS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5A4C205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E89996B02E8; Thu, 15 Aug 2019 13:22:58 -0400 (EDT)
+	id 61E476B02EA; Thu, 15 Aug 2019 13:31:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E12F66B02EA; Thu, 15 Aug 2019 13:22:58 -0400 (EDT)
+	id 5A83C6B02EC; Thu, 15 Aug 2019 13:31:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB3866B02EB; Thu, 15 Aug 2019 13:22:58 -0400 (EDT)
+	id 46E8A6B02ED; Thu, 15 Aug 2019 13:31:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0204.hostedemail.com [216.40.44.204])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA486B02E8
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:22:58 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 10CBD181AC9AE
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:22:58 +0000 (UTC)
-X-FDA: 75825332436.07.hole74_7120291e25c34
-X-HE-Tag: hole74_7120291e25c34
-X-Filterd-Recvd-Size: 4494
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:22:57 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 43F523082E51;
-	Thu, 15 Aug 2019 17:22:56 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.178])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3D85710018F9;
-	Thu, 15 Aug 2019 17:22:55 +0000 (UTC)
-Date: Thu, 15 Aug 2019 13:22:53 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 3/3] mm/migrate: remove the duplicated code
- migrate_vma_collect_hole()
-Message-ID: <20190815172253.GE30916@redhat.com>
-References: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
- <1565078411-27082-3-git-send-email-kernelfans@gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
+	by kanga.kvack.org (Postfix) with ESMTP id 204B16B02EA
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:31:53 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id ADFBF180AD803
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:31:52 +0000 (UTC)
+X-FDA: 75825354864.12.sound11_2d7339646c024
+X-HE-Tag: sound11_2d7339646c024
+X-Filterd-Recvd-Size: 4073
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:31:52 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id w18so1759869qki.0
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:31:52 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=no35aRJk15zFWg1jR8wwX86QzYLoUfFHVUo7VWQ/svc=;
+        b=N47XHCOSmAXueVA0YYaev8/a4K3QvUHId7wqDd1kKuzb9i0XsPGZt3JSFV4fwHmm1o
+         079FfdNxA44u+Lpn9KWO67P5gdQDjS8yLNUwxRyP+az0D6idFOXOvoIL6oT/ByHrYA+e
+         5x2GXXGdhLQUUhHxcna9tpQrgumRatQu40F/xy7UzP2oUcoOJ5ObUyU55Ybx+CjVdZVf
+         ZGK+QWvr7EafhXZLjXcXxcSaDgonosEcUP9Kh6/WmBW5wIhcwJ7Gd5u11eGiOYvLgYRX
+         ruJyUluXJcICik/5Pis1nVgLz6wleggRuqyNbfxBltc6VpOrVEuqmr44g/tLfUNGnReK
+         /wxg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
+         :references:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=no35aRJk15zFWg1jR8wwX86QzYLoUfFHVUo7VWQ/svc=;
+        b=NwlHnAclw2S/UyFr8DUoT7peeNXp/yqOjxxPjcde5hvIYrumVd/pXfDIA+ApyhkA4m
+         qoTcgho2J0za8IR0MAPcdKhcmjo9s+FoksG8UzwAlzDc5CuRNGbl+CmNy2EQSLk38D/a
+         GEueS2qV8IZaMd67Q87tTuc2P3BZHgKuJyc22j0sJkV+5UFNkXaurXpVHvjUSYOZoIgN
+         dSB6s/OG3yfdVfvXOGlkiySI9F6m01YmXSSKPi9QaELC+ggqIS0i/anD8YzzrjKDtoPm
+         2SYwUXyAxxFMuitoFwHvz2AAubef0OZa7Kn3c5rHvL0aQo01k/J2dfmm81bxTb9QCRF1
+         F9Gw==
+X-Gm-Message-State: APjAAAWJx4NbJgNKlRZXW1h+nwBVBrhoLPFFE7w0CgnAAmblwgR7PFR7
+	S5pYuk7980PxwawX3LgYHzg=
+X-Google-Smtp-Source: APXvYqwTF1AugQK16mXeTAc3YHU1jdzIKEshxpTbcRaCWmkGxQukcPJXecgkAY0Igu5HQb1bcCAfWw==
+X-Received: by 2002:a37:aa57:: with SMTP id t84mr5056219qke.34.1565890311488;
+        Thu, 15 Aug 2019 10:31:51 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:25cd])
+        by smtp.gmail.com with ESMTPSA id v24sm1928599qth.33.2019.08.15.10.31.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Aug 2019 10:31:50 -0700 (PDT)
+Date: Thu, 15 Aug 2019 10:31:48 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 4/4] writeback, memcg: Implement foreign dirty flushing
+Message-ID: <20190815173148.GD588936@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-5-tj@kernel.org>
+ <20190815143404.GK14313@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1565078411-27082-3-git-send-email-kernelfans@gmail.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 15 Aug 2019 17:22:56 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190815143404.GK14313@quack2.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 04:00:11PM +0800, Pingfan Liu wrote:
-> After the previous patch which sees hole as invalid source,
-> migrate_vma_collect_hole() has the same code as migrate_vma_collect_ski=
-p().
-> Removing the duplicated code.
+Hello, Jan.
 
-NAK this one too given previous NAK.
+On Thu, Aug 15, 2019 at 04:34:04PM +0200, Jan Kara wrote:
+> I have to say I'm a bit nervous about the completely lockless handling
+> here. I understand that garbage in the cgwb_frn will just result in this
+> mechanism not working and possibly flushing wrong wb's but still it seems a
+> bit fragile. But I don't see any cheap way of synchronizing this so I guess
+> let's try how this will work in practice.
 
->=20
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> Cc: "J=E9r=F4me Glisse" <jglisse@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> To: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  mm/migrate.c | 22 +++-------------------
->  1 file changed, 3 insertions(+), 19 deletions(-)
->=20
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 832483f..95e038d 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -2128,22 +2128,6 @@ struct migrate_vma {
->  	unsigned long		end;
->  };
-> =20
-> -static int migrate_vma_collect_hole(unsigned long start,
-> -				    unsigned long end,
-> -				    struct mm_walk *walk)
-> -{
-> -	struct migrate_vma *migrate =3D walk->private;
-> -	unsigned long addr;
-> -
-> -	for (addr =3D start & PAGE_MASK; addr < end; addr +=3D PAGE_SIZE) {
-> -		migrate->src[migrate->npages] =3D 0;
-> -		migrate->dst[migrate->npages] =3D 0;
-> -		migrate->npages++;
-> -	}
-> -
-> -	return 0;
-> -}
-> -
->  static int migrate_vma_collect_skip(unsigned long start,
->  				    unsigned long end,
->  				    struct mm_walk *walk)
-> @@ -2173,7 +2157,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
-> =20
->  again:
->  	if (pmd_none(*pmdp))
-> -		return migrate_vma_collect_hole(start, end, walk);
-> +		return migrate_vma_collect_skip(start, end, walk);
-> =20
->  	if (pmd_trans_huge(*pmdp)) {
->  		struct page *page;
-> @@ -2206,7 +2190,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  				return migrate_vma_collect_skip(start, end,
->  								walk);
->  			if (pmd_none(*pmdp))
-> -				return migrate_vma_collect_hole(start, end,
-> +				return migrate_vma_collect_skip(start, end,
->  								walk);
->  		}
->  	}
-> @@ -2337,7 +2321,7 @@ static void migrate_vma_collect(struct migrate_vm=
-a *migrate)
-> =20
->  	mm_walk.pmd_entry =3D migrate_vma_collect_pmd;
->  	mm_walk.pte_entry =3D NULL;
-> -	mm_walk.pte_hole =3D migrate_vma_collect_hole;
-> +	mm_walk.pte_hole =3D migrate_vma_collect_skip;
->  	mm_walk.hugetlb_entry =3D NULL;
->  	mm_walk.test_walk =3D NULL;
->  	mm_walk.vma =3D migrate->vma;
-> --=20
-> 2.7.5
->=20
+Yeah, this approach is fundamentally best-effort, so I went for low
+overhead and mostly correct operation.  If something like this doesn't
+cut it (w/ bug fixes and some polishing over time), my gut feeling is
+that we probably should bite the bullet and synchronize cgroup memory
+and inode ownerships rather than pushing further on inherently
+imprecise mitigation mechanisms.
+
+Thanks.
+
+-- 
+tejun
 
