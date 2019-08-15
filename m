@@ -2,234 +2,126 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C332C41514
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:46:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04C82C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:51:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F07F921743
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:46:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F07F921743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id B380920656
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:51:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="dU2EhV+6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B380920656
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8477E6B0296; Thu, 15 Aug 2019 10:46:26 -0400 (EDT)
+	id 620EA6B0298; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D1EC6B0298; Thu, 15 Aug 2019 10:46:26 -0400 (EDT)
+	id 5D18C6B029A; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BFB16B0299; Thu, 15 Aug 2019 10:46:26 -0400 (EDT)
+	id 4C0996B029B; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0069.hostedemail.com [216.40.44.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 450066B0296
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:46:26 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id F1E1E485F
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:46:25 +0000 (UTC)
-X-FDA: 75824937930.18.wing47_381c1fe1c4b4f
-X-HE-Tag: wing47_381c1fe1c4b4f
-X-Filterd-Recvd-Size: 6622
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:46:25 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0005CABB1;
-	Thu, 15 Aug 2019 14:46:23 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id AC6771E4200; Thu, 15 Aug 2019 16:46:23 +0200 (CEST)
-Date: Thu, 15 Aug 2019 16:46:23 +0200
-From: Jan Kara <jack@suse.cz>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 2/4] bdi: Add bdi->id
-Message-ID: <20190815144623.GM14313@quack2.suse.cz>
-References: <20190803140155.181190-1-tj@kernel.org>
- <20190803140155.181190-3-tj@kernel.org>
+Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2096B0298
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 5F3E48248AAB
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:51:04 +0000 (UTC)
+X-FDA: 75824949648.23.soda65_60a104cd0594f
+X-HE-Tag: soda65_60a104cd0594f
+X-Filterd-Recvd-Size: 4655
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:51:03 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id m10so2095064qkk.1
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 07:51:03 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=z90nPpYO8UuUUSb9IN8rKS3L0KsgC8zXmObZdfo6ctQ=;
+        b=dU2EhV+6EWSs1MNrZJWfU76DaiGX5NQgWL4uohTv/GZxgH6FeggKTIKZ+d/6xxWmB5
+         Uq7EirJG422MX6svb2pK3O0rmVD5upXZhrC0obDyAVUsClwMUccie10LZ+VusUXs6G5t
+         Cfxm7G3duJErwOwTzL6wlTMWxPvhXqi0t55/HXZYJ0ksP5CllSxCeRSJEwA3qeLb3Mw+
+         H9tQF6/hs2KVjejIpKYI3tuEWzOasQMSO5OrPdyS6Tf6gZNSrPhr0d7BWVqY895GeZU7
+         3vhMlzFvKziDCq6pld4ycFVFRE1zOEJ/X+8kNMBCMNIgJ/nYLqTQqzhkO3QmO9Oxi/p7
+         z4xQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=z90nPpYO8UuUUSb9IN8rKS3L0KsgC8zXmObZdfo6ctQ=;
+        b=JBlIR1uSp5bS6+RNMVB2hpAxNWQNtdvh6/742jBbzp1tvKOTFsLQ48ITN08HBsXnT6
+         ki6DjMLzVR6Olwe6L2AVLpX0KWg7/A31I1Lxdw2WcjRDcO+AhbDwtL6af6K6v58p2uKC
+         7hBIeRO+JJzpr2QI5KlqRveT9zw7qbgvmrzFM6fBsAMzUQjG3x4U0GQNKuPL/xxLU6pu
+         zj9M8kYZfvSKwaRuveDtzSOBAyRd158ayxL9J9YsHIHPng8XXjdK/+QCOZhMYySDfcLb
+         queaP1W58iVJlelNOiwrXJ+DJyIm5/lXIv1Tk3D/vw5TuZG4PB1KY6jO8fALoj0kDXfc
+         72bw==
+X-Gm-Message-State: APjAAAVDTY4A2iZyKY9WPq4rpYgUZwxgCvMwOlmEddvlj4enXHYzDdkB
+	KUZ99LXaYzybj9c27GUMJxF6xSaAJxY=
+X-Google-Smtp-Source: APXvYqyMHfwmFKSYVNb8WeeauLH7Hep/WJZ+jheCJjAwrLvMcjUnfX6gEreyk5eeamBSEzYzpviglQ==
+X-Received: by 2002:a05:620a:71a:: with SMTP id 26mr4357407qkc.374.1565880663323;
+        Thu, 15 Aug 2019 07:51:03 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id e15sm805595qtr.51.2019.08.15.07.51.02
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Aug 2019 07:51:02 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hyH5i-0005L9-BH; Thu, 15 Aug 2019 11:51:02 -0300
+Date: Thu, 15 Aug 2019 11:51:02 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jan Kara <jack@suse.cz>
+Cc: John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+Message-ID: <20190815145102.GH21596@ziepe.ca>
+References: <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+ <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
+ <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
+ <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
+ <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
+ <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+ <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
+ <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
+ <20190815132622.GG14313@quack2.suse.cz>
+ <20190815133510.GA21302@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190803140155.181190-3-tj@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190815133510.GA21302@quack2.suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 03-08-19 07:01:53, Tejun Heo wrote:
-> There currently is no way to universally identify and lookup a bdi
-> without holding a reference and pointer to it.  This patch adds an
-> non-recycling bdi->id and implements bdi_get_by_id() which looks up
-> bdis by their ids.  This will be used by memcg foreign inode flushing.
+On Thu, Aug 15, 2019 at 03:35:10PM +0200, Jan Kara wrote:
+
+> > 3) ODP case - GUP references to pages serving as DMA buffers, MMU notifiers
+> >    used to synchronize with page_mkclean() and munmap() => normal page
+> >    references are fine.
 > 
-> I left bdi_list alone for simplicity and because while rb_tree does
-> support rcu assignment it doesn't seem to guarantee lossless walk when
-> walk is racing aginst tree rebalance operations.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+> I want to add that I'd like to convert users in cases 1) and 2) from using
+> GUP to using differently named function. Users in case 3) can stay as they
+> are for now although ultimately I'd like to denote such use cases in a
+> special way as well...
 
-The patch looks good to me. You can add:
+3) users also want a special function and path, right now it is called
+hmm_range_fault() but perhaps it would be good to harmonize it more
+with the GUP infrastructure?
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+I'm not quite sure what the best plan for that is yet.
 
-Although I would note that here you take effort not to recycle bdi->id so
-that you don't flush wrong devices while in patch 4 you take pretty lax
-approach to feeding garbage into the writeback system. So these two don't
-quite match to me...
-
-								Honza
-
-> ---
->  include/linux/backing-dev-defs.h |  2 +
->  include/linux/backing-dev.h      |  1 +
->  mm/backing-dev.c                 | 65 +++++++++++++++++++++++++++++++-
->  3 files changed, 66 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-> index 8fb740178d5d..1075f2552cfc 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -185,6 +185,8 @@ struct bdi_writeback {
->  };
->  
->  struct backing_dev_info {
-> +	u64 id;
-> +	struct rb_node rb_node; /* keyed by ->id */
->  	struct list_head bdi_list;
->  	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
->  	unsigned long io_pages;	/* max allowed IO size */
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 02650b1253a2..84cdcfbc763f 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -24,6 +24,7 @@ static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
->  	return bdi;
->  }
->  
-> +struct backing_dev_info *bdi_get_by_id(u64 id);
->  void bdi_put(struct backing_dev_info *bdi);
->  
->  __printf(2, 3)
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index e8e89158adec..4a8816e0b8d4 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -1,6 +1,7 @@
->  // SPDX-License-Identifier: GPL-2.0-only
->  
->  #include <linux/wait.h>
-> +#include <linux/rbtree.h>
->  #include <linux/backing-dev.h>
->  #include <linux/kthread.h>
->  #include <linux/freezer.h>
-> @@ -22,10 +23,12 @@ EXPORT_SYMBOL_GPL(noop_backing_dev_info);
->  static struct class *bdi_class;
->  
->  /*
-> - * bdi_lock protects updates to bdi_list. bdi_list has RCU reader side
-> - * locking.
-> + * bdi_lock protects bdi_tree and updates to bdi_list. bdi_list has RCU
-> + * reader side locking.
->   */
->  DEFINE_SPINLOCK(bdi_lock);
-> +static u64 bdi_id_cursor;
-> +static struct rb_root bdi_tree = RB_ROOT;
->  LIST_HEAD(bdi_list);
->  
->  /* bdi_wq serves all asynchronous writeback tasks */
-> @@ -859,9 +862,58 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
->  }
->  EXPORT_SYMBOL(bdi_alloc_node);
->  
-> +struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
-> +{
-> +	struct rb_node **p = &bdi_tree.rb_node;
-> +	struct rb_node *parent = NULL;
-> +	struct backing_dev_info *bdi;
-> +
-> +	lockdep_assert_held(&bdi_lock);
-> +
-> +	while (*p) {
-> +		parent = *p;
-> +		bdi = rb_entry(parent, struct backing_dev_info, rb_node);
-> +
-> +		if (bdi->id > id)
-> +			p = &(*p)->rb_left;
-> +		else if (bdi->id < id)
-> +			p = &(*p)->rb_right;
-> +		else
-> +			break;
-> +	}
-> +
-> +	if (parentp)
-> +		*parentp = parent;
-> +	return p;
-> +}
-> +
-> +/**
-> + * bdi_get_by_id - lookup and get bdi from its id
-> + * @id: bdi id to lookup
-> + *
-> + * Find bdi matching @id and get it.  Returns NULL if the matching bdi
-> + * doesn't exist or is already unregistered.
-> + */
-> +struct backing_dev_info *bdi_get_by_id(u64 id)
-> +{
-> +	struct backing_dev_info *bdi = NULL;
-> +	struct rb_node **p;
-> +
-> +	spin_lock_irq(&bdi_lock);
-> +	p = bdi_lookup_rb_node(id, NULL);
-> +	if (*p) {
-> +		bdi = rb_entry(*p, struct backing_dev_info, rb_node);
-> +		bdi_get(bdi);
-> +	}
-> +	spin_unlock_irq(&bdi_lock);
-> +
-> +	return bdi;
-> +}
-> +
->  int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
->  {
->  	struct device *dev;
-> +	struct rb_node *parent, **p;
->  
->  	if (bdi->dev)	/* The driver needs to use separate queues per device */
->  		return 0;
-> @@ -877,7 +929,15 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
->  	set_bit(WB_registered, &bdi->wb.state);
->  
->  	spin_lock_bh(&bdi_lock);
-> +
-> +	bdi->id = ++bdi_id_cursor;
-> +
-> +	p = bdi_lookup_rb_node(bdi->id, &parent);
-> +	rb_link_node(&bdi->rb_node, parent, p);
-> +	rb_insert_color(&bdi->rb_node, &bdi_tree);
-> +
->  	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
-> +
->  	spin_unlock_bh(&bdi_lock);
->  
->  	trace_writeback_bdi_register(bdi);
-> @@ -918,6 +978,7 @@ EXPORT_SYMBOL(bdi_register_owner);
->  static void bdi_remove_from_list(struct backing_dev_info *bdi)
->  {
->  	spin_lock_bh(&bdi_lock);
-> +	rb_erase(&bdi->rb_node, &bdi_tree);
->  	list_del_rcu(&bdi->bdi_list);
->  	spin_unlock_bh(&bdi_lock);
->  
-> -- 
-> 2.17.1
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Jason
 
