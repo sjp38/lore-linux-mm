@@ -2,126 +2,220 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59006C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 22:28:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49FE6C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:01:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15F1E206C1
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 22:28:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15F1E206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=namei.org
+	by mail.kernel.org (Postfix) with ESMTP id BD63C2064A
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 23:00:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UzD9s477"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD63C2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A99426B0005; Thu, 15 Aug 2019 18:28:04 -0400 (EDT)
+	id 43FE06B0005; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A49DD6B0006; Thu, 15 Aug 2019 18:28:04 -0400 (EDT)
+	id 3F02B6B0006; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 938616B0007; Thu, 15 Aug 2019 18:28:04 -0400 (EDT)
+	id 3069C6B0007; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id 761CF6B0005
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:28:04 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0EEDB55FAE
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 22:28:04 +0000 (UTC)
-X-FDA: 75826101288.05.toes25_c29011ef6b07
-X-HE-Tag: toes25_c29011ef6b07
-X-Filterd-Recvd-Size: 4422
-Received: from namei.org (namei.org [65.99.196.166])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 22:28:03 +0000 (UTC)
-Received: from localhost (localhost [127.0.0.1])
-	by namei.org (8.14.4/8.14.4) with ESMTP id x7FMR7wY025897;
-	Thu, 15 Aug 2019 22:27:07 GMT
-Date: Fri, 16 Aug 2019 08:27:07 +1000 (AEST)
-From: James Morris <jmorris@namei.org>
-To: Mark Salyzyn <salyzyn@android.com>
-cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        linux-kernel@vger.kernel.org, kernel-team@android.com,
-        Stephen Smalley <sds@tycho.nsa.gov>,
-        linux-security-module@vger.kernel.org, stable@vger.kernel.org,
-        Eric Van Hensbergen <ericvh@gmail.com>,
-        Latchesar Ionkov <lucho@ionkov.net>,
-        Dominique Martinet <asmadeus@codewreck.org>,
-        David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>,
-        Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
-        Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>,
-        Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>,
-        Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>,
-        "Theodore Ts'o" <tytso@mit.edu>,
-        Andreas Dilger <adilger.kernel@dilger.ca>,
-        Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>,
-        Miklos Szeredi <miklos@szeredi.hu>, Bob Peterson <rpeterso@redhat.com>,
-        Andreas Gruenbacher <agruenba@redhat.com>,
-        David Woodhouse <dwmw2@infradead.org>,
-        Richard Weinberger <richard@nod.at>, Dave Kleikamp <shaggy@kernel.org>,
-        Tejun Heo <tj@kernel.org>,
-        Trond Myklebust <trond.myklebust@hammerspace.com>,
-        Anna Schumaker <anna.schumaker@netapp.com>,
-        Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>,
-        Joseph Qi <joseph.qi@linux.alibaba.com>,
-        Mike Marshall <hubcap@omnibond.com>,
-        Martin Brandenburg <martin@omnibond.com>,
-        Alexander Viro <viro@zeniv.linux.org.uk>,
-        Phillip Lougher <phillip@squashfs.org.uk>,
-        "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
-        Hugh Dickins <hughd@google.com>,
-        "David S. Miller" <davem@davemloft.net>,
-        Serge Hallyn <serge@hallyn.com>, Mimi Zohar <zohar@linux.ibm.com>,
-        Paul Moore <paul@paul-moore.com>, Eric Paris <eparis@parisplace.org>,
-        Casey Schaufler <casey@schaufler-ca.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Vyacheslav Dubeyko <slava@dubeyko.com>,
-        =?ISO-8859-15?Q?Ernesto_A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-        Mathieu Malaterre <malat@debian.org>,
-        v9fs-developer@lists.sourceforge.net, linux-afs@lists.infradead.org,
-        linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org,
-        linux-cifs@vger.kernel.org, samba-technical@lists.samba.org,
-        ecryptfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org,
-        cluster-devel@redhat.com, linux-mtd@lists.infradead.org,
-        jfs-discussion@lists.sourceforge.net, linux-nfs@vger.kernel.org,
-        ocfs2-devel@oss.oracle.com, devel@lists.orangefs.org,
-        linux-unionfs@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-        linux-mm@kvack.org, netdev@vger.kernel.org,
-        linux-integrity@vger.kernel.org, selinux@vger.kernel.org
-Subject: Re: [PATCH] Add flags option to get xattr method paired to
- __vfs_getxattr
-In-Reply-To: <69889dec-5440-1472-ed57-380f45547581@android.com>
-Message-ID: <alpine.LRH.2.21.1908160825310.22623@namei.org>
-References: <20190812193320.200472-1-salyzyn@android.com> <20190813084801.GA972@kroah.com> <alpine.LRH.2.21.1908160515130.12729@namei.org> <69889dec-5440-1472-ed57-380f45547581@android.com>
-User-Agent: Alpine 2.21 (LRH 202 2017-01-01)
+Received: from forelay.hostedemail.com (smtprelay0020.hostedemail.com [216.40.44.20])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FC106B0005
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:00:59 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id AD7AF1EF3
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:00:58 +0000 (UTC)
+X-FDA: 75826184196.11.power75_8785a30c3e49
+X-HE-Tag: power75_8785a30c3e49
+X-Filterd-Recvd-Size: 10485
+Received: from mail-io1-f67.google.com (mail-io1-f67.google.com [209.85.166.67])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:00:58 +0000 (UTC)
+Received: by mail-io1-f67.google.com with SMTP id j6so2547372ioa.5
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:00:58 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=kG92dCPdeEwjoRAhcJ0Jn0GMtXx5bG5wbAOXlf/NWg8=;
+        b=UzD9s477YeC4Nx55ghI9V5XO9LG7lxXSqT76wRXdvn936YENf5xjIJgtx6ms7glVq/
+         eHZuORZVmX9GFUx19mpD+Ln+O8nRP6HVZokbTm3PCRPP6AJyxF9dCDPdvxlcmue6zl4+
+         3yvawxyDdU1mZLOIobl5sNHGYz+wBnBD54T8YHmfws57ustZAIhnzcPV42+tuFNlFNFG
+         bB2ytxvc2K3uwVG+rHzaxT04OlceQQqNYlEkC4B6FzRpMn04er1/GWFAgj4KvBRheK+B
+         ksASKviVB4cwfCkgRJhUnHz9R3Y40feal8Aqese4NEec8yuH5Vr5HMBPspI5vBBpei2j
+         LcEg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=kG92dCPdeEwjoRAhcJ0Jn0GMtXx5bG5wbAOXlf/NWg8=;
+        b=SyUR8xTe97GIQSYWHqrR04B6XXxrYvtUrLIvnLT5PBd8r5qkp6CMp/Xj1dkHzm6F2w
+         ah3wD87BdLbSApD2gbOmVo4z7bpR4p2b5SEe8giXNbHmijcsCgIKqx1H1M7llYsnjRcI
+         DgYBBDxibP/ISzSVVrlMn/fNXc64y7a8/mQmgJtvmZeNAcWqDX9m09QAGygnSxih28OX
+         VYeq/SDVnnEc5GzzlGuZsG7lcukPA9q7HBWzobBlqViR2YTy9uiRG1wYo7F328zsXI77
+         Se3UtNcOUaKiu5i8zdkDA6ETzCgDVWJ2Bdy42RLKkFpCdiBImy3GmaCnx1lhUuVL+6Q5
+         tGZg==
+X-Gm-Message-State: APjAAAWvAfJqL/jTiFQcnayHo7OrN+C2fjxTzW4hCaJqMaxtWX8ppk7k
+	A4vtU4sFMsXDb4Nh5mEPi9AyqJYJOP3LYcLmP/I=
+X-Google-Smtp-Source: APXvYqx9CEr6PuNgFt5Dq9UaLmcsvFhGgGccjwzF2tEUI24gnH2D2zKoCeeKICMbkNLO8k19FSyV1ZWKoCyXAQMiiZM=
+X-Received: by 2002:a6b:7805:: with SMTP id j5mr8255299iom.42.1565910057260;
+ Thu, 15 Aug 2019 16:00:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20190812131235.27244-1-nitesh@redhat.com> <20190812131235.27244-2-nitesh@redhat.com>
+ <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
+ <6d5b57ca-41ff-5c54-ab20-2b1631a6ce29@redhat.com> <CAKgT0UfavuUT4ZvfxVdm3h25qc86ksxPO=GFpFkf8zbGAjHPvg@mail.gmail.com>
+ <09c6fbef-fa53-3a25-d3d6-460b9b6b2020@redhat.com> <6241ef40-9403-1cb0-4e91-a1b86fcf1388@redhat.com>
+In-Reply-To: <6241ef40-9403-1cb0-4e91-a1b86fcf1388@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Thu, 15 Aug 2019 16:00:46 -0700
+Message-ID: <CAKgT0UduKXTMHD2qWqEa7wQPOFYtaQ5Sx3XS9Ki8i8-_kTdmkg@mail.gmail.com>
+Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	Pankaj Gupta <pagupta@redhat.com>, "Wang, Wei W" <wei.w.wang@intel.com>, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
+	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Aug 2019, Mark Salyzyn wrote:
+On Thu, Aug 15, 2019 at 12:23 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+>
+> On 8/15/19 9:15 AM, Nitesh Narayan Lal wrote:
+> > On 8/14/19 12:11 PM, Alexander Duyck wrote:
+> >> On Wed, Aug 14, 2019 at 8:49 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>> On 8/12/19 2:47 PM, Alexander Duyck wrote:
+> >>>> On Mon, Aug 12, 2019 at 6:13 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>>>> This patch introduces the core infrastructure for free page reporting in
+> >>>>> virtual environments. It enables the kernel to track the free pages which
+> >>>>> can be reported to its hypervisor so that the hypervisor could
+> >>>>> free and reuse that memory as per its requirement.
+> >>>>>
+> >>>>> While the pages are getting processed in the hypervisor (e.g.,
+> >>>>> via MADV_DONTNEED), the guest must not use them, otherwise, data loss
+> >>>>> would be possible. To avoid such a situation, these pages are
+> >>>>> temporarily removed from the buddy. The amount of pages removed
+> >>>>> temporarily from the buddy is governed by the backend(virtio-balloon
+> >>>>> in our case).
+> >>>>>
+> >>>>> To efficiently identify free pages that can to be reported to the
+> >>>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
+> >>>>> chunks are reported to the hypervisor - especially, to not break up THP
+> >>>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
+> >>>>> in the bitmap are an indication whether a page *might* be free, not a
+> >>>>> guarantee. A new hook after buddy merging sets the bits.
+> >>>>>
+> >>>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
+> >>>>> asynchronously processes the bitmaps, trying to isolate and report pages
+> >>>>> that are still free. The backend (virtio-balloon) is responsible for
+> >>>>> reporting these batched pages to the host synchronously. Once reporting/
+> >>>>> freeing is complete, isolated pages are returned back to the buddy.
+> >>>>>
+> >>>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+> >>> [...]
+> >>>>> +}
+> >>>>> +
+> >>>>> +/**
+> >>>>> + * __page_reporting_enqueue - tracks the freed page in the respective zone's
+> >>>>> + * bitmap and enqueues a new page reporting job to the workqueue if possible.
+> >>>>> + */
+> >>>>> +void __page_reporting_enqueue(struct page *page)
+> >>>>> +{
+> >>>>> +       struct page_reporting_config *phconf;
+> >>>>> +       struct zone *zone;
+> >>>>> +
+> >>>>> +       rcu_read_lock();
+> >>>>> +       /*
+> >>>>> +        * We should not process this page if either page reporting is not
+> >>>>> +        * yet completely enabled or it has been disabled by the backend.
+> >>>>> +        */
+> >>>>> +       phconf = rcu_dereference(page_reporting_conf);
+> >>>>> +       if (!phconf)
+> >>>>> +               return;
+> >>>>> +
+> >>>>> +       zone = page_zone(page);
+> >>>>> +       bitmap_set_bit(page, zone);
+> >>>>> +
+> >>>>> +       /*
+> >>>>> +        * We should not enqueue a job if a previously enqueued reporting work
+> >>>>> +        * is in progress or we don't have enough free pages in the zone.
+> >>>>> +        */
+> >>>>> +       if (atomic_read(&zone->free_pages) >= phconf->max_pages &&
+> >>>>> +           !atomic_cmpxchg(&phconf->refcnt, 0, 1))
+> >>>> This doesn't make any sense to me. Why are you only incrementing the
+> >>>> refcount if it is zero? Combining this with the assignment above, this
+> >>>> isn't really a refcnt. It is just an oversized bitflag.
+> >>> The intent for having an extra variable was to ensure that at a time only one
+> >>> reporting job is enqueued. I do agree that for that purpose I really don't need
+> >>> a reference counter and I should have used something like bool
+> >>> 'page_hinting_active'. But with bool, I think there could be a possible chance
+> >>> of race. Maybe I should rename this variable and keep it as atomic.
+> >>> Any thoughts?
+> >> You could just use a bitflag to achieve what you are doing here. That
+> >> is the primary use case for many of the test_and_set_bit type
+> >> operations. However one issue with doing it as a bitflag is that you
+> >> have no way of telling that you took care of all requesters.
+> > I think you are right, I might end up missing on certain reporting
+> > opportunities in some special cases. Specifically when the pages which are
+> > part of this new reporting request belongs to a section of the bitmap which
+> > has already been scanned. Although, I have failed to reproduce this kind of
+> > situation in an actual setup.
+> >
+> >>  That is
+> >> where having an actual reference count comes in handy as you know
+> >> exactly how many zones are requesting to be reported on.
+> >
+> > True.
+> >
+> >>>> Also I am pretty sure this results in the opportunity to miss pages
+> >>>> because there is nothing to prevent you from possibly missing a ton of
+> >>>> pages you could hint on if a large number of pages are pushed out all
+> >>>> at once and then the system goes idle in terms of memory allocation
+> >>>> and freeing.
+> >>> I was looking at how you are enqueuing/processing reporting jobs for each zone.
+> >>> I am wondering if I should also consider something on similar lines as having
+> >>> that I might be able to address the concern which you have raised above. But it
+> >>> would also mean that I have to add an additional flag in the zone_flags. :)
+> >> You could do it either in the zone or outside the zone as yet another
+> >> bitmap. I decided to put the flags inside the zone because there was a
+> >> number of free bits there and it should be faster since we were
+> >> already using the zone structure.
+> > There are two possibilities which could happen while I am reporting:
+> > 1. Another request might come in for a different zone.
+> > 2. Another request could come in for the same zone and the pages belong to a
+> >     section of the bitmap which has already been scanned.
+> >
+> > Having a per zone flag to indicate reporting status will solve the first
+> > issue and to an extent the second as well. Having refcnt will possibly solve
+> > both of them. What I am wondering about is that in my case I could easily
+> > impact the performance negatively by performing more bitmap scanning.
+> >
+> >
+>
+> I realized that it may not be possible for me to directly adopt either refcnt
+> or zone flags just because of the way I have page reporting setup right now.
+>
+> For now, I will just replace the refcnt with a bitflag as that should work
+> for most of the cases.  Nevertheless, I will also keep looking for a better way.
 
-> Good Idea, but using the same argument structure for set and get I would be
-> concerned about the loss of compiler protection for the buffer argument;
-
-Agreed, I missed that.
-
-> struct getxattr_args {
-> 	struct dentry *dentry;
-> 	struct inode *inode;
-> 	const char *name;
-> 	void *buffer;
-> 	size_t size;
-> 	int flags;
-
-Does 'get' need flags?
-
--- 
-James Morris
-<jmorris@namei.org>
-
+If nothing else something you could consider is a refcnt for the
+number of bits you have set in your bitfield. Then all you would need
+to be doing is replace the cmpxchg with just a atomic_fetch_inc and
+what you would need to do is have your worker thread track how many
+bits it has cleared and subtract that from the refcnt at the end.
 
