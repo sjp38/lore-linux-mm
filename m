@@ -2,134 +2,196 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 108F7C3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:04:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA1A7C3A59B
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:06:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA995206C1
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:04:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="IuZwSs1/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA995206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 8995D21783
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:06:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8995D21783
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 622206B0277; Thu, 15 Aug 2019 09:04:18 -0400 (EDT)
+	id 0CA6E6B0279; Thu, 15 Aug 2019 09:06:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D4886B0278; Thu, 15 Aug 2019 09:04:18 -0400 (EDT)
+	id 07BC86B027A; Thu, 15 Aug 2019 09:06:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C2F86B0279; Thu, 15 Aug 2019 09:04:18 -0400 (EDT)
+	id EAB2A6B027B; Thu, 15 Aug 2019 09:06:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A54C6B0277
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:04:18 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id BD371180AD805
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:04:17 +0000 (UTC)
-X-FDA: 75824680554.27.steam87_256256612db4d
-X-HE-Tag: steam87_256256612db4d
-X-Filterd-Recvd-Size: 5002
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
-	by imf44.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:04:16 +0000 (UTC)
-Received: by mail-qk1-f196.google.com with SMTP id 125so1712760qkl.6
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:04:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+sQD+zsr7vGI2rnBo9g+oJW06UyfnJhHIGQAqNbFxW4=;
-        b=IuZwSs1/sg2gs7X8/HMGOKYXzgvI7hKzDGdggZttJSURMRYxJVZftP0NCXoTx9kR26
-         O/sfZwzz3+w3TlMh5kO0BfG0INa47kk9US5Bl/a8MKcvzoVehrnJPWGzU7V9y+o2d5Nk
-         Kju7MceUpwoVwA5wyNNFaVyXu7PG6ntN3MFy/C4bxnPqmzJLs9UnB1hl3gHgOa65jxUB
-         Hvu5s57zRVawIe+YlelM+eNZ9DvN83kuurmv37XNGarrXfBulYC73YTxo9UVkxrcQTnK
-         C9zb4BzCqLARK8nWnPlz/aG4w3K7tBt1aXiP8Ag8AjtMBvt7ltpyGMaiGvt2NqgiRt4O
-         TqYQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=+sQD+zsr7vGI2rnBo9g+oJW06UyfnJhHIGQAqNbFxW4=;
-        b=jPnbSd4ZXHIQX5XqNtdDWOhm4Im/3n6GCNZK+da/nQ+rx0AM1teZKph2NzCWPGHUnZ
-         9XnbAnVqnMEbkPv/FIX9ZACu4o72CYY74QLoycE+mMmYAKuxs/zAXQKX9akNTnWwRavW
-         rOyOLESckmvQ8+sH2LIwawG34Xu90rBgu8bLavtw0SMvy0EG5Sh89zm8vpN0btenn0l5
-         /dDPTlYJTmemTzR4/4t/TATmAgBuEueGJzWiKHrtovmiZDRGwH/fPI1tgpnaOpc4LECc
-         +jtE1qaUDyeAglFBhuhGSpPbV2a+KwAGo/auCcmdbvg/2qRZ3o+Oxn4pcJ98wMwDP3pp
-         eCKg==
-X-Gm-Message-State: APjAAAVbBD/GoCOKSGN8JQG1HwT1aT9iIhnuEupnnSyh8dpQwW+MiXTp
-	/L+fjTIsfDbfDcAiuXanY+SaRg==
-X-Google-Smtp-Source: APXvYqxbHXTewYAACJxzRXNX2TlZ2cOD0GDfUS0iL50gokJ8s5uWAlQ8FDekdfBBzYw8ePlgf2CSQA==
-X-Received: by 2002:a05:620a:52e:: with SMTP id h14mr4017748qkh.358.1565874256038;
-        Thu, 15 Aug 2019 06:04:16 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id z7sm1468623qki.88.2019.08.15.06.04.15
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 06:04:15 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyFQN-0004HN-58; Thu, 15 Aug 2019 10:04:15 -0300
-Date: Thu, 15 Aug 2019 10:04:15 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815130415.GD21596@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-3-daniel.vetter@ffwll.ch>
- <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
- <20190815084429.GE9477@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0194.hostedemail.com [216.40.44.194])
+	by kanga.kvack.org (Postfix) with ESMTP id C37666B0279
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:06:02 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 6F0438248AA7
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:06:02 +0000 (UTC)
+X-FDA: 75824684964.20.wind07_34a50dddd2736
+X-HE-Tag: wind07_34a50dddd2736
+X-Filterd-Recvd-Size: 7481
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:06:01 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B6D16ACC5;
+	Thu, 15 Aug 2019 13:05:59 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id F206B1E4200; Thu, 15 Aug 2019 15:05:58 +0200 (CEST)
+Date: Thu, 15 Aug 2019 15:05:58 +0200
+From: Jan Kara <jack@suse.cz>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190815130558.GF14313@quack2.suse.cz>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190814101714.GA26273@quack2.suse.cz>
+ <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190815084429.GE9477@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 10:44:29AM +0200, Michal Hocko wrote:
+On Wed 14-08-19 11:08:49, Ira Weiny wrote:
+> On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
+> > Hello!
+> > 
+> > On Fri 09-08-19 15:58:14, ira.weiny@intel.com wrote:
+> > > Pre-requisites
+> > > ==============
+> > > 	Based on mmotm tree.
+> > > 
+> > > Based on the feedback from LSFmm, the LWN article, the RFC series since
+> > > then, and a ton of scenarios I've worked in my mind and/or tested...[1]
+> > > 
+> > > Solution summary
+> > > ================
+> > > 
+> > > The real issue is that there is no use case for a user to have RDMA pinn'ed
+> > > memory which is then truncated.  So really any solution we present which:
+> > > 
+> > > A) Prevents file system corruption or data leaks
+> > > ...and...
+> > > B) Informs the user that they did something wrong
+> > > 
+> > > Should be an acceptable solution.
+> > > 
+> > > Because this is slightly new behavior.  And because this is going to be
+> > > specific to DAX (because of the lack of a page cache) we have made the user
+> > > "opt in" to this behavior.
+> > > 
+> > > The following patches implement the following solution.
+> > > 
+> > > 0) Registrations to Device DAX char devs are not affected
+> > > 
+> > > 1) The user has to opt in to allowing page pins on a file with an exclusive
+> > >    layout lease.  Both exclusive and layout lease flags are user visible now.
+> > > 
+> > > 2) page pins will fail if the lease is not active when the file back page is
+> > >    encountered.
+> > > 
+> > > 3) Any truncate or hole punch operation on a pinned DAX page will fail.
+> > 
+> > So I didn't fully grok the patch set yet but by "pinned DAX page" do you
+> > mean a page which has corresponding file_pin covering it? Or do you mean a
+> > page which has pincount increased? If the first then I'd rephrase this to
+> > be less ambiguous, if the second then I think it is wrong. 
+> 
+> I mean the second.  but by "fail" I mean hang.  Right now the "normal" page
+> pincount processing will hang the truncate.  Given the discussion with John H
+> we can make this a bit better if we use something like FOLL_PIN and the page
+> count bias to indicate this type of pin.  Then I could fail the truncate
+> outright.  but that is not done yet.
+> 
+> so... I used the word "fail" to be a bit more vague as the final implementation
+> may return ETXTBUSY or hang as noted.
 
-> As the oom reaper is the primary guarantee of the oom handling forward
-> progress it cannot be blocked on anything that might depend on blockable
-> memory allocations. These are not really easy to track because they
-> might be indirect - e.g. notifier blocks on a lock which other context
-> holds while allocating memory or waiting for a flusher that needs memory
-> to perform its work.
+Ah, OK. Hanging is fine in principle but with longterm pins, your work
+makes sure they actually fail with ETXTBUSY, doesn't it? The thing is that
+e.g. DIO will use page pins as well for its buffers and we must wait there
+until the pin is released. So please just clarify your 'fail' here a bit
+:).
 
-But lockdep *does* track all this and fs_reclaim_acquire() was created
-to solve exactly this problem.
+> > > 4) The user has the option of holding the lease or releasing it.  If they
+> > >    release it no other pin calls will work on the file.
+> > 
+> > Last time we spoke the plan was that the lease is kept while the pages are
+> > pinned (and an attempt to release the lease would block until the pages are
+> > unpinned). That also makes it clear that the *lease* is what is making
+> > truncate and hole punch fail with ETXTBUSY and the file_pin structure is
+> > just an implementation detail how the existence is efficiently tracked (and
+> > what keeps the backing file for the pages open so that the lease does not
+> > get auto-destroyed). Why did you change this?
+> 
+> closing the file _and_ unmaping it will cause the lease to be released
+> regardless of if we allow this or not.
+> 
+> As we discussed preventing the close seemed intractable.
 
-fs_reclaim is a lock and it flows through all the usual lockdep
-schemes like any other lock. Any time the page allocator wants to do
-something the would deadlock with reclaim it takes the lock.
+Yes, preventing the application from closing the file is difficult. But
+from a quick look at your patches it seemed to me that you actually hold a
+backing file reference from the file_pin structure thus even though the
+application closes its file descriptor, the struct file (and thus the
+lease) lives further until the file_pin gets released. And that should last
+as long as the pages are pinned. Am I missing something?
 
-Failure is expressed by a deadlock cycle in the lockdep map, and
-lockdep can handle arbitary complexity through layers of locks, work
-queues, threads, etc.
+> I thought about failing the munmap but that seemed wrong as well.  But more
+> importantly AFAIK RDMA can pass its memory pins to other processes via FD
+> passing...  This means that one could pin this memory, pass it to another
+> process and exit.  The file lease on the pin'ed file is lost.
 
-What is missing?
+Not if file_pin grabs struct file reference as I mentioned above...
+ 
+> The file lease is just a key to get the memory pin.  Once unlocked the procfs
+> tracking keeps track of where that pin goes and which processes need to be
+> killed to get rid of it.
 
-Jason
+I think having file lease being just a key to get the pin is conceptually
+wrong. The lease is what expresses: "I'm accessing these blocks directly,
+don't touch them without coordinating with me." So it would be only natural
+if we maintained the lease while we are accessing blocks instead of
+transferring this protection responsibility to another structure - namely
+file_pin - and letting the lease go. But maybe I miss some technical reason
+why maintaining file lease is difficult. If that's the case, I'd like to hear
+what...
+ 
+> > > 5) Closing the file is ok.
+> > > 
+> > > 6) Unmapping the file is ok
+> > > 
+> > > 7) Pins against the files are tracked back to an owning file or an owning mm
+> > >    depending on the internal subsystem needs.  With RDMA there is an owning
+> > >    file which is related to the pined file.
+> > > 
+> > > 8) Only RDMA is currently supported
+> > 
+> > If you currently only need "owning file" variant in your patch set, then
+> > I'd just implement that and leave "owning mm" variant for later if it
+> > proves to be necessary. The things are complex enough as is...
+> 
+> I can do that...  I was trying to get io_uring working as well with the
+> owning_mm but I should save that for later.
+
+Ah, OK. Yes, I guess io_uring can be next step.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
