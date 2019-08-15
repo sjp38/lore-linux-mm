@@ -2,95 +2,74 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65E3AC32757
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 05:45:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10E4BC433FF
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:06:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DA3A2086C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 05:45:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A67A7206C2
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:06:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="jaImOmkw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DA3A2086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="YEebXXY2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A67A7206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CCD36B0005; Thu, 15 Aug 2019 01:44:59 -0400 (EDT)
+	id 030676B0003; Thu, 15 Aug 2019 02:06:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 858146B0008; Thu, 15 Aug 2019 01:44:59 -0400 (EDT)
+	id F223E6B0005; Thu, 15 Aug 2019 02:06:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65A796B000A; Thu, 15 Aug 2019 01:44:59 -0400 (EDT)
+	id E37E86B0007; Thu, 15 Aug 2019 02:06:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0035.hostedemail.com [216.40.44.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE116B0005
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 01:44:59 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id DFA4A482A
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 05:44:58 +0000 (UTC)
-X-FDA: 75823573476.26.limit86_82b7e5d266d28
-X-HE-Tag: limit86_82b7e5d266d28
-X-Filterd-Recvd-Size: 6650
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 05:44:58 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7F5ilYa050196;
-	Thu, 15 Aug 2019 05:44:47 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : mime-version : content-transfer-encoding;
- s=corp-2019-08-05; bh=6XAZc0+sBcPGB3UEb+wYhsAGZZHSMFkfwxPpRpJqpHY=;
- b=jaImOmkwe0cn9nMRKYi/GOBf28cBRKUMUQOk8Z1ERh78e/+ioqyMf5FQbMD/V6OJz1GO
- xGJMI+5dQBdaiUf2k5ujcCqxQ8OkN12sbuvade3+s0z2di0pZkCJEwFSq4Lf9zfufQwV
- Ti5oZtAY3BELT+jjCxDVQvZSzZ54Dd8aMuOKy1MtW8QUkkMupUg84Q8o70zyRRAvp1dc
- AxbklrsiMC6XLzoqX35PlF5DMNvhpnsyn/pxe5ZKdehHy45/1JFNmR3gv+30dQmFiQ17
- UI8P26sbi8VTLGpp7fhNI7jNwj3Yb5tt/jd4AaLWCTlJfFbEI9s9gU9rOC4nrdiErJpL pQ== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2130.oracle.com with ESMTP id 2u9nbtrwtp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 05:44:46 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7F5iXDH156377;
-	Thu, 15 Aug 2019 05:44:46 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3020.oracle.com with ESMTP id 2ucgf0n58u-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 05:44:44 +0000
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7F5iMA6010832;
-	Thu, 15 Aug 2019 05:44:22 GMT
-Received: from localhost.localdomain (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 14 Aug 2019 22:44:21 -0700
-From: William Kucharski <william.kucharski@oracle.com>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,
-        Song Liu <songliubraving@fb.com>,
-        Bob Kasten <robert.a.kasten@intel.com>,
-        Mike Kravetz <mike.kravetz@oracle.com>,
-        William Kucharski <william.kucharski@oracle.com>,
-        Chad Mynhier <chad.mynhier@oracle.com>,
-        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 0/2] mm,thp: Add filemap_huge_fault() for THP
-Date: Wed, 14 Aug 2019 23:44:10 -0600
-Message-Id: <20190815054412.26713-1-william.kucharski@oracle.com>
-X-Mailer: git-send-email 2.21.0
+Received: from forelay.hostedemail.com (smtprelay0204.hostedemail.com [216.40.44.204])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2496B0003
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 02:06:32 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 349324FE6
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:06:32 +0000 (UTC)
+X-FDA: 75823627824.21.stove15_1be47c556995b
+X-HE-Tag: stove15_1be47c556995b
+X-Filterd-Recvd-Size: 3901
+Received: from smtp.aristanetworks.com (mx.aristanetworks.com [162.210.129.12])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:06:31 +0000 (UTC)
+Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
+	by smtp.aristanetworks.com (Postfix) with ESMTP id B65DD42A2C7;
+	Wed, 14 Aug 2019 23:07:12 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
+	s=Arista-A; t=1565849232;
+	bh=OG6evudYvLj50ZFoTIDecZ1Ho1oufmSz1imiu12yfjk=;
+	h=From:To:Cc:Subject:Date;
+	b=YEebXXY2Y14FST6xyHsv3SPFD9wRuNltXbAlw1y/+RiWHbr31RIpHP4zHvdIQ3LOJ
+	 TUV567FDvdD8dCUPDqI7UOFUN6AS845eFF181M8SHU9z2uKDlCKCuootWa0/KsKGIB
+	 PPZdMRK/cD5JjSPsPu6bUXk+H9C5abYwMpt/lTzN2oQ0pHI1J++ZDTw0m2sYmxBPPw
+	 1T9KUZyjs6sLZDO0KISu9uxakqn4vyFJoL9x/omYdgzzIq36crLYBn5PsI0givIB22
+	 v7nqhZD9DThU6VcPspilWEkRwT/DVxkngQtGzk0aCYC/YMCZ/uE8ftejUrYGD1FBld
+	 Chec4Yp4UIKTQ==
+Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
+	by smtp.aristanetworks.com (Postfix) with ESMTP id A8B7142A296;
+	Wed, 14 Aug 2019 23:07:12 -0700 (PDT)
+From: Edward Chron <echron@arista.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>,
+	Roman Gushchin <guro@fb.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>,
+	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+	Shakeel Butt <shakeelb@google.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	colona@arista.com,
+	Edward Chron <echron@arista.com>
+Subject: [PATCH] mm/oom: Add killed process selection information
+Date: Wed, 14 Aug 2019 23:06:04 -0700
+Message-Id: <20190815060604.3675-1-echron@arista.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9349 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=934
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908150059
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9349 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=970 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908150059
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -98,87 +77,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This set of patches is the first step towards a mechanism for automatical=
-ly
-mapping read-only text areas of appropriate size and alignment to THPs
-whenever possible.
+For an OOM event: print oom_score_adj value for the OOM Killed process
+to document what the oom score adjust value was at the time the process
+at the time of the OOM event. The value can be set by the user and it
+effects the resulting oom_score so useful to document this value.
 
-For now, the central routine, filemap_huge_fault(), amd various support
-routines are only included if the experimental kernel configuration optio=
-n
+Sample message output:
+Aug 14 23:00:02 testserver kernel: Out of memory: Killed process 2692
+ (oomprocs) total-vm:1056800kB, anon-rss:1052760kB, file-rss:4kB,i
+ shmem-rss:0kB oom_score_adj:1000
 
-        RO_EXEC_FILEMAP_HUGE_FAULT_THP
+Signed-off-by: Edward Chron <echron@arista.com>
+---
+ mm/oom_kill.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-is enabled.
-
-This is because filemap_huge_fault() is dependent upon the
-address_space_operations vector readpage() pointing to a routine that wil=
-l
-read and fill an entire large page at a time without poulluting the page
-cache with PAGESIZE entries for the large page being mapped or performing
-readahead that would pollute the page cache entries for succeeding large
-pages. Unfortunately, there is no good way to determine how many bytes
-were read by readpage(). At present, if filemap_huge_fault() were to call
-a conventional readpage() routine, it would only fill the first PAGESIZE
-bytes of the large page, which is definitely NOT the desired behavior.
-
-However, by making the code available now it is hoped that filesystem
-maintainers who have pledged to provide such a mechanism will do so more
-rapidly.
-
-The first part of the patch adds an order field to __page_cache_alloc(),
-allowing callers to directly request page cache pages of various sizes.
-This code was provided by Matthew Wilcox.
-
-The second part of the patch implements the filemap_huge_fault() mechanis=
-m
-as described above.
-
-As this code is only run when the experimental config option is set,
-there are some issues that need to be resolved but this is a good step
-step that will enable further developemt.
-
-Changes since v3:
-1. Multiple code review comments addressed
-2. filemap_huge_fault() now does rcu locking when possible
-3. filemap_huge_fault() now properly adds the THP to the page cache befor=
-e
-   calling readpage()
-
-Changes since v2:
-1. FGP changes were pulled out to enable submission as an independent
-   patch
-2. Inadvertent tab spacing and comment changes were reverted
-
-Changes since v1:
-1. Fix improperly generated patch for v1 PATCH 1/2
-
-Matthew Wilcox (1):
-  Add an 'order' argument to __page_cache_alloc() and
-    do_read_cache_page(). Ensure the allocated pages are compound pages.
-
-William Kucharski (1):
-  Add filemap_huge_fault() to attempt to satisfy page faults on
-    memory-mapped read-only text pages using THP when possible.
-
- fs/afs/dir.c            |   2 +-
- fs/btrfs/compression.c  |   2 +-
- fs/cachefiles/rdwr.c    |   4 +-
- fs/ceph/addr.c          |   2 +-
- fs/ceph/file.c          |   2 +-
- include/linux/mm.h      |   2 +
- include/linux/pagemap.h |  10 +-
- mm/Kconfig              |  15 ++
- mm/filemap.c            | 357 ++++++++++++++++++++++++++++++++++++++--
- mm/huge_memory.c        |   3 +
- mm/mmap.c               |  38 ++++-
- mm/readahead.c          |   2 +-
- mm/rmap.c               |   4 +-
- net/ceph/pagelist.c     |   4 +-
- net/ceph/pagevec.c      |   2 +-
- 15 files changed, 413 insertions(+), 36 deletions(-)
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index eda2e2a0bdc6..6b1674cac377 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -858,6 +858,7 @@ static void __oom_kill_process(struct task_struct *vi=
+ctim, const char *message)
+ 	struct task_struct *p;
+ 	struct mm_struct *mm;
+ 	bool can_oom_reap =3D true;
++	long adj;
+=20
+ 	p =3D find_lock_task_mm(victim);
+ 	if (!p) {
+@@ -877,6 +878,8 @@ static void __oom_kill_process(struct task_struct *vi=
+ctim, const char *message)
+ 	count_vm_event(OOM_KILL);
+ 	memcg_memory_event_mm(mm, MEMCG_OOM_KILL);
+=20
++	adj =3D (long)victim->signal->oom_score_adj;
++
+ 	/*
+ 	 * We should send SIGKILL before granting access to memory reserves
+ 	 * in order to prevent the OOM victim from depleting the memory
+@@ -884,12 +887,12 @@ static void __oom_kill_process(struct task_struct *=
+victim, const char *message)
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+ 	mark_oom_victim(victim);
+-	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file=
+-rss:%lukB, shmem-rss:%lukB\n",
++	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file=
+-rss:%lukB, shmem-rss:%lukB oom_score_adj:%ld\n",
+ 		message, task_pid_nr(victim), victim->comm,
+ 		K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+ 		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+-		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
++		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)), adj);
+ 	task_unlock(victim);
+=20
+ 	/*
 --=20
-2.21.0
+2.20.1
 
 
