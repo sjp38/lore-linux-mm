@@ -2,157 +2,165 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_2 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E30C0C31E40
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:36:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 102D8C31E40
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:52:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F9322086C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:36:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B6F2C2084D
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 06:52:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=bitdefender.onmicrosoft.com header.i=@bitdefender.onmicrosoft.com header.b="BHwv5Ww1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F9322086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="YBWFagRx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6F2C2084D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C8A76B0003; Thu, 15 Aug 2019 02:36:52 -0400 (EDT)
+	id 53F516B0007; Thu, 15 Aug 2019 02:52:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 178B26B0005; Thu, 15 Aug 2019 02:36:52 -0400 (EDT)
+	id 4EFD76B0008; Thu, 15 Aug 2019 02:52:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 068866B0007; Thu, 15 Aug 2019 02:36:52 -0400 (EDT)
+	id 3DDA66B000A; Thu, 15 Aug 2019 02:52:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5F96B0003
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 02:36:51 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 79A962C0D
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:36:51 +0000 (UTC)
-X-FDA: 75823704222.06.crate26_18a8a301895a
-X-HE-Tag: crate26_18a8a301895a
-X-Filterd-Recvd-Size: 8935
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10123.outbound.protection.outlook.com [40.107.1.123])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:36:50 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=W6Wn9lTQ32wrvHkUVE2ezkt0wSxk+kTgm42IhndIQ8p8gxBFRUK/58NyqMDcf0j99XpNEimsLFuZuiakn9dikdcQkcGJxRcOumTGiecWmGXUF+2B64Owt723nat9QzbVJpBm0YQPWnGwUqfpL6wKOFEK7akUnROy56TPfa48hJkA+5zJ68xcKZpvAwUMtb7tHMx+GY3jjH7xRQjvnYLgl8cxVZfHjb1nJ0eLmY0d/rNl5EedjzRIidjZRV+lpyozpsY5SrgZaAXYfcFtoocEYeicfq6/LmGs1vjoLlHPi4GpG5kL6ShtasoLfH1wTuIZymbl12Jg36VK0MCAHrcYzg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=sx8QVkD/qi9QX4eCCnho7dDHBQ5qPQVXHoWyhmdYRJo=;
- b=dMX+4ZtfrUOtcr3ajG6f1QcDBn4ULOTTBUXI7xnkfuf+Corn2jJWhZflXVCzyJ0DihPCkrk6PceqNW3v5OxgiAXoAj29UfvVrSxuWDRt7NqcNzh2+s+7ZuMJ+SiKbLzlblWwHKSpdxrTWpY5jukcBLTehA9Aixq5anafE9X6BW0pV005C20Y0k/bplFv6MhNxWJbcsWY8H6IgbouQMg/H0yyIQOenW8q+udiwHb7kNrzOJJ4wI0dgoMgyFRKxcf2h0rNjm7ER+euX4ADHI0w7IKjs3KOUWhBGtXDgh2walXf32AWkxxcQCkINnKtO9H5oWOaT/jVmP/daYOBPdnSGQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=bitdefender.com; dmarc=pass action=none
- header.from=bitdefender.com; dkim=pass header.d=bitdefender.com; arc=none
+Received: from forelay.hostedemail.com (smtprelay0007.hostedemail.com [216.40.44.7])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E1636B0007
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 02:52:27 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id B6F51180AD801
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:52:26 +0000 (UTC)
+X-FDA: 75823743492.16.rod18_89ad8965eb519
+X-HE-Tag: rod18_89ad8965eb519
+X-Filterd-Recvd-Size: 6723
+Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 06:52:25 +0000 (UTC)
+Received: by mail-ed1-f66.google.com with SMTP id h8so1300313edv.7
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 23:52:25 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=bitdefender.onmicrosoft.com; s=selector2-bitdefender-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=sx8QVkD/qi9QX4eCCnho7dDHBQ5qPQVXHoWyhmdYRJo=;
- b=BHwv5Ww1Fas0As2eRy/DfetioOGXYLogA84rcHEz1xK+X5mrVWihd8Y4m/eracPpzCFps3mLNSkqKb1lhfR+Y/DuEsl14KE01ZbWbgxzylB52+ekbDltU+0EFH4edH6HSunO0zcSIKdCKr2+XnXyoJUzqExWVzX/jUmOj/hXDZ4=
-Received: from HE1PR0201MB2060.eurprd02.prod.outlook.com (10.168.30.152) by
- HE1PR0201MB2124.eurprd02.prod.outlook.com (10.168.33.154) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.15; Thu, 15 Aug 2019 06:36:45 +0000
-Received: from HE1PR0201MB2060.eurprd02.prod.outlook.com
- ([fe80::c022:dbbc:4d4d:a558]) by HE1PR0201MB2060.eurprd02.prod.outlook.com
- ([fe80::c022:dbbc:4d4d:a558%3]) with mapi id 15.20.2157.022; Thu, 15 Aug 2019
- 06:36:45 +0000
-From: Nicusor CITU <ncitu@bitdefender.com>
-To: Sean Christopherson <sean.j.christopherson@intel.com>,
-	=?utf-8?B?QWRhbGJlcnQgTGF6xINy?= <alazar@bitdefender.com>
-CC: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org"
-	<virtualization@lists.linux-foundation.org>, Paolo Bonzini
-	<pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Tamas K Lengyel
-	<tamas@tklengyel.com>, Mathieu Tarral <mathieu.tarral@protonmail.com>,
-	=?utf-8?B?U2FtdWVsIExhdXLDqW4=?= <samuel.lauren@iki.fi>, Patrick Colp
-	<patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>, Stefan
- Hajnoczi <stefanha@redhat.com>, Weijiang Yang <weijiang.yang@intel.com>,
-	"Zhang@vger.kernel.org" <Zhang@vger.kernel.org>, Yu C <yu.c.zhang@intel.com>,
-	=?utf-8?B?TWloYWkgRG9uyJt1?= <mdontu@bitdefender.com>
-Subject: Re: [RFC PATCH v6 55/92] kvm: introspection: add KVMI_CONTROL_MSR and
- KVMI_EVENT_MSR
-Thread-Topic: [RFC PATCH v6 55/92] kvm: introspection: add KVMI_CONTROL_MSR
- and KVMI_EVENT_MSR
-Thread-Index: AQHVTs3TkKC1NudCY0uglRHlOs1VpKb4BZqAgAPEYIA=
-Date: Thu, 15 Aug 2019 06:36:44 +0000
-Message-ID: <f9e94e9649f072911cc20129c2b633747d5c1df5.camel@bitdefender.com>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
-	 <20190809160047.8319-56-alazar@bitdefender.com>
-	 <20190812210501.GD1437@linux.intel.com>
-In-Reply-To: <20190812210501.GD1437@linux.intel.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: PR0P264CA0172.FRAP264.PROD.OUTLOOK.COM
- (2603:10a6:100:1c::16) To HE1PR0201MB2060.eurprd02.prod.outlook.com
- (2603:10a6:3:20::24)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=ncitu@bitdefender.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-mailer: Evolution 3.28.5-0ubuntu0.18.04.1 
-x-originating-ip: [91.199.104.6]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: c04c88a1-b6fe-424d-4fd9-08d7214af053
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:HE1PR0201MB2124;
-x-ms-traffictypediagnostic: HE1PR0201MB2124:|HE1PR0201MB2124:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs:
- <HE1PR0201MB212489B6037337D9D95D9C30B0AC0@HE1PR0201MB2124.eurprd02.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01304918F3
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(39860400002)(376002)(396003)(366004)(346002)(136003)(199004)(189003)(186003)(3846002)(316002)(118296001)(66066001)(110136005)(50226002)(6116002)(2906002)(71190400001)(71200400001)(26005)(7736002)(305945005)(8676002)(5660300002)(54906003)(81156014)(7416002)(66946007)(386003)(6506007)(6246003)(478600001)(102836004)(36756003)(6636002)(2616005)(4326008)(14454004)(81166006)(14444005)(256004)(25786009)(11346002)(8936002)(76176011)(6486002)(107886003)(446003)(64756008)(66556008)(66476007)(86362001)(66446008)(6436002)(99286004)(53936002)(6512007)(476003)(486006)(52116002)(229853002)(99106002);DIR:OUT;SFP:1102;SCL:1;SRVR:HE1PR0201MB2124;H:HE1PR0201MB2060.eurprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: bitdefender.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- EnYgUxX6im+reQZd2aqIpkcrcjXPeS7ID1fU9UfUQBMyMAVapPix7Gnv+lGpI2UNCYUQvdjR0oT0Ar5jRasMimv+yL+4aJZOLksFr+Dt5f4DW2p96OIW1EYf65wGE07RfYtvSxAbTlXKx5l7vHpBW8Kowkua0mQgnWB8w9Nkj0tkyxpOVv6Z7BrXB6UPP3c2UEUOjf7RQi7vhT1nyx4aNmx09KDy7K4P+1Wg6EFZVA9pFs+xJs+Nxy9j5T12LE1OTuZZQzOg7Q/3yu+lWYu6QMNhbXHUAe/Kl4Qz0FTDTz6OhoijLQcQjlYON29HqXNiH1ya7Uco4wrEE6x3qsiWLJ2P2No/Nu9pq/jTo+n7TINx89YzCjMI+GL9FKVRrMXSaaLJ25idrN9qm5xHougdcQUBWK5oLrGwLmOZXV4zJYQ=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <384E0263AC0C0D4CAC1D930739969FF0@eurprd02.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        d=ffwll.ch; s=google;
+        h=sender:date:from:to:cc:subject:message-id:mail-followup-to
+         :references:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=AdThTK4irWjRHbKRNPRojupEGI8CuxNqyMHUGO6haU0=;
+        b=YBWFagRxj3AfoQNeT1UBuJe04QemjMpngCbeoAlxYRV7G8aAfyWVf43ySnd4OGigxl
+         Ns4xbcsW7Azu5FyzHwpJgyFbWPQVJjetlQmlGonoYkSnreGT+4qCoMjbqjRsUQV31Hvp
+         z9jyRdBKqwQdDr3jRTT1T/yIfgsHR8yJHCyq0=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
+         :mail-followup-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=AdThTK4irWjRHbKRNPRojupEGI8CuxNqyMHUGO6haU0=;
+        b=AVFa8DbOcEpX8yay0wQS4D+5gG54/n8ItMrBgCS9fAumDv7inTE+XIfEeUHAj2DfQB
+         UNhVdGEmWSaOhVNKZDHGmK1ggIZRZuWe8iOXs4LYm28x5QjOHgczd8dm1AiPB8wCAYxg
+         QT0MngB2vWuihsOgeZNs8KM/xFWizEAPN9EOoVFS/8IlYDQqPFb0DkNs5jIv/3bG6gzy
+         LOGQGV7BICz7tyOaWu+L90DfRBAUH+VLZHDlzI1ZCO0TgFGpK8yehpUMygbBXbNbcB+U
+         RPctPzYGxpcfFGUwXgUAe26hPXDSR4luh+ZkYqe2h1wzL0Fkmub4RIpXv4dh9WuNGYYg
+         plLA==
+X-Gm-Message-State: APjAAAV3unv4dL3OC7h8HI3J4mK11wwX4PL0pHIAytVwCqklWmyEshcu
+	wcY+Bznb3+TM6Ls6djYnl8dxPQ==
+X-Google-Smtp-Source: APXvYqzKfh04I5n5jqpFb/od47twmHRq+smHNDBFxhta5k8M0iVd0qgYIIokvl2AA/0YJfkhp6dXOw==
+X-Received: by 2002:a50:a485:: with SMTP id w5mr3690508edb.277.1565851944641;
+        Wed, 14 Aug 2019 23:52:24 -0700 (PDT)
+Received: from phenom.ffwll.local ([2a02:168:569e:0:3106:d637:d723:e855])
+        by smtp.gmail.com with ESMTPSA id w3sm391183edu.4.2019.08.14.23.52.23
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 14 Aug 2019 23:52:23 -0700 (PDT)
+Date: Thu, 15 Aug 2019 08:52:21 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190815065221.GZ7444@phenom.ffwll.local>
+Mail-Followup-To: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
 MIME-Version: 1.0
-X-OriginatorOrg: bitdefender.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: c04c88a1-b6fe-424d-4fd9-08d7214af053
-X-MS-Exchange-CrossTenant-originalarrivaltime: 15 Aug 2019 06:36:45.0757
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 487baf29-f1da-469a-9221-243f830c36f3
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: yYICgNa5QNoG5Jgovxnh67dpAG9Wm3xSNa9bsgjjwn2H4Iy40vYaBzU8CjU+tQZySGWXf/T72qcggelYNAUrlNcCEt9BE2IUuM117XvT2zE=
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: HE1PR0201MB2124
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
+X-Operating-System: Linux phenom 4.19.0-5-amd64 
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiA+ICsJdm9pZCAoKm1zcl9pbnRlcmNlcHQpKHN0cnVjdCBrdm1fdmNwdSAqdmNwdSwgdW5zaWdu
-ZWQgaW50IG1zciwNCj4gPiArCQkJCWJvb2wgZW5hYmxlKTsNCj4gDQo+IFRoaXMgc2hvdWxkIGJl
-IHRvZ2dsZV93cm1zcl9pbnRlcmNlcHQoKSwgb3IgdG9nZ2xlX21zcl9pbnRlcmNlcHQoKQ0KPiB3
-aXRoIGEgcGFyYW10ZXIgdG8gY29udHJvbCBSRE1TUiB2cy4gV1JNU1IuDQoNCk9rLCBJIGNhbiBk
-byB0aGF0Lg0KDQoNCj4gPiBkaWZmIC0tZ2l0IGEvYXJjaC94ODYva3ZtL3ZteC92bXguYyBiL2Fy
-Y2gveDg2L2t2bS92bXgvdm14LmMNCj4gPiBpbmRleCA2NDUwYzhjNDQ3NzEuLjAzMDZjN2VmMzE1
-OCAxMDA2NDQNCj4gPiAtLS0gYS9hcmNoL3g4Ni9rdm0vdm14L3ZteC5jDQo+ID4gKysrIGIvYXJj
-aC94ODYva3ZtL3ZteC92bXguYw0KPiA+IEBAIC03Nzg0LDYgKzc3ODQsMTUgQEAgc3RhdGljIF9f
-ZXhpdCB2b2lkIGhhcmR3YXJlX3Vuc2V0dXAodm9pZCkNCj4gPiAgCWZyZWVfa3ZtX2FyZWEoKTsN
-Cj4gPiAgfQ0KPiA+ICANCj4gPiArc3RhdGljIHZvaWQgdm14X21zcl9pbnRlcmNlcHQoc3RydWN0
-IGt2bV92Y3B1ICp2Y3B1LCB1bnNpZ25lZCBpbnQNCj4gPiBtc3IsDQo+ID4gKwkJCSAgICAgIGJv
-b2wgZW5hYmxlKQ0KPiA+ICt7DQo+ID4gKwlzdHJ1Y3QgdmNwdV92bXggKnZteCA9IHRvX3ZteCh2
-Y3B1KTsNCj4gPiArCXVuc2lnbmVkIGxvbmcgKm1zcl9iaXRtYXAgPSB2bXgtPnZtY3MwMS5tc3Jf
-Yml0bWFwOw0KPiA+ICsNCj4gPiArCXZteF9zZXRfaW50ZXJjZXB0X2Zvcl9tc3IobXNyX2JpdG1h
-cCwgbXNyLCBNU1JfVFlQRV9XLCBlbmFibGUpOw0KPiA+ICt9DQo+IA0KPiBVbmxlc3MgSSBvdmVy
-bG9va2VkIGEgY2hlY2ssIHRoaXMgd2lsbCBhbGxvdyB1c2Vyc3BhY2UgdG8gZGlzYWJsZQ0KPiBX
-Uk1TUiBpbnRlcmNlcHRpb24gZm9yIGFueSBNU1IgaW4gdGhlIGFib3ZlIHJhbmdlLCBpLmUuIHVz
-ZXJzcGFjZSBjYW4NCj4gdXNlIEtWTSB0byBnYWluIGZ1bGwgd3JpdGUgYWNjZXNzIHRvIHByZXR0
-eSBtdWNoIGFsbCB0aGUgaW50ZXJlc3RpbmcNCj4gTVNScy4gVGhpcyBuZWVkcyB0byBvbmx5IGRp
-c2FibGUgaW50ZXJjZXB0aW9uIGlmIEtWTSBoYWQgaW50ZXJjZXB0aW9uDQo+IGRpc2FibGVkIGJl
-Zm9yZSBpbnRyb3NwZWN0aW9uIHN0YXJ0ZWQgbW9kaWZ5aW5nIHN0YXRlLg0KDQpXZSBvbmx5IG5l
-ZWQgdG8gZW5hYmxlIHRoZSBNU1IgaW50ZXJjZXB0aW9uLiBXZSBuZXZlciBkaXNhYmxlIGl0IC0N
-CnBsZWFzZSBzZWUga3ZtaV9hcmNoX2NtZF9jb250cm9sX21zcigpLg0KDQo=
+On Wed, Aug 14, 2019 at 01:45:58PM -0700, Andrew Morton wrote:
+> On Wed, 14 Aug 2019 22:20:24 +0200 Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+> 
+> > In some special cases we must not block, but there's not a
+> > spinlock, preempt-off, irqs-off or similar critical section already
+> > that arms the might_sleep() debug checks. Add a non_block_start/end()
+> > pair to annotate these.
+> > 
+> > This will be used in the oom paths of mmu-notifiers, where blocking is
+> > not allowed to make sure there's forward progress. Quoting Michal:
+> > 
+> > "The notifier is called from quite a restricted context - oom_reaper -
+> > which shouldn't depend on any locks or sleepable conditionals. The code
+> > should be swift as well but we mostly do care about it to make a forward
+> > progress. Checking for sleepable context is the best thing we could come
+> > up with that would describe these demands at least partially."
+> > 
+> > Peter also asked whether we want to catch spinlocks on top, but Michal
+> > said those are less of a problem because spinlocks can't have an
+> > indirect dependency upon the page allocator and hence close the loop
+> > with the oom reaper.
+> 
+> I continue to struggle with this.  It introduces a new kernel state
+> "running preemptibly but must not call schedule()".  How does this make
+> any sense?
+> 
+> Perhaps a much, much more detailed description of the oom_reaper
+> situation would help out.
+
+I agree on both points, but I guess I'm not the expert to explain why we
+have this. All I'm trying to do is that drivers hold up their side. If you
+want to have better documentation for why the oom case needs this special
+new mode, you're looking at the wrong guy for that :-)
+
+Of course if you folks all decide that you just don't want to be
+remembered about that I guess we can drop this one here, but you're just
+shooting the messenger I think.
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
