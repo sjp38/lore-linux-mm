@@ -2,123 +2,128 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C595C32753
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:00:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1BADC32753
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:03:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E27E02086C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:00:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8B48D2086C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:03:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="WqnDtaZO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E27E02086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="IgA9r9wi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B48D2086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E5DD6B0003; Wed, 14 Aug 2019 20:00:32 -0400 (EDT)
+	id 3D7E36B0003; Wed, 14 Aug 2019 20:03:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8944E6B0005; Wed, 14 Aug 2019 20:00:32 -0400 (EDT)
+	id 389516B0005; Wed, 14 Aug 2019 20:03:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 783DB6B000A; Wed, 14 Aug 2019 20:00:32 -0400 (EDT)
+	id 2C6496B000A; Wed, 14 Aug 2019 20:03:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0119.hostedemail.com [216.40.44.119])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D206B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:00:32 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 08FE28248AA8
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:00:32 +0000 (UTC)
-X-FDA: 75822705504.26.toes00_21b5ef334401d
-X-HE-Tag: toes00_21b5ef334401d
-X-Filterd-Recvd-Size: 4271
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:00:31 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id e8so619764qtp.7
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:00:31 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=uQcEycbJpYwq03WKUHr1Col8h+hbyHngyQSZBqVtuao=;
-        b=WqnDtaZOeGzmOCMQPC4We4PRD3RuiO/IALjyCYVZuuWQ7X8TuNS1arQXC7EG5H/WMM
-         QoTLuRO+le+M6rRKQ+g/kpY4oRBlm26psPwlaph+NfO/QHkvqy5y7xLVn5asu5icHcX8
-         4+cgO8/3DW0QOxaqqU3N1R3jkqcGn2CA/nu/llYZ7KTrYBM7rhgO5bNv15Mwl/qhHkFr
-         xLgkDtM4ecYPJZGJaT+5ygz3Mtzt1oLeN40DNq1h3PCmx2kj0py9uxQtJ3zyBZMMMiMa
-         2sMtpruVKWC3ihvALp2SoFVQLWI2B85dMUSqBzp9DgYpURT4u2F3Usbhyj4KoRDhvXLf
-         XwZA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=uQcEycbJpYwq03WKUHr1Col8h+hbyHngyQSZBqVtuao=;
-        b=uFWbrtuK0IGrBQl+gQCz15BBLe4whZecGNSCPkudYT8jNBqBGXoPbWe14xUa/7e2sj
-         5sbxWPUZ/46m5iibdYsBHZ/Ii8pDUEzrcigWFIiLKSMsel3nLEk1USZmy0EMgDXlOVTg
-         /J0PQ1YvfICZzhfc09rA8ye4LJl9911l8gUCXyFHiW/SwKm03PKHpFeeXuib/JCevV43
-         pYeHa77ajndAeisY7/A8EUY2R+2E+2U9aIop/+e9yq1gIuos5Np8cdXAUAMMvWqR9ew5
-         duiAjezVEQ40DB455ottM+qywcPwY40VshjYBZo1tfqC0QPGWp4REukArz7fwUPfx6lv
-         I0pQ==
-X-Gm-Message-State: APjAAAWNlUa7q59khWpT7rON8FH5YXJj6D7pxe4rKDckQfSjIkSYhq3A
-	zylnImhUgS/DgT3p6gF7s4nbGA==
-X-Google-Smtp-Source: APXvYqwowo9TRatjr9x+Z0wkhKzzctBv0bQD6WAaHI7YUR2Bla8hl5jGs4NuJx4xbIBRiBZ2H9DzbA==
-X-Received: by 2002:ac8:5315:: with SMTP id t21mr1735710qtn.66.1565827231022;
-        Wed, 14 Aug 2019 17:00:31 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id u126sm637456qkf.132.2019.08.14.17.00.30
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Aug 2019 17:00:30 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hy3Bt-0003UN-MJ; Wed, 14 Aug 2019 21:00:29 -0300
-Date: Wed, 14 Aug 2019 21:00:29 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 3/5] mm, notifier: Catch sleeping/blocking for !blockable
-Message-ID: <20190815000029.GC11200@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-4-daniel.vetter@ffwll.ch>
+Received: from forelay.hostedemail.com (smtprelay0123.hostedemail.com [216.40.44.123])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6FF6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:03:49 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id C430D8248AA7
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:03:48 +0000 (UTC)
+X-FDA: 75822713736.11.ghost81_3e29af4170f18
+X-HE-Tag: ghost81_3e29af4170f18
+X-Filterd-Recvd-Size: 4284
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com [216.228.121.65])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:03:46 +0000 (UTC)
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d54a1640000>; Wed, 14 Aug 2019 17:03:48 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Wed, 14 Aug 2019 17:03:46 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Wed, 14 Aug 2019 17:03:46 -0700
+Received: from [10.2.171.178] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 15 Aug
+ 2019 00:03:45 +0000
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+To: Ira Weiny <ira.weiny@intel.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
+	<hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-fsdevel@vger.kernel.org>, <linux-rdma@vger.kernel.org>
+References: <20190812015044.26176-1-jhubbard@nvidia.com>
+ <20190812015044.26176-3-jhubbard@nvidia.com>
+ <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+ <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
+ <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
+ <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
+ <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
+ <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
+Date: Wed, 14 Aug 2019 17:02:17 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190814202027.18735-4-daniel.vetter@ffwll.ch>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565827428; bh=hz8lTdgR0x8GaLCXZ+gwdewpGK5z8PDTvxWlhUrVd/U=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=IgA9r9wi9TjtWDXtQOaw18ttkfzxxnqWWK+KbZeDEl1Va/Ek14rGmc/fuZ8FVDdnK
+	 F+xyO9NHzAtIOlP2woh9TTG0FbZbH+77iW7gIAu+unsfZC/stNXZzITa4Aqnt0yTNZ
+	 vI4sZG0Qns16nkO3YBTG+kDr0a9dFuVA5wlTcvlVmhuQWN+nNgxRhw9igtUP6JRflT
+	 uQDQO/ZLpW4Q4ozEdUVdHg4yVIQ2pCIEvM4IWIdCrd5uNC6owczN5yfsaZIYL+cTOC
+	 uPCGn611bLCLb8ZDJV1A4g1ez8Fb2spQfxj6gwiWIq1/tkkUrxtUi8DkQ5uWZhQaz8
+	 ImaSu3p4l2mSw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 10:20:25PM +0200, Daniel Vetter wrote:
-> We need to make sure implementations don't cheat and don't have a
-> possible schedule/blocking point deeply burried where review can't
-> catch it.
+On 8/14/19 4:50 PM, Ira Weiny wrote:
+> On Tue, Aug 13, 2019 at 05:56:31PM -0700, John Hubbard wrote:
+>> On 8/13/19 5:51 PM, John Hubbard wrote:
+>>> On 8/13/19 2:08 PM, Ira Weiny wrote:
+>>>> On Mon, Aug 12, 2019 at 05:07:32PM -0700, John Hubbard wrote:
+>>>>> On 8/12/19 4:49 PM, Ira Weiny wrote:
+>>>>>> On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
+>>>>>>> From: John Hubbard <jhubbard@nvidia.com>
+>>>>> ...
+>>>> Finally, I struggle with converting everyone to a new call.  It is more
+>>>> overhead to use vaddr_pin in the call above because now the GUP code is going
+>>>> to associate a file pin object with that file when in ODP we don't need that
+>>>> because the pages can move around.
+>>>
+>>> What if the pages in ODP are file-backed?
+>>>
+>>
+>> oops, strike that, you're right: in that case, even the file system case is covered.
+>> Don't mind me. :)
 > 
-> I'm not sure whether this is the best way to make sure all the
-> might_sleep() callsites trigger, and it's a bit ugly in the code flow.
-> But it gets the job done.
+> Ok so are we agreed we will drop the patch to the ODP code?  I'm going to keep
+> the FOLL_PIN flag and addition in the vaddr_pin_pages.
 > 
-> Inspired by an i915 patch series which did exactly that, because the
-> rules haven't been entirely clear to us.
 
-I thought lockdep already was able to detect:
+Yes. I hope I'm not overlooking anything, but it all seems to make sense to
+let ODP just rely on the MMU notifiers.
 
- spin_lock()
- might_sleep();
- spin_unlock()
-
-Am I mistaken? If yes, couldn't this patch just inject a dummy lockdep
-spinlock?
-
-Jason
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
