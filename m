@@ -2,169 +2,206 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62EE4C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:24:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04986C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:26:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0ABBD2086C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:24:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="UwFqsKZi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0ABBD2086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id C313B2063F
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:26:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C313B2063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7CAED6B0285; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
+	id 61AFB6B0288; Thu, 15 Aug 2019 14:26:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 755316B0287; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
+	id 5CC896B030C; Thu, 15 Aug 2019 14:26:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 61B766B0295; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
+	id 4E43F6B030D; Thu, 15 Aug 2019 14:26:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
-	by kanga.kvack.org (Postfix) with ESMTP id 397966B0285
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D44AC180AD805
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:24:50 +0000 (UTC)
-X-FDA: 75825488340.19.rule97_475d2cacc0557
-X-HE-Tag: rule97_475d2cacc0557
-X-Filterd-Recvd-Size: 6483
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:24:50 +0000 (UTC)
-Received: by mail-qk1-f196.google.com with SMTP id p13so2549346qkg.13
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:24:50 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=G4JHudwK1l0Pa0YXZDZdUoarWmEaiz0kaB3NPKkUFrY=;
-        b=UwFqsKZiJqRFsggeYnYEJQ5ti/D+4zJ6BdWzCQ9+5ZVyFzNT0pZp3Z47GysMlVkWVa
-         s6il5o0C2XSsvu08linHUpE1UuKtws+6kl5bvb6N8JTjKYNm+ZFsMF/aS7KIuwXwY5PL
-         ifLaV1KikbFHjyWGyYq9j2pnPvRA3ulCCU5LBrDPRPTf00Ev8+G4r7ZG1fWssXt+dt8m
-         fSIEjUyPUUjE4Cyc7v3Mk2yhOmcAHNWHAjyBbiBB5PDt75HzpgPI6NlB4kYJlFCHPv45
-         rERv+1byueCget/MOMNWxs6jcSzjmerqYaJGXU5V9yIGrPZkmI1GoIgdy70yvzXm/v2/
-         F53g==
+Received: from forelay.hostedemail.com (smtprelay0122.hostedemail.com [216.40.44.122])
+	by kanga.kvack.org (Postfix) with ESMTP id 27F126B0288
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:26:58 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CBC516D82
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:26:57 +0000 (UTC)
+X-FDA: 75825493674.17.stew20_59beb948da31a
+X-HE-Tag: stew20_59beb948da31a
+X-Filterd-Recvd-Size: 7323
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:26:56 +0000 (UTC)
+Received: by mail-ed1-f67.google.com with SMTP id g8so2908803edm.6
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:26:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=G4JHudwK1l0Pa0YXZDZdUoarWmEaiz0kaB3NPKkUFrY=;
-        b=qgnGfUYHslbQO+B5rco3xPh2V+czDoz1auj1hjRCGFs/On7yKUJEZ3hXY2rrjQfRaH
-         GkDSgiU1hwllWjWQ/VZDShCmSgwY9BH7/e7u/kmmP5ny6y3isRL7t8XWLCVYLARBWSJi
-         JJX1ELgSO+sxP4mMAwTZ9peV+5f45HpLSXN1vIV5IZw6BmSUFmXJEKktuj3e4DhTq7NQ
-         XHL8cgIOaeo5vnzHGt2xxasncdvfqlVm6xCpaNmLfAIfsJGOAv+IjUZORa0HBVSy1QyT
-         vBN6p01K1l3v7k/lXh8u65UmOsyF6dMK7ESeyjCBBYLlRrA3XziB4ljOuw4C0xo1/wff
-         3P+A==
-X-Gm-Message-State: APjAAAVKXd/2XHV/XK7HQpD2eNS5fNgar0qwMdfBNUu1i6n/WVHhRLBz
-	tqOiU74PN9dxrTkz3mNgE6MwsQ==
-X-Google-Smtp-Source: APXvYqznGQA2Mb3OUz3S4NsNelaEmfdP1JHskBC7RLkLXGfv6FD94/o+7zgymYT+l5Mz5o8/J+Om7Q==
-X-Received: by 2002:a37:ef1a:: with SMTP id j26mr5561517qkk.474.1565893489768;
-        Thu, 15 Aug 2019 11:24:49 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id g3sm1745991qke.105.2019.08.15.11.24.48
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 11:24:48 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyKQa-0007R9-AO; Thu, 15 Aug 2019 15:24:48 -0300
-Date: Thu, 15 Aug 2019 15:24:48 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815182448.GP21596@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-3-daniel.vetter@ffwll.ch>
- <20190814235805.GB11200@ziepe.ca>
- <20190815065829.GA7444@phenom.ffwll.local>
- <20190815122344.GA21596@ziepe.ca>
- <20190815132127.GI9477@dhcp22.suse.cz>
- <20190815141219.GF21596@ziepe.ca>
- <20190815155950.GN9477@dhcp22.suse.cz>
- <20190815165631.GK21596@ziepe.ca>
- <20190815174207.GR9477@dhcp22.suse.cz>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=mz7rJ/URdRDQjZL145hyuM17KSbfOM61Ih9LSnGlxDs=;
+        b=jWyfMYJc85suEGcprrcQWyY42utF0ie3y5canB+BK0q7GJY5T0yFRAnh6nXNN1Dqxo
+         7GUi6Ko6QoNsLk4ipdcnMdmvFHNEP6/FLOCr/CHs8kEE6ilQRdcH3Cg1FzF2fL57FUGy
+         5LdHB/xsqrQVEBorOELx7JvRHKsk5f+Kkk0ptgmSfuaA23lnQkNmntHZdGlqiVUxxcqX
+         8eJ8CM2zmKufdN5LxFND4tLEAvKeZ7vt4zsURKp1NpfzNPZ1uwMA5wbirtktEAbVBXW1
+         y/s/p1QQzA0tZ2nPoI4H9UUBMspwRPjheHoIV4TFS2lY1gkkaxOrY/o4Wv7+Yjd/lF9n
+         wfTQ==
+X-Gm-Message-State: APjAAAWigxkpa0oV0DVx/VWJu8LH5kvQrMhNzO2Z/fhz1EvlijuXzrwB
+	mnhtX2q7sc5Kukova/ZHoEaYTDo7B9fpjznEyC8dZA==
+X-Google-Smtp-Source: APXvYqyScduG+EH4jmYr9WMzpZ3dCYyd0cnjTaxtv6Rg8QOToS2vj2KHqhRAHz/M9hJU7fYo7PwAwDr/KG/u9XOHmw4=
+X-Received: by 2002:a17:906:e009:: with SMTP id cu9mr5720680ejb.267.1565893615419;
+ Thu, 15 Aug 2019 11:26:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815174207.GR9477@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190813191435.GB10228@bharath12345-Inspiron-5559>
+ <54182261-88a4-9970-1c3c-8402e130dcda@redhat.com> <20190815171834.GA14342@bharath12345-Inspiron-5559>
+In-Reply-To: <20190815171834.GA14342@bharath12345-Inspiron-5559>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Thu, 15 Aug 2019 20:26:43 +0200
+Message-ID: <CABgObfbQOS28cG_9Ca_2OXbLmDy_hwUkuqPnzJG5=FZ5sEYGfA@mail.gmail.com>
+Subject: Re: [Question-kvm] Can hva_to_pfn_fast be executed in interrupt context?
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: Radim Krcmar <rkrcmar@redhat.com>, kvm <kvm@vger.kernel.org>, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, khalid.aziz@oracle.com
+Content-Type: multipart/alternative; boundary="000000000000b41b8c05902c042a"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 07:42:07PM +0200, Michal Hocko wrote:
-> On Thu 15-08-19 13:56:31, Jason Gunthorpe wrote:
-> > On Thu, Aug 15, 2019 at 06:00:41PM +0200, Michal Hocko wrote:
-> > 
-> > > > AFAIK 'GFP_NOWAIT' is characterized by the lack of __GFP_FS and
-> > > > __GFP_DIRECT_RECLAIM..
-> > > >
-> > > > This matches the existing test in __need_fs_reclaim() - so if you are
-> > > > OK with GFP_NOFS, aka __GFP_IO which triggers try_to_compact_pages(),
-> > > > allocations during OOM, then I think fs_reclaim already matches what
-> > > > you described?
-> > > 
-> > > No GFP_NOFS is equally bad. Please read my other email explaining what
-> > > the oom_reaper actually requires. In short no blocking on direct or
-> > > indirect dependecy on memory allocation that might sleep.
-> > 
-> > It is much easier to follow with some hints on code, so the true
-> > requirement is that the OOM repear not block on GFP_FS and GFP_IO
-> > allocations, great, that constraint is now clear.
-> 
-> I still do not get why do you put FS/IO into the picture. This is really
-> about __GFP_DIRECT_RECLAIM.
+--000000000000b41b8c05902c042a
+Content-Type: text/plain; charset="UTF-8"
 
-Like I said this is complicated, translating "no blocking on direct or
-indirect dependecy on memory allocation that might sleep" into GFP
-flags is hard for us outside the mm community.
+Oh, I see. Sorry I didn't understand the question. In the case of KVM,
+there's simply no code that runs in interrupt context and needs to use
+virtual addresses.
 
-So the contraint here is no __GFP_DIRECT_RECLAIM?
+In fact, there's no code that runs in interrupt context at all. The only
+code that deals with host interrupts in a virtualization host is in VFIO,
+but all it needs to do is signal an eventfd.
 
-I bring up FS/IO because that is what Tejun mentioned when I asked him
-about reclaim restrictions, and is what fs_reclaim_acquire() is
-already sensitive too. It is pretty confusing if we have places using
-the word 'reclaim' with different restrictions. :(
+Paolo
 
-> >        CPU0                                 CPU1
-> >                                         mutex_lock()
-> >                                         kmalloc(GFP_KERNEL)
-> 
-> no I mean __GFP_DIRECT_RECLAIM here.
-> 
-> >                                         mutex_unlock()
-> >   fs_reclaim_acquire()
-> >   mutex_lock() <- illegal: lock dep assertion
-> 
-> I cannot really comment on how that is achieveable by lockdep.
 
-??? I am trying to explain this is already done and working today. The
-above example will already fault with lockdep enabled.
+Il gio 15 ago 2019, 19:18 Bharath Vedartham <linux.bhar@gmail.com> ha
+scritto:
 
-This is existing debugging we can use and improve upon rather that
-invent new debugging.
+> On Tue, Aug 13, 2019 at 10:17:09PM +0200, Paolo Bonzini wrote:
+> > On 13/08/19 21:14, Bharath Vedartham wrote:
+> > > Hi all,
+> > >
+> > > I was looking at the function hva_to_pfn_fast(in virt/kvm/kvm_main)
+> which is
+> > > executed in an atomic context(even in non-atomic context, since
+> > > hva_to_pfn_fast is much faster than hva_to_pfn_slow).
+> > >
+> > > My question is can this be executed in an interrupt context?
+> >
+> > No, it cannot for the reason you mention below.
+> >
+> > Paolo
+> hmm.. Well I expected the answer to be kvm specific.
+> Because I observed a similar use-case for a driver (sgi-gru) where
+> we want to retrive the physical address of a virtual address. This was
+> done in atomic and non-atomic context similar to hva_to_pfn_fast and
+> hva_to_pfn_slow. __get_user_pages_fast(for atomic case)
+> would not work as the driver could execute in interrupt context.
+>
+> The driver manually walked the page tables to handle this issue.
+>
+> Since kvm is a widely used piece of code, I asked this question to know
+> how kvm handled this issue.
+>
+> Thank you for your time.
+>
+> Thank you
+> Bharath
+> > > The motivation for this question is that in an interrupt context, we
+> cannot
+> > > assume "current" to be the task_struct of the process of interest.
+> > > __get_user_pages_fast assume current->mm when walking the process page
+> > > tables.
+> > >
+> > > So if this function hva_to_pfn_fast can be executed in an
+> > > interrupt context, it would not be safe to retrive the pfn with
+> > > __get_user_pages_fast.
+> > >
+> > > Thoughts on this?
+> > >
+> > > Thank you
+> > > Bharath
+> > >
+> >
+>
 
-Jason
+--000000000000b41b8c05902c042a
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"auto">Oh, I see. Sorry I didn&#39;t understand the question. In=
+ the case of KVM, there&#39;s simply no code that runs in interrupt context=
+ and needs to use virtual addresses.<div dir=3D"auto"><br></div><div dir=3D=
+"auto">In fact, there&#39;s no code that runs in interrupt context at all. =
+The only code that deals with host interrupts in a virtualization host is i=
+n VFIO, but all it needs to do is signal an eventfd.</div><div dir=3D"auto"=
+><br></div><div dir=3D"auto">Paolo</div><div dir=3D"auto"><br></div></div><=
+br><div class=3D"gmail_quote"><div dir=3D"ltr" class=3D"gmail_attr">Il gio =
+15 ago 2019, 19:18 Bharath Vedartham &lt;<a href=3D"mailto:linux.bhar@gmail=
+.com">linux.bhar@gmail.com</a>&gt; ha scritto:<br></div><blockquote class=
+=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
+ing-left:1ex">On Tue, Aug 13, 2019 at 10:17:09PM +0200, Paolo Bonzini wrote=
+:<br>
+&gt; On 13/08/19 21:14, Bharath Vedartham wrote:<br>
+&gt; &gt; Hi all,<br>
+&gt; &gt; <br>
+&gt; &gt; I was looking at the function hva_to_pfn_fast(in virt/kvm/kvm_mai=
+n) which is <br>
+&gt; &gt; executed in an atomic context(even in non-atomic context, since<b=
+r>
+&gt; &gt; hva_to_pfn_fast is much faster than hva_to_pfn_slow).<br>
+&gt; &gt; <br>
+&gt; &gt; My question is can this be executed in an interrupt context? <br>
+&gt; <br>
+&gt; No, it cannot for the reason you mention below.<br>
+&gt; <br>
+&gt; Paolo<br>
+hmm.. Well I expected the answer to be kvm specific. <br>
+Because I observed a similar use-case for a driver (sgi-gru) where <br>
+we want to retrive the physical address of a virtual address. This was<br>
+done in atomic and non-atomic context similar to hva_to_pfn_fast and<br>
+hva_to_pfn_slow. __get_user_pages_fast(for atomic case) <br>
+would not work as the driver could execute in interrupt context.<br>
+<br>
+The driver manually walked the page tables to handle this issue.<br>
+<br>
+Since kvm is a widely used piece of code, I asked this question to know<br>
+how kvm handled this issue. <br>
+<br>
+Thank you for your time.<br>
+<br>
+Thank you<br>
+Bharath<br>
+&gt; &gt; The motivation for this question is that in an interrupt context,=
+ we cannot<br>
+&gt; &gt; assume &quot;current&quot; to be the task_struct of the process o=
+f interest.<br>
+&gt; &gt; __get_user_pages_fast assume current-&gt;mm when walking the proc=
+ess page<br>
+&gt; &gt; tables. <br>
+&gt; &gt; <br>
+&gt; &gt; So if this function hva_to_pfn_fast can be executed in an<br>
+&gt; &gt; interrupt context, it would not be safe to retrive the pfn with<b=
+r>
+&gt; &gt; __get_user_pages_fast. <br>
+&gt; &gt; <br>
+&gt; &gt; Thoughts on this?<br>
+&gt; &gt; <br>
+&gt; &gt; Thank you<br>
+&gt; &gt; Bharath<br>
+&gt; &gt; <br>
+&gt; <br>
+</blockquote></div>
+
+--000000000000b41b8c05902c042a--
 
