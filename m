@@ -2,161 +2,181 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5E4CC3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 19:46:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36D8BC3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 19:55:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 500B02083B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 19:46:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E36082089E
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 19:55:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="NOCyQ0RJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 500B02083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="xH/dL+8B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E36082089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1DBA6B026B; Thu, 15 Aug 2019 15:46:37 -0400 (EDT)
+	id 69D2B6B0275; Thu, 15 Aug 2019 15:55:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DCE736B027A; Thu, 15 Aug 2019 15:46:37 -0400 (EDT)
+	id 64DEF6B0277; Thu, 15 Aug 2019 15:55:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C95B86B0281; Thu, 15 Aug 2019 15:46:37 -0400 (EDT)
+	id 53BFF6B027A; Thu, 15 Aug 2019 15:55:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
-	by kanga.kvack.org (Postfix) with ESMTP id A27CA6B026B
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:46:37 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 5109F180AD7C3
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:46:37 +0000 (UTC)
-X-FDA: 75825694434.25.scent25_39b0172bb1f3c
-X-HE-Tag: scent25_39b0172bb1f3c
-X-Filterd-Recvd-Size: 9075
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40051.outbound.protection.outlook.com [40.107.4.51])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:46:36 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=AejlJQM/OKLo2+k9TEkPp1nwsFoCCBMUqabBrzobO/QgkF4UIemLMS5WECx4sEdhgaSfcfmDQ+/SQhbLZ4r59pUeJCc3lAeCZQ6vuki57qRbUoF1+PWn+a0seJnkj99cpZumNVSok4Kjv+UiCWnmgc+1aAnLe/OhUZJAAP+tf+wRK/mM5BmjtiHzRh+O4Ix3G7WrPBWJDotqMfjVraeXlnTweT0BpFKfQpITo9fkWgDElkZGVQZBGsSs1tVxRmp+fHXlzR7Pag9Wk+Z24qQw5+86y8k36KHggTX6MSD9wyd920v3i5j/id8EnaYLOnneF0YQjwBAR+Gq5/qrfIOk2w==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=w0BTBF8kBiLrHFHJkVGaHXIMzhmWMU/iNoD1oXuo9IM=;
- b=a4g93HA7YNi34/bB4mruBaU4piOs7lnki1BwSA/APcFccMD19aOE9Sm2VLWqWJTVM0lpof2gLxiW2pw6HA/LZrTRsVdpyoeetpsa7C0WArGdUZwQR7ikuYt/z0XCx/747M1//XgjrLw/9TnMGAgh1jSyrRbKX3Ls1Nt2c42/hgvmK8hBqr7UpVgHOkUgqL+KytTXfPk9dXIY1O3QrKgEheIq/9ehx687zVu56ly0WldAhaRJiYRYwT1xj+H4t9j0L5VWXPqy4eQ0maartBDvYwe6uFwT3r0eT5uDQae8t2Cctkn6Amj73GwGiepIYsbH2Z2ygmBvgIv1euplWTH4Cw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=w0BTBF8kBiLrHFHJkVGaHXIMzhmWMU/iNoD1oXuo9IM=;
- b=NOCyQ0RJptuOlGmC66pGD1CZi5Sr530aX0F//3KLxm8rlhs/T8hWJXKdOwFXsqgg4U5DpcEpUq2cMksGRMqM689bq0J8wZKL+T+7aLbxir19IBnoxXB+lxgu3kB0tHl1YZb/1IY3Cy3az7xAZzldEgmQy3FJGB62PmZoDQA6yQU=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5168.eurprd05.prod.outlook.com (20.178.10.160) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.21; Thu, 15 Aug 2019 19:46:26 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2157.022; Thu, 15 Aug 2019
- 19:46:26 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: "christian.koenig@amd.com" <christian.koenig@amd.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli
-	<aarcange@redhat.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>, Ralph
- Campbell <rcampbell@nvidia.com>, Dimitri Sivanich <sivanich@sgi.com>, Gavin
- Shan <shangw@linux.vnet.ibm.com>, Andrea Righi <andrea@betterlinux.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, John Hubbard
-	<jhubbard@nvidia.com>, "Kuehling, Felix" <Felix.Kuehling@amd.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	=?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
-	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, Alex Deucher
-	<alexander.deucher@amd.com>, "intel-gfx@lists.freedesktop.org"
-	<intel-gfx@lists.freedesktop.org>, Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v3 hmm 08/11] drm/radeon: use mmu_notifier_get/put for
- struct radeon_mn
-Thread-Topic: [PATCH v3 hmm 08/11] drm/radeon: use mmu_notifier_get/put for
- struct radeon_mn
-Thread-Index: AQHVTKz1YDgPM7GGLU27kR5zKXuwhab77XGAgAC9boA=
-Date: Thu, 15 Aug 2019 19:46:26 +0000
-Message-ID: <20190815194621.GF22970@mellanox.com>
-References: <20190806231548.25242-1-jgg@ziepe.ca>
- <20190806231548.25242-9-jgg@ziepe.ca>
- <2baff2e5-b923-c39b-98e5-b3e7f77bd6d3@gmail.com>
-In-Reply-To: <2baff2e5-b923-c39b-98e5-b3e7f77bd6d3@gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQBPR0101CA0057.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:1::34) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 28c89de1-b5a2-4a9a-c12d-08d721b9428c
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5168;
-x-ms-traffictypediagnostic: VI1PR05MB5168:
-x-microsoft-antispam-prvs:
- <VI1PR05MB51681C1EF442D179C3BE8696CFAC0@VI1PR05MB5168.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01304918F3
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(376002)(346002)(366004)(396003)(136003)(199004)(189003)(6506007)(305945005)(2351001)(11346002)(36756003)(186003)(2616005)(102836004)(7416002)(66476007)(14454004)(64756008)(66556008)(26005)(486006)(446003)(66446008)(76176011)(476003)(66946007)(386003)(5660300002)(52116002)(7736002)(4326008)(316002)(256004)(66066001)(71200400001)(2906002)(33656002)(54906003)(81166006)(8676002)(1076003)(6512007)(25786009)(81156014)(71190400001)(6486002)(3846002)(6116002)(66574012)(99286004)(53936002)(478600001)(5640700003)(229853002)(86362001)(6916009)(8936002)(6246003)(6436002)(2501003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5168;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- fILogM5ET6wCipH9DgoM3HqNITLwlrxJI2cgDafFx5J9icOy7soEV1u/6g/yFdRMglGjJikP8+X19/UX2lPTWyn+kxdMSMeD9cwhCSRrEAf6IuXOSlStS2IlrXHAEwvuJsqLp5ge8B5d+0MmE+0r7yT0ZiU82tFXz5lbVuFw7DmiCVKKmmmlj8UQgiI24v1LSAU09TWm7MpD2LTXmaTWVRHr6ZSmxFsNjbM+HHP6Iwlry4K9Dk/WDEXiUSWcqKuutbYNNOGSsNMra+0+54JMj4OwFocKLSrhWQBRu44Ap37S7KztIlp0xPX49c+2Uhcjz4N37WYO2tBC/Gj0RNFzoMvtiHin7s6yAiSuwO9tVerzA2tGBUDCS1Y3LvB0BPJSMPfVYE119C2WMnrvNyrimbmyChHdxlSOiMvOrFTpN5k=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <2697329F3A1E3A4682A1061BFB978A84@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C38F6B0275
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:55:05 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id DC8BE180AD7C1
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:55:04 +0000 (UTC)
+X-FDA: 75825715728.16.frame01_8393c1979f352
+X-HE-Tag: frame01_8393c1979f352
+X-Filterd-Recvd-Size: 6536
+Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 19:55:04 +0000 (UTC)
+Received: by mail-ot1-f67.google.com with SMTP id z17so7445397otk.13
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 12:55:03 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=LCurvHSsCmm+5abpD1hHi8j9syc25zepop2mZHAT1y4=;
+        b=xH/dL+8B9O/zZKNIOGU6AfrXiRnIVSoM/QVzh3O/W1WrG7+QJ7zdE55DiVebnalEgC
+         vTxenCv0UyCxprQskHOjZCNfO9tDnSYNYjShnRS9S8nGbAi9K84dtTK4SykQnUUY+Wfn
+         QYXMsvN2m1hOdgmNxAYop02NE9UNOSHmPgM9ocDDtHoNY6B8efMYhaN+FmvESxReiDvM
+         L1lyGAAsi9JZGdXWde0N9P1FrA9q6ON7cqyl6tq+dy8zpwgbVsCGO4Vmb+r6fawX2sxI
+         P2VJvzDwvclquW9A7/qiiyfsNrlhpbYRN5DB7Z0t3gx+ZoBCEHi5lhlksGs8G4lvW7F9
+         irfg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=LCurvHSsCmm+5abpD1hHi8j9syc25zepop2mZHAT1y4=;
+        b=N4toQ9T5SsBmTWU30lxURrIE9IxRyDUBjXVJxFfbG0XdgqiOQzypeYnGggL1l89FlC
+         xBiqpsmf8X4sMf9TMFOuIchKTQCKxZ8tMBD2Kx/8nx8+zjrTt4TaYfy0wupXcRYY+4ux
+         OfMFYfLbowCrYG8uNa7xTT+uW2u6UBtR6H6S8IfcbgnDmYVADaq1qxHHHZzhFu2rK/X5
+         +9cbPYNZpvphcwjoSNoyRleOtX4C3E2trRU3Fr5pmdo59I5JYySdMvkdDkzlqq707MSC
+         bhj7bIglD2zwYHCA2/AAVOmisaeBNU0Ft4VlAGBihsg9Bao5TXhOO6oBS4rPPiy0i3sN
+         azHw==
+X-Gm-Message-State: APjAAAXX6C1CK8e/KTkLeEVhUlMje5Icj2yBGP4zOq6Xq+TRko7yc18X
+	D/4hLcX+GFyBDHdofEHEepITKnTBJbO38NauZ6XNHA==
+X-Google-Smtp-Source: APXvYqy1liZCgiuHpWjdJNheD/dz2N3XqsT5VgT3WadMNktE9u2Z8H3IIyr8WcBpt7CM+JZCn80RNisRK5YpkWEdAgY=
+X-Received: by 2002:a05:6830:458:: with SMTP id d24mr4558154otc.126.1565898903272;
+ Thu, 15 Aug 2019 12:55:03 -0700 (PDT)
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 28c89de1-b5a2-4a9a-c12d-08d721b9428c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 15 Aug 2019 19:46:26.7080
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: wr44nuzrOFqyQ8CDBnIZBpKKVc1F/faVzxn1IB0CV8N2pnaiWwXawzoXNPWFVXppCL/XneYKDHgeBk/kLVkTpw==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5168
+References: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com>
+ <20190809074520.27115-2-aneesh.kumar@linux.ibm.com> <CAPcyv4jmxKPkTh0_Bbu2tRXm4vcBHonZJ6UcKrOBnPGCG2_i1A@mail.gmail.com>
+In-Reply-To: <CAPcyv4jmxKPkTh0_Bbu2tRXm4vcBHonZJ6UcKrOBnPGCG2_i1A@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 15 Aug 2019 12:54:51 -0700
+Message-ID: <CAPcyv4hxo4HvtqZ-B6JG5iATo_vEAKPzO5EU5Lugs2_edEbW7Q@mail.gmail.com>
+Subject: Re: [PATCH v5 1/4] nvdimm: Consider probe return -EOPNOTSUPP as success
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCBBdWcgMTUsIDIwMTkgYXQgMTA6Mjg6MjFBTSArMDIwMCwgQ2hyaXN0aWFuIEvDtm5p
-ZyB3cm90ZToNCj4gQW0gMDcuMDguMTkgdW0gMDE6MTUgc2NocmllYiBKYXNvbiBHdW50aG9ycGU6
-DQo+ID4gRnJvbTogSmFzb24gR3VudGhvcnBlIDxqZ2dAbWVsbGFub3guY29tPg0KPiA+IA0KPiA+
-IHJhZGVvbiBpcyB1c2luZyBhIGRldmljZSBnbG9iYWwgaGFzaCB0YWJsZSB0byB0cmFjayB3aGF0
-IG1tdV9ub3RpZmllcnMNCj4gPiBoYXZlIGJlZW4gcmVnaXN0ZXJlZCBvbiBzdHJ1Y3QgbW0uIFRo
-aXMgaXMgYmV0dGVyIHNlcnZlZCB3aXRoIHRoZSBuZXcNCj4gPiBnZXQvcHV0IHNjaGVtZSBpbnN0
-ZWFkLg0KPiA+IA0KPiA+IHJhZGVvbiBoYXMgYSBidWcgd2hlcmUgaXQgd2FzIG5vdCBibG9ja2lu
-ZyBub3RpZmllciByZWxlYXNlKCkgdW50aWwgYWxsDQo+ID4gdGhlIEJPJ3MgaGFkIGJlZW4gaW52
-YWxpZGF0ZWQuIFRoaXMgY291bGQgcmVzdWx0IGluIGEgdXNlIGFmdGVyIGZyZWUgb2YNCj4gPiBw
-YWdlcyB0aGUgQk9zLiBUaGlzIGlzIHRpZWQgaW50byBhIHNlY29uZCBidWcgd2hlcmUgcmFkZW9u
-IGxlZnQgdGhlDQo+ID4gbm90aWZpZXJzIHJ1bm5pbmcgZW5kbGVzc2x5IGV2ZW4gb25jZSB0aGUg
-aW50ZXJ2YWwgdHJlZSBiZWNhbWUNCj4gPiBlbXB0eS4gVGhpcyBjb3VsZCByZXN1bHQgaW4gYSB1
-c2UgYWZ0ZXIgZnJlZSB3aXRoIG1vZHVsZSB1bmxvYWQuDQo+ID4gDQo+ID4gQm90aCBhcmUgZml4
-ZWQgYnkgY2hhbmdpbmcgdGhlIGxpZmV0aW1lIG1vZGVsLCB0aGUgQk9zIGV4aXN0IGluIHRoZQ0K
-PiA+IGludGVydmFsIHRyZWUgd2l0aCB0aGVpciBuYXR1cmFsIGxpZmV0aW1lcyBpbmRlcGVuZGVu
-dCBvZiB0aGUgbW1fc3RydWN0DQo+ID4gbGlmZXRpbWUgdXNpbmcgdGhlIGdldC9wdXQgc2NoZW1l
-LiBUaGUgcmVsZWFzZSBydW5zIHN5bmNocm9ub3VzbHkgYW5kIGp1c3QNCj4gPiBkb2VzIGludmFs
-aWRhdGVfc3RhcnQgYWNyb3NzIHRoZSBlbnRpcmUgaW50ZXJ2YWwgdHJlZSB0byBjcmVhdGUgdGhl
-DQo+ID4gcmVxdWlyZWQgRE1BIGZlbmNlLg0KPiA+IA0KPiA+IEFkZGl0aW9ucyB0byB0aGUgaW50
-ZXJ2YWwgdHJlZSBhZnRlciByZWxlYXNlIGFyZSBhbHJlYWR5IGltcG9zc2libGUgYXMNCj4gPiBv
-bmx5IGN1cnJlbnQtPm1tIGlzIHVzZWQgZHVyaW5nIHRoZSBhZGQuDQo+ID4gDQo+ID4gU2lnbmVk
-LW9mZi1ieTogSmFzb24gR3VudGhvcnBlIDxqZ2dAbWVsbGFub3guY29tPg0KPiANCj4gQWNrZWQt
-Ynk6IENocmlzdGlhbiBLw7ZuaWcgPGNocmlzdGlhbi5rb2VuaWdAYW1kLmNvbT4NCg0KVGhhbmtz
-IQ0KDQo+IEJ1dCBJJ20gd29uZGVyaW5nIGlmIHdlIHNob3VsZG4ndCBjb21wbGV0ZWx5IGRyb3Ag
-cmFkZW9uIHVzZXJwdHIgc3VwcG9ydC4NCj4gSXQncyBqdXN0IHRvIGJ1Z2d5LA0KDQpJIHdvdWxk
-IG5vdCBvYmplY3QgOikNCg0KSmFzb24NCg==
+On Tue, Aug 13, 2019 at 9:22 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> Hi Aneesh, logic looks correct but there are some cleanups I'd like to
+> see and a lead-in patch that I attached.
+>
+> I've started prefixing nvdimm patches with:
+>
+>     libnvdimm/$component:
+>
+> ...since this patch mostly impacts the pmem driver lets prefix it
+> "libnvdimm/pmem: "
+>
+> On Fri, Aug 9, 2019 at 12:45 AM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
+> >
+> > This patch add -EOPNOTSUPP as return from probe callback to
+>
+> s/This patch add/Add/
+>
+> No need to say "this patch" it's obviously a patch.
+>
+> > indicate we were not able to initialize a namespace due to pfn superblock
+> > feature/version mismatch. We want to consider this a probe success so that
+> > we can create new namesapce seed and there by avoid marking the failed
+> > namespace as the seed namespace.
+>
+> Please replace usage of "we" with the exact agent involved as which
+> "we" is being referred to gets confusing for the reader.
+>
+> i.e. "indicate that the pmem driver was not..." "The nvdimm core wants
+> to consider this...".
+>
+> >
+> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> > ---
+> >  drivers/nvdimm/bus.c  |  2 +-
+> >  drivers/nvdimm/pmem.c | 26 ++++++++++++++++++++++----
+> >  2 files changed, 23 insertions(+), 5 deletions(-)
+> >
+> > diff --git a/drivers/nvdimm/bus.c b/drivers/nvdimm/bus.c
+> > index 798c5c4aea9c..16c35e6446a7 100644
+> > --- a/drivers/nvdimm/bus.c
+> > +++ b/drivers/nvdimm/bus.c
+> > @@ -95,7 +95,7 @@ static int nvdimm_bus_probe(struct device *dev)
+> >         rc = nd_drv->probe(dev);
+> >         debug_nvdimm_unlock(dev);
+> >
+> > -       if (rc == 0)
+> > +       if (rc == 0 || rc == -EOPNOTSUPP)
+> >                 nd_region_probe_success(nvdimm_bus, dev);
+>
+> This now makes the nd_region_probe_success() helper obviously misnamed
+> since it now wants to take actions on non-probe success. I attached a
+> lead-in cleanup that you can pull into your series that renames that
+> routine to nd_region_advance_seeds().
+>
+> When you rebase this needs a comment about why EOPNOTSUPP has special handling.
+>
+> >         else
+> >                 nd_region_disable(nvdimm_bus, dev);
+> > diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+> > index 4c121dd03dd9..3f498881dd28 100644
+> > --- a/drivers/nvdimm/pmem.c
+> > +++ b/drivers/nvdimm/pmem.c
+> > @@ -490,6 +490,7 @@ static int pmem_attach_disk(struct device *dev,
+> >
+> >  static int nd_pmem_probe(struct device *dev)
+> >  {
+> > +       int ret;
+> >         struct nd_namespace_common *ndns;
+> >
+> >         ndns = nvdimm_namespace_common_probe(dev);
+> > @@ -505,12 +506,29 @@ static int nd_pmem_probe(struct device *dev)
+> >         if (is_nd_pfn(dev))
+> >                 return pmem_attach_disk(dev, ndns);
+> >
+> > -       /* if we find a valid info-block we'll come back as that personality */
+> > -       if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
+> > -                       || nd_dax_probe(dev, ndns) == 0)
+>
+> Similar need for an updated comment here to explain the special
+> translation of error codes.
+>
+> > +       ret = nd_btt_probe(dev, ndns);
+> > +       if (ret == 0)
+> >                 return -ENXIO;
+> > +       else if (ret == -EOPNOTSUPP)
+>
+> Are there cases where the btt driver needs to return EOPNOTSUPP? I'd
+> otherwise like to keep this special casing constrained to the pfn /
+> dax info block cases.
+
+In fact I think EOPNOTSUPP is only something that the device-dax case
+would be concerned with because that's the only interface that
+attempts to guarantee a given mapping granularity.
 
