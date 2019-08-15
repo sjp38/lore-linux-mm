@@ -2,63 +2,66 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.5 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0743EC433FF
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 03:54:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 325D3C31E40
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:52:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 966932067D
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 03:54:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 966932067D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id DA1AC2067D
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:52:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA1AC2067D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2DE726B0007; Wed, 14 Aug 2019 23:54:10 -0400 (EDT)
+	id 488146B0003; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28F086B0008; Wed, 14 Aug 2019 23:54:10 -0400 (EDT)
+	id 4395D6B0005; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A3F46B000A; Wed, 14 Aug 2019 23:54:10 -0400 (EDT)
+	id 34E9B6B0007; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0012.hostedemail.com [216.40.44.12])
-	by kanga.kvack.org (Postfix) with ESMTP id E80266B0007
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 23:54:09 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 8F427180AD801
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 03:54:09 +0000 (UTC)
-X-FDA: 75823294218.02.cork05_2414fec10d038
-X-HE-Tag: cork05_2414fec10d038
-X-Filterd-Recvd-Size: 9437
-Received: from r3-11.sinamail.sina.com.cn (r3-11.sinamail.sina.com.cn [202.108.3.11])
-	by imf15.hostedemail.com (Postfix) with SMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 03:54:07 +0000 (UTC)
-Received: from unknown (HELO localhost.localdomain)([221.219.6.224])
-	by sina.com with ESMTP
-	id 5D54D75A00031188; Thu, 15 Aug 2019 11:54:04 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 98808650999688
-From: Hillf Danton <hdanton@sina.com>
-To: Mina Almasry <almasrymina@google.com>
-Cc: mike.kravetz@oracle.com,
-	shuah@kernel.org,
-	rientjes@google.com,
-	shakeelb@google.com,
-	gthelen@google.com,
-	akpm@linux-foundation.org,
-	khalid.aziz@oracle.com,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kselftest@vger.kernel.org
-Subject: Re: [RFC PATCH v2 1/5] hugetlb_cgroup: Add hugetlb_cgroup reservation counter
-Date: Thu, 15 Aug 2019 11:53:52 +0800
-Message-Id: <20190815035352.14952-1-hdanton@sina.com>
-In-Reply-To: <20190808231340.53601-1-almasrymina@google.com>
-References: 
+Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
+	by kanga.kvack.org (Postfix) with ESMTP id 1465F6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id A47B8181AC9AE
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:51:59 +0000 (UTC)
+X-FDA: 75823439958.19.walk28_6881e4b98b70b
+X-HE-Tag: walk28_6881e4b98b70b
+X-Filterd-Recvd-Size: 6107
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com [115.124.30.44])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:51:57 +0000 (UTC)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TZWDJRR_1565844709;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TZWDJRR_1565844709)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 15 Aug 2019 12:51:52 +0800
+Subject: Re: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
+To: Michal Hocko <mhocko@kernel.org>
+Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, vbabka@suse.cz,
+ rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190809083216.GM18351@dhcp22.suse.cz>
+ <1a3c4185-c7ab-8d6f-8191-77dce02025a7@linux.alibaba.com>
+ <20190809180238.GS18351@dhcp22.suse.cz>
+ <79c90f6b-fcac-02e1-015a-0eaa4eafdf7d@linux.alibaba.com>
+ <fb1f4958-5147-2fab-531f-d234806c2f37@linux.alibaba.com>
+ <20190812093430.GD5117@dhcp22.suse.cz>
+ <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
+ <20190814110850.GT17933@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <a8005ff4-4749-8c71-ee4e-7ebda5c49de6@linux.alibaba.com>
+Date: Wed, 14 Aug 2019 21:51:47 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190814110850.GT17933@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -66,252 +69,84 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Thu,  8 Aug 2019 16:13:36 -0700 Mina Almasry wrote:
->=20
-> These counters will track hugetlb reservations rather than hugetlb
-> memory faulted in. This patch only adds the counter, following patches
-> add the charging and uncharging of the counter.
-> ---
 
-  !?!
+On 8/14/19 4:08 AM, Michal Hocko wrote:
+> On Mon 12-08-19 10:00:17, Yang Shi wrote:
+>>
+>> On 8/12/19 2:34 AM, Michal Hocko wrote:
+>>> On Fri 09-08-19 16:54:43, Yang Shi wrote:
+>>>> On 8/9/19 11:26 AM, Yang Shi wrote:
+>>>>> On 8/9/19 11:02 AM, Michal Hocko wrote:
+>>> [...]
+>>>>>> I have to study the code some more but is there any reason why those
+>>>>>> pages are not accounted as proper THPs anymore? Sure they are partially
+>>>>>> unmaped but they are still THPs so why cannot we keep them accounted
+>>>>>> like that. Having a new counter to reflect that sounds like papering
+>>>>>> over the problem to me. But as I've said I might be missing something
+>>>>>> important here.
+>>>>> I think we could keep those pages accounted for NR_ANON_THPS since they
+>>>>> are still THP although they are unmapped as you mentioned if we just
+>>>>> want to fix the improper accounting.
+>>>> By double checking what NR_ANON_THPS really means,
+>>>> Documentation/filesystems/proc.txt says "Non-file backed huge pages mapped
+>>>> into userspace page tables". Then it makes some sense to dec NR_ANON_THPS
+>>>> when removing rmap even though they are still THPs.
+>>>>
+>>>> I don't think we would like to change the definition, if so a new counter
+>>>> may make more sense.
+>>> Yes, changing NR_ANON_THPS semantic sounds like a bad idea. Let
+>>> me try whether I understand the problem. So we have some THP in
+>>> limbo waiting for them to be split and unmapped parts to be freed,
+>>> right? I can see that page_remove_anon_compound_rmap does correctly
+>>> decrement NR_ANON_MAPPED for sub pages that are no longer mapped by
+>>> anybody. LRU pages seem to be accounted properly as well.  As you've
+>>> said NR_ANON_THPS reflects the number of THPs mapped and that should be
+>>> reflecting the reality already IIUC.
+>>>
+>>> So the only problem seems to be that deferred THP might aggregate a lot
+>>> of immediately freeable memory (if none of the subpages are mapped) and
+>>> that can confuse MemAvailable because it doesn't know about the fact.
+>>> Has an skewed counter resulted in a user observable behavior/failures?
+>> No. But the skewed counter may make big difference for a big scale cluster.
+>> The MemAvailable is an important factor for cluster scheduler to determine
+>> the capacity.
+> But MemAvailable is a very rough estimation. Is relying on it really a
+> good measure? I mean there is a lot of reclaimable memory that is not
+> reflected there (some fs. internal data structures, networking buffers
+> etc.)
 
->  include/linux/hugetlb.h |  2 +-
->  mm/hugetlb_cgroup.c     | 86 +++++++++++++++++++++++++++++++++++++----
->  2 files changed, 80 insertions(+), 8 deletions(-)
->=20
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index edfca42783192..6777b3013345d 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -340,7 +340,7 @@ struct hstate {
->  	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
->  #ifdef CONFIG_CGROUP_HUGETLB
->  	/* cgroup control files */
-> -	struct cftype cgroup_files[5];
-> +	struct cftype cgroup_files[9];
+Yes, I agree there are other freeable objects not accounted into 
+MemAvailable. Their size depends on the workload. But, deferred split 
+THPs seems more common with the common workloads. A simple run with 
+MariaDB test of mmtest shows it could generate over fifteen thousand 
+deferred split THPs (accumulated around 30G in one hour run, 75% of 40G 
+memory for my VM). So, it may be worth accounting deferred split THPs in 
+MemAvailable.
 
-Move that enum in this header file and replace numbers with characters
-to easy both reading and maintaining.
->  #endif
->  	char name[HSTATE_NAME_LEN];
->  };
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index 68c2f2f3c05b7..708103663988a 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -25,6 +25,10 @@ struct hugetlb_cgroup {
->  	 * the counter to account for hugepages from hugetlb.
->  	 */
->  	struct page_counter hugepage[HUGE_MAX_HSTATE];
-> +	/*
-> +	 * the counter to account for hugepage reservations from hugetlb.
-> +	 */
-> +	struct page_counter reserved_hugepage[HUGE_MAX_HSTATE];
->  };
->=20
->  #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-> @@ -33,6 +37,15 @@ struct hugetlb_cgroup {
->=20
->  static struct hugetlb_cgroup *root_h_cgroup __read_mostly;
->=20
-> +static inline
-> +struct page_counter *get_counter(struct hugetlb_cgroup *h_cg, int idx,
-> +				 bool reserved)
+>
+> [...]
+>
+>>> accounting the full THP correct? What if subpages are still mapped?
+>> "Deferred split" definitely doesn't mean they are free. When memory pressure
+>> is hit, they would be split, then the unmapped normal pages would be freed.
+>> So, when calculating MemAvailable, they are not accounted 100%, but like
+>> "available += lazyfree - min(lazyfree / 2, wmark_low)", just like how page
+>> cache is accounted.
+> Then this is even more dubious IMHO.
+>
+>> We could get more accurate account, i.e. checking each sub page's mapcount
+>> when accounting, but it may change before shrinker start scanning. So, just
+>> use the ballpark estimation to trade off the complexity for accurate
+>> accounting.
+> I do not see much point in fixing up one particular counter when there
+> is a whole lot that is even not considered. I would rather live with the
+> fact that MemAvailable is only very rough estimate then whack a mole on
+> any memory consumer that is freeable directly or indirectly via memory
+> reclaim. Because this is likely to be always subtly broken and only
+> visible under very specific workloads so there is no way to test for it.
 
-s/get_/hugetlb_cgroup_get_/ to make it not too generic.
-> +{
-> +	if (reserved)
-> +		return  &h_cg->reserved_hugepage[idx];
-> +	return &h_cg->hugepage[idx];
-> +}
-> +
->  static inline
->  struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_st=
-ate *s)
->  {
-> @@ -256,28 +269,42 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsi=
-gned long nr_pages,
->=20
->  enum {
->  	RES_USAGE,
-> +	RES_RESERVATION_USAGE,
->  	RES_LIMIT,
-> +	RES_RESERVATION_LIMIT,
->  	RES_MAX_USAGE,
-> +	RES_RESERVATION_MAX_USAGE,
->  	RES_FAILCNT,
-> +	RES_RESERVATION_FAILCNT,
->  };
->=20
->  static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
->  				   struct cftype *cft)
->  {
->  	struct page_counter *counter;
-> +	struct page_counter *reserved_counter;
->  	struct hugetlb_cgroup *h_cg =3D hugetlb_cgroup_from_css(css);
->=20
->  	counter =3D &h_cg->hugepage[MEMFILE_IDX(cft->private)];
-> +	reserved_counter =3D &h_cg->reserved_hugepage[MEMFILE_IDX(cft->privat=
-e)];
->=20
->  	switch (MEMFILE_ATTR(cft->private)) {
->  	case RES_USAGE:
->  		return (u64)page_counter_read(counter) * PAGE_SIZE;
-> +	case RES_RESERVATION_USAGE:
-> +		return (u64)page_counter_read(reserved_counter) * PAGE_SIZE;
->  	case RES_LIMIT:
->  		return (u64)counter->max * PAGE_SIZE;
-> +	case RES_RESERVATION_LIMIT:
-> +		return (u64)reserved_counter->max * PAGE_SIZE;
->  	case RES_MAX_USAGE:
->  		return (u64)counter->watermark * PAGE_SIZE;
-> +	case RES_RESERVATION_MAX_USAGE:
-> +		return (u64)reserved_counter->watermark * PAGE_SIZE;
->  	case RES_FAILCNT:
->  		return counter->failcnt;
-> +	case RES_RESERVATION_FAILCNT:
-> +		return reserved_counter->failcnt;
->  	default:
->  		BUG();
->  	}
-> @@ -291,6 +318,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_o=
-pen_file *of,
->  	int ret, idx;
->  	unsigned long nr_pages;
->  	struct hugetlb_cgroup *h_cg =3D hugetlb_cgroup_from_css(of_css(of));
-> +	bool reserved =3D false;
->=20
->  	if (hugetlb_cgroup_is_root(h_cg)) /* Can't set limit on root */
->  		return -EINVAL;
-> @@ -303,10 +331,16 @@ static ssize_t hugetlb_cgroup_write(struct kernfs=
-_open_file *of,
->  	idx =3D MEMFILE_IDX(of_cft(of)->private);
->  	nr_pages =3D round_down(nr_pages, 1 << huge_page_order(&hstates[idx])=
-);
->=20
-> +	if (MEMFILE_ATTR(of_cft(of)->private) =3D=3D RES_RESERVATION_LIMIT) {
-> +		reserved =3D true;
-> +	}
-> +
->  	switch (MEMFILE_ATTR(of_cft(of)->private)) {
-> +	case RES_RESERVATION_LIMIT:
-		reserved =3D true;
-		/* fall thru */
+I saw Vlastimil suggested KReclaimable, it seems a good fit. If so we 
+don't need create a new counter anymore.
 
->  	case RES_LIMIT:
->  		mutex_lock(&hugetlb_limit_mutex);
-> -		ret =3D page_counter_set_max(&h_cg->hugepage[idx], nr_pages);
-> +		ret =3D page_counter_set_max(get_counter(h_cg, idx, reserved),
-> +					   nr_pages);
->  		mutex_unlock(&hugetlb_limit_mutex);
->  		break;
->  	default:
-> @@ -320,18 +354,26 @@ static ssize_t hugetlb_cgroup_reset(struct kernfs=
-_open_file *of,
->  				    char *buf, size_t nbytes, loff_t off)
->  {
->  	int ret =3D 0;
-> -	struct page_counter *counter;
-> +	struct page_counter *counter, *reserved_counter;
->  	struct hugetlb_cgroup *h_cg =3D hugetlb_cgroup_from_css(of_css(of));
->=20
->  	counter =3D &h_cg->hugepage[MEMFILE_IDX(of_cft(of)->private)];
-> +	reserved_counter =3D &h_cg->reserved_hugepage[
-> +		MEMFILE_IDX(of_cft(of)->private)];
->=20
->  	switch (MEMFILE_ATTR(of_cft(of)->private)) {
->  	case RES_MAX_USAGE:
->  		page_counter_reset_watermark(counter);
->  		break;
-> +	case RES_RESERVATION_MAX_USAGE:
-> +		page_counter_reset_watermark(reserved_counter);
-> +		break;
->  	case RES_FAILCNT:
->  		counter->failcnt =3D 0;
->  		break;
-> +	case RES_RESERVATION_FAILCNT:
-> +		reserved_counter->failcnt =3D 0;
-> +		break;
->  	default:
->  		ret =3D -EINVAL;
->  		break;
-> @@ -357,7 +399,7 @@ static void __init __hugetlb_cgroup_file_init(int i=
-dx)
->  	struct hstate *h =3D &hstates[idx];
->=20
->  	/* format the size */
-> -	mem_fmt(buf, 32, huge_page_size(h));
-> +	mem_fmt(buf, sizeof(buf), huge_page_size(h));
->=20
->  	/* Add the limit file */
->  	cft =3D &h->cgroup_files[0];
-> @@ -366,28 +408,58 @@ static void __init __hugetlb_cgroup_file_init(int=
- idx)
->  	cft->read_u64 =3D hugetlb_cgroup_read_u64;
->  	cft->write =3D hugetlb_cgroup_write;
->=20
-> -	/* Add the usage file */
-> +	/* Add the reservation limit file */
->  	cft =3D &h->cgroup_files[1];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_limit_in_bytes",
-> +		 buf);
-> +	cft->private =3D MEMFILE_PRIVATE(idx, RES_RESERVATION_LIMIT);
-> +	cft->read_u64 =3D hugetlb_cgroup_read_u64;
-> +	cft->write =3D hugetlb_cgroup_write;
-> +
-> +	/* Add the usage file */
-> +	cft =3D &h->cgroup_files[2];
->  	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.usage_in_bytes", buf);
->  	cft->private =3D MEMFILE_PRIVATE(idx, RES_USAGE);
->  	cft->read_u64 =3D hugetlb_cgroup_read_u64;
->=20
-> +	/* Add the reservation usage file */
-> +	cft =3D &h->cgroup_files[3];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_usage_in_bytes",
-> +			buf);
-> +	cft->private =3D MEMFILE_PRIVATE(idx, RES_RESERVATION_USAGE);
-> +	cft->read_u64 =3D hugetlb_cgroup_read_u64;
-> +
->  	/* Add the MAX usage file */
-> -	cft =3D &h->cgroup_files[2];
-> +	cft =3D &h->cgroup_files[4];
->  	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.max_usage_in_bytes", buf);
->  	cft->private =3D MEMFILE_PRIVATE(idx, RES_MAX_USAGE);
->  	cft->write =3D hugetlb_cgroup_reset;
->  	cft->read_u64 =3D hugetlb_cgroup_read_u64;
->=20
-> +	/* Add the MAX reservation usage file */
-> +	cft =3D &h->cgroup_files[5];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME,
-> +			"%s.reservation_max_usage_in_bytes", buf);
-> +	cft->private =3D MEMFILE_PRIVATE(idx, RES_RESERVATION_MAX_USAGE);
-> +	cft->write =3D hugetlb_cgroup_reset;
-> +	cft->read_u64 =3D hugetlb_cgroup_read_u64;
-> +
->  	/* Add the failcntfile */
-> -	cft =3D &h->cgroup_files[3];
-> +	cft =3D &h->cgroup_files[6];
->  	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.failcnt", buf);
->  	cft->private  =3D MEMFILE_PRIVATE(idx, RES_FAILCNT);
->  	cft->write =3D hugetlb_cgroup_reset;
->  	cft->read_u64 =3D hugetlb_cgroup_read_u64;
->=20
-> +	/* Add the reservation failcntfile */
-> +	cft =3D &h->cgroup_files[7];
-> +	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_failcnt", buf);
-> +	cft->private  =3D MEMFILE_PRIVATE(idx, RES_FAILCNT);
-> +	cft->write =3D hugetlb_cgroup_reset;
-> +	cft->read_u64 =3D hugetlb_cgroup_read_u64;
-> +
->  	/* NULL terminate the last cft */
-> -	cft =3D &h->cgroup_files[4];
-> +	cft =3D &h->cgroup_files[8];
->  	memset(cft, 0, sizeof(*cft));
-
-Replace numbers with characters.
->=20
->  	WARN_ON(cgroup_add_legacy_cftypes(&hugetlb_cgrp_subsys,
-> --
-> 2.23.0.rc1.153.gdeed80330f-goog
 
 
