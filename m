@@ -2,215 +2,108 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DB81C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 15:30:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49D8DC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 15:43:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE7BF20644
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 15:30:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE7BF20644
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 0D13B20665
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 15:43:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hyuuAh2C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D13B20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B2556B029E; Thu, 15 Aug 2019 11:30:32 -0400 (EDT)
+	id 97D1D6B02A1; Thu, 15 Aug 2019 11:43:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73C0F6B02A0; Thu, 15 Aug 2019 11:30:32 -0400 (EDT)
+	id 92DD26B02A2; Thu, 15 Aug 2019 11:43:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DB006B02A1; Thu, 15 Aug 2019 11:30:32 -0400 (EDT)
+	id 81CD26B02A3; Thu, 15 Aug 2019 11:43:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0012.hostedemail.com [216.40.44.12])
-	by kanga.kvack.org (Postfix) with ESMTP id 353C56B029E
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:30:32 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id C12248248AA6
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:30:31 +0000 (UTC)
-X-FDA: 75825049062.27.help54_488acfcdb904
-X-HE-Tag: help54_488acfcdb904
-X-Filterd-Recvd-Size: 8329
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:30:31 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 84639B02E;
-	Thu, 15 Aug 2019 15:30:28 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id F3E6E1E4200; Thu, 15 Aug 2019 17:30:24 +0200 (CEST)
-Date: Thu, 15 Aug 2019 17:30:24 +0200
-From: Jan Kara <jack@suse.cz>
-To: Mark Salyzyn <salyzyn@android.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org,
-	kernel-team@android.com, Tyler Hicks <tyhicks@canonical.com>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Mathieu Malaterre <malat@debian.org>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	devel@driverdev.osuosl.org, Vyacheslav Dubeyko <slava@dubeyko.com>,
-	Joel Becker <jlbec@evilplan.org>, Mark Fasheh <mark@fasheh.com>,
-	Chris Mason <clm@fb.com>, Artem Bityutskiy <dedekind1@gmail.com>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Ilya Dryomov <idryomov@gmail.com>, Hugh Dickins <hughd@google.com>,
-	Serge Hallyn <serge@hallyn.com>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Adrian Hunter <adrian.hunter@intel.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Jeff Layton <jlayton@kernel.org>,
-	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
-	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mimi Zohar <zohar@linux.ibm.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-afs@lists.infradead.org, linux-mtd@lists.infradead.org,
-	devel@lists.orangefs.org, linux-erofs@lists.ozlabs.org,
-	samba-technical@lists.samba.org,
-	jfs-discussion@lists.sourceforge.net,
-	linux-f2fs-devel@lists.sourceforge.net,
-	v9fs-developer@lists.sourceforge.net, Theodore Ts'o <tytso@mit.edu>,
-	James Morris <jmorris@namei.org>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Richard Weinberger <richard@nod.at>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	ocfs2-devel@oss.oracle.com, Eric Paris <eparis@parisplace.org>,
-	Paul Moore <paul@paul-moore.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>, cluster-devel@redhat.com,
-	David Howells <dhowells@redhat.com>,
-	Bob Peterson <rpeterso@redhat.com>, Sage Weil <sage@redhat.com>,
-	Steve French <sfrench@samba.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	David Sterba <dsterba@suse.com>, Jan Kara <jack@suse.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Josef Bacik <josef@toxicpanda.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>, ceph-devel@vger.kernel.org,
-	ecryptfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
-	linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-integrity@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-security-module@vger.kernel.org,
-	linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org,
-	netdev@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	selinux@vger.kernel.org, stable@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>
-Subject: Re: [PATCH v2] Add flags option to get xattr method paired to
- __vfs_getxattr
-Message-ID: <20190815153024.GP14313@quack2.suse.cz>
-References: <20190813145527.26289-1-salyzyn@android.com>
- <20190814110022.GB26273@quack2.suse.cz>
- <71d66fd1-cc94-fd0c-dfa7-115ba8a6b95a@android.com>
+Received: from forelay.hostedemail.com (smtprelay0136.hostedemail.com [216.40.44.136])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FC506B02A1
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:43:08 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 14E038248AAF
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:43:08 +0000 (UTC)
+X-FDA: 75825080856.10.week21_729beb3aeb22e
+X-HE-Tag: week21_729beb3aeb22e
+X-Filterd-Recvd-Size: 3686
+Received: from mail-qk1-f175.google.com (mail-qk1-f175.google.com [209.85.222.175])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 15:43:07 +0000 (UTC)
+Received: by mail-qk1-f175.google.com with SMTP id 201so2155814qkm.9
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 08:43:07 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=VSR3T6Q49rCFXPPoyb9XFgF2ejksN7y0WyTo3YMYamM=;
+        b=hyuuAh2CNIxYP3ggj8gDm8R4p/9az4kHrRaL6c7xkvVmp5KasB2iSYzUaAGIeZjGiM
+         A95PrUyUJC+0/lW0z1W+odNW7+/4tOmRmm6g86Fh0uQd7iEZ7NQH9paD1ey8Ro+yUg4g
+         y3VeNucMGXfPbFqNNe2fdHGkico4kMYi0IGp8QW1kdMhBhiJeExKMtbS0t6bdR0K3WmR
+         I+szM8wY4iywtp965t3+afNr0ujT0/Y5OO7fs8HNBxXO9ilORnMG3/ZqeRVzaRoWWy1f
+         y2cWJTQHxaLlPv/FNGs6kLzLnFQz0yqnp8YocfIMbukfVsK2R/XaBg8GPyF6ZzZ2cszC
+         /M0g==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
+         :references:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=VSR3T6Q49rCFXPPoyb9XFgF2ejksN7y0WyTo3YMYamM=;
+        b=G+0KrOuQdI6bgK3Rtqi9hAitFaQTSG6AQAQz2TqrW8E+1Sh64tTvzXiTh9Pyatsgw7
+         C7L7ADdEzA2PEEw1sD0kBWzfQ6gam5zHuaV36LLl07qddY7FFKDDbaDYBkNbBE+c9Euo
+         D0RvWk73zobE6lxdUZ40QyYpRSDLXzzdQqV4zuni6rFYJ/+aG7qQsO0LdKdxo8IhPi7u
+         6hxiWDFfXAFhti50K1aOkjlGlFdPY/YU7KJrQiWEwyE+9rUBJUOEiJQzHZ+bSk1O85Ku
+         FI1Cw+5cDaGzkA0ThjO57+FJYIsdEilH67+sRYlzwlE67Yrn5puiTcJWPGfjL4+7BaeL
+         aYBQ==
+X-Gm-Message-State: APjAAAUJVbqhNXVKmppgGniD/cfRnfvtiO8RwEt43YVIIbszvpIZb/Vi
+	3Xd8uvb6699VAMD8zT4724Q=
+X-Google-Smtp-Source: APXvYqxzLjuzQD27bfrn2cScIeA+V2HcpeVzSikxHaN5jBJPh/YwChCQxz2+g7+fHLFfxda2FIzOsw==
+X-Received: by 2002:a37:270a:: with SMTP id n10mr4625997qkn.434.1565883786758;
+        Thu, 15 Aug 2019 08:43:06 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:25cd])
+        by smtp.gmail.com with ESMTPSA id t2sm1529090qkm.34.2019.08.15.08.43.05
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Aug 2019 08:43:06 -0700 (PDT)
+Date: Thu, 15 Aug 2019 08:43:02 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 3/4] writeback, memcg: Implement cgroup_writeback_by_id()
+Message-ID: <20190815154302.GB588936@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-4-tj@kernel.org>
+ <20190815140535.GJ14313@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <71d66fd1-cc94-fd0c-dfa7-115ba8a6b95a@android.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190815140535.GJ14313@quack2.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 14-08-19 07:54:16, Mark Salyzyn wrote:
-> On 8/14/19 4:00 AM, Jan Kara wrote:
-> > On Tue 13-08-19 07:55:06, Mark Salyzyn wrote:
-> > ...
-> > > diff --git a/fs/xattr.c b/fs/xattr.c
-> > > index 90dd78f0eb27..71f887518d6f 100644
-> > > --- a/fs/xattr.c
-> > > +++ b/fs/xattr.c
-> > ...
-> > >   ssize_t
-> > >   __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
-> > > -	       void *value, size_t size)
-> > > +	       void *value, size_t size, int flags)
-> > >   {
-> > >   	const struct xattr_handler *handler;
-> > > -
-> > > -	handler = xattr_resolve_name(inode, &name);
-> > > -	if (IS_ERR(handler))
-> > > -		return PTR_ERR(handler);
-> > > -	if (!handler->get)
-> > > -		return -EOPNOTSUPP;
-> > > -	return handler->get(handler, dentry, inode, name, value, size);
-> > > -}
-> > > -EXPORT_SYMBOL(__vfs_getxattr);
-> > > -
-> > > -ssize_t
-> > > -vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
-> > > -{
-> > > -	struct inode *inode = dentry->d_inode;
-> > >   	int error;
-> > > +	if (flags & XATTR_NOSECURITY)
-> > > +		goto nolsm;
-> > Hum, is it OK for XATTR_NOSECURITY to skip even the xattr_permission()
-> > check? I understand that for reads of security xattrs it actually does not
-> > matter in practice but conceptually that seems wrong to me as
-> > XATTR_NOSECURITY is supposed to skip just security-module checks to avoid
-> > recursion AFAIU.
+On Thu, Aug 15, 2019 at 04:05:35PM +0200, Jan Kara wrote:
+> > +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
+> > +			   enum wb_reason reason, struct wb_completion *done);
+> > +int writeback_by_id(int id, unsigned long nr, enum wb_reason reason,
+> > +		    struct wb_completion *done);
 > 
-> Good catch I think.
-> 
-> I was attempting to make this change purely inert, no change in
-> functionality, only a change in API. Adding a call to xattr_permission would
-> incur a change in overall functionality, as it would introduce into the
-> current and original __vfs_getxattr a call to xattr_permission that was not
-> there before.
-> 
-> (I will have to defer the real answer and requirements to the security
-> folks)
-> 
-> AFAIK you are correct, and to make the call would reduce the attack surface,
-> trading a very small amount of CPU utilization, for a much larger amount of
-> trust.
-> 
-> Given the long history of this patch set (for overlayfs) and the large
-> amount of stakeholders, I would _prefer_ to submit a followup independent
-> functionality/security change to _vfs_get_xattr _after_ this makes it in.
+> I guess this writeback_by_id() is stale? I didn't find it anywhere else...
 
-You're right. The problem was there before. So ack to changing this later.
+Yes, removed.
 
-> > > diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
-> > > index c1395b5bd432..1216d777d210 100644
-> > > --- a/include/uapi/linux/xattr.h
-> > > +++ b/include/uapi/linux/xattr.h
-> > > @@ -17,8 +17,9 @@
-> > >   #if __UAPI_DEF_XATTR
-> > >   #define __USE_KERNEL_XATTR_DEFS
-> > > -#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
-> > > -#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
-> > > +#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
-> > > +#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
-> > > +#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check */
-> > >   #endif
-> > It seems confusing to export XATTR_NOSECURITY definition to userspace when
-> > that is kernel-internal flag. I'd just define it in include/linux/xattr.h
-> > somewhere from the top of flags space (like 0x40000000).
-> > 
-> > Otherwise the patch looks OK to me (cannot really comment on the security
-> > module aspect of this whole thing though).
-> 
-> Good point. However, we do need to keep these flags together to reduce
-> maintenance risk, I personally abhor two locations for flags bits even if
-> one comes from the opposite bit-side; collisions are undetectable at build
-> time. Although I have not gone through the entire thought experiment, I am
-> expecting that fuse could possibly benefit from this flag (if exposed) since
-> it also has a security recursion. That said, fuse is probably the example of
-> a gaping wide attack surface if user space had access to it ... your
-> xattr_permissions call addition requested above would be realistically, not
-> just pedantically, required!
+Thanks.
 
-Yeah, flags bits in two places are bad as well. So maybe at least
-#ifdef __KERNEL__ bit around the definitiona and a comment that it is
-kernel internal flag?
-
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+tejun
 
