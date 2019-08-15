@@ -2,150 +2,169 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A705C3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:11:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62EE4C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:24:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF9502064A
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:11:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF9502064A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0ABBD2086C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:24:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="UwFqsKZi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0ABBD2086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 75F6F6B0306; Thu, 15 Aug 2019 14:11:21 -0400 (EDT)
+	id 7CAED6B0285; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E9B86B0307; Thu, 15 Aug 2019 14:11:21 -0400 (EDT)
+	id 755316B0287; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5FF606B0308; Thu, 15 Aug 2019 14:11:21 -0400 (EDT)
+	id 61B766B0295; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0078.hostedemail.com [216.40.44.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CB856B0306
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:11:21 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id DB9A668A3
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:11:20 +0000 (UTC)
-X-FDA: 75825454320.27.ghost11_62fa0d89b5633
-X-HE-Tag: ghost11_62fa0d89b5633
-X-Filterd-Recvd-Size: 4558
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
+	by kanga.kvack.org (Postfix) with ESMTP id 397966B0285
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:24:51 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D44AC180AD805
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:24:50 +0000 (UTC)
+X-FDA: 75825488340.19.rule97_475d2cacc0557
+X-HE-Tag: rule97_475d2cacc0557
+X-Filterd-Recvd-Size: 6483
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
 	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:11:19 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DCD94360;
-	Thu, 15 Aug 2019 11:11:18 -0700 (PDT)
-Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id DD89B3F694;
-	Thu, 15 Aug 2019 11:11:16 -0700 (PDT)
-Subject: Re: [PATCH v1 2/8] arm64, mm: transitional tables
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
-References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
- <20190801152439.11363-3-pasha.tatashin@soleen.com>
-From: James Morse <james.morse@arm.com>
-Cc: jmorris@namei.org, sashal@kernel.org, ebiederm@xmission.com,
- kexec@lists.infradead.org, linux-kernel@vger.kernel.org, corbet@lwn.net,
- catalin.marinas@arm.com, will@kernel.org,
- linux-arm-kernel@lists.infradead.org, marc.zyngier@arm.com,
- vladimir.murzin@arm.com, matthias.bgg@gmail.com, bhsharma@redhat.com,
- linux-mm@kvack.org
-Message-ID: <e00455af-a9f6-82e1-4c0d-78fae01ae00a@arm.com>
-Date: Thu, 15 Aug 2019 19:11:15 +0100
-User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:24:50 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id p13so2549346qkg.13
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:24:50 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=G4JHudwK1l0Pa0YXZDZdUoarWmEaiz0kaB3NPKkUFrY=;
+        b=UwFqsKZiJqRFsggeYnYEJQ5ti/D+4zJ6BdWzCQ9+5ZVyFzNT0pZp3Z47GysMlVkWVa
+         s6il5o0C2XSsvu08linHUpE1UuKtws+6kl5bvb6N8JTjKYNm+ZFsMF/aS7KIuwXwY5PL
+         ifLaV1KikbFHjyWGyYq9j2pnPvRA3ulCCU5LBrDPRPTf00Ev8+G4r7ZG1fWssXt+dt8m
+         fSIEjUyPUUjE4Cyc7v3Mk2yhOmcAHNWHAjyBbiBB5PDt75HzpgPI6NlB4kYJlFCHPv45
+         rERv+1byueCget/MOMNWxs6jcSzjmerqYaJGXU5V9yIGrPZkmI1GoIgdy70yvzXm/v2/
+         F53g==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=G4JHudwK1l0Pa0YXZDZdUoarWmEaiz0kaB3NPKkUFrY=;
+        b=qgnGfUYHslbQO+B5rco3xPh2V+czDoz1auj1hjRCGFs/On7yKUJEZ3hXY2rrjQfRaH
+         GkDSgiU1hwllWjWQ/VZDShCmSgwY9BH7/e7u/kmmP5ny6y3isRL7t8XWLCVYLARBWSJi
+         JJX1ELgSO+sxP4mMAwTZ9peV+5f45HpLSXN1vIV5IZw6BmSUFmXJEKktuj3e4DhTq7NQ
+         XHL8cgIOaeo5vnzHGt2xxasncdvfqlVm6xCpaNmLfAIfsJGOAv+IjUZORa0HBVSy1QyT
+         vBN6p01K1l3v7k/lXh8u65UmOsyF6dMK7ESeyjCBBYLlRrA3XziB4ljOuw4C0xo1/wff
+         3P+A==
+X-Gm-Message-State: APjAAAVKXd/2XHV/XK7HQpD2eNS5fNgar0qwMdfBNUu1i6n/WVHhRLBz
+	tqOiU74PN9dxrTkz3mNgE6MwsQ==
+X-Google-Smtp-Source: APXvYqznGQA2Mb3OUz3S4NsNelaEmfdP1JHskBC7RLkLXGfv6FD94/o+7zgymYT+l5Mz5o8/J+Om7Q==
+X-Received: by 2002:a37:ef1a:: with SMTP id j26mr5561517qkk.474.1565893489768;
+        Thu, 15 Aug 2019 11:24:49 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id g3sm1745991qke.105.2019.08.15.11.24.48
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 15 Aug 2019 11:24:48 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hyKQa-0007R9-AO; Thu, 15 Aug 2019 15:24:48 -0300
+Date: Thu, 15 Aug 2019 15:24:48 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190815182448.GP21596@ziepe.ca>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814235805.GB11200@ziepe.ca>
+ <20190815065829.GA7444@phenom.ffwll.local>
+ <20190815122344.GA21596@ziepe.ca>
+ <20190815132127.GI9477@dhcp22.suse.cz>
+ <20190815141219.GF21596@ziepe.ca>
+ <20190815155950.GN9477@dhcp22.suse.cz>
+ <20190815165631.GK21596@ziepe.ca>
+ <20190815174207.GR9477@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190801152439.11363-3-pasha.tatashin@soleen.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190815174207.GR9477@dhcp22.suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Pavel,
-
-On 01/08/2019 16:24, Pavel Tatashin wrote:
-> There are cases where normal kernel pages tables, i.e. idmap_pg_dir
-> and swapper_pg_dir are not sufficient because they may be overwritten.
+On Thu, Aug 15, 2019 at 07:42:07PM +0200, Michal Hocko wrote:
+> On Thu 15-08-19 13:56:31, Jason Gunthorpe wrote:
+> > On Thu, Aug 15, 2019 at 06:00:41PM +0200, Michal Hocko wrote:
+> > 
+> > > > AFAIK 'GFP_NOWAIT' is characterized by the lack of __GFP_FS and
+> > > > __GFP_DIRECT_RECLAIM..
+> > > >
+> > > > This matches the existing test in __need_fs_reclaim() - so if you are
+> > > > OK with GFP_NOFS, aka __GFP_IO which triggers try_to_compact_pages(),
+> > > > allocations during OOM, then I think fs_reclaim already matches what
+> > > > you described?
+> > > 
+> > > No GFP_NOFS is equally bad. Please read my other email explaining what
+> > > the oom_reaper actually requires. In short no blocking on direct or
+> > > indirect dependecy on memory allocation that might sleep.
+> > 
+> > It is much easier to follow with some hints on code, so the true
+> > requirement is that the OOM repear not block on GFP_FS and GFP_IO
+> > allocations, great, that constraint is now clear.
 > 
-> This happens when we transition from one world to another: for example
-> during kexec kernel relocation transition, and also during hibernate
-> kernel restore transition.
+> I still do not get why do you put FS/IO into the picture. This is really
+> about __GFP_DIRECT_RECLAIM.
+
+Like I said this is complicated, translating "no blocking on direct or
+indirect dependecy on memory allocation that might sleep" into GFP
+flags is hard for us outside the mm community.
+
+So the contraint here is no __GFP_DIRECT_RECLAIM?
+
+I bring up FS/IO because that is what Tejun mentioned when I asked him
+about reclaim restrictions, and is what fs_reclaim_acquire() is
+already sensitive too. It is pretty confusing if we have places using
+the word 'reclaim' with different restrictions. :(
+
+> >        CPU0                                 CPU1
+> >                                         mutex_lock()
+> >                                         kmalloc(GFP_KERNEL)
 > 
-> In these cases, if MMU is needed, the page table memory must be allocated
-> from a safe place. Transitional tables is intended to allow just that.
+> no I mean __GFP_DIRECT_RECLAIM here.
+> 
+> >                                         mutex_unlock()
+> >   fs_reclaim_acquire()
+> >   mutex_lock() <- illegal: lock dep assertion
+> 
+> I cannot really comment on how that is achieveable by lockdep.
 
-> diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
-> index db92950bb1a0..dcb4f13c7888 100644
-> --- a/arch/arm64/include/asm/pgtable-hwdef.h
-> +++ b/arch/arm64/include/asm/pgtable-hwdef.h
-> @@ -110,6 +110,7 @@
->  #define PUD_TABLE_BIT		(_AT(pudval_t, 1) << 1)
->  #define PUD_TYPE_MASK		(_AT(pudval_t, 3) << 0)
->  #define PUD_TYPE_SECT		(_AT(pudval_t, 1) << 0)
-> +#define PUD_SECT_RDONLY		(_AT(pudval_t, 1) << 7)		/* AP[2] */
+??? I am trying to explain this is already done and working today. The
+above example will already fault with lockdep enabled.
 
-This shouldn't be needed. As far as I'm aware, we only get read-only pages in the linear
-map from debug-pagealloc, and the module aliases. Both of which require the linear map to
-be made of page-size mappings.
+This is existing debugging we can use and improve upon rather that
+invent new debugging.
 
-Where are you seeing these?
-
-
-> diff --git a/arch/arm64/include/asm/trans_table.h b/arch/arm64/include/asm/trans_table.h
-> new file mode 100644
-> index 000000000000..c7aef70587a1
-> --- /dev/null
-> +++ b/arch/arm64/include/asm/trans_table.h
-> @@ -0,0 +1,68 @@
-> +/* SPDX-License-Identifier: GPL-2.0 */
-> +
-> +/*
-> + * Copyright (c) 2019, Microsoft Corporation.
-> + * Pavel Tatashin <patatash@linux.microsoft.com>
-> + */
-> +
-> +#ifndef _ASM_TRANS_TABLE_H
-> +#define _ASM_TRANS_TABLE_H
-> +
-> +#include <linux/bits.h>
-> +#include <asm/pgtable-types.h>
-> +
-> +/*
-> + * trans_alloc_page
-> + *	- Allocator that should return exactly one uninitilaized page, if this
-> + *	 allocator fails, trans_table returns -ENOMEM error.
-> + *
-> + * trans_alloc_arg
-> + *	- Passed to trans_alloc_page as an argument
-> + *
-> + * trans_flags
-> + *	- bitmap with flags that control how page table is filled.
-> + *	  TRANS_MKWRITE: during page table copy make PTE, PME, and PUD page
-> + *			 writeable by removing RDONLY flag from PTE.
-> + *	  TRANS_MKVALID: during page table copy, if PTE present, but not valid,
-> + *			 make it valid.
-> + *	  TRANS_CHECKPFN: During page table copy, for every PTE entry check that
-> + *			  PFN that this PTE points to is valid. Otherwise return
-> + *			  -ENXIO
-
-Adding top-level global knobs to manipulate the copied linear map is going to lead to
-bugs. The existing code will only change the PTE in specific circumstances, that it tests
-for, that only happen at the PTE level.
-
-
-> + *	  TRANS_FORCEMAP: During page map, if translation exists, force
-> + *			  overwrite it. Otherwise -ENXIO may be returned by
-> + *			  trans_table_map_* functions if conflict is detected.
-
-This one, sounds like a very bad idea.
-
-
-Thanks,
-
-James
+Jason
 
