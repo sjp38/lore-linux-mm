@@ -2,208 +2,116 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 317B3C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:06:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 135A6C3A59C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:12:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC6B72084D
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:06:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B4C47206C1
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:12:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="g8Wp22Rc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC6B72084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QXjkEAHz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4C47206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F6FC6B02B7; Thu, 15 Aug 2019 12:06:16 -0400 (EDT)
+	id 2FF3B6B02B9; Thu, 15 Aug 2019 12:12:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A7236B02B8; Thu, 15 Aug 2019 12:06:16 -0400 (EDT)
+	id 2AFB76B02BA; Thu, 15 Aug 2019 12:12:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 795826B02B9; Thu, 15 Aug 2019 12:06:16 -0400 (EDT)
+	id 1C61D6B02BB; Thu, 15 Aug 2019 12:12:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0020.hostedemail.com [216.40.44.20])
-	by kanga.kvack.org (Postfix) with ESMTP id 522E96B02B7
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 12:06:16 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id ED50E68A7
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:06:15 +0000 (UTC)
-X-FDA: 75825139110.21.sun10_1984c21563e0c
-X-HE-Tag: sun10_1984c21563e0c
-X-Filterd-Recvd-Size: 6718
-Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:06:15 +0000 (UTC)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7FG3sVD003017;
-	Thu, 15 Aug 2019 16:06:06 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=VP7sCuMn0gxFRzE/Z9kn9dLvV5aSB5uEzEdCLBDAUN0=;
- b=g8Wp22RcUI/HyKFOJzzL++o/Q50ury1Dgif2c3GyYrt/ptsNkEtihQkvPOC/ZyoleOl2
- GBbOKD22/A9RvP0XzO2QzX0KwfaGMljHqaxHIqxWDDnfuEYmv9jJrWyoMeP6Ltgk28M2
- F6//Uz4RETgbhY+qUHobUQeNDoNOxiaERb/a7qgmFqb110dPSgrMh+GIj0LnT4HXq7kB
- nIXOLQsPQamu7WDJ06qPYYlGbSDZbB8Z3ZZV0fgw5VtgayPybYlZTXS6WvikWtaBhKR9
- yUxhefgNndcfkNReJ4+TIK8szOsIe+Bj7dm5ThPa0JE6EB5eQkosOl+IkyzK86KWdNrp CA== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2120.oracle.com with ESMTP id 2u9nvpkp4d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 16:06:06 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7FG30Qd054300;
-	Thu, 15 Aug 2019 16:06:05 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3020.oracle.com with ESMTP id 2ucpysg627-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 16:06:05 +0000
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7FG64Jb002753;
-	Thu, 15 Aug 2019 16:06:04 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 15 Aug 2019 09:06:03 -0700
-Subject: [PATCH 2/2] vfs: don't allow writes to swap files
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: hch@infradead.org, akpm@linux-foundation.org, tytso@mit.edu,
-        viro@zeniv.linux.org.uk, darrick.wong@oracle.com
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Date: Thu, 15 Aug 2019 09:05:56 -0700
-Message-ID: <156588515613.111054.13578448017133006248.stgit@magnolia>
-In-Reply-To: <156588514105.111054.13645634739408399209.stgit@magnolia>
-References: <156588514105.111054.13645634739408399209.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
+Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
+	by kanga.kvack.org (Postfix) with ESMTP id EEAE86B02B9
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 12:12:15 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 983E9180AD801
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:12:15 +0000 (UTC)
+X-FDA: 75825154230.29.river14_4de22be0c2e4d
+X-HE-Tag: river14_4de22be0c2e4d
+X-Filterd-Recvd-Size: 4074
+Received: from mail-qt1-f194.google.com (mail-qt1-f194.google.com [209.85.160.194])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:12:15 +0000 (UTC)
+Received: by mail-qt1-f194.google.com with SMTP id j15so2834053qtl.13
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:12:14 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=iTIKIuhQjFmLzffUqNs0d7EM6m2UJCFz471NWYlW/kA=;
+        b=QXjkEAHzvaI4d+a1jTu1uuBdBcwkiUcidF6xSV/xQKF2N7ucXBCF5Hej38FIPF0Lm3
+         9fWE+N6hf68OLIhzBONo5J5LQOEGzbqPKECQp+aEdwFdT+opMpMJ1qGxqzQD9gdQCPEz
+         IecizOukDzYwhTyD2KWejogmiAgKaK1vXPLIaF4L9biBH+TFPKprcr2WQ/6fGoTrK2rx
+         p6Un0uytpeqSTUTd8k+dvepjTTMJOAFXt4wObsUiZTFbAJFHR3q+4a3Y/b8ZvK/foXDm
+         wpA60ZcOdP6GWCrYCNX13gHb4P/T2mGkfQelkmBGCL+lGa6+8NnbqBd7hYAfkgZPkPEV
+         CS9w==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
+         :references:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=iTIKIuhQjFmLzffUqNs0d7EM6m2UJCFz471NWYlW/kA=;
+        b=TDBudotPR8YVR3j1ufrpvyUxTMSsr8YUMaNTv5HevWSvUCzGysPI4kqEs0hTctk1CO
+         pFgjCXknNhFY/elPwlq7WvxkcxXhF3Yo9JJhGkcFpMgytalB+U3l+B80gKAFIsHdar3Z
+         RByP8vSLab86tUxbAzu7VSMzhG8wtvUOZk1p7nm/D+/aHZswhzksPcM29Fs7Y/4/hTZa
+         cp9MIWiZJk/NW6zmIXMgGHY4Jd/+4c29l1bEPmBFnxJ+o0oSG5xmGSeuf1J1iTx8JC08
+         8kwOezCiXN9QVbVLAJsYFgwgSSKvXOnTZPhB186DItDAgAcGXnsPHHU7GfglepUhs+iw
+         z8QA==
+X-Gm-Message-State: APjAAAWyJmmwFu+PhcOjQKF6K7xl3hUlf+wkHUFuLj1cK7ClQ0QN7IPd
+	AeLZtcD18vwtjKhMQ+KC0Po=
+X-Google-Smtp-Source: APXvYqyI+etnk5089VErOMk8XqgTxfwAkSptHHANrHUw1yrHJeZLiH5w0UkWbcFYiSOmm16KjfaZlA==
+X-Received: by 2002:ac8:6b8f:: with SMTP id z15mr4797796qts.62.1565885534276;
+        Thu, 15 Aug 2019 09:12:14 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:25cd])
+        by smtp.gmail.com with ESMTPSA id a21sm1430581qtj.5.2019.08.15.09.12.13
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Aug 2019 09:12:13 -0700 (PDT)
+Date: Thu, 15 Aug 2019 09:12:11 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 3/4] writeback, memcg: Implement cgroup_writeback_by_id()
+Message-ID: <20190815161211.GC588936@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-4-tj@kernel.org>
+ <20190815145421.GN14313@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9350 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908150157
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9350 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908150158
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190815145421.GN14313@quack2.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On Thu, Aug 15, 2019 at 04:54:21PM +0200, Jan Kara wrote:
+> > +	/* and find the associated wb */
+> > +	wb = wb_get_create(bdi, memcg_css, GFP_NOWAIT | __GFP_NOWARN);
+> > +	if (!wb) {
+> > +		ret = -ENOMEM;
+> > +		goto out_css_put;
+> > +	}
+> 
+> One more thought: You don't want the "_create" part here, do you? If
+> there's any point in writing back using this wb, it must be attached to
+> some inode and thus it must exist. In the normal case wb_get_create() will
+> just fetch the reference and be done with it but when you feed garbage into
+> this function due to id going stale or frn structures getting corrupted due
+> to concurrent access, you can be creating bogus wb structures in bdi...
 
-Don't let userspace write to an active swap file because the kernel
-effectively has a long term lease on the storage and things could get
-seriously corrupted if we let this happen.
+Yeah, it can create wbs unnecessarily which isn't critical but also is
+easy to fix.  Will update.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/block_dev.c |    3 +++
- mm/filemap.c   |    3 +++
- mm/memory.c    |    4 ++++
- mm/mmap.c      |    8 ++++++--
- mm/swapfile.c  |   12 +++++++++++-
- 5 files changed, 27 insertions(+), 3 deletions(-)
+Thanks.
 
-
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index eb657ab94060..017f46719ebe 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -2011,6 +2011,9 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
- 	if (bdev_read_only(I_BDEV(bd_inode)))
- 		return -EPERM;
- 
-+	if (IS_SWAPFILE(bd_inode))
-+		return -ETXTBSY;
-+
- 	if (!iov_iter_count(from))
- 		return 0;
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d0cf700bf201..40667c2f3383 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2988,6 +2988,9 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
- 	loff_t count;
- 	int ret;
- 
-+	if (IS_SWAPFILE(inode))
-+		return -ETXTBSY;
-+
- 	if (!iov_iter_count(from))
- 		return 0;
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index e2bb51b6242e..b1dff75640b7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2196,6 +2196,10 @@ static vm_fault_t do_page_mkwrite(struct vm_fault *vmf)
- 
- 	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 
-+	if (vmf->vma->vm_file &&
-+	    IS_SWAPFILE(vmf->vma->vm_file->f_mapping->host))
-+		return VM_FAULT_SIGBUS;
-+
- 	ret = vmf->vma->vm_ops->page_mkwrite(vmf);
- 	/* Restore original flags so that caller is not surprised */
- 	vmf->flags = old_flags;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7e8c3e8ae75f..6bc21fca20bc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1483,8 +1483,12 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 		case MAP_SHARED_VALIDATE:
- 			if (flags & ~flags_mask)
- 				return -EOPNOTSUPP;
--			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
--				return -EACCES;
-+			if (prot & PROT_WRITE) {
-+				if (!(file->f_mode & FMODE_WRITE))
-+					return -EACCES;
-+				if (IS_SWAPFILE(file->f_mapping->host))
-+					return -ETXTBSY;
-+			}
- 
- 			/*
- 			 * Make sure we don't allow writing to an append-only
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index a53b7c49b40e..dab43523afdd 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3275,6 +3275,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (error)
- 		goto bad_swap;
- 
-+	/*
-+	 * Flush any pending IO and dirty mappings before we start using this
-+	 * swap device.
-+	 */
-+	inode->i_flags |= S_SWAPFILE;
-+	error = inode_drain_writes(inode);
-+	if (error) {
-+		inode->i_flags &= ~S_SWAPFILE;
-+		goto bad_swap;
-+	}
-+
- 	mutex_lock(&swapon_mutex);
- 	prio = -1;
- 	if (swap_flags & SWAP_FLAG_PREFER)
-@@ -3295,7 +3306,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	atomic_inc(&proc_poll_event);
- 	wake_up_interruptible(&proc_poll_wait);
- 
--	inode->i_flags |= S_SWAPFILE;
- 	error = 0;
- 	goto out;
- bad_swap:
-
+-- 
+tejun
 
