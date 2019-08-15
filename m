@@ -4,101 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43FC4C32757
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:10:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54B81C433FF
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:11:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC5D208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:10:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 12F98208C2
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:11:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="XsReatup"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC5D208C2
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="g0iXAp9G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12F98208C2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FC0B6B0005; Wed, 14 Aug 2019 20:10:02 -0400 (EDT)
+	id A61CD6B0003; Wed, 14 Aug 2019 20:11:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B3446B0007; Wed, 14 Aug 2019 20:10:02 -0400 (EDT)
+	id A13456B0007; Wed, 14 Aug 2019 20:11:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 001E66B0008; Wed, 14 Aug 2019 20:10:01 -0400 (EDT)
+	id 902366B0008; Wed, 14 Aug 2019 20:11:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D52C46B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:10:01 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 4C4544FED
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:10:01 +0000 (UTC)
-X-FDA: 75822729402.24.hook90_748a4817dc142
-X-HE-Tag: hook90_748a4817dc142
-X-Filterd-Recvd-Size: 7290
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:10:00 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id j15so601671qtl.13
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:10:00 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0224.hostedemail.com [216.40.44.224])
+	by kanga.kvack.org (Postfix) with ESMTP id 702B76B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:11:40 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1460752A9
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:11:40 +0000 (UTC)
+X-FDA: 75822733560.13.pig22_82e2271c60939
+X-HE-Tag: pig22_82e2271c60939
+X-Filterd-Recvd-Size: 5570
+Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:11:39 +0000 (UTC)
+Received: by mail-qt1-f196.google.com with SMTP id l9so655109qtu.6
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:11:39 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:content-transfer-encoding:in-reply-to
          :user-agent;
-        bh=SjWxEd5trWQnubGgd93z8JQghkn2ieuomaNUqpFunr8=;
-        b=XsReatupBTmqJdBQODBjcynGCD+EFRZj1C84UwqKxIHDJry1koHSXZhFLNthqLNrdI
-         sJvO2xr4Yf8efKKyOEPzz7lmm+x5GdcACC+54eKm4Ge4AB3iU9YvjJ+GUY28eyC1XgX1
-         yHn7fdbhBHZEjgohLQ+eJwsIhykXJmXNP4Ad2fzIbW68tY8NtCAmf+n/uw1CrUSltNtz
-         Di2z0LFvJ3NxwlbScerLC+k3cfD1cixFWpONt/9P09Wv9Gezy+22yPiI3marKmyMBzcg
-         UiogqqKUE89OdisyiimkZeCXTgAaWaEz0svYJBDgWT9nFweVWM05nK9xTUKar+rpAnbC
-         nO+Q==
+        bh=sa+zQVwF/Kg2yH2R3qjmRo+nBMZgWEgWy9VtHzhObIQ=;
+        b=g0iXAp9GLKjmJUCykogXNEfQUbyHV9nCucIjUntdM1KKe6wGTXBPlF2UOoTWZOGfJl
+         AmajYGKP63nxK6g4uAQuCBhnJ9E6JBx7+PoQJl4H925pXAjlhGkj572kQrS2NActiipP
+         kxwRxIXOfJDm8mccWD6WHhV9xJyTZoODJcRJWpuRBg9qbQQk4EiIxDhaFEh+gSkvInRl
+         wmPRmh/bNa5dNbX8qh2MmqKpcoUwYdco5Q1f/jvTQoW1q8UlyeXxKNaG6oETdo4lI4Kt
+         Lzy3yHCgAJpdYNwrpVyOegXvj1unwKdFwN8pNkz4YjlDTDEUIixQQUpKRN+VZGMEPnlq
+         qHLw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:date:from:to:cc:subject:message-id:references
          :mime-version:content-disposition:content-transfer-encoding
          :in-reply-to:user-agent;
-        bh=SjWxEd5trWQnubGgd93z8JQghkn2ieuomaNUqpFunr8=;
-        b=dKpQavSQMGkygypjZSd1lz9awdr1DAn8GvbpWIt2c2hPzbsza0nWRQ5pTOSPgEkK/a
-         BicsM2f3GvuQe/d+XC7Q6zualNTYu7G63fg0vnu4Ov2jwup1pDlVrUZa0DlKxTKs3zdn
-         fJVzD2geoF3l9qe/pr5SIVvBMQagfcMMnx8f9PaWxOC2tI6+BkwVpvHaWcMTufq3m9pg
-         wHbJE8RFkpYPaMIwPVY2fnZ6fq4K44FvDbnlokMDNSD7ICWtlTFgoBRcKBGdPQJgJ25T
-         I4Sbn9iMCAR9Dpfwj9qQNotwk8iXk85tOYKY2zSgLcQ6bMyMWbWUXCz+yeMB3rkyzbws
-         yN6w==
-X-Gm-Message-State: APjAAAXMI/CkM5vN4uML0QEvgOCfAaU9TBumEaoV87TLdFR082WCjXAT
-	Rsf27iBDT+t3DwiLNOseM7WFEcVQDEk=
-X-Google-Smtp-Source: APXvYqwC0rxcQM957klycTBJaDgJCD9Gy1ym2szZ/ytVdS5cdCa5lGsUTdGHMpvakUUVdZWkhvfAPQ==
-X-Received: by 2002:a0c:fa89:: with SMTP id o9mr1559689qvn.165.1565827800115;
-        Wed, 14 Aug 2019 17:10:00 -0700 (PDT)
+        bh=sa+zQVwF/Kg2yH2R3qjmRo+nBMZgWEgWy9VtHzhObIQ=;
+        b=UL6DWTXx2t+9YiGvvp36E8EGLF3w+avGex0Iwau4ed3FnJ1SJcTXuiSBp64ENXelIK
+         8XAKvsHNVVyxaqzPAflQSE5YYb/L8uATqzAU3ZukxvBDRHnpS8Re/nkZKM2dIa9xzWsV
+         H4K2ZdLY7X05FItmlaCWvpJIuzJ29nOJxPPU6T+mDfehNQhfsNUTIz6a33rK0PaGhzd9
+         jB60mVp+ABuj136uReCLmo9isq3YfPovkZycbZGn8GkBayixcR9+c4K2NyeCd+P3N7WR
+         z+d+YewxJCMUePMizn5W6RpL/5FpEPO/638p9QEqRZ06rfZT7IX9XucMKvtUTJnuoRDm
+         P/0g==
+X-Gm-Message-State: APjAAAWmiDKiTveQHyF/XlHVZuiBcvhvZNDe9dyJnwK6J2gzDR99fBOo
+	0iJcNiyjzEtHQCEboXmM4YeaBuh9FOQ=
+X-Google-Smtp-Source: APXvYqycoMish4JR7Yhk7POc91EfS5nVJ1Ns5md0NOId7Ywyc7vJCJUYwUMZE0JVH6XYbdhlVPx8eg==
+X-Received: by 2002:ad4:45e3:: with SMTP id q3mr1591887qvu.140.1565827898756;
+        Wed, 14 Aug 2019 17:11:38 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id n21sm762512qtc.70.2019.08.14.17.09.59
+        by smtp.gmail.com with ESMTPSA id f20sm939480qtf.68.2019.08.14.17.11.38
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Aug 2019 17:09:59 -0700 (PDT)
+        Wed, 14 Aug 2019 17:11:38 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hy3L5-0003Ys-7h; Wed, 14 Aug 2019 21:09:59 -0300
-Date: Wed, 14 Aug 2019 21:09:59 -0300
+	id 1hy3Mf-0003aK-TC; Wed, 14 Aug 2019 21:11:37 -0300
+Date: Wed, 14 Aug 2019 21:11:37 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Daniel Vetter <daniel.vetter@ffwll.ch>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
 	DRI Development <dri-devel@lists.freedesktop.org>,
 	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Chris Wilson <chris@chris-wilson.co.uk>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>, Arnd Bergmann <arnd@arndb.de>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
 	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
 	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 4/5] mm, notifier: Add a lockdep map for
- invalidate_range_start
-Message-ID: <20190815000959.GD11200@ziepe.ca>
+Subject: Re: [PATCH 5/5] mm/hmm: WARN on illegal ->sync_cpu_device_pagetables
+ errors
+Message-ID: <20190815001137.GE11200@ziepe.ca>
 References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-5-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-6-daniel.vetter@ffwll.ch>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190814202027.18735-5-daniel.vetter@ffwll.ch>
+In-Reply-To: <20190814202027.18735-6-daniel.vetter@ffwll.ch>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -107,91 +109,56 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 10:20:26PM +0200, Daniel Vetter wrote:
-> This is a similar idea to the fs_reclaim fake lockdep lock. It's
-> fairly easy to provoke a specific notifier to be run on a specific
-> range: Just prep it, and then munmap() it.
+On Wed, Aug 14, 2019 at 10:20:27PM +0200, Daniel Vetter wrote:
+> Similar to the warning in the mmu notifer, warning if an hmm mirror
+> callback gets it's blocking vs. nonblocking handling wrong, or if it
+> fails with anything else than -EAGAIN.
 >=20
-> A bit harder, but still doable, is to provoke the mmu notifiers for
-> all the various callchains that might lead to them. But both at the
-> same time is really hard to reliable hit, especially when you want to
-> exercise paths like direct reclaim or compaction, where it's not
-> easy to control what exactly will be unmapped.
->=20
-> By introducing a lockdep map to tie them all together we allow lockdep
-> to see a lot more dependencies, without having to actually hit them
-> in a single challchain while testing.
->=20
-> Aside: Since I typed this to test i915 mmu notifiers I've only rolled
-> this out for the invaliate_range_start callback. If there's
-> interest, we should probably roll this out to all of them. But my
-> undestanding of core mm is seriously lacking, and I'm not clear on
-> whether we need a lockdep map for each callback, or whether some can
-> be shared.
-
-I was thinking about doing something like this..
-
-IMHO only range_end needs annotation, the other ops are either already
-non-sleeping or only used by KVM.
-
-BTW, I have found it strange that i915 only uses
-invalidate_range_start. Not really sure how it is able to do
-that. Would love to know the answer :)
-
-> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+> Cc: linux-mm@kvack.org
 > Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
->  include/linux/mmu_notifier.h | 6 ++++++
->  mm/mmu_notifier.c            | 7 +++++++
->  2 files changed, 13 insertions(+)
+>  mm/hmm.c | 3 +++
+>  1 file changed, 3 insertions(+)
 >=20
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.=
-h
-> index b6c004bd9f6a..9dd38c32fc53 100644
-> +++ b/include/linux/mmu_notifier.h
-> @@ -42,6 +42,10 @@ enum mmu_notifier_event {
-> =20
->  #ifdef CONFIG_MMU_NOTIFIER
-> =20
-> +#ifdef CONFIG_LOCKDEP
-> +extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
-> +#endif
-
-I wonder what the trade off is having a global map vs a map in each
-mmu_notifier_mm ?
-
->  /*
->   * The mmu notifier_mm structure is allocated and installed in
->   * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
-> @@ -310,10 +314,12 @@ static inline void mmu_notifier_change_pte(struct=
- mm_struct *mm,
->  static inline void
->  mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
->  {
-> +	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
->  	if (mm_has_notifiers(range->mm)) {
->  		range->flags |=3D MMU_NOTIFIER_RANGE_BLOCKABLE;
->  		__mmu_notifier_invalidate_range_start(range);
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 16b6731a34db..52ac59384268 100644
+> +++ b/mm/hmm.c
+> @@ -205,6 +205,9 @@ static int hmm_invalidate_range_start(struct mmu_no=
+tifier *mn,
+>  			ret =3D -EAGAIN;
+>  			break;
+>  		}
+> +		WARN(ret, "%pS callback failed with %d in %sblockable context\n",
+> +		     mirror->ops->sync_cpu_device_pagetables, ret,
+> +		     update.blockable ? "" : "non-");
 >  	}
-> +	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
->  }
+>  	up_read(&hmm->mirrors_sem);
 
-Also range_end should have this too - it has all the same
-constraints. I think it can share the map. So 'range_start_map' is
-probably not the right name.
+Didn't I beat you to this?
 
-It may also make some sense to do a dummy acquire/release under the
-mm_take_all_locks() to forcibly increase map coverage and reduce the
-scenario complexity required to hit bugs.
+	list_for_each_entry(mirror, &hmm->mirrors, list) {
+		int rc;
 
-And if we do decide on the reclaim thing in my other email then the
-reclaim dependency can be reliably injected by doing:
+		rc =3D mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+		if (rc) {
+			if (WARN_ON(update.blockable || rc !=3D -EAGAIN))
+				continue;
+			ret =3D -EAGAIN;
+			break;
+		}
+	}
 
- fs_reclaim_acquire();
- lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
- lock_map_release(&__mmu_notifier_invalidate_range_start_map);
- fs_reclaim_release();
-
-If I understand lockdep properly..
-
+Thanks,
 Jason
 
