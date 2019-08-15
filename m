@@ -6,143 +6,159 @@ X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E991C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:34:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1D8BC3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:41:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E0FB2083B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:34:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 511062083B
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:41:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="hmctAENh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E0FB2083B
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="bRgOETsH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 511062083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A51A06B0008; Thu, 15 Aug 2019 16:34:51 -0400 (EDT)
+	id CE4716B0003; Thu, 15 Aug 2019 16:41:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A00086B000C; Thu, 15 Aug 2019 16:34:51 -0400 (EDT)
+	id C934B6B0008; Thu, 15 Aug 2019 16:41:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C9156B026A; Thu, 15 Aug 2019 16:34:51 -0400 (EDT)
+	id B82DB6B000A; Thu, 15 Aug 2019 16:41:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id 700006B0008
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:34:51 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 0F61F349B
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:34:51 +0000 (UTC)
-X-FDA: 75825815982.27.jump64_2a399c3a4e31e
-X-HE-Tag: jump64_2a399c3a4e31e
-X-Filterd-Recvd-Size: 7182
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150054.outbound.protection.outlook.com [40.107.15.54])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:34:50 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0086.hostedemail.com [216.40.44.86])
+	by kanga.kvack.org (Postfix) with ESMTP id 98ADB6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:41:38 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 33032181AC9AE
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:41:38 +0000 (UTC)
+X-FDA: 75825833076.11.lunch07_656f7aaf0ce5b
+X-HE-Tag: lunch07_656f7aaf0ce5b
+X-Filterd-Recvd-Size: 7852
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00075.outbound.protection.outlook.com [40.107.0.75])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:41:36 +0000 (UTC)
 ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=kRa6q31LDqZL6+tCevlXecnT6fKD8wLTSr5vuVyWW5tzsXl8ahllymrLx3wTQc8vCtLUAzMfQTj+smQvlekaPRtptWBewuBtSNF+zmTtC1+fJncDRrPS++0lRDYik8yA6HPS4zr3xtUhLJ4XaEjdoumIMTTQ3RlPle1egKTSJvUx0OxEPkWUG+szjRP2jbcbgzIT8zq5RiXYN3s9uyRQvmYW3vW45aefPugIXjOTfc5/9JXD2sYVufxHLKky9BG8wRGcJ6gVYOtfb/Nbu5yC8eVttUqbCFYvGrFhYQHIyvKWV/9y7NFHLk0n+83Rt+0MrcPngI4NtVvkK9beI8H5tw==
+ b=N61BRXdMrJbs+iAB67hvB7sBjTxDzxU5S+YJ+XThKFMxoXFxlKVMwkj8UU5L33blgwVQrugodymtKRAJZFljrp210LDdILJ8aXgizmnGdJn9gmLeVYESNPypX+iwpqSCSBL4ev+zxH8YFkQC+0JeHsyAHXVzisKhWUoG3tTJ/crgVz/AknkYSNmzYMKCnFMICexSlc8ygoAkV8We2U3LfFIDETC6Z1qVjzYBpZLbSrG14M1jzOgxfM+IrBc3Bw20j4CQmzlVWO6ebBzyvDEM643ZNzJ0tQtFJQpq5ep0QlDPhZjtZXbMenaOot8xJFyD7g6YDNOYhBuQqcnwCNVw8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
  s=arcselector9901;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=FQyufbc/ZASxyUi2IklmT0cvAfmIb/x7sKeo69iD8hE=;
- b=DE2h8wwm3rpLU9DML4NKc49QHZ+0d5Odkr+rbCuSNnhpe6A1WsTC539lRSlfANHLj7hI5BbcAb5bFANPt26Sm2uJnVg1FgifOTZ/9X4IxJB15jh934kQ87e93zX/wEXIJPBHSuiDKtTj7EE0Pg02bN/Q+ka2fwFCDRkqIjmmtCR55eSbr17xxPcGatJv3LMVai+WWrqtHcSlpfv4orhyohSqtA7LrI9snaL4z8kWHVFiCrr/Lq4KWB7cYKULcngDV0H7qYUa00/Wwl2KjykdPdE39fLgESf9puB9a031w5dK/KWdWSIoqxc4ckQqNwLLVnVYPiGfySpSjSFmbxVzBA==
+ bh=8J6vbzMCny0M9Y2WhM22XSfEOXaGP5rhwsX2c6YCsnE=;
+ b=CovEG8nrMPTu8cae/9fVq7tbHvVXNcfMkcWjTJouwLeV8mde9KKvAz7bVV51LGSWmyIwfP2+vcXvzeD5hNoJU30SuItBJ6PM8TdNQ+jqQ/UA1UXaOhcOiL3ngOLJIbc5ekU+Jisxzo7FL2F5AU/WeuG8SmxvEoPfZOU6BPY8raAfoeK6EQVIMo9+KdN9xv0JonHIY4oYrSVXxSn1bX1fHEJVld9jOxj7QMLucHON5hf1ykp/3AD5TlHcWSHKBuMjUyw/jtzZ4chAoDZBPbQXXKGwHxxPcFFES9i5ekEL3lPowNxxq1YiuCFQdsADEH5QzcjEhNTmIplxj8wfHT5y1A==
 ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
  smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
  dkim=pass header.d=mellanox.com; arc=none
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
  s=selector2;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=FQyufbc/ZASxyUi2IklmT0cvAfmIb/x7sKeo69iD8hE=;
- b=hmctAENhS7xCC9zAyysr9cahd0nQvWs6t+k3u3WVqW8C7owniTO9br/DS09i1uaqliHMHogRpKm6wShwEJjs6SreaMqyMdUXH0fRyCNT3oQW+9L940eqmBGI8/mqvIhsSdv30trqhKj5XzVT52EsUa+qVrvDPPY9lHZqW1z8y+g=
+ bh=8J6vbzMCny0M9Y2WhM22XSfEOXaGP5rhwsX2c6YCsnE=;
+ b=bRgOETsHmSCoYVqwf0dsz7VCCTSo2XHxVmPz3n5KUil5Ul15pbEAEfX/s1O7vYk5gGoGK5ZgZ+yqKUTQGkyg1g/vP8I0yoBfsrIHM6norBKuUheP1P1MXR9ZW13xksXwjNT/WbZhUWdjBZhYcY8quGU/syePyCe/DlH1+bQ7lKU=
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4190.eurprd05.prod.outlook.com (10.171.183.16) with Microsoft SMTP
+ VI1PR05MB4222.eurprd05.prod.outlook.com (52.133.12.11) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.20; Thu, 15 Aug 2019 20:34:47 +0000
+ 15.20.2178.16; Thu, 15 Aug 2019 20:41:33 +0000
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2157.022; Thu, 15 Aug 2019
- 20:34:47 +0000
+ 20:41:33 +0000
 From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ralph Campbell <rcampbell@nvidia.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [PATCH v3 hmm 00/11] Add mmu_notifier_get/put for managing mmu
- notifier registrations
-Thread-Topic: [PATCH v3 hmm 00/11] Add mmu_notifier_get/put for managing mmu
- notifier registrations
-Thread-Index: AQHVTKz2XY1M3ESMzEuB6+4Ezmt3zKb7Xk0AgAFaFoA=
-Date: Thu, 15 Aug 2019 20:34:47 +0000
-Message-ID: <20190815203443.GH22970@mellanox.com>
-References: <20190806231548.25242-1-jgg@ziepe.ca>
- <5c836cd9-3c20-aaea-8e98-e6d92e6879d9@nvidia.com>
-In-Reply-To: <5c836cd9-3c20-aaea-8e98-e6d92e6879d9@nvidia.com>
+To: Jerome Glisse <jglisse@redhat.com>
+CC: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>,
+	Ben Skeggs <bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
+	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
+Thread-Topic: [PATCH 04/15] mm: remove the pgmap field from struct
+ hmm_vma_walk
+Thread-Index:
+ AQHVTHDc5B4IgstYQk6yBJaVfn8xGqbv9wIAgAARNACAAMySgIAJE76AgABlPQCAAGF5AIAAFowAgAHIzYCAABojAIAAAd6AgAAIBgCAAAXLAIAAAlcA
+Date: Thu, 15 Aug 2019 20:41:33 +0000
+Message-ID: <20190815204128.GI22970@mellanox.com>
+References: <20190808065933.GA29382@lst.de>
+ <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
+ <20190814073854.GA27249@lst.de> <20190814132746.GE13756@mellanox.com>
+ <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
+ <20190815180325.GA4920@redhat.com>
+ <CAPcyv4g4hzcEA=TPYVTiqpbtOoS30ahogRUttCvQAvXQbQjfnw@mail.gmail.com>
+ <20190815194339.GC9253@redhat.com>
+ <CAPcyv4jid8_=-8hBpn_Qm=c4S8BapL9B9RGT7e9uu303yH=Yqw@mail.gmail.com>
+ <20190815203306.GB25517@redhat.com>
+In-Reply-To: <20190815203306.GB25517@redhat.com>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: YTBPR01CA0018.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b01:14::31) To VI1PR05MB4141.eurprd05.prod.outlook.com
+x-clientproxiedby: YQBPR0101CA0022.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00::35) To VI1PR05MB4141.eurprd05.prod.outlook.com
  (2603:10a6:803:4d::16)
 authentication-results: spf=none (sender IP is )
  smtp.mailfrom=jgg@mellanox.com; 
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [156.34.55.100]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 39464a5b-0b98-414f-4469-08d721c00375
+x-ms-office365-filtering-correlation-id: 1b2b123c-9b15-45c8-9bad-08d721c0f58e
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4190;
-x-ms-traffictypediagnostic: VI1PR05MB4190:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4222;
+x-ms-traffictypediagnostic: VI1PR05MB4222:
 x-microsoft-antispam-prvs:
- <VI1PR05MB4190C70A5995A6F4901E6A72CFAC0@VI1PR05MB4190.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
+ <VI1PR05MB422243F481B0B7473E440DA4CFAC0@VI1PR05MB4222.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
 x-forefront-prvs: 01304918F3
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(396003)(346002)(39860400002)(376002)(366004)(136003)(199004)(189003)(8676002)(386003)(476003)(25786009)(2906002)(2616005)(1076003)(6246003)(6116002)(446003)(11346002)(3846002)(76176011)(33656002)(53936002)(36756003)(102836004)(4326008)(86362001)(99286004)(186003)(6512007)(81156014)(81166006)(6506007)(256004)(14454004)(4744005)(64756008)(66446008)(66556008)(6916009)(66066001)(71190400001)(26005)(66476007)(5660300002)(6486002)(229853002)(8936002)(486006)(71200400001)(6436002)(52116002)(66946007)(478600001)(316002)(7736002)(305945005);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4190;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+ SFV:NSPM;SFS:(10009020)(4636009)(396003)(376002)(136003)(366004)(346002)(39860400002)(199004)(189003)(86362001)(52116002)(305945005)(7736002)(76176011)(11346002)(2616005)(99286004)(446003)(486006)(6512007)(5660300002)(8936002)(7416002)(386003)(81156014)(81166006)(8676002)(6486002)(6506007)(66066001)(6436002)(229853002)(36756003)(6116002)(3846002)(71190400001)(71200400001)(66946007)(25786009)(66476007)(64756008)(66556008)(66446008)(256004)(53936002)(4744005)(476003)(186003)(14454004)(316002)(102836004)(2906002)(26005)(478600001)(54906003)(33656002)(4326008)(6916009)(1076003)(6246003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4222;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- u2CCpqTcP0zab0OH3MHHcQCDYduFjVzgw7t4X5nwceoZc+uv0UNsP9CVC/OYK/s/hvrRqjDq09akIfs4qqpVVcwq+Wos6hrKArbae5LmZMnYNy7/zT0NqBfIsBr80Ht9Ga6q/dAXm4KevUp12vRB7GoFYu+H4HPFV8FCpkD1ZkLRsf6D9fKW19OvFXdUu05GwpiwGSSEzqE3kC2unruWmyfBg1f8e0e7B/9XQnLpwYKmof/zjtF0WP9ivHoqkFdrxeoPobAstLwXdx1+n1pApuuuORmi2dPwKjRguWwDHtJPAdSCl8WFMM55fbXm9AUUfB4BiZ4pSK3vmurvsKS/hYUy2f/A9BwzTpK1uF4ilOiw8maZWmHMCrjfnNSH5K0h2zKoAPABAROdyLfPbVMNcNG7dTdrLvrE1GWlQmoz1lE=
+ Hn9/f4jS1oreK6D9lcEE8F7owNFeu4pqFf5CCTXuTktZGHxtcpDmViZiustVo9MEza3PWPAYhkb0dwchQdTeJDODdQBGzXH1DdvIKO922nM6c8agb7tYoXMKRoB2d45Fb5yCKU03ZsEjgmqHyiGgykA/8EYvnHQZE6tV7bxueZPJlLLL2+mm+upD8ly7Vf5uQYHG+yS2vtMPGU5sc7JCMhhiu9D7eCuL4GwZYw/x1zB5LsWz3BYmFER+gBx4rE5uRQrdEVJAG41MfEjR2/RoUgF5uhf38a7KA/qyFcubU74bcFfGpL0sivGM3h1JoK6iqqWcSjt8VBHnrqfuaYLawN4JVmJm3w90GfAIzp9zmHJv8LCjX9IawnXyivcgUeUC1AoXufaVKfp502vvgAvKk4KtZIo2kfLGXmvR6Sb09wo=
 x-ms-exchange-transport-forked: True
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <690E2CA4A383984195AC05EBB43B399E@eurprd05.prod.outlook.com>
+Content-ID: <83C67FC496A7AF4DAD50FF0383D8AADD@eurprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 39464a5b-0b98-414f-4469-08d721c00375
-X-MS-Exchange-CrossTenant-originalarrivaltime: 15 Aug 2019 20:34:47.3068
+X-MS-Exchange-CrossTenant-Network-Message-Id: 1b2b123c-9b15-45c8-9bad-08d721c0f58e
+X-MS-Exchange-CrossTenant-originalarrivaltime: 15 Aug 2019 20:41:33.6094
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: rgJf2X6C/WwMsY9G3nT2XPucXYHSwhEbCUOxki05OFy+qHGR8oVEanFv1zh1ryCHw/Rl2FlqRn/oVCZhjW46qg==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4190
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.001150, version=1.2.4
+X-MS-Exchange-CrossTenant-userprincipalname: R+VcSZJEpHLkhAxuqrdKAUeR8g8CXJNpnFS8GoIvcGHWg2nIDsMdHldgmhSvr4CEeb7LBr1ZLYVypM4oYNX10g==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4222
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 04:56:02PM -0700, Ralph Campbell wrote:
-> >=20
-> > Jason Gunthorpe (11):
-> >    mm/mmu_notifiers: hoist do_mmu_notifier_register down_write to the
-> >      caller
-> >    mm/mmu_notifiers: do not speculatively allocate a mmu_notifier_mm
-> >    mm/mmu_notifiers: add a get/put scheme for the registration
-> >    misc/sgi-gru: use mmu_notifier_get/put for struct gru_mm_struct
-> >    hmm: use mmu_notifier_get/put for 'struct hmm'
-> >    RDMA/odp: use mmu_notifier_get/put for 'struct ib_ucontext_per_mm'
-> >    RDMA/odp: remove ib_ucontext from ib_umem
-> >    drm/radeon: use mmu_notifier_get/put for struct radeon_mn
-> >    drm/amdkfd: fix a use after free race with mmu_notifer unregister
-> >    drm/amdkfd: use mmu_notifier_put
-> >    mm/mmu_notifiers: remove unregister_no_release
->=20
-> For the core MM, HMM, and nouveau changes you can add:
-> Tested-by: Ralph Campbell <rcampbell@nvidia.com>
+On Thu, Aug 15, 2019 at 04:33:06PM -0400, Jerome Glisse wrote:
 
-Great, thank you again.
+> So nor HMM nor driver should dereference the struct page (i do not
+> think any iommu driver would either),
 
-I think I will send this series to linux-next tomorrow
+Er, they do technically deref the struct page:
 
-Regards,
+nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
+			 struct hmm_range *range)
+		struct page *page;
+		page =3D hmm_pfn_to_page(range, range->pfns[i]);
+		if (!nouveau_dmem_page(drm, page)) {
+
+
+nouveau_dmem_page(struct nouveau_drm *drm, struct page *page)
+{
+	return is_device_private_page(page) && drm->dmem =3D=3D page_to_dmem(page)
+
+
+Which does touch 'page->pgmap'
+
+Is this OK without having a get_dev_pagemap() ?
+
+Noting that the collision-retry scheme doesn't protect anything here
+as we can have a concurrent invalidation while doing the above deref.
+
 Jason
 
