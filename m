@@ -2,177 +2,121 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78B3AC3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:02:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B678C3A59C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:03:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D3C12083B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:02:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="BGaLtEn0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D3C12083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 57C432083B
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:03:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57C432083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9CC06B0300; Thu, 15 Aug 2019 14:02:02 -0400 (EDT)
+	id E6A706B0302; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A26036B0302; Thu, 15 Aug 2019 14:02:02 -0400 (EDT)
+	id E1C0E6B0304; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C6626B0303; Thu, 15 Aug 2019 14:02:02 -0400 (EDT)
+	id D32A56B0305; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0203.hostedemail.com [216.40.44.203])
-	by kanga.kvack.org (Postfix) with ESMTP id 630A36B0300
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:02:02 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0231.hostedemail.com [216.40.44.231])
+	by kanga.kvack.org (Postfix) with ESMTP id B216F6B0302
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
 Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1C28C180AD802
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:02:02 +0000 (UTC)
-X-FDA: 75825430884.19.talk26_11ad77b25930e
-X-HE-Tag: talk26_11ad77b25930e
-X-Filterd-Recvd-Size: 6995
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:02:01 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id w18so1838963qki.0
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 11:02:01 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=BnI8+uYTBZJKnMRavU1hA2TnI4rNr0e2aXC8LBXC9rk=;
-        b=BGaLtEn0xYdBTNlc96MSvc0pra1wpogvEbh9GdU2lucZLzHp357V0Gu4O4fnG6AOf2
-         BybrSFZaeZEzYMjh/IoUujmDgJd5IpCUR3tMstVXWjLAycVo9JtMa+b7MtCAS3YLD4Pd
-         dgFmBtsLGh7Dhx4A4xWk9JocKdxSNpTPeGr8QLfny4yWKeB/twiqSr+/O8137DgtxKMx
-         Jl9VLmWm8wQswZBqORI5f4rKt93iNPd/i6wk0e2H0oUug4hUvei5Afb61IF1snBw6wXa
-         nsMBUVu57cjgGfgQB8mcQJtzDfAZ+xarKGUIbjN5S3r8JHADl8l+z4uWQ7PDRLewWs2y
-         zxrg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=BnI8+uYTBZJKnMRavU1hA2TnI4rNr0e2aXC8LBXC9rk=;
-        b=b1O6VsNJRanjHvom5TpkWHJXw0BGk2aVvLh2Dp8j3qa5fg76BuvpvS+g02H9kZeokQ
-         DUbkKFhGHRsblbbhJ1uEfVY75UW3IV1JxfvhNSGPewLq3xekUb0KakCgu7x/XWq9NIF7
-         C4rX7bwxID2vjXNDJg1huHDGLxKOqptrMiRYbZThjZyyJD7QMq4+pZZsETBqSDeQJesN
-         fUkqsYUAdJWnNBQTR1v+HvofaMP9kepGKLxeZsU2T+YohITkaPXVsw7GekjWnY1uyMpV
-         L0hQTLw97scF59WoJTnpxGs+qwrWKqqfBnN5AnRAedyukw+qpmRZFnQ2ZQZGX1zueMf+
-         PCCw==
-X-Gm-Message-State: APjAAAUKUH2EcQRjQXhxOiTEnkwfCWTi70t1GYirnnr75rZNQ9Em9y31
-	MnBC340r7hgOktymZJ39gMSLKw==
-X-Google-Smtp-Source: APXvYqzUY9aELsjIwCbnfSumedqkjr92TBjXJsVE8TgDEc+tCA2CiEijqX4gn5MCyrtpQlRHD8QVUw==
-X-Received: by 2002:a37:311:: with SMTP id 17mr4904431qkd.466.1565892120753;
-        Thu, 15 Aug 2019 11:02:00 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id p126sm2042871qkc.84.2019.08.15.11.02.00
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 11:02:00 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyK4V-0007BP-Uc; Thu, 15 Aug 2019 15:01:59 -0300
-Date: Thu, 15 Aug 2019 15:01:59 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>,
-	Michal Hocko <mhocko@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815180159.GO21596@ziepe.ca>
-References: <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
- <20190815084429.GE9477@dhcp22.suse.cz>
- <20190815130415.GD21596@ziepe.ca>
- <CAKMK7uE9zdmBuvxa788ONYky=46GN=5Up34mKDmsJMkir4x7MQ@mail.gmail.com>
- <20190815143759.GG21596@ziepe.ca>
- <CAKMK7uEJQ6mPQaOWbT_6M+55T-dCVbsOxFnMC6KzLAMQNa-RGg@mail.gmail.com>
- <20190815151028.GJ21596@ziepe.ca>
- <CAKMK7uG33FFCGJrDV4-FHT2FWi+Z5SnQ7hoyBQd4hignzm1C-A@mail.gmail.com>
- <20190815173557.GN21596@ziepe.ca>
- <20190815173922.GH30916@redhat.com>
+	by forelay01.hostedemail.com (Postfix) with SMTP id 57948180AD802
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:03:29 +0000 (UTC)
+X-FDA: 75825434538.19.laugh30_1e6ba7497001f
+X-HE-Tag: laugh30_1e6ba7497001f
+X-Filterd-Recvd-Size: 3911
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 161762A09AF;
+	Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id F1A13600CD;
+	Thu, 15 Aug 2019 18:03:26 +0000 (UTC)
+Date: Thu, 15 Aug 2019 14:03:25 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
+Message-ID: <20190815180325.GA4920@redhat.com>
+References: <20190806160554.14046-1-hch@lst.de>
+ <20190806160554.14046-5-hch@lst.de>
+ <20190807174548.GJ1571@mellanox.com>
+ <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
+ <20190808065933.GA29382@lst.de>
+ <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
+ <20190814073854.GA27249@lst.de>
+ <20190814132746.GE13756@mellanox.com>
+ <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190815173922.GH30916@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 01:39:22PM -0400, Jerome Glisse wrote:
-> On Thu, Aug 15, 2019 at 02:35:57PM -0300, Jason Gunthorpe wrote:
-> > On Thu, Aug 15, 2019 at 06:25:16PM +0200, Daniel Vetter wrote:
-> > 
-> > > I'm not really well versed in the details of our userptr, but both
-> > > amdgpu and i915 wait for the gpu to complete from
-> > > invalidate_range_start. Jerome has at least looked a lot at the amdgpu
-> > > one, so maybe he can explain what exactly it is we're doing ...
-> > 
-> > amdgpu is (wrongly) using hmm for something, I can't really tell what
-> > it is trying to do. The calls to dma_fence under the
-> > invalidate_range_start do not give me a good feeling.
-> > 
-> > However, i915 shows all the signs of trying to follow the registration
-> > cache model, it even has a nice comment in
-> > i915_gem_userptr_get_pages() explaining that the races it has don't
-> > matter because it is a user space bug to change the VA mapping in the
-> > first place. That just screams registration cache to me.
-> > 
-> > So it is fine to run HW that way, but if you do, there is no reason to
-> > fence inside the invalidate_range end. Just orphan the DMA buffer and
-> > clean it up & release the page pins when all DMA buffer refs go to
-> > zero. The next access to that VA should get a new DMA buffer with the
-> > right mapping.
-> > 
-> > In other words the invalidation should be very simple without
-> > complicated locking, or wait_event's. Look at hfi1 for example.
-> 
-> This would break the today usage model of uptr and it will
-> break userspace expectation ie if GPU is writting to that
-> memory and that memory then the userspace want to make sure
-> that it will see what the GPU write.
+On Wed, Aug 14, 2019 at 07:48:28AM -0700, Dan Williams wrote:
+> On Wed, Aug 14, 2019 at 6:28 AM Jason Gunthorpe <jgg@mellanox.com> wrot=
+e:
+> >
+> > On Wed, Aug 14, 2019 at 09:38:54AM +0200, Christoph Hellwig wrote:
+> > > On Tue, Aug 13, 2019 at 06:36:33PM -0700, Dan Williams wrote:
+> > > > Section alignment constraints somewhat save us here. The only exa=
+mple
+> > > > I can think of a PMD not containing a uniform pgmap association f=
+or
+> > > > each pte is the case when the pgmap overlaps normal dram, i.e. sh=
+ares
+> > > > the same 'struct memory_section' for a given span. Otherwise, dis=
+tinct
+> > > > pgmaps arrange to manage their own exclusive sections (and now
+> > > > subsections as of v5.3). Otherwise the implementation could not
+> > > > guarantee different mapping lifetimes.
+> > > >
+> > > > That said, this seems to want a better mechanism to determine "pf=
+n is
+> > > > ZONE_DEVICE".
+> > >
+> > > So I guess this patch is fine for now, and once you provide a bette=
+r
+> > > mechanism we can switch over to it?
+> >
+> > What about the version I sent to just get rid of all the strange
+> > put_dev_pagemaps while scanning? Odds are good we will work with only
+> > a single pagemap, so it makes some sense to cache it once we find it?
+>=20
+> Yes, if the scan is over a single pmd then caching it makes sense.
 
-How exactly? This is holding the page pin, so the only way the VA
-mapping can be changed is via explicit user action.
+Quite frankly an easier an better solution is to remove the pagemap
+lookup as HMM user abide by mmu notifier it means we will not make
+use or dereference the struct page so that we are safe from any
+racing hotunplug of dax memory (as long as device driver using hmm
+do not have a bug).
 
-ie:
-
-   gpu_write_something(va, size)
-   mmap(.., va, size, MMAP_FIXED);
-   gpu_wait_done()
-
-This is racy and indeterminate with both models.
-
-Based on the comment in i915 it appears to be going on the model that
-changes to the mmap by userspace when the GPU is working on it is a
-programming bug. This is reasonable, lots of systems use this kind of
-consistency model.
-
-Since the driver seems to rely on a dma_fence to block DMA access, it
-looks to me like the kernel has full visibility to the
-'gpu_write_something()' and 'gpu_wait_done()' markers.
-
-I think trying to use hmm_range_fault on HW that can't do HW page
-faulting and HW 'TLB shootdown' is a very, very bad idea. I fear that
-is what amd gpu is trying to do.
-
-I haven't yet seen anything that looks like 'TLB shootdown' in i915??
-
-Jason
+Cheers,
+J=E9r=F4me
 
