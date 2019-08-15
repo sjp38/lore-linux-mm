@@ -2,174 +2,131 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 678B8C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:43:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D0F9C3A59C
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:47:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23AEA2171F
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:43:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2CBC72171F
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 20:47:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="rmevilO9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23AEA2171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Xs91eNvC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CBC72171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C92D06B0003; Thu, 15 Aug 2019 16:43:27 -0400 (EDT)
+	id BA64E6B0003; Thu, 15 Aug 2019 16:47:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C43776B0008; Thu, 15 Aug 2019 16:43:27 -0400 (EDT)
+	id B569B6B0008; Thu, 15 Aug 2019 16:47:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B323D6B000A; Thu, 15 Aug 2019 16:43:27 -0400 (EDT)
+	id A47D66B000A; Thu, 15 Aug 2019 16:47:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
-	by kanga.kvack.org (Postfix) with ESMTP id 91CE16B0003
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:43:27 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 3A21F8248AAF
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:43:27 +0000 (UTC)
-X-FDA: 75825837654.07.roll66_75645da5f6c1d
-X-HE-Tag: roll66_75645da5f6c1d
-X-Filterd-Recvd-Size: 6108
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:43:26 +0000 (UTC)
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5BB2B2083B;
-	Thu, 15 Aug 2019 20:43:24 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565901805;
-	bh=4MUbuhxyjB/Z/I0+KEuHYyPv1fvr/qroc0kojX6LQUI=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=rmevilO9FFuTpF1TkeHr9rMjq0tx8UWAlZu1cW/zsMuDRMCXNIqbtamv/Bh9PWjxr
-	 uMcyMcUqmrlEz/U6ipnvwnFJksubQpe8uhV+mxBP/PuZfI7m0SnpKLNF/GD9rIRrXm
-	 9i2PofIAyA1t7LZj0WwS4y+NrRc1E+LScCfI1k7c=
-Date: Thu, 15 Aug 2019 22:43:22 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: James Morris <jmorris@namei.org>
-Cc: Mark Salyzyn <salyzyn@android.com>, linux-kernel@vger.kernel.org,
-	kernel-team@android.com, Stephen Smalley <sds@tycho.nsa.gov>,
-	linux-security-module@vger.kernel.org, stable@vger.kernel.org,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
-	Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>,
-	Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>,
-	Theodore Ts'o <tytso@mit.edu>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Bob Peterson <rpeterso@redhat.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Richard Weinberger <richard@nod.at>,
-	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Serge Hallyn <serge@hallyn.com>, Mimi Zohar <zohar@linux.ibm.com>,
-	Paul Moore <paul@paul-moore.com>,
-	Eric Paris <eparis@parisplace.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vyacheslav Dubeyko <slava@dubeyko.com>,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Mathieu Malaterre <malat@debian.org>,
-	v9fs-developer@lists.sourceforge.net, linux-afs@lists.infradead.org,
-	linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org,
-	ecryptfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org, cluster-devel@redhat.com,
-	linux-mtd@lists.infradead.org, jfs-discussion@lists.sourceforge.net,
-	linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
-	devel@lists.orangefs.org, linux-unionfs@vger.kernel.org,
-	reiserfs-devel@vger.kernel.org, linux-mm@kvack.org,
-	netdev@vger.kernel.org, linux-integrity@vger.kernel.org,
-	selinux@vger.kernel.org
-Subject: Re: [PATCH] Add flags option to get xattr method paired to
- __vfs_getxattr
-Message-ID: <20190815204322.GB6782@kroah.com>
-References: <20190812193320.200472-1-salyzyn@android.com>
- <20190813084801.GA972@kroah.com>
- <alpine.LRH.2.21.1908160515130.12729@namei.org>
+Received: from forelay.hostedemail.com (smtprelay0100.hostedemail.com [216.40.44.100])
+	by kanga.kvack.org (Postfix) with ESMTP id 8303B6B0003
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:47:26 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 2E04445A6
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:47:26 +0000 (UTC)
+X-FDA: 75825847692.15.noise75_6986b342b80d
+X-HE-Tag: noise75_6986b342b80d
+X-Filterd-Recvd-Size: 4881
+Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 20:47:25 +0000 (UTC)
+Received: by mail-ot1-f67.google.com with SMTP id c7so7767450otp.1
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:47:25 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=iGCSUcgObYGVRCAzYsit2AWDPyDTFFk4jtMiYAkxFvg=;
+        b=Xs91eNvCSOxAfiys1ppgNPaq0ALSevQ/T2i3xlUF6I+d0oNYGWm/kcLiWw3+Xl4qnf
+         JmRKMGDSydou9/I7nXt437o0JX4dmiF7jPGXc+pjZbnEFC2zEZTdc2kHWzkAn3V1gSAl
+         Hu9FCTmyAtKxs8tWdI2G6Y/dh0Bvh+WzLoLzAyJ2QnYpWxC6zKV9cpe1sVsIEPWKNT7E
+         iVYV5R/+pyflylvOahsY4t5XbCQibs6REFPZ0SdxGqNvL9GniE7dpOmgRXMxzo5dWcEd
+         ZEmrJY5OG1t7TpFlJrOJdClXDU4QGKNZ3i/T4vOTVaMLxf8C2MQbB2F1vE0fQMBNsoGm
+         GEng==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=iGCSUcgObYGVRCAzYsit2AWDPyDTFFk4jtMiYAkxFvg=;
+        b=qsiHh1QVCiwK0aqW+dLNpTBeCtHzPIRnqDDzBv/Cbl2Ij0zC5IPN2PypWw7GuuMWFr
+         0VzXm+T646YxD7nImMO81bv2+k1BXUOsozkwocDugm4UOpeyZ5O215l9xtMc1ow6YtFD
+         Wc7lF5u4DHWKWsituyBgTtXxGM8IpUKpV7ZsD1CBTV49y/pWQJR1ulx4BFIYQiXnnzM4
+         yBqW065kBxlIUR0uvRSgfE5+X1KbaqrleyBrkd1aPPqJ4pnee0JPyicIhmxl3kAxQ+sd
+         X/Ce3b6VO2ZP1ZOqeUINrCVYVzXQtw6liL3wreIWelCyOX7cQiJJyy3iizTA/6aD7+8a
+         8SzA==
+X-Gm-Message-State: APjAAAU8Xdveg6JJ3HDOUotjnW3D4jda+Eyh9zJePfhfIu8sdU2fSEjV
+	IjCyE8DTc30UnaQHNiGeP/koHy6QyC++wv5LpH40tQ==
+X-Google-Smtp-Source: APXvYqxd1d1qB7OEUrQO74IOC/HKBdhosqv4dkigmxMbJWq9zPu2Tf40r+CLgutNYrcVuSBFfg5oXWWZglhJSMHeq3k=
+X-Received: by 2002:a05:6830:458:: with SMTP id d24mr4706447otc.126.1565902044326;
+ Thu, 15 Aug 2019 13:47:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.21.1908160515130.12729@namei.org>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+References: <20190808065933.GA29382@lst.de> <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
+ <20190814073854.GA27249@lst.de> <20190814132746.GE13756@mellanox.com>
+ <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
+ <20190815180325.GA4920@redhat.com> <CAPcyv4g4hzcEA=TPYVTiqpbtOoS30ahogRUttCvQAvXQbQjfnw@mail.gmail.com>
+ <20190815194339.GC9253@redhat.com> <CAPcyv4jid8_=-8hBpn_Qm=c4S8BapL9B9RGT7e9uu303yH=Yqw@mail.gmail.com>
+ <20190815203306.GB25517@redhat.com> <20190815204128.GI22970@mellanox.com>
+In-Reply-To: <20190815204128.GI22970@mellanox.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 15 Aug 2019 13:47:12 -0700
+Message-ID: <CAPcyv4j_Mxbw+T+yXTMdkrMoS_uxg+TXXgTM_EPBJ8XfXKxytA@mail.gmail.com>
+Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Ben Skeggs <bskeggs@redhat.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 05:20:36AM +1000, James Morris wrote:
-> On Tue, 13 Aug 2019, Greg Kroah-Hartman wrote:
-> 
-> > On Mon, Aug 12, 2019 at 12:32:49PM -0700, Mark Salyzyn wrote:
-> > > --- a/include/linux/xattr.h
-> > > +++ b/include/linux/xattr.h
-> > > @@ -30,10 +30,10 @@ struct xattr_handler {
-> > >  	const char *prefix;
-> > >  	int flags;      /* fs private flags */
-> > >  	bool (*list)(struct dentry *dentry);
-> > > -	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-> > > +	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
-> > >  		   struct inode *inode, const char *name, void *buffer,
-> > > -		   size_t size);
-> > > -	int (*set)(const struct xattr_handler *, struct dentry *dentry,
-> > > +		   size_t size, int flags);
-> > > +	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
-> > >  		   struct inode *inode, const char *name, const void *buffer,
-> > >  		   size_t size, int flags);
-> > 
-> > Wow, 7 arguments.  Isn't there some nice rule of thumb that says once
-> > you get more then 5, a function becomes impossible to understand?
-> > 
-> > Surely this could be a structure passed in here somehow, that way when
-> > you add the 8th argument in the future, you don't have to change
-> > everything yet again?  :)
-> > 
-> > I don't have anything concrete to offer as a replacement fix for this,
-> > but to me this just feels really wrong...
-> 
-> How about something like:
-> 
-> struct xattr_gs_args {
-> 	struct dentry *dentry;
-> 	struct inode *inode;
+On Thu, Aug 15, 2019 at 1:41 PM Jason Gunthorpe <jgg@mellanox.com> wrote:
+>
+> On Thu, Aug 15, 2019 at 04:33:06PM -0400, Jerome Glisse wrote:
+>
+> > So nor HMM nor driver should dereference the struct page (i do not
+> > think any iommu driver would either),
+>
+> Er, they do technically deref the struct page:
+>
+> nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
+>                          struct hmm_range *range)
+>                 struct page *page;
+>                 page = hmm_pfn_to_page(range, range->pfns[i]);
+>                 if (!nouveau_dmem_page(drm, page)) {
+>
+>
+> nouveau_dmem_page(struct nouveau_drm *drm, struct page *page)
+> {
+>         return is_device_private_page(page) && drm->dmem == page_to_dmem(page)
+>
+>
+> Which does touch 'page->pgmap'
+>
+> Is this OK without having a get_dev_pagemap() ?
+>
+> Noting that the collision-retry scheme doesn't protect anything here
+> as we can have a concurrent invalidation while doing the above deref.
 
-As he said in a later message, dentry and inode is redundant, only 1 is
-needed (dentry I think?)
+As long take_driver_page_table_lock() in Jerome's flow can replace
+percpu_ref_tryget_live() on the pagemap reference. It seems
+nouveau_dmem_convert_pfn() happens after:
 
-> 	const char *name;
-> 	const void *buffer;
-> 	size_t size;
-> 	int flags;
-> };
-> 
-> int (*get)(const struct xattr_handler *handler, struct xattr_gs_args *args);
-> int (*set)(const struct xattr_handler *handler, struct xattr_gs_args *args);
+                        mutex_lock(&svmm->mutex);
+                        if (!nouveau_range_done(&range)) {
 
-But yes, that would be much much better.
-
-thanks,
-
-greg k-h
+...so I would expect that to be functionally equivalent to validating
+the reference count.
 
