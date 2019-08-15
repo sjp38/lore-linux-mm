@@ -2,271 +2,194 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC81BC3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:36:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 579A5C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:47:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 84BC720578
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:36:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 186B020578
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 16:47:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="UhntzMAf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84BC720578
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="XfCOaZuL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 186B020578
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33A916B02C3; Thu, 15 Aug 2019 12:36:51 -0400 (EDT)
+	id 9E9FC6B02C5; Thu, 15 Aug 2019 12:47:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2EBD06B02C4; Thu, 15 Aug 2019 12:36:51 -0400 (EDT)
+	id 999836B02C6; Thu, 15 Aug 2019 12:47:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DADC6B02C5; Thu, 15 Aug 2019 12:36:51 -0400 (EDT)
+	id 8896E6B02C7; Thu, 15 Aug 2019 12:47:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9B16B02C3
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 12:36:50 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 9E56D181AC9B4
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:36:50 +0000 (UTC)
-X-FDA: 75825216180.20.sail08_1724b37efb0c
-X-HE-Tag: sail08_1724b37efb0c
-X-Filterd-Recvd-Size: 7998
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:36:49 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7FGYQWJ191500;
-	Thu, 15 Aug 2019 16:36:37 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2019-08-05;
- bh=tQp5b+UWyvDkv+mGHv76dD+bCogpkczjZQzmfVTQMNA=;
- b=UhntzMAfWALdFCA48bRct57tOumFWBA3G42PC/w+X4/OsjQIx41oHRuI/w6t3OOZyIoF
- NdG1hCNIGQzZiOLbgkVJUHsKNM0j+Mps4ca0ICeOhOXb0mKZJqQdZFh/ZFrjOPj0MRlg
- encRmoGw4lQYevOL2Wpi2UQbHCLBM4iVnNT8/oDXVNdEWD0sfLW2rRn9L+ebu8qRhH8b
- 7Qg8rhhmpzZLubHbFue+jNF415ZfYdlqhvZXai/tjb0BvJDNK8/AR2fEcReBiDzcd7/n
- tbVDn1OQgbBWhExDCWddjeU1b0Zt04eP0HSxO3qTH2mjQg7z4Rfbzr8ggAJz7Ap4I+3M 1w== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2u9nbturdd-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 16:36:37 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7FGX7Yv003161;
-	Thu, 15 Aug 2019 16:34:36 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3030.oracle.com with ESMTP id 2ucs8858qr-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 15 Aug 2019 16:34:36 +0000
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7FGYZ0S027609;
-	Thu, 15 Aug 2019 16:34:35 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 15 Aug 2019 09:34:35 -0700
-Date: Thu, 15 Aug 2019 09:34:34 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: hch@infradead.org, akpm@linux-foundation.org, tytso@mit.edu,
-        viro@zeniv.linux.org.uk
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        fstests <fstests@vger.kernel.org>
-Subject: [PATCH RFC 3/2] fstests: check that we can't write to swap files
-Message-ID: <20190815163434.GA15186@magnolia>
-References: <156588514105.111054.13645634739408399209.stgit@magnolia>
+Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B3846B02C5
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 12:47:55 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1E247180AD802
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:47:55 +0000 (UTC)
+X-FDA: 75825244110.01.toad91_6218ed87c2a3e
+X-HE-Tag: toad91_6218ed87c2a3e
+X-Filterd-Recvd-Size: 6349
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 16:47:53 +0000 (UTC)
+Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7FGhiww024255
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:47:49 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=QXKJOgRl5FIoWJim517rSgnhgGSAwYjtUxv7Q7p0QmE=;
+ b=XfCOaZuLGA9TUpMf4peT78rnVC04WYt5MDcJOygLrKvAHyEGn0W6RuxJFkBbwA7YfqLE
+ pI5moNCqnPq6663MOrFC8e4MUPKc9pMOabwWtSBWh8uu89UbzKk8EBV3tyc9kGXdXkIT
+ ylKHDh3q1b1KIqPrL+6BUFzzi9PGDXsmg5U= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2uda85r75n-17
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:47:49 -0700
+Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
+ mail.thefacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Thu, 15 Aug 2019 09:47:39 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 0BC6C62E16D2; Thu, 15 Aug 2019 09:45:34 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+        <akpm@linux-foundation.org>
+CC: <hannes@cmpxchg.org>, <matthew.wilcox@oracle.com>,
+        <kirill.shutemov@linux.intel.com>, <oleg@redhat.com>,
+        <kernel-team@fb.com>, <william.kucharski@oracle.com>,
+        <srikar@linux.vnet.ibm.com>, Song Liu
+	<songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v13 0/6] THP aware uprobe
+Date: Thu, 15 Aug 2019 09:45:19 -0700
+Message-ID: <20190815164525.1848545-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <156588514105.111054.13645634739408399209.stgit@magnolia>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9350 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908150161
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9350 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908150161
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-15_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908150163
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This set makes uprobe aware of THPs.
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+Currently, when uprobe is attached to text on THP, the page is split by
+FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP.
 
-While active, the media backing a swap file is leased to the kernel.
-Userspace has no business writing to it.  Make sure we can't do this.
+This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
+FOLL_SPLIT_PMD, which only split PMD for uprobe.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- tests/generic/717     |   60 +++++++++++++++++++++++++++++++++++++++++++++++++
- tests/generic/717.out |    7 ++++++
- tests/generic/718     |   46 ++++++++++++++++++++++++++++++++++++++
- tests/generic/718.out |    5 ++++
- tests/generic/group   |    2 ++
- 5 files changed, 120 insertions(+)
- create mode 100755 tests/generic/717
- create mode 100644 tests/generic/717.out
- create mode 100755 tests/generic/718
- create mode 100644 tests/generic/718.out
+After all uprobes within the THP are removed, the PTE-mapped pages are
+regrouped as huge PMD.
 
-diff --git a/tests/generic/717 b/tests/generic/717
-new file mode 100755
-index 00000000..ab12ee4d
---- /dev/null
-+++ b/tests/generic/717
-@@ -0,0 +1,60 @@
-+#! /bin/bash
-+# SPDX-License-Identifier: GPL-2.0-or-newer
-+# Copyright (c) 2019, Oracle and/or its affiliates.  All Rights Reserved.
-+#
-+# FS QA Test No. 717
-+#
-+# Check that we can't modify a file that's an active swap file.
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1    # failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	swapoff $testfile
-+	rm -rf $tmp.* $testfile
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# real QA test starts here
-+_supported_os Linux
-+_supported_fs generic
-+_require_scratch_swapfile
-+
-+rm -f $seqres.full
-+
-+_scratch_mkfs > $seqres.full 2>&1
-+_scratch_mount >> $seqres.full 2>&1
-+
-+testfile=$SCRATCH_MNT/$seq.swap
-+
-+_format_swapfile $testfile 20m
-+swapon $testfile 2>&1 | _filter_scratch
-+
-+# Can we write to it?
-+$XFS_IO_PROG -c 'pwrite -S 0x59 64k 64k' $testfile
-+$XFS_IO_PROG -d -c 'pwrite -S 0x60 64k 64k' $testfile
-+$XFS_IO_PROG -c 'mmap -rw 64k 64k' -c 'mwrite -S 0x61 64k 64k' $testfile
-+
-+# Can we change the file size?
-+$XFS_IO_PROG -c 'truncate 18m' $testfile
-+
-+# Can you fallocate the file?
-+$XFS_IO_PROG -c 'falloc 0 32m' $testfile
-+
-+# We test that you can't reflink, dedupe, or copy_file_range into a swapfile
-+# in other tests.
-+
-+# success, all done
-+status=0
-+exit
-diff --git a/tests/generic/717.out b/tests/generic/717.out
-new file mode 100644
-index 00000000..2cd9bcdb
---- /dev/null
-+++ b/tests/generic/717.out
-@@ -0,0 +1,7 @@
-+QA output created by 717
-+pwrite: Text file busy
-+pwrite: Text file busy
-+mmap: Text file busy
-+no mapped regions, try 'help mmap'
-+ftruncate: Text file busy
-+fallocate: Text file busy
-diff --git a/tests/generic/718 b/tests/generic/718
-new file mode 100755
-index 00000000..35cf718f
---- /dev/null
-+++ b/tests/generic/718
-@@ -0,0 +1,46 @@
-+#! /bin/bash
-+# SPDX-License-Identifier: GPL-2.0-or-newer
-+# Copyright (c) 2019, Oracle and/or its affiliates.  All Rights Reserved.
-+#
-+# FS QA Test No. 718
-+#
-+# Check that we can't modify a block device that's an active swap device.
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1    # failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	swapoff $SCRATCH_DEV
-+	rm -rf $tmp.*
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# real QA test starts here
-+_supported_os Linux
-+_supported_fs generic
-+_require_scratch_nocheck
-+
-+rm -f $seqres.full
-+
-+$MKSWAP_PROG "$SCRATCH_DEV" >> $seqres.full
-+swapon $SCRATCH_DEV 2>&1 | _filter_scratch
-+
-+# Can we write to it?
-+$XFS_IO_PROG -c 'pwrite -S 0x59 64k 64k' $SCRATCH_DEV
-+$XFS_IO_PROG -d -c 'pwrite -S 0x60 64k 64k' $SCRATCH_DEV
-+$XFS_IO_PROG -c 'mmap -rw 64k 64k' -c 'mwrite -S 0x61 64k 64k' $SCRATCH_DEV
-+
-+# success, all done
-+status=0
-+exit
-diff --git a/tests/generic/718.out b/tests/generic/718.out
-new file mode 100644
-index 00000000..5cd25b9a
---- /dev/null
-+++ b/tests/generic/718.out
-@@ -0,0 +1,5 @@
-+QA output created by 718
-+pwrite: Text file busy
-+pwrite: Text file busy
-+mmap: Text file busy
-+no mapped regions, try 'help mmap'
-diff --git a/tests/generic/group b/tests/generic/group
-index 003fa963..c58d41e3 100644
---- a/tests/generic/group
-+++ b/tests/generic/group
-@@ -570,3 +570,5 @@
- 565 auto quick copy_range
- 715 auto quick rw
- 716 auto quick rw
-+717 auto quick rw swap
-+718 auto quick rw swap
+This set (plus a few THP patches) is also available at
+
+   https://github.com/liu-song-6/linux/tree/uprobe-thp
+
+
+Changes v12 => v13
+1. Improve checks for the page in collapse_pte_mapped_thp() (Oleg).
+2. Include Reviewed-by from Oleg.
+
+Changes v11.4 => v12
+1. Combine the first 4 patches with the rest 2 patches again in the same
+   set.
+2. Improve checks for the page in collapse_pte_mapped_thp() (Oleg).
+3. Fixed build error w/o CONFIG_SHMEM.
+
+v11.1 to v11.4 are only the last two patches.
+
+Changes v11.3 => v11.4:
+1. Simplify locking for pte_mapped_thp (Oleg).
+2. Improve checks for the page in collapse_pte_mapped_thp() (Oleg).
+3. Move HPAGE_PMD_MASK to collapse_pte_mapped_thp() (kbuild test robot).
+
+Changes v11.2 => v11.3:
+1. Update vma/pmd check in collapse_pte_mapped_thp() (Oleg).
+2. Add Acked-by from Kirill
+
+Changes v11.1 => v11.2:
+1. Call collapse_pte_mapped_thp() directly from uprobe_write_opcode();
+2. Add VM_BUG_ON() for addr alignment in khugepaged_add_pte_mapped_thp()
+   and collapse_pte_mapped_thp().
+
+Changes v9 => v10:
+1. 2/4 incorporate suggestion by Oleg Nesterov.
+2. Reword change log of 4/4.
+
+Changes v8 => v9:
+1. To replace with orig_page, only unmap old_page. Let the orig_page fault
+   in (Oleg Nesterov).
+
+Changes v7 => v8:
+1. check PageUptodate() for orig_page (Oleg Nesterov).
+
+Changes v6 => v7:
+1. Include Acked-by from Kirill A. Shutemov for the first 4 patches;
+2. Keep only the first 4 patches (while I working on improving the last 2).
+
+Changes v5 => v6:
+1. Enable khugepaged to collapse pmd for pte-mapped THP
+   (Kirill A. Shutemov).
+2. uprobe asks khuagepaged to collaspe pmd. (Kirill A. Shutemov)
+
+Note: Theast two patches in v6 the set apply _after_ v7 of set "Enable THP
+      for text section of non-shmem files"
+
+Changes v4 => v5:
+1. Propagate pte_alloc() error out of follow_pmd_mask().
+
+Changes since v3:
+1. Simplify FOLL_SPLIT_PMD case in follow_pmd_mask(), (Kirill A. Shutemov)
+2. Fix try_collapse_huge_pmd() to match change in follow_pmd_mask().
+
+Changes since v2:
+1. For FOLL_SPLIT_PMD, populated the page table in follow_pmd_mask().
+2. Simplify logic in uprobe_write_opcode. (Oleg Nesterov)
+3. Fix page refcount handling with FOLL_SPLIT_PMD.
+4. Much more testing, together with THP on ext4 and btrfs (sending in
+   separate set).
+5. Rebased.
+
+Changes since v1:
+1. introduces FOLL_SPLIT_PMD, instead of modifying split_huge_pmd*();
+2. reuse pages_identical() from ksm.c;
+3. rewrite most of try_collapse_huge_pmd().
+
+Song Liu (6):
+  mm: move memcmp_pages() and pages_identical()
+  uprobe: use original page when all uprobes are removed
+  mm, thp: introduce FOLL_SPLIT_PMD
+  uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+  khugepaged: enable collapse pmd for pte-mapped THP
+  uprobe: collapse THP pmd after removing all uprobes
+
+ include/linux/khugepaged.h |  12 +++
+ include/linux/mm.h         |   8 ++
+ kernel/events/uprobes.c    |  81 +++++++++++++-----
+ mm/gup.c                   |   8 +-
+ mm/khugepaged.c            | 168 ++++++++++++++++++++++++++++++++++++-
+ mm/ksm.c                   |  18 ----
+ mm/util.c                  |  13 +++
+ 7 files changed, 268 insertions(+), 40 deletions(-)
+
+--
+2.17.1
 
