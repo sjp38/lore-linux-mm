@@ -2,132 +2,175 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28533C433FF
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:13:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D107EC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:16:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE6F1208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:13:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 862372067D
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 00:16:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kQ7rO4Rr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE6F1208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="bkxZ5igs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 862372067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7568A6B0007; Wed, 14 Aug 2019 20:13:22 -0400 (EDT)
+	id 26F4A6B0003; Wed, 14 Aug 2019 20:16:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6DDCA6B0008; Wed, 14 Aug 2019 20:13:22 -0400 (EDT)
+	id 2209A6B0005; Wed, 14 Aug 2019 20:16:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5CC966B000A; Wed, 14 Aug 2019 20:13:22 -0400 (EDT)
+	id 0E7906B0007; Wed, 14 Aug 2019 20:16:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
-	by kanga.kvack.org (Postfix) with ESMTP id 3554D6B0007
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:13:22 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id ACEB340C5
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:13:21 +0000 (UTC)
-X-FDA: 75822737802.30.night76_2cf2e1a9753
-X-HE-Tag: night76_2cf2e1a9753
-X-Filterd-Recvd-Size: 4808
-Received: from mail-qk1-f195.google.com (mail-qk1-f195.google.com [209.85.222.195])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:13:21 +0000 (UTC)
-Received: by mail-qk1-f195.google.com with SMTP id s145so567241qke.7
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:13:21 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
+	by kanga.kvack.org (Postfix) with ESMTP id DC87C6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:16:55 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 95A1740E6
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:16:55 +0000 (UTC)
+X-FDA: 75822746790.22.joke64_1f4d680c33c3f
+X-HE-Tag: joke64_1f4d680c33c3f
+X-Filterd-Recvd-Size: 6317
+Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:16:54 +0000 (UTC)
+Received: by mail-pg1-f193.google.com with SMTP id p3so436750pgb.9
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:16:54 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=qzhD8inHCWGPsSExfxoS4FMI+7+fcQwlxaBDgT12qb4=;
-        b=kQ7rO4RrHFSZ6MZuuxxoF8VbnBnjRycJLb07elyvEnUiIa4wJgsVinEba3cE2MqTB9
-         fJulQuWx6Y5tYTxlddWTc11PBfISadqD+ExfUHnpoPQON92Ku+S5Y/WG1rnAqUDmFm/t
-         sZdh11B/5WH1wkWaQw580ROrmY5paRB/mKD6yO6YRdOAjXFOKeMa/lNRNHsDHR11a2YM
-         fH5CrO9kz+3OETBgm2cIOfKwCC5iyZs6YtbJwN/rErrCwql6u7WwlNfS1W19r/IYCdLa
-         OB/xGbNt8+DZYg3Zcz43LE9VgkFuylrF77Y+9lVNSAp5BzomHMMBV2AknnHcgTQXagXw
-         j3Dg==
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=G8E+rJpVyLTQoZWEfd9l8Yi8PuLGKA2rJdGSnf5/Kng=;
+        b=bkxZ5igsnh/JD58DPxcoPBhAYK+BQz7ACNUwxMf4gk/u5FymercBQR2KhZyxjb3FYZ
+         JZiSHpTCCg8aHADYLHwUnJnHM7kGthaas1W4MEHaFCqGHoLPtqhU1KS6EmzyAUUCSNl7
+         U9mjMa7MurDWuAxEGYohe9KDTOS+ATs8gCAcI=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=qzhD8inHCWGPsSExfxoS4FMI+7+fcQwlxaBDgT12qb4=;
-        b=gJWNcedIddL9X4ZrCQnmDbnz/tnQ5CbqStg3AitSOq5Vh5w13LNOfB91JLKXz/lfoj
-         olTsFaCL3Hg8tATdhQP4wjEoZ7QurVTYi4cUrAA1cAQYK7Ub0VhKJe+/GXRrGlOBWNWA
-         r5VrhRyjJM+ZFZJ8TBN0X5bKmteUXffDA9OCF7js3AAjbh6seScrC9I4d1pwn+vT/9L5
-         ZLX/ShPS9lNik+jSa72Ce9qNbH7TJalixgCY5tBYWvLTW3+YYP8GDPOMbkRostKZl2fb
-         w78VWqFg0clsHWi93QNzdtkaote3HFFRF8PhbPXMsq+fLznsNgcYjaSys8s0uWKF+vO3
-         5dMQ==
-X-Gm-Message-State: APjAAAWWeuxTF1GBaIta32jxQSmUIeDSd3hvadCaGW02Ffy1nX1Tu+iu
-	wEVzQ7VjinSf1O9WKDYfmBj4rg==
-X-Google-Smtp-Source: APXvYqxctXlgOtCTuI+nHfly9zVzKydMCFWuaFknzokpvDUX3JdzMaNu+TsBvuyQsnsSgXcVbMLc+w==
-X-Received: by 2002:a05:620a:130d:: with SMTP id o13mr1851841qkj.285.1565828000618;
-        Wed, 14 Aug 2019 17:13:20 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id i5sm756517qti.0.2019.08.14.17.13.20
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 14 Aug 2019 17:13:20 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hy3OJ-0003bl-SN; Wed, 14 Aug 2019 21:13:19 -0300
-Date: Wed, 14 Aug 2019 21:13:19 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
-	Christoph Hellwig <hch@lst.de>, John Hubbard <jhubbard@nvidia.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	"Kuehling, Felix" <Felix.Kuehling@amd.com>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	"David (ChunMing) Zhou" <David1.Zhou@amd.com>,
-	Dimitri Sivanich <sivanich@sgi.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org,
-	iommu@lists.linux-foundation.org, intel-gfx@lists.freedesktop.org,
-	Gavin Shan <shangw@linux.vnet.ibm.com>,
-	Andrea Righi <andrea@betterlinux.com>,
-	Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v3 hmm 03/11] mm/mmu_notifiers: add a get/put scheme for
- the registration
-Message-ID: <20190815001319.GF11200@ziepe.ca>
-References: <20190806231548.25242-1-jgg@ziepe.ca>
- <20190806231548.25242-4-jgg@ziepe.ca>
- <0a23adb8-b827-cd90-503e-bfa84166c67e@nvidia.com>
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=G8E+rJpVyLTQoZWEfd9l8Yi8PuLGKA2rJdGSnf5/Kng=;
+        b=sn5L7geAU3M45mHBbQXyqTDMV0Wb0q30TtjDWY0jNxfHMOjXGyFE55xaVV4qWcZD/r
+         3b55LNxbbeX4ht4M5Eho+oq8Yv8Iq2akCzXgLxupuyyaf+K1eMhKVA/5shvi7NGw5bX7
+         CK/aw6f1pCVOTUEiZWDgCCBKWmJEjp2+DuFF2DFxC2BfU1sDARDLITifqaYhZ1eMxxn5
+         DB1NINAbWVdJkR1VyvACrukBRfnE8eFR4rIc4kBDCs/hhKsxwGadanzAS3Q20EfDLSyd
+         KjhUHnlQeOCvySwjWlRLayEeU74oHuCehNHwPJCoIF49lipPV5HwxKqbRtOvogNHwsHS
+         BWMg==
+X-Gm-Message-State: APjAAAVs8WUz71HrxuaPhugwfEclytAFkrJV62M8ztNbakH3GS5y0Es2
+	9E5tlOeMczvHDpVdonbENb9zBw==
+X-Google-Smtp-Source: APXvYqzPn+wvrZiTi8+K95Bh/aZxRdY7i083QL+BtsT3mL9jZmsLF7wA0MTHcqpa0AC2oHg2i6qA/Q==
+X-Received: by 2002:a62:b60e:: with SMTP id j14mr2722718pff.54.1565828213449;
+        Wed, 14 Aug 2019 17:16:53 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id m4sm1197573pff.108.2019.08.14.17.16.51
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 14 Aug 2019 17:16:52 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: kasan-dev@googlegroups.com,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	aryabinin@virtuozzo.com,
+	glider@google.com,
+	luto@kernel.org,
+	linux-kernel@vger.kernel.org,
+	mark.rutland@arm.com,
+	dvyukov@google.com
+Cc: linuxppc-dev@lists.ozlabs.org,
+	gor@linux.ibm.com,
+	Daniel Axtens <dja@axtens.net>
+Subject: [PATCH v4 0/3] kasan: support backing vmalloc space with real shadow memory
+Date: Thu, 15 Aug 2019 10:16:33 +1000
+Message-Id: <20190815001636.12235-1-dja@axtens.net>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0a23adb8-b827-cd90-503e-bfa84166c67e@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 02:20:31PM -0700, Ralph Campbell wrote:
-> 
-> On 8/6/19 4:15 PM, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> > 
-> > Many places in the kernel have a flow where userspace will create some
-> > object and that object will need to connect to the subsystem's
-> > mmu_notifier subscription for the duration of its lifetime.
-> > 
-> > In this case the subsystem is usually tracking multiple mm_structs and it
-> > is difficult to keep track of what struct mmu_notifier's have been
-> > allocated for what mm's.
-> > 
-> > Since this has been open coded in a variety of exciting ways, provide core
-> > functionality to do this safely.
-> > 
-> > This approach uses the strct mmu_notifier_ops * as a key to determine if
-> 
-> s/strct/struct
+Currently, vmalloc space is backed by the early shadow page. This
+means that kasan is incompatible with VMAP_STACK, and it also provides
+a hurdle for architectures that do not have a dedicated module space
+(like powerpc64).
 
-Yes, thanks for all of this, I like having comments, but I'm a
-terrible proofreader :(
+This series provides a mechanism to back vmalloc space with real,
+dynamically allocated memory. I have only wired up x86, because that's
+the only currently supported arch I can work with easily, but it's
+very easy to wire up other architectures.
 
-Jason
+This has been discussed before in the context of VMAP_STACK:
+ - https://bugzilla.kernel.org/show_bug.cgi?id=3D202009
+ - https://lkml.org/lkml/2018/7/22/198
+ - https://lkml.org/lkml/2019/7/19/822
+
+In terms of implementation details:
+
+Most mappings in vmalloc space are small, requiring less than a full
+page of shadow space. Allocating a full shadow page per mapping would
+therefore be wasteful. Furthermore, to ensure that different mappings
+use different shadow pages, mappings would have to be aligned to
+KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
+
+Instead, share backing space across multiple mappings. Allocate
+a backing page the first time a mapping in vmalloc space uses a
+particular page of the shadow region. Keep this page around
+regardless of whether the mapping is later freed - in the mean time
+the page could have become shared by another vmalloc mapping.
+
+This can in theory lead to unbounded memory growth, but the vmalloc
+allocator is pretty good at reusing addresses, so the practical memory
+usage appears to grow at first but then stay fairly stable.
+
+If we run into practical memory exhaustion issues, I'm happy to
+consider hooking into the book-keeping that vmap does, but I am not
+convinced that it will be an issue.
+
+v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.ne=
+t/
+v2: https://lore.kernel.org/linux-mm/20190729142108.23343-1-dja@axtens.ne=
+t/
+ Address review comments:
+ - Patch 1: use kasan_unpoison_shadow's built-in handling of
+            ranges that do not align to a full shadow byte
+ - Patch 3: prepopulate pgds rather than faulting things in
+v3: https://lore.kernel.org/linux-mm/20190731071550.31814-1-dja@axtens.ne=
+t/
+ Address comments from Mark Rutland:
+ - kasan_populate_vmalloc is a better name
+ - handle concurrency correctly
+ - various nits and cleanups
+ - relax module alignment in KASAN_VMALLOC case
+v4: Changes to patch 1 only:
+ - Integrate Mark's rework, thanks Mark!
+ - handle the case where kasan_populate_shadow might fail
+ - poision shadow on free, allowing the alloc path to just
+     unpoision memory that it uses
+
+Daniel Axtens (3):
+  kasan: support backing vmalloc space with real shadow memory
+  fork: support VMAP_STACK with KASAN_VMALLOC
+  x86/kasan: support KASAN_VMALLOC
+
+ Documentation/dev-tools/kasan.rst | 60 +++++++++++++++++++++++++++
+ arch/Kconfig                      |  9 +++--
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/mm/kasan_init_64.c       | 61 ++++++++++++++++++++++++++++
+ include/linux/kasan.h             | 24 +++++++++++
+ include/linux/moduleloader.h      |  2 +-
+ include/linux/vmalloc.h           | 12 ++++++
+ kernel/fork.c                     |  4 ++
+ lib/Kconfig.kasan                 | 16 ++++++++
+ lib/test_kasan.c                  | 26 ++++++++++++
+ mm/kasan/common.c                 | 67 +++++++++++++++++++++++++++++++
+ mm/kasan/generic_report.c         |  3 ++
+ mm/kasan/kasan.h                  |  1 +
+ mm/vmalloc.c                      | 28 ++++++++++++-
+ 14 files changed, 308 insertions(+), 6 deletions(-)
+
+--=20
+2.20.1
+
 
