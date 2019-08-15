@@ -2,172 +2,173 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EA57C3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:35:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FE74C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:08:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E1262171F
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 13:35:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E1262171F
+	by mail.kernel.org (Postfix) with ESMTP id 2EF07206C2
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:08:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EF07206C2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82FC96B0286; Thu, 15 Aug 2019 09:35:13 -0400 (EDT)
+	id 8B2F86B0289; Thu, 15 Aug 2019 10:08:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E9766B0288; Thu, 15 Aug 2019 09:35:13 -0400 (EDT)
+	id 8638B6B028A; Thu, 15 Aug 2019 10:08:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D0A06B0289; Thu, 15 Aug 2019 09:35:13 -0400 (EDT)
+	id 752966B028B; Thu, 15 Aug 2019 10:08:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0030.hostedemail.com [216.40.44.30])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CE5F6B0286
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 09:35:13 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id F0EC155FA9
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:35:12 +0000 (UTC)
-X-FDA: 75824758464.27.paste25_105946ce7094a
-X-HE-Tag: paste25_105946ce7094a
-X-Filterd-Recvd-Size: 5433
+Received: from forelay.hostedemail.com (smtprelay0161.hostedemail.com [216.40.44.161])
+	by kanga.kvack.org (Postfix) with ESMTP id 52DC16B0289
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:08:17 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DDEE140FE
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:08:16 +0000 (UTC)
+X-FDA: 75824841792.22.12035FE
+Received: from filter.hostedemail.com (10.5.16.251.rfc1918.com [10.5.16.251])
+	by smtpin22.hostedemail.com (Postfix) with ESMTP id 719B71803701A
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:05:39 +0000 (UTC)
+X-HE-Tag: wash23_8897f04223c4e
+X-Filterd-Recvd-Size: 4627
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:35:12 +0000 (UTC)
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:05:38 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C57B7AE12;
-	Thu, 15 Aug 2019 13:35:10 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id BB740AFE8;
+	Thu, 15 Aug 2019 14:05:36 +0000 (UTC)
 Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 357491E4200; Thu, 15 Aug 2019 15:35:10 +0200 (CEST)
-Date: Thu, 15 Aug 2019 15:35:10 +0200
+	id 599471E4200; Thu, 15 Aug 2019 16:05:35 +0200 (CEST)
+Date: Thu, 15 Aug 2019 16:05:35 +0200
 From: Jan Kara <jack@suse.cz>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
-Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-Message-ID: <20190815133510.GA21302@quack2.suse.cz>
-References: <20190812015044.26176-3-jhubbard@nvidia.com>
- <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
- <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
- <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
- <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
- <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
- <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
- <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
- <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
- <20190815132622.GG14313@quack2.suse.cz>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 3/4] writeback, memcg: Implement cgroup_writeback_by_id()
+Message-ID: <20190815140535.GJ14313@quack2.suse.cz>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-4-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190815132622.GG14313@quack2.suse.cz>
+In-Reply-To: <20190803140155.181190-4-tj@kernel.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 15-08-19 15:26:22, Jan Kara wrote:
-> On Wed 14-08-19 20:01:07, John Hubbard wrote:
-> > On 8/14/19 5:02 PM, John Hubbard wrote:
-> > > On 8/14/19 4:50 PM, Ira Weiny wrote:
-> > > > On Tue, Aug 13, 2019 at 05:56:31PM -0700, John Hubbard wrote:
-> > > > > On 8/13/19 5:51 PM, John Hubbard wrote:
-> > > > > > On 8/13/19 2:08 PM, Ira Weiny wrote:
-> > > > > > > On Mon, Aug 12, 2019 at 05:07:32PM -0700, John Hubbard wrot=
-e:
-> > > > > > > > On 8/12/19 4:49 PM, Ira Weiny wrote:
-> > > > > > > > > On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@=
-gmail.com wrote:
-> > > > > > > > > > From: John Hubbard <jhubbard@nvidia.com>
-> > > > > > > > ...
-> > > > > > > Finally, I struggle with converting everyone to a new call.=
-=A0 It is more
-> > > > > > > overhead to use vaddr_pin in the call above because now the=
- GUP code is going
-> > > > > > > to associate a file pin object with that file when in ODP w=
-e don't need that
-> > > > > > > because the pages can move around.
-> > > > > >=20
-> > > > > > What if the pages in ODP are file-backed?
-> > > > > >=20
-> > > > >=20
-> > > > > oops, strike that, you're right: in that case, even the file sy=
-stem case is covered.
-> > > > > Don't mind me. :)
-> > > >=20
-> > > > Ok so are we agreed we will drop the patch to the ODP code?=A0 I'=
-m going to keep
-> > > > the FOLL_PIN flag and addition in the vaddr_pin_pages.
-> > > >=20
-> > >=20
-> > > Yes. I hope I'm not overlooking anything, but it all seems to make =
-sense to
-> > > let ODP just rely on the MMU notifiers.
-> > >=20
-> >=20
-> > Hold on, I *was* forgetting something: this was a two part thing, and
-> > you're conflating the two points, but they need to remain separate an=
-d
-> > distinct. There were:
-> >=20
-> > 1. FOLL_PIN is necessary because the caller is clearly in the use cas=
-e that
-> > requires it--however briefly they might be there. As Jan described it=
-,
-> >=20
-> > "Anything that gets page reference and then touches page data (e.g.
-> > direct IO) needs the new kind of tracking so that filesystem knows
-> > someone is messing with the page data." [1]
->=20
-> So when the GUP user uses MMU notifiers to stop writing to pages whenev=
-er
-> they are writeprotected with page_mkclean(), they don't really need pag=
-e
-> pin - their access is then fully equivalent to any other mmap userspace
-> access and filesystem knows how to deal with those. I forgot out this c=
-ase
-> when I wrote the above sentence.
->=20
-> So to sum up there are three cases:
-> 1) DIO case - GUP references to pages serving as DIO buffers are needed=
- for
->    relatively short time, no special synchronization with page_mkclean(=
-) or
->    munmap() =3D> needs FOLL_PIN
-> 2) RDMA case - GUP references to pages serving as DMA buffers needed fo=
-r a
->    long time, no special synchronization with page_mkclean() or munmap(=
-)
->    =3D> needs FOLL_PIN | FOLL_LONGTERM
->    This case has also a special case when the pages are actually DAX. T=
-hen
->    the caller additionally needs file lease and additional file_pin
->    structure is used for tracking this usage.
-> 3) ODP case - GUP references to pages serving as DMA buffers, MMU notif=
-iers
->    used to synchronize with page_mkclean() and munmap() =3D> normal pag=
-e
->    references are fine.
+On Sat 03-08-19 07:01:54, Tejun Heo wrote:
+> Implement cgroup_writeback_by_id() which initiates cgroup writeback
+> from bdi and memcg IDs.  This will be used by memcg foreign inode
+> flushing.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> ---
+>  fs/fs-writeback.c         | 64 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/writeback.h |  4 +++
+>  2 files changed, 68 insertions(+)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 6129debdc938..5c79d7acefdb 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -880,6 +880,70 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
+>  		wb_put(last_wb);
+>  }
+>  
+> +/**
+> + * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
+> + * @bdi_id: target bdi id
+> + * @memcg_id: target memcg css id
+> + * @nr_pages: number of pages to write
+> + * @reason: reason why some writeback work initiated
+> + * @done: target wb_completion
+> + *
+> + * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
+> + * with the specified parameters.
+> + */
+> +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
+> +			   enum wb_reason reason, struct wb_completion *done)
+> +{
+> +	struct backing_dev_info *bdi;
+> +	struct cgroup_subsys_state *memcg_css;
+> +	struct bdi_writeback *wb;
+> +	struct wb_writeback_work *work;
+> +	int ret;
+> +
+> +	/* lookup bdi and memcg */
+> +	bdi = bdi_get_by_id(bdi_id);
+> +	if (!bdi)
+> +		return -ENOENT;
+> +
+> +	rcu_read_lock();
+> +	memcg_css = css_from_id(memcg_id, &memory_cgrp_subsys);
+> +	if (memcg_css && !css_tryget(memcg_css))
+> +		memcg_css = NULL;
+> +	rcu_read_unlock();
+> +	if (!memcg_css) {
+> +		ret = -ENOENT;
+> +		goto out_bdi_put;
+> +	}
+> +
+> +	/* and find the associated wb */
+> +	wb = wb_get_create(bdi, memcg_css, GFP_NOWAIT | __GFP_NOWARN);
+> +	if (!wb) {
+> +		ret = -ENOMEM;
+> +		goto out_css_put;
+> +	}
+> +
+> +	/* issue the writeback work */
+> +	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
+> +	if (work) {
+> +		work->nr_pages = nr;
+> +		work->sync_mode = WB_SYNC_NONE;
+> +		work->reason = reason;
+> +		work->done = done;
+> +		work->auto_free = 1;
+> +		wb_queue_work(wb, work);
+> +		ret = 0;
+> +	} else {
+> +		ret = -ENOMEM;
+> +	}
+> +
+> +	wb_put(wb);
+> +out_css_put:
+> +	css_put(memcg_css);
+> +out_bdi_put:
+> +	bdi_put(bdi);
+> +	return ret;
+> +}
+> +
+>  /**
+>   * cgroup_writeback_umount - flush inode wb switches for umount
+>   *
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index 8945aac31392..ad794f2a7d42 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -217,6 +217,10 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+>  void wbc_detach_inode(struct writeback_control *wbc);
+>  void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
+>  			      size_t bytes);
+> +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
+> +			   enum wb_reason reason, struct wb_completion *done);
+> +int writeback_by_id(int id, unsigned long nr, enum wb_reason reason,
+> +		    struct wb_completion *done);
 
-I want to add that I'd like to convert users in cases 1) and 2) from usin=
-g
-GUP to using differently named function. Users in case 3) can stay as the=
-y
-are for now although ultimately I'd like to denote such use cases in a
-special way as well...
+I guess this writeback_by_id() is stale? I didn't find it anywhere else...
 
 								Honza
---=20
+-- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
 
