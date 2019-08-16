@@ -2,156 +2,108 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BC35C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 06:21:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51A1CC3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 06:28:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C1CE8206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 06:21:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 044272077C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 06:28:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="UVlNUshc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1CE8206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="EvXHTIUx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 044272077C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 58C6C6B0003; Fri, 16 Aug 2019 02:21:10 -0400 (EDT)
+	id 8BBAA6B0003; Fri, 16 Aug 2019 02:28:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 516276B0006; Fri, 16 Aug 2019 02:21:10 -0400 (EDT)
+	id 86BD66B0005; Fri, 16 Aug 2019 02:28:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3DC7F6B0007; Fri, 16 Aug 2019 02:21:10 -0400 (EDT)
+	id 75ADE6B0006; Fri, 16 Aug 2019 02:28:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
-	by kanga.kvack.org (Postfix) with ESMTP id 17ED76B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 02:21:10 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 900028248AA7
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:21:09 +0000 (UTC)
-X-FDA: 75827293458.25.frame48_443ec78f8d408
-X-HE-Tag: frame48_443ec78f8d408
-X-Filterd-Recvd-Size: 6125
-Received: from mail-oi1-f195.google.com (mail-oi1-f195.google.com [209.85.167.195])
-	by imf42.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:21:08 +0000 (UTC)
-Received: by mail-oi1-f195.google.com with SMTP id b25so30755oib.4
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 23:21:08 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=bnzSBHY/JdeQAgbtdAEAW270/fKb4r8flWE61wbC5Lo=;
-        b=UVlNUshcEIlU+yobZlz2y42/ujMlRlo+ct+0p80oBP1RIOLjVgza5yLAH9kiWJ0ywH
-         rn5w4IcTB48oHSkKlTlUwiOfhTg79xGXAcMQPEun+qGn+KaPE/v6hTzroIHT9rozR67E
-         6n0mNYDqP9fJbFBUtd9FG2uXYDGCCqC+daSJ0=
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=bnzSBHY/JdeQAgbtdAEAW270/fKb4r8flWE61wbC5Lo=;
-        b=Ibd6afIwA22p1zB2bxjYYUr3NNsQLFCErZFS504vwhCB5CRM07f1VqT98/pVWRUNNB
-         noD2qPnOTpwqQy34zVq94ASpoZPghDlzpV8/xDwkvUI8aL9oRT4+D71BoOslLsVgq7V7
-         1a7aeno9SD2kVBx5LRnfKem9Ns9IBDvCE3/JLU+pzSIS1eGzafr/QEO/nP73I+BJx4mK
-         oCR7SmO8OCBbc3osMZig/OwXBjTekFWDfZj3xQJzmcL15LefBfJ8k7eXl63sridS3RcB
-         yxEIv3r4kaGbJ8Cu/u9lG0IMkwMi4RQ8dlBP8uxPZ5BTxwXKISFxpR17V2RPIpleDXFU
-         PSpA==
-X-Gm-Message-State: APjAAAXliNLSkVpqoN/pvZpeag671XJ2oZpi4ghbY6IdEfBYIKP9digA
-	5ghyVqeUYulD6r0M2OXWWvqbCAbCN6QNniZETl40aQ==
-X-Google-Smtp-Source: APXvYqzph7HTCPvGlJkLaGSjiEYiCfosASP1QBmSLU+nI/ANvScaJ5s0IeM0Q21xXCjaiRcxA2KwuJ63i1nnQocpq20=
-X-Received: by 2002:aca:1a0b:: with SMTP id a11mr4149187oia.128.1565936467928;
- Thu, 15 Aug 2019 23:21:07 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0214.hostedemail.com [216.40.44.214])
+	by kanga.kvack.org (Postfix) with ESMTP id 5730D6B0003
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 02:28:02 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 0069B55FA3
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:28:01 +0000 (UTC)
+X-FDA: 75827310804.09.moon88_8044d095e613c
+X-HE-Tag: moon88_8044d095e613c
+X-Filterd-Recvd-Size: 3872
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:28:01 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=oU/+XLvJ/zQXeVSNiDSSlJqSG/SneSmtCzvqLBroOSY=; b=EvXHTIUxlRbzNA+RRnALDlEZ7
+	V3/RDd3Mqg1DeQl7oV3ZkPJfeP0TE9G+7oHZoME5kQqbbL1z3akBM3MJsWG4ZlgbDgyd82M7oWvyA
+	GIb5p2vce+b8aoyegq2NmEVZpH/sS0JOOfWgR6BdSLNS588kchnd87R9V3mNofTE+dipTfnFZbAUy
+	kIWl9m2vTro537iAS/fgltZp681Tr6OPWOzXSwHDBxwmzvR2MWdqzOKcK3nE2w1IMuYRSztBQ1Z9/
+	OID7tNU5sXdkolwAetL2OKma/9NdaQ6ME+emgjtNyITJ1/CQjFauz9IogkNnsfAgfMGSjsPpzY77I
+	pZ1/YO/Rg==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hyViJ-00064g-AM; Fri, 16 Aug 2019 06:27:51 +0000
+Date: Thu, 15 Aug 2019 23:27:51 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Thomas =?iso-8859-1?Q?Hellstr=F6m?= <thomas@shipmail.org>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Subject: Re: cleanup the walk_page_range interface
+Message-ID: <20190816062751.GA16169@infradead.org>
+References: <20190808154240.9384-1-hch@lst.de>
+ <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190815155950.GN9477@dhcp22.suse.cz> <20190815165631.GK21596@ziepe.ca>
- <20190815174207.GR9477@dhcp22.suse.cz> <20190815182448.GP21596@ziepe.ca>
- <20190815190525.GS9477@dhcp22.suse.cz> <20190815191810.GR21596@ziepe.ca>
- <20190815193526.GT9477@dhcp22.suse.cz> <CAKMK7uH42EgdxL18yce-7yay=x=Gb21nBs3nY7RA92Nsd-HCNA@mail.gmail.com>
- <20190815202721.GV21596@ziepe.ca> <CAKMK7uER0u1TqeJBXarKakphnyZTHOmedOfXXqLGVDE2mE-mAQ@mail.gmail.com>
- <20190816010036.GA9915@ziepe.ca>
-In-Reply-To: <20190816010036.GA9915@ziepe.ca>
-From: Daniel Vetter <daniel@ffwll.ch>
-Date: Fri, 16 Aug 2019 08:20:55 +0200
-Message-ID: <CAKMK7uH0oa10LoCiEbj1NqAfWitbdOa-jQm9hM=iNL-=8gH9nw@mail.gmail.com>
-Subject: Re: [Intel-gfx] [PATCH 2/5] kernel.h: Add non_block_start/end()
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Michal Hocko <mhocko@kernel.org>, Feng Tang <feng.tang@intel.com>, 
-	Randy Dunlap <rdunlap@infradead.org>, Kees Cook <keescook@chromium.org>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Jann Horn <jannh@google.com>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	DRI Development <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	David Rientjes <rientjes@google.com>, Wei Wang <wvw@google.com>, 
-	Daniel Vetter <daniel.vetter@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>, 
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 3:00 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> On Thu, Aug 15, 2019 at 10:49:31PM +0200, Daniel Vetter wrote:
-> > On Thu, Aug 15, 2019 at 10:27 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > > On Thu, Aug 15, 2019 at 10:16:43PM +0200, Daniel Vetter wrote:
-> > > > So if someone can explain to me how that works with lockdep I can of
-> > > > course implement it. But afaics that doesn't exist (I tried to explain
-> > > > that somewhere else already), and I'm no really looking forward to
-> > > > hacking also on lockdep for this little series.
-> > >
-> > > Hmm, kind of looks like it is done by calling preempt_disable()
+On Thu, Aug 08, 2019 at 10:50:37AM -0700, Linus Torvalds wrote:
+> On Thu, Aug 8, 2019 at 8:42 AM Christoph Hellwig <hch@lst.de> wrote:
 > >
-> > Yup. That was v1, then came the suggestion that disabling preemption
-> > is maybe not the best thing (the oom reaper could still run for a long
-> > time comparatively, if it's cleaning out gigabytes of process memory
-> > or what not, hence this dedicated debug infrastructure).
->
-> Oh, I'm coming in late, sorry
->
-> Anyhow, I was thinking since we agreed this can trigger on some
-> CONFIG_DEBUG flag, something like
->
->     /* This is a sleepable region, but use preempt_disable to get debugging
->      * for calls that are not allowed to block for OOM [.. insert
->      * Michal's explanation.. ] */
->     if (IS_ENABLED(CONFIG_DEBUG_ATOMIC_SLEEP) && !mmu_notifier_range_blockable(range))
->         preempt_disable();
->     ops->invalidate_range_start();
+> > this series is based on a patch from Linus to split the callbacks
+> > passed to walk_page_range and walk_page_vma into a separate structure
+> > that can be marked const, with various cleanups from me on top.
+> 
+> The whole series looks good to me. Ack.
+> 
+> > Note that both Thomas and Steven have series touching this area pending,
+> > and there are a couple consumer in flux too - the hmm tree already
+> > conflicts with this series, and I have potential dma changes on top of
+> > the consumers in Thomas and Steven's series, so we'll probably need a
+> > git tree similar to the hmm one to synchronize these updates.
+> 
+> I'd be willing to just merge this now, if that helps. The conversion
+> is mechanical, and my only slight worry would be that at least for my
+> original patch I didn't build-test the (few) non-x86
+> architecture-specific cases. But I did end up looking at them fairly
+> closely  (basically using some grep/sed scripts to see that the
+> conversions I did matched the same patterns). And your changes look
+> like obvious improvements too where any mistake would have been caught
+> by the compiler.
+> 
+> So I'm not all that worried from a functionality standpoint, and if
+> this will help the next merge window, I'll happily pull now.
 
-I think we also discussed that, and some expressed concerns it would
-change behaviour/timing too much for testing. Since this does does
-disable preemption for real, not just for might_sleep.
-
-> And I have also been idly mulling doing something like
->
->    if (IS_ENABLED(CONFIG_DEBUG_NOTIFIERS) &&
->        rand &&
->        mmu_notifier_range_blockable(range)) {
->      range->flags = 0
->      if (!ops->invalidate_range_start(range))
->         continue
->
->      // Failed, try again as blockable
->      range->flags = MMU_NOTIFIER_RANGE_BLOCKABLE
->    }
->    ops->invalidate_range_start(range);
->
-> Which would give coverage for this corner case without forcing OOM.
-
-Hm, this sounds like a neat idea to slap on top. The rand is going to
-be a bit tricky though, but I guess for this we could stuff another
-counter into task_struct and just e.g. do this every 1000th or so
-invalidate (well need to pick a prime so we cycle through notifiers in
-case there's multiple). I like.
-
-Michal, thoughts?
--Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+So what is the plan forward?  Probably a little late for 5.3,
+so queue it up in -mm for 5.4 and deal with the conflicts in at least
+hmm?  Queue it up in the hmm tree even if it doesn't 100% fit?
 
