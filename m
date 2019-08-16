@@ -2,199 +2,192 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A107C3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:06:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4200FC3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:17:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2C1C206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:06:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="tHAtUQNo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2C1C206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0EDB42173B
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:17:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EDB42173B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4FE5F6B0003; Fri, 16 Aug 2019 14:06:53 -0400 (EDT)
+	id 9B1FF6B0003; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 487AA6B0005; Fri, 16 Aug 2019 14:06:53 -0400 (EDT)
+	id 962416B0005; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 300316B0007; Fri, 16 Aug 2019 14:06:53 -0400 (EDT)
+	id 84F116B0007; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0061.hostedemail.com [216.40.44.61])
-	by kanga.kvack.org (Postfix) with ESMTP id 0754B6B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:06:52 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id A586917863
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:06:52 +0000 (UTC)
-X-FDA: 75829071864.22.can99_763418a9b932a
-X-HE-Tag: can99_763418a9b932a
-X-Filterd-Recvd-Size: 8515
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:06:52 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id w4so10309389ote.11
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 11:06:52 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=PPWBwrTYQiyPgQwYhqsU+jPTEkc43rpRsbunSoEPTXY=;
-        b=tHAtUQNoRigMxBjYxcjgeMp0HzqDjLMh774KWtbYJ1LQ5I8/YSZtc6DBKXy7huNkI+
-         jFqyWs1eRi1MKaZTXrUrdwzez3KOVu2936JexjJmm8LMfGbwcDOblo5QYEN8fRyjunvC
-         Z9kTFWMD+Ni7K84Wzxwq5VexnsJE8/s8Zc4vTbtU1W9N5OOs0z/SUTVtnlnK6yx/SnC9
-         WKDufjpb944iFy4o8IWTkPvNfpzfXxEKzvDj0MosYUuOFq0DZHNGCyz/PTPEdh6hSEpc
-         w2CaM4qxsJJFyrs/b1443YiKkoxPt85jPxYCC/xxwXbSe5wXfGFzQsH1+aMWzX/mlmjU
-         6o5w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=PPWBwrTYQiyPgQwYhqsU+jPTEkc43rpRsbunSoEPTXY=;
-        b=WDu/quhn6q7i2gr17lasSbnx1G7wizOV1mzpMfPfDhOT2iN4w5JhGAwgqwmRJLXywA
-         zZFcjpGagry11mQTRp4CA8uTmITfiHXISwkyQ8lFJ34cTR8+V/YeyqaVRwKmy20sBr4B
-         Vi8j+RwkiOHzHrdRRRadj2CXtxSvXkQhgBBh0N5XHln/iCitQcFr3JZWak+hVvMfm5Te
-         wQzpuBc0hbU1O06lINT2X4Vs+Y4CNO4iGZtj4ozlO8PvNxXlp5ULyoylloSKwRbLwTVu
-         vIMeA02pCpAM13IQ29YofzmhMawjUyuqTLqOJE+YIQCl4dYe7PG+mEY6urmkuuaMR8jr
-         i11g==
-X-Gm-Message-State: APjAAAW0zrCzhGWrSDeZ2UAPFthUwWN8nYpgvIg6cuKhclGOaaf6nnV0
-	smqR0wt1BxIfftBMWxnpDtKqDvPzMdA2YrNlKl5aVw==
-X-Google-Smtp-Source: APXvYqxf4xeIU6DFzNAgjmuDV+1QL372RcNMsRPvtUB1Bn4CiSOT/q++7Rgs1rbxreyBn9D9iUu6RJ73UUHVBqbJ7UY=
-X-Received: by 2002:a9d:70c6:: with SMTP id w6mr6957681otj.349.1565978811093;
- Fri, 16 Aug 2019 11:06:51 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0179.hostedemail.com [216.40.44.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2056B0003
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id EB5CD181AC9C9
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:17:25 +0000 (UTC)
+X-FDA: 75829098450.15.plant66_40bdbbd2aa462
+X-HE-Tag: plant66_40bdbbd2aa462
+X-Filterd-Recvd-Size: 7018
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf46.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:17:24 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D6F5B28;
+	Fri, 16 Aug 2019 11:17:23 -0700 (PDT)
+Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0F0C23F706;
+	Fri, 16 Aug 2019 11:17:21 -0700 (PDT)
+Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>,
+ "Eric W. Biederman" <ebiederm@xmission.com>,
+ kexec mailing list <kexec@lists.infradead.org>,
+ LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>,
+ Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Marc Zyngier <marc.zyngier@arm.com>,
+ Vladimir Murzin <vladimir.murzin@arm.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>,
+ Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>
+References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
+ <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+ <ba8a2519-ed95-2518-d0e8-66e8e0c14ff5@arm.com>
+ <CA+CK2bAqBi43Cchr=md7EPRuEWH-iuToK0PxN3ysSBQ42Hd0-g@mail.gmail.com>
+From: James Morse <james.morse@arm.com>
+Message-ID: <746ceee3-43a7-231d-b2f6-0991a4148a28@arm.com>
+Date: Fri, 16 Aug 2019 19:17:20 +0100
+User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-References: <20190808231340.53601-1-almasrymina@google.com>
- <20190808231340.53601-5-almasrymina@google.com> <47cfc50d-bea3-0247-247e-888d2942f134@oracle.com>
- <9872cec9-a0fe-cfe0-0df6-90b6dd909f04@oracle.com> <CAHS8izOv3GjKhnzVmksfH0U9xZ6OnC0R-XEZsqVxOvrJ5u_BBw@mail.gmail.com>
- <bfa1cffd-bceb-6f69-419e-3fa173359701@oracle.com>
-In-Reply-To: <bfa1cffd-bceb-6f69-419e-3fa173359701@oracle.com>
-From: Mina Almasry <almasrymina@google.com>
-Date: Fri, 16 Aug 2019 11:06:40 -0700
-Message-ID: <CAHS8izNwnHDap-2EP3X2775rL+aRj3U4=QgOSnhgO9oJOwi-0w@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 4/5] hugetlb_cgroup: Add accounting for shared mappings
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CA+CK2bAqBi43Cchr=md7EPRuEWH-iuToK0PxN3ysSBQ42Hd0-g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 9:29 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
->
-> On 8/15/19 4:04 PM, Mina Almasry wrote:
-> > On Wed, Aug 14, 2019 at 9:46 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> >>
-> >> On 8/13/19 4:54 PM, Mike Kravetz wrote:
-> >>> On 8/8/19 4:13 PM, Mina Almasry wrote:
-> >>>> For shared mappings, the pointer to the hugetlb_cgroup to uncharge lives
-> >>>> in the resv_map entries, in file_region->reservation_counter.
-> >>>>
-> >>>> When a file_region entry is added to the resv_map via region_add, we
-> >>>> also charge the appropriate hugetlb_cgroup and put the pointer to that
-> >>>> in file_region->reservation_counter. This is slightly delicate since we
-> >>>> need to not modify the resv_map until we know that charging the
-> >>>> reservation has succeeded. If charging doesn't succeed, we report the
-> >>>> error to the caller, so that the kernel fails the reservation.
-> >>>
-> >>> I wish we did not need to modify these region_() routines as they are
-> >>> already difficult to understand.  However, I see no other way with the
-> >>> desired semantics.
-> >>>
-> >>
-> >> I suspect you have considered this, but what about using the return value
-> >> from region_chg() in hugetlb_reserve_pages() to charge reservation limits?
-> >> There is a VERY SMALL race where the value could be too large, but that
-> >> can be checked and adjusted at region_add time as is done with normal
-> >> accounting today.
-> >
-> > I have not actually until now; I didn't consider doing stuff with the
-> > resv_map while not holding onto the resv_map->lock. I guess that's the
-> > small race you're talking about. Seems fine to me, but I'm more
-> > worried about hanging off the vma below.
->
-> This race is already handled for other 'reservation like' things in
-> hugetlb_reserve_pages.  So, I don't think the race is much of an issue.
->
-> >> If the question is, where would we store the information
-> >> to uncharge?, then we can hang a structure off the vma.  This would be
-> >> similar to what is done for private mappings.  In fact, I would suggest
-> >> making them both use a new cgroup reserve structure hanging off the vma.
-> >>
-> >
-> > I actually did consider hanging off the info to uncharge off the vma,
-> > but I didn't for a couple of reasons:
-> >
-> > 1. region_del is called from hugetlb_unreserve_pages, and I don't have
-> > access to the vma there. Maybe there is a way to query the proper vma
-> > I don't know about?
->
-> I am still thinking about closely tying cgroup revervation limits/usage
-> to existing reservation accounting.  Of most concern (to me) is handling
-> shared mappings.  Reservations created for shared mappings are more
-> associated with the inode/file than individual mappings.  For example,
-> consider a task which mmaps(MAP_SHARED) a hugetlbfs file.  At mmap time
-> reservations are created based on the size of the mmap.  Now, if the task
-> unmaps and/or exits the reservations still exist as they are associated
-> with the file rather than the mapping.
->
+Hi Pavel,
 
-I'm aware of this behavior, and IMO it seems fine to me. I believe it
-works the same way with tmfs today. I think a task that creates a file
-in tmpfs gets charged the memory, and even if the task exits the
-memory is still charged to its cgroup, and the memory remains charged
-until the tmpfs file is deleted by someone.
+On 15/08/2019 21:09, Pavel Tatashin wrote:
+>>> Also, I'd appreciate if anyone could test this series on vhe hardware
+>>> with vhe kernel, it does not look like QEMU can emulate it yet
+>>
+>> This locks up during resume from hibernate on my AMD Seattle, a regular v8.0 machine.
+> 
+> Thanks for reporting a bug I will root cause and fix it.
 
-Makes sense to me for hugetlb reservations to work the same way. The
-memory remains charged until the hugetlbfs file gets deleted. But, if
-you think of improvement, I'm happy to oblige :)
+>> Please try and build the series to reduce review time. What you have here is an all-new
+>> page-table generation API, which you switch hibernate and kexec too. This is effectively a
+>> new implementation of hibernate and kexec. There are three things here that need review.
+>>
+>> You have a regression in your all-new implementation of hibernate. It took six months (and
+>> lots of review) to get the existing code right, please don't rip it out if there is
+>> nothing wrong with it.
+> 
+>> Instead, please just move the hibernate copy_page_tables() code, and then wire kexec up.
+>> You shouldn't need to change anything in the copy_page_tables() code as the linear map is
+>> the same in both cases.
 
-> Honesty, I think this existing reservation bevahior is wrong or at least
-> not desirable.  Because there are outstanding reservations, the number of
-> reserved huge pages can not be used for other purposes.  It is also very
-> difficult for a user or admin to determine the source of the reservations.
-> No one is currently complaining about this behavior.  This proposal just
-> made me think about it.
->
-> Tying cgroup reservation limits/usage to existing reservation accounting
-> will introduce the same issues there.  We will need to clearly document the
-> behavior.
->
+> It is not really an all-new implementation of hibernate (for kexec it
+> is true though). I used the current implementation of hibernate as
+> bases, and simply generalized the functions by providing a flexible
+> interface. So what you are asking is actually exactly what I am doing.
 
-Yes, seems we're maybe converging on a solution here, so the next
-patchset will include docs for your review.
+I disagree. The resume page-table code is the bulk of the complexity in hibernate.c. Your
+first patch dumps ~200 lines of differently-complex code, and your second switches
+hibernate over to it.
 
-> > 2. hugetlb_reserve_pages seems to be able to conduct a reservation
-> > with a NULL *vma. Not sure what to do in that case.
-> >
-> > Is there a way to get around these that I'm missing here?
->
-> You are correct.  The !vma case is there for System V shared memory such
-> as a call to shmget(SHM_HUGETLB).  In this case, reservations for the
-> entire shared emmory segment are taken at shmget time.
->
-> In your model, the caller of shmget who creates the shared memory segment
-> would get charged for all the reservations.  Users, (those calling shmat)
-> would not be charged.
->
-> > FWIW I think tracking is better in resv_map since the reservations are
-> > in resv_map themselves. If I do another structure, then for each
-> > reservation there will be an entry in resv_map and an entry in the new
-> > structure and they need to be kept in sync and I need to handle errors
-> > for when they get out of sync.
->
-> I think you may be correct.  However, this implies that we will need to
-> change the way we do reservation in the resv_map for shared mappings.
-> I will comment on that in reply to patch 4.
->
-> --
-> Mike Kravetz
+Instead, please move that code, keeping it as it is. git will spot the move, and the
+generated diffstat should only reflect the build-system changes. You don't need to 'switch
+hibernate to transitional page tables.'
+
+Adding kexec will then show-up what needs changing, each change comes with a commit
+message explaining why. Having these as 'generalisations' in the first patch is a mess.
+
+There is existing code that we don't want to break. Any changes need to be done as a
+sequence of small incremental changes. It can't be reviewed any other way.
+
+
+> I realize, that I introduced a bug that I will fix.
+
+Done as a sequence of small incremental changes, I could bisect it to the patch that
+introduces the bug, and probably fix it from the description in the commit message.
+
+
+>> It looks like you are creating the page tables just after the kexec:segments have been
+>> loaded. This will go horribly wrong if anything changes between then and kexec time. (e.g.
+>> memory you've got mapped gets hot-removed).
+>> This needs to be done as late as possible, so we don't waste memory, and the world can't
+>> change around us. Reboot notifiers run before kexec, can't we do the memory-allocation there?
+
+> Kexec by design does not allow allocate during kexec time. This is
+> because we cannot fail during kexec syscall.
+
+This problem needs solving.
+
+| Reboot notifiers run before kexec, can't we do the memory-allocation there?
+
+
+> All allocations must be done during kexec load time.
+
+This increases the memory footprint. I don't think we should waste ~2MB per GB of kernel
+memory on this feature. (Assuming 4K pages and rodata_full)
+
+Another option is to allocate this memory at load time, but then free it so it can be used
+in the meantime. You can keep the list of allocated pfn, as we know they aren't in use by
+the running kernel, kexec metadata, loaded images etc.
+
+Memory hotplug would need handling carefully, as would anything that 'donates' memory to
+another agent. (I suspect the TEE stuff does this, I don't know how it interacts with kexec)
+
+
+> Kernel memory cannot be hot-removed, as
+> it is not part of ZONE_MOVABLE, and cannot be migrated.
+
+Today, yes. Tomorrow?, "arm64/mm: Enable memory hot remove":
+https://lore.kernel.org/r/1563171470-3117-1-git-send-email-anshuman.khandual@arm.com
+
+
+>>>> Previously:
+>>>> kernel shutdown 0.022131328s
+>>>> relocation      0.440510736s
+>>>> kernel startup  0.294706768s
+>>>>
+>>>> Relocation was taking: 58.2% of reboot time
+>>>>
+>>>> Now:
+>>>> kernel shutdown 0.032066576s
+>>>> relocation      0.022158152s
+>>>> kernel startup  0.296055880s
+>>>>
+>>>> Now: Relocation takes 6.3% of reboot time
+>>>>
+>>>> Total reboot is x2.16 times faster.
+>>
+>> When I first saw these numbers they were ~'0.29s', which I wrongly assumed was 29 seconds.
+>> Savings in milliseconds, for _reboot_ is a hard sell. I'm hoping that on the machines that
+>> take minutes to kexec we'll get numbers that make this change more convincing.
+
+> Sure, this userland is very small kernel+userland is only 47M. Here is
+> another data point: fitImage: 380M, it contains a larger userland.
+> The numbers for kernel shutdown and startup are the same as this is
+> the same kernel, but relocation takes: 3.58s
+> shutdown: 0.02s
+> relocation: 3.58s
+> startup:  0.30s
+> 
+> Relocation take 88% of reboot time. And, we must have it under one second.
+
+Where does this one second number come from? (was it ever a reasonable starting point?)
+
+
+Thanks,
+
+James
 
