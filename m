@@ -2,135 +2,125 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F26F6C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:14:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED0F4C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:21:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF05A2086C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:14:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF05A2086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id AF2EF2086C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:21:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="fgp4v8P6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF2EF2086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 507D66B0003; Fri, 16 Aug 2019 12:14:24 -0400 (EDT)
+	id 48CEE6B000A; Fri, 16 Aug 2019 12:21:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 490C06B0005; Fri, 16 Aug 2019 12:14:24 -0400 (EDT)
+	id 43CC76B000C; Fri, 16 Aug 2019 12:21:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37EEA6B0008; Fri, 16 Aug 2019 12:14:24 -0400 (EDT)
+	id 353CE6B000D; Fri, 16 Aug 2019 12:21:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0090.hostedemail.com [216.40.44.90])
-	by kanga.kvack.org (Postfix) with ESMTP id 101236B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:14:24 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id A098F8248AD5
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:14:23 +0000 (UTC)
-X-FDA: 75828788406.10.meal37_9325d5a47310
-X-HE-Tag: meal37_9325d5a47310
-X-Filterd-Recvd-Size: 4696
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:14:23 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BDA24ABF6;
-	Fri, 16 Aug 2019 16:14:21 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id F03601E4009; Fri, 16 Aug 2019 18:13:55 +0200 (CEST)
-Date: Fri, 16 Aug 2019 18:13:55 +0200
-From: Jan Kara <jack@suse.cz>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Vlastimil Babka <vbabka@suse.cz>,
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
-Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-Message-ID: <20190816161355.GL3041@quack2.suse.cz>
-References: <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
- <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
- <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
- <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
- <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
- <20190815132622.GG14313@quack2.suse.cz>
- <20190815133510.GA21302@quack2.suse.cz>
- <0d6797d8-1e04-1ebe-80a7-3d6895fe71b0@suse.cz>
- <20190816154404.GF3041@quack2.suse.cz>
- <20190816155220.GC3149@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
+	by kanga.kvack.org (Postfix) with ESMTP id 154176B000A
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:21:14 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id A1282181AC9B4
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:21:13 +0000 (UTC)
+X-FDA: 75828805626.05.cry38_44dcc55fde713
+X-HE-Tag: cry38_44dcc55fde713
+X-Filterd-Recvd-Size: 5137
+Received: from mail-lj1-f170.google.com (mail-lj1-f170.google.com [209.85.208.170])
+	by imf40.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:21:13 +0000 (UTC)
+Received: by mail-lj1-f170.google.com with SMTP id x18so5840616ljh.1
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 09:21:12 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=ymHwSq4wTpjRhSkNkSGTSSHl5As6L3PV3bdJQptYy1o=;
+        b=fgp4v8P6AxU+KKUY1EDc5rYVP1G7Mk7BIPRI7oZVb9n5xTGtQUQwxxYGrbtt4g5Gu3
+         D4qg2XzBD6zjFtV9FiMyLGBsnngoRe1p7cJuCZFYZmtZ0f0vQtQMdktkSt0/8nrR0Aoz
+         iLR92sZEp4yc9Ff9XsWy9gGBabbw281EZw/wg=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc:content-transfer-encoding;
+        bh=ymHwSq4wTpjRhSkNkSGTSSHl5As6L3PV3bdJQptYy1o=;
+        b=sRKzVpF+4QtQ12by21rFsEqTVDsG+JTeQbQkDHy7xzIiHwr4MucelF5C788ZQSbmL2
+         xEiVxcU6f7pkX6LTCNQZh0GYFhN6/K8nPyZuzrjLMhd8jLOkAO66HMMJ8g3d0Rlc5Fcd
+         CS4pNbJNj1jVilkggYBkEmVStsM7ZMkQpeUSYRDJGORs4t42UsChg/vHkYZWplkoMYa0
+         XE9xYmszEVtIsL6QantdQqdjQNxbl14BN/aCLaWKl57dTir1VR9RIytIJ6eqCF4L2quZ
+         KNm2JUkbUgwHxKL7Lirl4YRh2B3QiCU+SggfKZAqGJLs/cjrjp1C3mLX86E2JdqMwJ+J
+         v4Cw==
+X-Gm-Message-State: APjAAAVMNnM6hBAWbLTrLt4K6l/VleBntvikROpR4xHTmigJq+HscaUO
+	0Pi5P5mPnCP55F8IT3Rj1yLCXj44CzQ=
+X-Google-Smtp-Source: APXvYqycjiIjc0g3j+1H935Ws9U8zIcdaHqPOjd0Uh/flU2X02q93LvV0alurxpZI4cpEVHz9d3qhw==
+X-Received: by 2002:a2e:891a:: with SMTP id d26mr6139269lji.26.1565972470766;
+        Fri, 16 Aug 2019 09:21:10 -0700 (PDT)
+Received: from mail-lj1-f181.google.com (mail-lj1-f181.google.com. [209.85.208.181])
+        by smtp.gmail.com with ESMTPSA id s26sm1029266ljs.77.2019.08.16.09.21.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Fri, 16 Aug 2019 09:21:09 -0700 (PDT)
+Received: by mail-lj1-f181.google.com with SMTP id t14so5821562lji.4
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 09:21:08 -0700 (PDT)
+X-Received: by 2002:a2e:3a0e:: with SMTP id h14mr6088169lja.180.1565972468547;
+ Fri, 16 Aug 2019 09:21:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190816155220.GC3149@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190808154240.9384-1-hch@lst.de> <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+ <20190816062751.GA16169@infradead.org> <20190816115735.GB5412@mellanox.com> <20190816123258.GA22140@lst.de>
+In-Reply-To: <20190816123258.GA22140@lst.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 16 Aug 2019 09:20:52 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wiOB5wLWxHe8UDHnBB1DWrZaZ62ZPXnD0KiE8hYoWokNA@mail.gmail.com>
+Message-ID: <CAHk-=wiOB5wLWxHe8UDHnBB1DWrZaZ62ZPXnD0KiE8hYoWokNA@mail.gmail.com>
+Subject: Re: cleanup the walk_page_range interface
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@infradead.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Thomas_Hellstr=C3=B6m?= <thomas@shipmail.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 16-08-19 11:52:20, Jerome Glisse wrote:
-> On Fri, Aug 16, 2019 at 05:44:04PM +0200, Jan Kara wrote:
-> > On Fri 16-08-19 10:47:21, Vlastimil Babka wrote:
-> > > On 8/15/19 3:35 PM, Jan Kara wrote:
-> > > >> 
-> > > >> So when the GUP user uses MMU notifiers to stop writing to pages whenever
-> > > >> they are writeprotected with page_mkclean(), they don't really need page
-> > > >> pin - their access is then fully equivalent to any other mmap userspace
-> > > >> access and filesystem knows how to deal with those. I forgot out this case
-> > > >> when I wrote the above sentence.
-> > > >> 
-> > > >> So to sum up there are three cases:
-> > > >> 1) DIO case - GUP references to pages serving as DIO buffers are needed for
-> > > >>    relatively short time, no special synchronization with page_mkclean() or
-> > > >>    munmap() => needs FOLL_PIN
-> > > >> 2) RDMA case - GUP references to pages serving as DMA buffers needed for a
-> > > >>    long time, no special synchronization with page_mkclean() or munmap()
-> > > >>    => needs FOLL_PIN | FOLL_LONGTERM
-> > > >>    This case has also a special case when the pages are actually DAX. Then
-> > > >>    the caller additionally needs file lease and additional file_pin
-> > > >>    structure is used for tracking this usage.
-> > > >> 3) ODP case - GUP references to pages serving as DMA buffers, MMU notifiers
-> > > >>    used to synchronize with page_mkclean() and munmap() => normal page
-> > > >>    references are fine.
-> > > 
-> > > IMHO the munlock lesson told us about another one, that's in the end equivalent
-> > > to 3)
-> > > 
-> > > 4) pinning for struct page manipulation only => normal page references
-> > > are fine
-> > 
-> > Right, it's good to have this for clarity.
-> > 
-> > > > I want to add that I'd like to convert users in cases 1) and 2) from using
-> > > > GUP to using differently named function. Users in case 3) can stay as they
-> > > > are for now although ultimately I'd like to denote such use cases in a
-> > > > special way as well...
-> > > 
-> > > So after 1/2/3 is renamed/specially denoted, only 4) keeps the current
-> > > interface?
-> > 
-> > Well, munlock() code doesn't even use GUP, just follow_page(). I'd wait to
-> > see what's left after handling cases 1), 2), and 3) to decide about the
-> > interface for the remainder.
-> > 
-> 
-> For 3 we do not need to take a reference at all :) So just forget about 3
-> it does not exist. For 3 the reference is the reference the CPU page table
-> has on the page and that's it. GUP is no longer involve in ODP or anything
-> like that.
+On Fri, Aug 16, 2019 at 5:33 AM Christoph Hellwig <hch@lst.de> wrote:
+>
+> I see two new walk_page_range user in linux-next related to MADV_COLD
+> support (which probably really should use walk_range_vma), and then
+> there is the series from Steven, which hasn't been merged yet.
 
-Yes, I understand. But the fact is that GUP calls are currently still there
-e.g. in ODP code. If you can make the code work without taking a page
-reference at all, I'm only happy :)
+It does sound like this might as well just be handled in linux-next,
+and there's no big advantage in me pulling the walker cleanups early.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Honestly, even if it ends up being handled as a conflict resolution
+issue (rather than some shared branch), it probably simply isn't all
+that painful. We have those kinds of semantic conflicts all the time,
+it doesn't worry me too much.
+
+So I'm not worried about new _users_ of the page walker concurrently
+with the page walker interface itself being cleaned up. Those kinds of
+conflicts end up being "just make sure to update the new users to the
+new interface when they get pulled". Happens all the time.
+
+I'd be more worried about two different branches wanting to change the
+internal implementation of the page walker itself, and the actual
+*code* itself getting conflicts (as opposed to the interface vs users
+kind of conflicts). Those kinds of conflicts can be messy. But it
+sounds like Thomas Hellstr=C3=B6m's changes aren't that kind of thing.
+
+I'm still willing to do the early merge if it turns out to be hugely
+helpful, but from the discussion so far it does sound like "just merge
+during 5.4 merge window" is perfectly fine.
+
+               Linus
 
