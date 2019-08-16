@@ -2,140 +2,146 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9B08C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:40:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B37C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:47:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BE992086C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:40:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="r+Yk4hh/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BE992086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 0BD282086C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:47:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BD282086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 09E356B0003; Fri, 16 Aug 2019 08:40:34 -0400 (EDT)
+	id 7C54A6B0003; Fri, 16 Aug 2019 08:47:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 050656B0005; Fri, 16 Aug 2019 08:40:34 -0400 (EDT)
+	id 7756D6B0005; Fri, 16 Aug 2019 08:47:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7F796B000A; Fri, 16 Aug 2019 08:40:33 -0400 (EDT)
+	id 663D66B0007; Fri, 16 Aug 2019 08:47:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0254.hostedemail.com [216.40.44.254])
-	by kanga.kvack.org (Postfix) with ESMTP id C75D66B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:40:33 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 75E74181AC9AE
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:40:33 +0000 (UTC)
-X-FDA: 75828249546.28.truck29_21ddc4c5eee53
-X-HE-Tag: truck29_21ddc4c5eee53
-X-Filterd-Recvd-Size: 6943
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60053.outbound.protection.outlook.com [40.107.6.53])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:40:32 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=YESYB6AXN4CeudgldfnpVuQqQSa8FubEo/bpOzfOB44FymI85b2jUJMczO9KTC8unPLpavdyWq66hN2gZ+JLb73oWigVD3MmSQC5xDXZlVkgumcZHwV2RtNsozfo9KpTcGUgOCkImAxiB21NGjBolPdFCOeyL33hd6e8Y7ZBYcItKw6vih22LhS119PhX7xu2yCVjYpABjRWEd5UU8kCnK2I8vgjh/eXIxxDo4PiehoQ58DghzRet1Z44EZXJLUx8a8fjixL6Y44nQRUmBm2+mRMeBb5JO92gWdvj2M8HOLtQ0g1bsrFGMHayEu8Fs+WyLFxeOTk76Sg83tpp1flqQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=6MQHQ34g+2H1b0ZoReFLzIEtb4+bD/IlYOfpioqTric=;
- b=FEH3SRojDEP1GOBJwnRq/L04DyWCScX4qVmlph4jXK3Jfg0VVHkyjsx76u3TFOt2mjBWyj+Kl9DNkdf6VJQbRcR4z7cW046RyQJlSglc3WsTgP+FxJEKU6ADTQRMrtj4oIQII/x+1kKFMvZpQTSxEytoa3+e6JTuzBYWhBNFgf+RXmqFocImFRwKSU7ebYfgTgJ74tRK/ZdAwn/bi0m2nxWb9IomViIgjRTFMni7uyDxbsJmRdy6mfvqp9cMttDn8cGubXtHTDe8VsQh2+XHC0Ic9w7SdDxEdF7kpvcGWoR4+87Iqn0qxgaaXfp1gz4LlNS9TR9TNXr55KlRv98zyA==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=6MQHQ34g+2H1b0ZoReFLzIEtb4+bD/IlYOfpioqTric=;
- b=r+Yk4hh/zE9TGLK+2z/i2eX1rsGQoj9Rx0XoHLOEXModJH6Ql8BKsVwJwlzhIffbj5PBhfqBfNM/3L5PiytTmIyX17arbBiFc2c0DYZo+Fr6sLmfeC9rnIsTcdJ8MQw/omxNhkvwkJ78BzF1K0N39di8H159XDe5VDcjnt5CCw0=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4272.eurprd05.prod.outlook.com (52.133.12.25) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Fri, 16 Aug 2019 12:40:30 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2178.016; Fri, 16 Aug 2019
- 12:40:30 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: Dan Williams <dan.j.williams@intel.com>, Bharata B Rao
-	<bharata@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org"
-	<linux-nvdimm@lists.01.org>
-Subject: Re: add a not device managed memremap_pages v2
-Thread-Topic: add a not device managed memremap_pages v2
-Thread-Index: AQHVU/97vsv9UEZaeUmMAUjVp5ftIKb9tb4AgAAAnICAAAEzAA==
-Date: Fri, 16 Aug 2019 12:40:30 +0000
-Message-ID: <20190816124024.GF5412@mellanox.com>
-References: <20190816065434.2129-1-hch@lst.de>
- <20190816123356.GE5412@mellanox.com> <20190816123607.GA22681@lst.de>
-In-Reply-To: <20190816123607.GA22681@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQBPR0101CA0016.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00::29) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: ff118e16-0ef1-4aa3-a43f-08d72246ec1a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4272;
-x-ms-traffictypediagnostic: VI1PR05MB4272:
-x-microsoft-antispam-prvs:
- <VI1PR05MB42722C7BFF7B7A49010D6F9CCFAF0@VI1PR05MB4272.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0131D22242
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(366004)(376002)(39850400004)(396003)(346002)(136003)(189003)(199004)(5660300002)(11346002)(8936002)(81166006)(81156014)(4744005)(8676002)(26005)(86362001)(66066001)(229853002)(1076003)(14454004)(186003)(54906003)(6916009)(478600001)(386003)(33656002)(102836004)(6506007)(52116002)(76176011)(446003)(486006)(476003)(2616005)(316002)(99286004)(4326008)(3846002)(6436002)(256004)(6512007)(25786009)(14444005)(66446008)(71200400001)(66476007)(6246003)(64756008)(53936002)(6486002)(66556008)(7736002)(71190400001)(36756003)(305945005)(6116002)(2906002)(66946007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4272;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- I2etAiXoz1Q0bO4szsQ9ZyGopxORIB8Zai6kmODFx+LptCh1xZJlz001Xfys434s18LcskeJkxfrsn2jmBZe8VEihJovMKOaEcQ31d701uFNki0guN0tgahkEfkjhxvJQL3715IuZrObazTpTPz/p3bHafRfDWxfysmDKG3vKL8bM0GeJT1qJb1sbtVkI2VPwSEj+EhG8YdSXDF2rUct1ly+vplAsOJ8KaZtCuFF/A/+zkQpL1bzA0QOeWaRfw+dmUfDabSylxZIC7jM1GG73oUxxYP4IpzeIRCh9CxproQDLpKX0O0SX27FCIzR3mwSrgYv7aSRkDkyC4eDodeoKP7Ed++efWO/BpkufuwfPXKuCOcqXhvtrLULuJXcaBa9tm91hGQy36KFBvpkplMN7Yeiy+1yZ3YpGbwrF7OTr5M=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <49CFD18A4DCBF442B6C7AF0837F23DC5@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0038.hostedemail.com [216.40.44.38])
+	by kanga.kvack.org (Postfix) with ESMTP id 451C56B0003
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:47:58 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id E5362180AD805
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:47:57 +0000 (UTC)
+X-FDA: 75828268194.26.use53_629a5df6fbe06
+X-HE-Tag: use53_629a5df6fbe06
+X-Filterd-Recvd-Size: 4077
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:47:57 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 0EE7CAF59;
+	Fri, 16 Aug 2019 12:47:56 +0000 (UTC)
+Subject: Re: [Bug 204407] New: Bad page state in process Xorg
+To: Petr Vandrovec <petr@vandrovec.name>
+Cc: Matthew Wilcox <willy@infradead.org>, Qian Cai <cai@lca.pw>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ bugzilla-daemon@bugzilla.kernel.org,
+ Christian Koenig <christian.koenig@amd.com>, Huang Rui <ray.huang@amd.com>,
+ David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+ dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+ Joerg Roedel <jroedel@suse.de>
+References: <bug-204407-27@https.bugzilla.kernel.org/>
+ <20190802132306.e945f4420bc2dcddd8d34f75@linux-foundation.org>
+ <20190802203344.GD5597@bombadil.infradead.org>
+ <1564780650.11067.50.camel@lca.pw>
+ <20190802225939.GE5597@bombadil.infradead.org>
+ <CA+i2_Dc-VrOUk8EVThwAE5HZ1-zFqONuW8Gojv+16UPsAqoM1Q@mail.gmail.com>
+ <45258da8-2ce7-68c2-1ba0-84f6c0e634b1@suse.cz>
+ <0287aace-fec1-d2d1-370f-657e80477717@vandrovec.name>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6a45a9b1-81ad-72c4-8f06-5d2cd87278ef@suse.cz>
+Date: Fri, 16 Aug 2019 14:47:53 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: ff118e16-0ef1-4aa3-a43f-08d72246ec1a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 16 Aug 2019 12:40:30.2337
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: O3V86azQkC5uno8w8R0FgXibF7U7UEHD3Bw9sdhW2d79/vC9P5P6mGbjUslksa1nFTxgfrBtpGXlTJVGXi+iHA==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4272
+In-Reply-To: <0287aace-fec1-d2d1-370f-657e80477717@vandrovec.name>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 02:36:07PM +0200, Christoph Hellwig wrote:
-> > > Changes since v1:
-> > >  - don't overload devm_request_free_mem_region
-> > >  - export the memremap_pages and munmap_pages as kvmppc can be a modu=
-le
-> >=20
-> > What tree do we want this to go through? Dan are you running a pgmap
-> > tree still? Do we know of any conflicts?
+On 8/15/19 9:13 PM, Petr Vandrovec wrote:
+> Vlastimil=C2=A0Babka=C2=A0wrote=C2=A0on=C2=A08/15/2019=C2=A07:32=C2=A0A=
+M:
+>>
+>> Does=C2=A0the=C2=A0issue=C2=A0still=C2=A0happen=C2=A0with=C2=A0rc4?=C2=
+=A0Could=C2=A0you=C2=A0apply=C2=A0the=C2=A03=C2=A0attached
+>> patches=C2=A0(work=C2=A0in=C2=A0progress),=C2=A0configure-enable=C2=A0=
+CONFIG_DEBUG_PAGEALLOC=C2=A0and
+>> CONFIG_PAGE_OWNER=C2=A0and=C2=A0boot=C2=A0kernel=C2=A0with=C2=A0debug_=
+pagealloc=3Don=C2=A0page_owner=3Don
+>> parameters?=C2=A0That=C2=A0should=C2=A0print=C2=A0stacktraces=C2=A0of=C2=
+=A0allocation=C2=A0and=C2=A0first
+>> freeing=C2=A0(assuming=C2=A0this=C2=A0is=C2=A0a=C2=A0double=C2=A0free)=
+.
 >=20
-> The last changes in this area went through the hmm tree.  There are
-> now known conflicts, and the kvmppc drivers that needs this already
-> has a dependency on the hmm tree for the migrate_vma_* changes.
+> Unfortunately -rc4 does not find any my SATA disks due to some=20
+> misunderstanding between AHCI driver and HPT642L adapter (there is no=20
+> device=C2=A007:00.1,=C2=A0HPT=C2=A0is=C2=A0single-function=C2=A0device=C2=
+=A0at=C2=A007:00.0):
+>=20
+> [=C2=A0=C2=A0=C2=A018.003015]=C2=A0scsi=C2=A0host6:=C2=A0ahci
+> [=C2=A0=C2=A0=C2=A018.006605]=C2=A0DMAR:=C2=A0DRHD:=C2=A0handling=C2=A0=
+fault=C2=A0status=C2=A0reg=C2=A02
+> [=C2=A0=C2=A0 18.006619] DMAR: [DMA Write] Request device [07:00.1] fau=
+lt addr=20
+> fffe0000=C2=A0[fault=C2=A0reason=C2=A002]=C2=A0Present=C2=A0bit=C2=A0in=
+=C2=A0context=C2=A0entry=C2=A0is=C2=A0clear
+> [=C2=A0=C2=A0=C2=A018.076616]=C2=A0DMAR:=C2=A0DRHD:=C2=A0handling=C2=A0=
+fault=C2=A0status=C2=A0reg=C2=A0102
+> [=C2=A0=C2=A0 18.085910] DMAR: [DMA Write] Request device [07:00.1] fau=
+lt addr=20
+> fffa0000=C2=A0[fault=C2=A0reason=C2=A002]=C2=A0Present=C2=A0bit=C2=A0in=
+=C2=A0context=C2=A0entry=C2=A0is=C2=A0clear
+> [=C2=A0=C2=A0=C2=A018.100989]=C2=A0DMAR:=C2=A0DRHD:=C2=A0handling=C2=A0=
+fault=C2=A0status=C2=A0reg=C2=A0202
+> [=C2=A0=C2=A0 18.110985] DMAR: [DMA Write] Request device [07:00.1] fau=
+lt addr=20
+> fffe0000=C2=A0[fault=C2=A0reason=C2=A002]=C2=A0Present=C2=A0bit=C2=A0in=
+=C2=A0context=C2=A0entry=C2=A0is=C2=A0clear
 
-OK by me, Dan can you ack or review? Thanks
+Worth reporting as well, not nice regression.
 
-Jason
+> With iommu=3Doff disks are visible, but USB keyboard (and other USB=20
+> devices)=C2=A0does=C2=A0not=C2=A0work:
+
+I've been told iommu=3Dsoft might help.
+
+> [=C2=A0=C2=A0 18.174802] ehci-pci 0000:00:1a.0: swiotlb buffer is full =
+(sz: 8=20
+> bytes),=C2=A0total=C2=A00=C2=A0(slots),=C2=A0used=C2=A00=C2=A0(slots)
+> [=C2=A0=C2=A0 18.174804] ehci-pci 0000:00:1a.0: overflow 0x0000000ffdc7=
+5ae8+8 of=20
+> DMA=C2=A0mask=C2=A0ffffffff=C2=A0bus=C2=A0mask=C2=A00
+> [=C2=A0=C2=A0 18.174815] WARNING: CPU: 2 PID: 508 at kernel/dma/direct.=
+c:35=20
+> report_addr+0x2e/0x50
+> [=C2=A0=C2=A0=C2=A018.174816]=C2=A0Modules=C2=A0linked=C2=A0in:
+> [=C2=A0=C2=A0 18.174818] CPU: 2 PID: 508 Comm: kworker/2:1 Tainted: G=20
+>  =C2=A0=C2=A0T=C2=A05.3.0-rc4-64-00058-gd717b092e0b2=C2=A0#77
+> [=C2=A0=C2=A0 18.174819] Hardware name: Dell Inc. Precision T3610/09M8Y=
+8, BIOS A16=20
+> 02/05/2018
+> [=C2=A0=C2=A0=C2=A018.174822]=C2=A0Workqueue:=C2=A0usb_hub_wq=C2=A0hub_=
+event
+>=20
+> I'll=C2=A0try=C2=A0to=C2=A0find=C2=A0-rc4=C2=A0configuration=C2=A0that=C2=
+=A0has=C2=A0enabled=C2=A0debugging=C2=A0and=C2=A0can=C2=A0boot.=20
+>=20
+>=20
+> Petr
+>=20
+>=20
+
 
