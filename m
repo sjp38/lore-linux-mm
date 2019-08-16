@@ -2,254 +2,144 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA96BC3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:14:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7FB5C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:38:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9AF02206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:14:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AF02206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5A598206C2
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:38:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A598206C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFAC16B000A; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
+	id DF1A36B0003; Fri, 16 Aug 2019 06:38:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA5B16B0010; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
+	id DA1586B0005; Fri, 16 Aug 2019 06:38:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96DD46B000D; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
+	id C91746B0006; Fri, 16 Aug 2019 06:38:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0021.hostedemail.com [216.40.44.21])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4B56B000A
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C5D0B62CE
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:14:08 +0000 (UTC)
-X-FDA: 75827880576.08.magic11_413d32c870126
-X-HE-Tag: magic11_413d32c870126
-X-Filterd-Recvd-Size: 7643
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:14:08 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 869EFAF70;
-	Fri, 16 Aug 2019 10:14:06 +0000 (UTC)
-From: Vlastimil Babka <vbabka@suse.cz>
-To: linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Matthew Wilcox <willy@infradead.org>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/3] mm, page_owner, debug_pagealloc: save and dump freeing stack trace
-Date: Fri, 16 Aug 2019 12:14:01 +0200
-Message-Id: <20190816101401.32382-4-vbabka@suse.cz>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190816101401.32382-1-vbabka@suse.cz>
-References: <20190816101401.32382-1-vbabka@suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A71466B0003
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:38:32 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 23AE97817
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:38:32 +0000 (UTC)
+X-FDA: 75827942064.05.spark97_84746ced7915f
+X-HE-Tag: spark97_84746ced7915f
+X-Filterd-Recvd-Size: 4568
+Received: from huawei.com (szxga04-in.huawei.com [45.249.212.190])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:38:30 +0000 (UTC)
+Received: from DGGEMS413-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 708398D16C9DF4BD3C8A;
+	Fri, 16 Aug 2019 18:37:58 +0800 (CST)
+Received: from [127.0.0.1] (10.133.217.137) by DGGEMS413-HUB.china.huawei.com
+ (10.3.19.213) with Microsoft SMTP Server id 14.3.439.0; Fri, 16 Aug 2019
+ 18:37:53 +0800
+Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
+To: Oleg Nesterov <oleg@redhat.com>
+CC: Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>, "Andrea
+ Arcangeli" <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, Mike Rapoport
+	<rppt@linux.ibm.com>, Jann Horn <jannh@google.com>, Jason Gunthorpe
+	<jgg@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+ <20190814135351.GY17933@dhcp22.suse.cz>
+ <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
+ <20190814151049.GD11595@redhat.com> <20190814154101.GF11595@redhat.com>
+ <0cfded81-6668-905f-f2be-490bf7c750fb@huawei.com>
+ <20190815095409.GC32051@redhat.com>
+From: Kefeng Wang <wangkefeng.wang@huawei.com>
+Message-ID: <3b521a8c-586f-251e-f486-d71ff094b8e9@huawei.com>
+Date: Fri, 16 Aug 2019 18:37:52 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190815095409.GC32051@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.133.217.137]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The debug_pagealloc functionality is useful to catch buggy page allocator=
- users
-that cause e.g. use after free or double free. When page inconsistency is
-detected, debugging is often simpler by knowing the call stack of process=
- that
-last allocated and freed the page. When page_owner is also enabled, we re=
-cord
-the allocation stack trace, but not freeing.
 
-This patch therefore adds recording of freeing process stack trace to pag=
-e
-owner info, if both page_owner and debug_pagealloc are configured and ena=
-bled.
-With only page_owner enabled, this info is not useful for the memory leak
-debugging use case. dump_page() is adjusted to print the info. An example
-result of calling __free_pages() twice may look like this (note the page =
-last free
-stack trace):
 
-BUG: Bad page state in process bash  pfn:13d8f8
-page:ffffc31984f63e00 refcount:-1 mapcount:0 mapping:0000000000000000 ind=
-ex:0x0
-flags: 0x1affff800000000()
-raw: 01affff800000000 dead000000000100 dead000000000122 0000000000000000
-raw: 0000000000000000 0000000000000000 ffffffffffffffff 0000000000000000
-page dumped because: nonzero _refcount
-page_owner tracks the page as freed
-page last allocated via order 0, migratetype Unmovable, gfp_mask 0xcc0(GF=
-P_KERNEL)
- prep_new_page+0x143/0x150
- get_page_from_freelist+0x289/0x380
- __alloc_pages_nodemask+0x13c/0x2d0
- khugepaged+0x6e/0xc10
- kthread+0xf9/0x130
- ret_from_fork+0x3a/0x50
-page last free stack trace:
- free_pcp_prepare+0x134/0x1e0
- free_unref_page+0x18/0x90
- khugepaged+0x7b/0xc10
- kthread+0xf9/0x130
- ret_from_fork+0x3a/0x50
-Modules linked in:
-CPU: 3 PID: 271 Comm: bash Not tainted 5.3.0-rc4-2.g07a1a73-default+ #57
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.12.1-0-=
-ga5cab58-prebuilt.qemu.org 04/01/2014
-Call Trace:
- dump_stack+0x85/0xc0
- bad_page.cold+0xba/0xbf
- rmqueue_pcplist.isra.0+0x6c5/0x6d0
- rmqueue+0x2d/0x810
- get_page_from_freelist+0x191/0x380
- __alloc_pages_nodemask+0x13c/0x2d0
- __get_free_pages+0xd/0x30
- __pud_alloc+0x2c/0x110
- copy_page_range+0x4f9/0x630
- dup_mmap+0x362/0x480
- dup_mm+0x68/0x110
- copy_process+0x19e1/0x1b40
- _do_fork+0x73/0x310
- __x64_sys_clone+0x75/0x80
- do_syscall_64+0x6e/0x1e0
- entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x7f10af854a10
-...
+On 2019/8/15 17:54, Oleg Nesterov wrote:
+> On 08/15, Kefeng Wang wrote:
+>>
+>> On 2019/8/14 23:41, Oleg Nesterov wrote:
+>>>
+>>> Heh, I didn't notice you too mentioned userfaultfd_release() in your email.
+>>> can you try the patch below?
+>>
+>> Your patch below fixes the issue, could you send a formal patch ASAP and also it
+>> should be queued into stable, I have test lts4.4, it works too, thanks.
+> 
+> Thanks.
+> 
+> Yes, I _think_ we need something like this patch anyway, but it needs more
+> discussion. And it is not clear if it really fixes this issue or it hides
+> another bug.
+> 
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- .../admin-guide/kernel-parameters.txt         |  2 +
- mm/Kconfig.debug                              |  4 +-
- mm/page_owner.c                               | 53 ++++++++++++++-----
- 3 files changed, 45 insertions(+), 14 deletions(-)
+OK, hope more specialists notice this issue and comment it.
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentat=
-ion/admin-guide/kernel-parameters.txt
-index 47d981a86e2f..e813a17d622e 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -809,6 +809,8 @@
- 			enables the feature at boot time. By default, it is
- 			disabled and the system will work mostly the same as a
- 			kernel built without CONFIG_DEBUG_PAGEALLOC.
-+			Note: to get most of debug_pagealloc error reports, it's
-+			useful to also enable the page_owner functionality.
- 			on: enable the feature
-=20
- 	debugpat	[X86] Enable PAT debugging
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 82b6a20898bd..327b3ebf23bf 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -21,7 +21,9 @@ config DEBUG_PAGEALLOC
- 	  Also, the state of page tracking structures is checked more often as
- 	  pages are being allocated and freed, as unexpected state changes
- 	  often happen for same reasons as memory corruption (e.g. double free,
--	  use-after-free).
-+	  use-after-free). The error reports for these checks can be augmented
-+	  with stack traces of last allocation and freeing of the page, when
-+	  PAGE_OWNER is also selected and enabled on boot.
-=20
- 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
- 	  fill the pages with poison patterns after free_pages() and verify
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 4a48e018dbdf..dee931184788 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -24,6 +24,9 @@ struct page_owner {
- 	short last_migrate_reason;
- 	gfp_t gfp_mask;
- 	depot_stack_handle_t handle;
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+	depot_stack_handle_t free_handle;
-+#endif
- };
-=20
- static bool page_owner_disabled =3D true;
-@@ -102,19 +105,6 @@ static inline struct page_owner *get_page_owner(stru=
-ct page_ext *page_ext)
- 	return (void *)page_ext + page_owner_ops.offset;
- }
-=20
--void __reset_page_owner(struct page *page, unsigned int order)
--{
--	int i;
--	struct page_ext *page_ext;
--
--	for (i =3D 0; i < (1 << order); i++) {
--		page_ext =3D lookup_page_ext(page + i);
--		if (unlikely(!page_ext))
--			continue;
--		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
--	}
--}
--
- static inline bool check_recursive_alloc(unsigned long *entries,
- 					 unsigned int nr_entries,
- 					 unsigned long ip)
-@@ -154,6 +144,32 @@ static noinline depot_stack_handle_t save_stack(gfp_=
-t flags)
- 	return handle;
- }
-=20
-+void __reset_page_owner(struct page *page, unsigned int order)
-+{
-+	int i;
-+	struct page_ext *page_ext;
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+	depot_stack_handle_t handle =3D 0;
-+	struct page_owner *page_owner;
-+
-+	if (debug_pagealloc_enabled())
-+		handle =3D save_stack(GFP_NOWAIT | __GFP_NOWARN);
-+#endif
-+
-+	for (i =3D 0; i < (1 << order); i++) {
-+		page_ext =3D lookup_page_ext(page + i);
-+		if (unlikely(!page_ext))
-+			continue;
-+		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+		if (debug_pagealloc_enabled()) {
-+			page_owner =3D get_page_owner(page_ext);
-+			page_owner->free_handle =3D handle;
-+		}
-+#endif
-+	}
-+}
-+
- static inline void __set_page_owner_handle(struct page *page,
- 	struct page_ext *page_ext, depot_stack_handle_t handle,
- 	unsigned int order, gfp_t gfp_mask)
-@@ -435,6 +451,17 @@ void __dump_page_owner(struct page *page)
- 		stack_trace_print(entries, nr_entries, 0);
- 	}
-=20
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+	handle =3D READ_ONCE(page_owner->free_handle);
-+	if (!handle) {
-+		pr_alert("page_owner free stack trace missing\n");
-+	} else {
-+		nr_entries =3D stack_depot_fetch(handle, &entries);
-+		pr_alert("page last free stack trace:\n");
-+		stack_trace_print(entries, nr_entries, 0);
-+	}
-+#endif
-+
- 	if (page_owner->last_migrate_reason !=3D -1)
- 		pr_alert("page has been migrated, last migrate reason: %s\n",
- 			migrate_reason_names[page_owner->last_migrate_reason]);
---=20
-2.22.0
+> 
+>> I built kernel with wrong gcc version, and the KASAN is not enabled, When KASAN enabled,
+>> there is an UAF,
+>>
+>> [   67.393442] ==================================================================
+>> [   67.395531] BUG: KASAN: use-after-free in handle_userfault+0x12f/0xc70
+>> [   67.397001] Read of size 8 at addr ffff8883c622c160 by task syz-executor.9/5225
+> 
+> OK, thanks this probably confirms that .ctx points to nowhere because it
+> was freed by userfaultfd_release() without clearing vm_flags/userfaultfd_ctx.
+
+The patch do fix the UAF and avoid panic, and it doesn't seem to cause new issue,
+even if there are some another issue, it can be fixed later :)
+
+> 
+> But,
+> 
+>> [   67.430243] RIP: 0010:copy_user_handle_tail+0x2/0x10
+>> [   67.431586] Code: c3 0f 1f 80 00 00 00 00 66 66 90 83 fa 40 0f 82 70 ff ff ff 89 d1 f3 a4 31 c0 66 66 90 c3 66 2e 0f 1f 84 00 00 00 00 00 89 d1 <f3> a4 89 c8 66 66 90 c3 66 0f 1f 44 00 00 66 66 90 83 fa 08 0f 82
+>> [   67.436978] RSP: 0018:ffff8883c4e8f908 EFLAGS: 00010246
+>> [   67.438743] RAX: 0000000000000001 RBX: 0000000020ffd000 RCX: 0000000000001000
+>> [   67.441101] RDX: 0000000000001000 RSI: 0000000020ffd000 RDI: ffff8883c0aa4000
+>> [   67.442865] RBP: 0000000000001000 R08: ffffed1078154a00 R09: 0000000000000000
+>> [   67.444534] R10: 0000000000000200 R11: ffffed10781549ff R12: ffff8883c0aa4000
+>> [   67.446216] R13: ffff8883c6096000 R14: ffff88837721f838 R15: ffff8883c6096000
+>> [   67.448388]  _copy_from_user+0xa1/0xd0
+>> [   67.449655]  mcopy_atomic+0xb3d/0x1380
+>> [   67.450991]  ? lock_downgrade+0x3a0/0x3a0
+>> [   67.452337]  ? mm_alloc_pmd+0x130/0x130
+>> [   67.453618]  ? __might_fault+0x7d/0xe0
+>> [   67.454980]  userfaultfd_ioctl+0x14a2/0x1c30
+> 
+> This must not be called after __fput(). So I think there is something else,
+> may by just an unbalanced userfaultfd_ctx_put(). I dunno, I know nothing
+> about usefaultfd.
+
+There are different processes, maybe some concurrency problems.
+
+> 
+> It would be nice to understand what this reproducer does...
+
+I tried strace -f the reproducer, but can't find any useful info.
+
+> 
+> Oleg.
+> 
+> 
+> .
+> 
 
 
