@@ -2,156 +2,122 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35FD1C3A59E
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:19:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF8AEC3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:21:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E7F512171F
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:19:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 91C312064A
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:21:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kbat1qAe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7F512171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="QCN9eZvx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91C312064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8082B6B0006; Fri, 16 Aug 2019 13:19:07 -0400 (EDT)
+	id 40F586B0006; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B9866B0007; Fri, 16 Aug 2019 13:19:07 -0400 (EDT)
+	id 3BF2C6B0007; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A85A6B000A; Fri, 16 Aug 2019 13:19:07 -0400 (EDT)
+	id 2D5986B000A; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
-	by kanga.kvack.org (Postfix) with ESMTP id 469CC6B0006
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:19:07 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id DA49D1A4DC
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:19:06 +0000 (UTC)
-X-FDA: 75828951492.22.dogs01_89b5a0e23b644
-X-HE-Tag: dogs01_89b5a0e23b644
-X-Filterd-Recvd-Size: 5852
-Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:19:06 +0000 (UTC)
-Received: by mail-qt1-f195.google.com with SMTP id k13so6830205qtm.12
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:19:06 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7AD6B0006
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 9F38E180AD7C1
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:21:54 +0000 (UTC)
+X-FDA: 75828958548.06.list69_1097fb5bbbb55
+X-HE-Tag: list69_1097fb5bbbb55
+X-Filterd-Recvd-Size: 4732
+Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:21:53 +0000 (UTC)
+Received: by mail-ot1-f67.google.com with SMTP id e12so10204112otp.10
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:21:53 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=aAuJkx3tYtzzL6W59IWOcvDtZCZIe1mJoCimZUlEFnw=;
-        b=kbat1qAeKGkrmhubzeBSEX8UlXXey9lnVfQ/Vx0g766LW7GP2lpryQR7t+0vkFRRGb
-         Jbg7BZUZkb7DQaUs/r2IBK+ejH2xzPCnmBv1XUEwYR4RJushKgYjcaKQFI1RQe5rxK2u
-         iur/yAF+59Yi7khOcb0j1JRo9YgGqPOFo6YmToQ8a2GmkZUYQJzcSUeijq+xHVelXCf1
-         SOBFkRoNZd6kH5Ae3nP7KGtraL7KLomnzgXBrJ+y2e8mrPRSpM/Bdc74HMV39ga4awdz
-         VMW6PcO2Z8gNJRCIQXyLtl+PzOxTnwGROhY174YQjkrcOzSPj7hlg9pNW9UlEhadULXM
-         hQ+Q==
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=zMvxega2p/6F2S/eoDzz+sN4i7bM8B+uz60Grtez1JE=;
+        b=QCN9eZvxzAPGmUPLnJH/woDtKhvSbyWNPI2WVuuw78XLs8YTeApowbbTpG4QmVhRT8
+         KiEz3hmHc4YlVhpGKa4TQ2iVsusMkMmynlM+BCY4q+fdKS3rJPykSdyfO9A3QGOq+bCv
+         Ep1qhKfWcW3SsmTBurcp0FktyN0IH0JZXWMk3EtkNfv4UCl45hWL/qKUAJyVWq8HCPc+
+         04MySaN5P2L8D4z2nil2AJHtxzcCAXe9+Ae3Qzl3Th1EMpkCiYr6W6vATmErlpeFN+X6
+         UckZrP9+cKrZkBK1Mne3Ywq2nD/UZNxrcPAq4iFlzuaxVK76A2sJ0kE48E61MlCk6O69
+         /0RQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=aAuJkx3tYtzzL6W59IWOcvDtZCZIe1mJoCimZUlEFnw=;
-        b=YVVSizXR/Njzif2j/fzdcL7siu0evGtg4iHD70mISCqw8byoh+m8sHhMFw+NlKPoXg
-         so7MhxFPpt24gTJIKQkw0VN+V/cBAAH1FvwYujU3a4HzfCmwlMqN8sEGE23ZC30BRluF
-         COm5vewfkp+wCgvYaK9/LdpqYsrxSJaLiv9gvbjbX/jNInHvMIo8km5FMoHFbiCODjTr
-         YSJJ58PXAnV9JLiXnrSfOgYctgUmEYz6W4aAwu33ACWrmaF7JP2JwToUmQMJep24hYK/
-         o5jlsadxKWv1NFgSY198/Gva2sGFwMm0YB59RtjtYp9nQWQZTfS/TnvNmfrU8Zkfur0V
-         HB/Q==
-X-Gm-Message-State: APjAAAUAZPLrkeIk284LU7KUTS8rB9dhQBVd5LvTFIU2L89b8BsSQL+b
-	qclUb7ZbOK3do199Lquf23xZAg==
-X-Google-Smtp-Source: APXvYqwT9qpP8xS/SEWzOUT0qxlqBNBY2XPEKDcBsyQzLY2w+EuruYBh4SnhqRD+DeiOPjnm58LqcA==
-X-Received: by 2002:ac8:450c:: with SMTP id q12mr9723027qtn.298.1565975945646;
-        Fri, 16 Aug 2019 10:19:05 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id f133sm3160880qke.62.2019.08.16.10.19.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 16 Aug 2019 10:19:05 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyfsW-0000pk-Hu; Fri, 16 Aug 2019 14:19:04 -0300
-Date: Fri, 16 Aug 2019 14:19:04 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	David Rientjes <rientjes@google.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 1/5] mm: Check if mmu notifier callbacks are allowed to
- fail
-Message-ID: <20190816171904.GA3166@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-2-daniel.vetter@ffwll.ch>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=zMvxega2p/6F2S/eoDzz+sN4i7bM8B+uz60Grtez1JE=;
+        b=c5sAM8yq6i9L9qibAVArPiMcLLbtJCr3h37LcsUCVNHvSQnwix7lV2iwTCQ5OZQZE8
+         PXhym40zwuKijVaZJIjkrPuhSdzUGjVQBcR9iaPeVNtZ/ib7bUOUxkK5KnrcuJPEhR3U
+         nF9mp4HAaaOIbDg6NSuTRVi3Cb5XqLX8kz6mUrEdM5RSkWXldJxJJs9NVqQAqpxmaOqF
+         XPUuw5wRSUP1HTMFYfp8bJX/M7KLdbOB0k9sTMiAme/2DS8vIgiNZZNj0gst6BJcxmsY
+         p3s7Rcq4eDSHXWM0v0bvf7tffS1IVOuOnZ1E7u/Xsnt4X+wMGOZFyhYM/Inqf/u09Xl2
+         RmwQ==
+X-Gm-Message-State: APjAAAXWT9MK3BE1Keb/cyCX/muxawJQIBVc/Ix31LE5JQywnT7tAHwg
+	FkeJJLHQj6q47bHMp4GOhiTaKBHbXJ+IvU7dekmVMQ==
+X-Google-Smtp-Source: APXvYqwNxRXX6MojhKuxmTIkgv8yzk3NfRtB0XcnaOCwg7viPPwMQ/JTCtWNqWdiMYWGOJVL8emAQc22ws+XFOORnhM=
+X-Received: by 2002:a9d:6b96:: with SMTP id b22mr8643397otq.363.1565976113121;
+ Fri, 16 Aug 2019 10:21:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190814202027.18735-2-daniel.vetter@ffwll.ch>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-Content-Transfer-Encoding: quoted-printable
+References: <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
+ <20190815180325.GA4920@redhat.com> <CAPcyv4g4hzcEA=TPYVTiqpbtOoS30ahogRUttCvQAvXQbQjfnw@mail.gmail.com>
+ <20190815194339.GC9253@redhat.com> <CAPcyv4jid8_=-8hBpn_Qm=c4S8BapL9B9RGT7e9uu303yH=Yqw@mail.gmail.com>
+ <20190815203306.GB25517@redhat.com> <20190815204128.GI22970@mellanox.com>
+ <CAPcyv4j_Mxbw+T+yXTMdkrMoS_uxg+TXXgTM_EPBJ8XfXKxytA@mail.gmail.com>
+ <20190816004053.GB9929@mellanox.com> <CAPcyv4gMPVmY59aQAT64jQf9qXrACKOuV=DfVs4sNySCXJhkdA@mail.gmail.com>
+ <20190816122414.GC5412@mellanox.com>
+In-Reply-To: <20190816122414.GC5412@mellanox.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 16 Aug 2019 10:21:41 -0700
+Message-ID: <CAPcyv4jgHF05gdRoOFZORqeOBE9Z7PhagsSD+LVnjH2dc3mrFg@mail.gmail.com>
+Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Ben Skeggs <bskeggs@redhat.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 10:20:23PM +0200, Daniel Vetter wrote:
-> Just a bit of paranoia, since if we start pushing this deep into
-> callchains it's hard to spot all places where an mmu notifier
-> implementation might fail when it's not allowed to.
->=20
-> Inspired by some confusion we had discussing i915 mmu notifiers and
-> whether we could use the newly-introduced return value to handle some
-> corner cases. Until we realized that these are only for when a task
-> has been killed by the oom reaper.
->=20
-> An alternative approach would be to split the callback into two
-> versions, one with the int return value, and the other with void
-> return value like in older kernels. But that's a lot more churn for
-> fairly little gain I think.
->=20
-> Summary from the m-l discussion on why we want something at warning
-> level: This allows automated tooling in CI to catch bugs without
-> humans having to look at everything. If we just upgrade the existing
-> pr_info to a pr_warn, then we'll have false positives. And as-is, no
-> one will ever spot the problem since it's lost in the massive amounts
-> of overall dmesg noise.
->=20
-> v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
-> the problematic case (Michal Hocko).
->=20
-> v3: Rebase on top of Glisse's arg rework.
->=20
-> v4: More rebase on top of Glisse reworking everything.
->=20
-> v5: Fixup rebase damage and also catch failures !=3D EAGAIN for
-> !blockable (Jason). Also go back to WARN_ON as requested by Jason, so
-> automatic checkers can easily catch bugs by setting panic_on_warn.
->=20
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "Christian K=C3=B6nig" <christian.koenig@amd.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
-> ---
->  mm/mmu_notifier.c | 2 ++
->  1 file changed, 2 insertions(+)
+On Fri, Aug 16, 2019 at 5:24 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
+>
+> On Thu, Aug 15, 2019 at 08:54:46PM -0700, Dan Williams wrote:
+>
+> > > However, this means we cannot do any processing of ZONE_DEVICE pages
+> > > outside the driver lock, so eg, doing any DMA map that might rely on
+> > > MEMORY_DEVICE_PCI_P2PDMA has to be done in the driver lock, which is
+> > > a bit unfortunate.
+> >
+> > Wouldn't P2PDMA use page pins? Not needing to hold a lock over
+> > ZONE_DEVICE page operations was one of the motivations for plumbing
+> > get_dev_pagemap() with a percpu-ref.
+>
+> hmm_range_fault() doesn't use page pins at all, so if a ZONE_DEVICE
+> page comes out of it then it needs to use another locking pattern.
+>
+> If I follow it all right:
+>
+> We can do a get_dev_pagemap inside the page_walk and touch the pgmap,
+> or we can do the 'device mutex && retry' pattern and touch the pgmap
+> in the driver, under that lock.
+>
+> However in all cases the current get_dev_pagemap()'s in the page walk
+> are not necessary, and we can delete them.
 
-Applied to hmm.git, thanks
-
-Jason
+Yes, as long as 'struct page' instances resulting from that lookup are
+not passed outside of that lock.
 
