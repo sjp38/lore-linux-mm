@@ -2,192 +2,129 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4200FC3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:17:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E92CC3A59D
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:33:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0EDB42173B
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:17:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EDB42173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 524C32077C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 18:33:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 524C32077C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B1FF6B0003; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
+	id BF0166B0003; Fri, 16 Aug 2019 14:33:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 962416B0005; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
+	id B77746B0005; Fri, 16 Aug 2019 14:33:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84F116B0007; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
+	id A186E6B0007; Fri, 16 Aug 2019 14:33:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0179.hostedemail.com [216.40.44.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2056B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:17:26 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id EB5CD181AC9C9
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:17:25 +0000 (UTC)
-X-FDA: 75829098450.15.plant66_40bdbbd2aa462
-X-HE-Tag: plant66_40bdbbd2aa462
-X-Filterd-Recvd-Size: 7018
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:17:24 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D6F5B28;
-	Fri, 16 Aug 2019 11:17:23 -0700 (PDT)
-Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0F0C23F706;
-	Fri, 16 Aug 2019 11:17:21 -0700 (PDT)
-Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>,
- "Eric W. Biederman" <ebiederm@xmission.com>,
- kexec mailing list <kexec@lists.infradead.org>,
- LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>,
- Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- Marc Zyngier <marc.zyngier@arm.com>,
- Vladimir Murzin <vladimir.murzin@arm.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>
-References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
- <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
- <ba8a2519-ed95-2518-d0e8-66e8e0c14ff5@arm.com>
- <CA+CK2bAqBi43Cchr=md7EPRuEWH-iuToK0PxN3ysSBQ42Hd0-g@mail.gmail.com>
-From: James Morse <james.morse@arm.com>
-Message-ID: <746ceee3-43a7-231d-b2f6-0991a4148a28@arm.com>
-Date: Fri, 16 Aug 2019 19:17:20 +0100
-User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
+	by kanga.kvack.org (Postfix) with ESMTP id 791BE6B0003
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:33:42 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id D8D81181AC9D3
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:33:41 +0000 (UTC)
+X-FDA: 75829139442.20.smash70_3d3fb0ff35102
+X-HE-Tag: smash70_3d3fb0ff35102
+X-Filterd-Recvd-Size: 3986
+Received: from mga04.intel.com (mga04.intel.com [192.55.52.120])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 18:33:40 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Aug 2019 11:33:38 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,394,1559545200"; 
+   d="scan'208";a="261183726"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga001.jf.intel.com with ESMTP; 16 Aug 2019 11:33:38 -0700
+Date: Fri, 16 Aug 2019 11:33:38 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: John Hubbard <jhubbard@nvidia.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+Message-ID: <20190816183337.GA371@iweiny-DESK2.sc.intel.com>
+References: <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
+ <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+ <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
+ <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
+ <20190815132622.GG14313@quack2.suse.cz>
+ <20190815133510.GA21302@quack2.suse.cz>
+ <20190815173237.GA30924@iweiny-DESK2.sc.intel.com>
+ <b378a363-f523-518d-9864-e2f8e5bd0c34@nvidia.com>
+ <58b75fa9-1272-b683-cb9f-722cc316bf8f@nvidia.com>
+ <20190816154108.GE3041@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CA+CK2bAqBi43Cchr=md7EPRuEWH-iuToK0PxN3ysSBQ42Hd0-g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190816154108.GE3041@quack2.suse.cz>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Pavel,
-
-On 15/08/2019 21:09, Pavel Tatashin wrote:
->>> Also, I'd appreciate if anyone could test this series on vhe hardware
->>> with vhe kernel, it does not look like QEMU can emulate it yet
->>
->> This locks up during resume from hibernate on my AMD Seattle, a regular v8.0 machine.
+On Fri, Aug 16, 2019 at 05:41:08PM +0200, Jan Kara wrote:
+> On Thu 15-08-19 19:14:08, John Hubbard wrote:
+> > On 8/15/19 10:41 AM, John Hubbard wrote:
+> > > On 8/15/19 10:32 AM, Ira Weiny wrote:
+> > >> On Thu, Aug 15, 2019 at 03:35:10PM +0200, Jan Kara wrote:
+> > >>> On Thu 15-08-19 15:26:22, Jan Kara wrote:
+> > >>>> On Wed 14-08-19 20:01:07, John Hubbard wrote:
+> > >>>>> On 8/14/19 5:02 PM, John Hubbard wrote:
+> > ...
+> > >> Ok just to make this clear I threw up my current tree with your patches here:
+> > >>
+> > >> https://github.com/weiny2/linux-kernel/commits/mmotm-rdmafsdax-b0-v4
+> > >>
+> > >> I'm talking about dropping the final patch:
+> > >> 05fd2d3afa6b rdma/umem_odp: Use vaddr_pin_pages_remote() in ODP
+> > >>
+> > >> The other 2 can stay.  I split out the *_remote() call.  We don't have a user
+> > >> but I'll keep it around for a bit.
+> > >>
+> > >> This tree is still WIP as I work through all the comments.  So I've not changed
+> > >> names or variable types etc...  Just wanted to settle this.
+> > >>
+> > > 
+> > > Right. And now that ODP is not a user, I'll take a quick look through my other
+> > > call site conversions and see if I can find an easy one, to include here as
+> > > the first user of vaddr_pin_pages_remote(). I'll send it your way if that
+> > > works out.
+> > > 
+> > 
+> > OK, there was only process_vm_access.c, plus (sort of) Bharath's sgi-gru
+> > patch, maybe eventually [1].  But looking at process_vm_access.c, I think 
+> > it is one of the patches that is no longer applicable, and I can just
+> > drop it entirely...I'd welcome a second opinion on that...
 > 
-> Thanks for reporting a bug I will root cause and fix it.
+> I don't think you can drop the patch. process_vm_rw_pages() clearly touches
+> page contents and does not synchronize with page_mkclean(). So it is case
+> 1) and needs FOLL_PIN semantics.
 
->> Please try and build the series to reduce review time. What you have here is an all-new
->> page-table generation API, which you switch hibernate and kexec too. This is effectively a
->> new implementation of hibernate and kexec. There are three things here that need review.
->>
->> You have a regression in your all-new implementation of hibernate. It took six months (and
->> lots of review) to get the existing code right, please don't rip it out if there is
->> nothing wrong with it.
+John could you send a formal patch using vaddr_pin* and I'll add it to the
+tree?
+
+Ira
+
 > 
->> Instead, please just move the hibernate copy_page_tables() code, and then wire kexec up.
->> You shouldn't need to change anything in the copy_page_tables() code as the linear map is
->> the same in both cases.
-
-> It is not really an all-new implementation of hibernate (for kexec it
-> is true though). I used the current implementation of hibernate as
-> bases, and simply generalized the functions by providing a flexible
-> interface. So what you are asking is actually exactly what I am doing.
-
-I disagree. The resume page-table code is the bulk of the complexity in hibernate.c. Your
-first patch dumps ~200 lines of differently-complex code, and your second switches
-hibernate over to it.
-
-Instead, please move that code, keeping it as it is. git will spot the move, and the
-generated diffstat should only reflect the build-system changes. You don't need to 'switch
-hibernate to transitional page tables.'
-
-Adding kexec will then show-up what needs changing, each change comes with a commit
-message explaining why. Having these as 'generalisations' in the first patch is a mess.
-
-There is existing code that we don't want to break. Any changes need to be done as a
-sequence of small incremental changes. It can't be reviewed any other way.
-
-
-> I realize, that I introduced a bug that I will fix.
-
-Done as a sequence of small incremental changes, I could bisect it to the patch that
-introduces the bug, and probably fix it from the description in the commit message.
-
-
->> It looks like you are creating the page tables just after the kexec:segments have been
->> loaded. This will go horribly wrong if anything changes between then and kexec time. (e.g.
->> memory you've got mapped gets hot-removed).
->> This needs to be done as late as possible, so we don't waste memory, and the world can't
->> change around us. Reboot notifiers run before kexec, can't we do the memory-allocation there?
-
-> Kexec by design does not allow allocate during kexec time. This is
-> because we cannot fail during kexec syscall.
-
-This problem needs solving.
-
-| Reboot notifiers run before kexec, can't we do the memory-allocation there?
-
-
-> All allocations must be done during kexec load time.
-
-This increases the memory footprint. I don't think we should waste ~2MB per GB of kernel
-memory on this feature. (Assuming 4K pages and rodata_full)
-
-Another option is to allocate this memory at load time, but then free it so it can be used
-in the meantime. You can keep the list of allocated pfn, as we know they aren't in use by
-the running kernel, kexec metadata, loaded images etc.
-
-Memory hotplug would need handling carefully, as would anything that 'donates' memory to
-another agent. (I suspect the TEE stuff does this, I don't know how it interacts with kexec)
-
-
-> Kernel memory cannot be hot-removed, as
-> it is not part of ZONE_MOVABLE, and cannot be migrated.
-
-Today, yes. Tomorrow?, "arm64/mm: Enable memory hot remove":
-https://lore.kernel.org/r/1563171470-3117-1-git-send-email-anshuman.khandual@arm.com
-
-
->>>> Previously:
->>>> kernel shutdown 0.022131328s
->>>> relocation      0.440510736s
->>>> kernel startup  0.294706768s
->>>>
->>>> Relocation was taking: 58.2% of reboot time
->>>>
->>>> Now:
->>>> kernel shutdown 0.032066576s
->>>> relocation      0.022158152s
->>>> kernel startup  0.296055880s
->>>>
->>>> Now: Relocation takes 6.3% of reboot time
->>>>
->>>> Total reboot is x2.16 times faster.
->>
->> When I first saw these numbers they were ~'0.29s', which I wrongly assumed was 29 seconds.
->> Savings in milliseconds, for _reboot_ is a hard sell. I'm hoping that on the machines that
->> take minutes to kexec we'll get numbers that make this change more convincing.
-
-> Sure, this userland is very small kernel+userland is only 47M. Here is
-> another data point: fitImage: 380M, it contains a larger userland.
-> The numbers for kernel shutdown and startup are the same as this is
-> the same kernel, but relocation takes: 3.58s
-> shutdown: 0.02s
-> relocation: 3.58s
-> startup:  0.30s
+> 								Honza
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 > 
-> Relocation take 88% of reboot time. And, we must have it under one second.
-
-Where does this one second number come from? (was it ever a reasonable starting point?)
-
-
-Thanks,
-
-James
 
