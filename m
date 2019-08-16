@@ -2,173 +2,154 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49D99C3A59E
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 15:47:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 967C3C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 15:52:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1A33C20578
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 15:47:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A33C20578
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 66E642133F
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 15:52:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E642133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A252C6B0007; Fri, 16 Aug 2019 11:47:12 -0400 (EDT)
+	id 0F9C76B0005; Fri, 16 Aug 2019 11:52:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9AF376B0008; Fri, 16 Aug 2019 11:47:12 -0400 (EDT)
+	id 0AB1B6B0006; Fri, 16 Aug 2019 11:52:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84FA66B000A; Fri, 16 Aug 2019 11:47:12 -0400 (EDT)
+	id F01FB6B0007; Fri, 16 Aug 2019 11:52:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0132.hostedemail.com [216.40.44.132])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC496B0007
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 11:47:12 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 01EB0180AD80A
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:47:12 +0000 (UTC)
-X-FDA: 75828719904.26.yard86_3ecf264b35f4b
-X-HE-Tag: yard86_3ecf264b35f4b
-X-Filterd-Recvd-Size: 4458
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:47:11 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E9567AF55;
-	Fri, 16 Aug 2019 15:47:09 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id AD9061E4009; Fri, 16 Aug 2019 17:47:09 +0200 (CEST)
-Date: Fri, 16 Aug 2019 17:47:09 +0200
-From: Jan Kara <jack@suse.cz>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 4/5] writeback, memcg: Implement cgroup_writeback_by_id()
-Message-ID: <20190816154709.GH3041@quack2.suse.cz>
-References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
- <20190815195902.GE2263813@devbig004.ftw2.facebook.com>
+Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
+	by kanga.kvack.org (Postfix) with ESMTP id D04786B0005
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 11:52:26 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 6F2366D71
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:52:26 +0000 (UTC)
+X-FDA: 75828733092.08.chair14_6c899fe830713
+X-HE-Tag: chair14_6c899fe830713
+X-Filterd-Recvd-Size: 4689
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:52:25 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 222B486663;
+	Fri, 16 Aug 2019 15:52:24 +0000 (UTC)
+Received: from redhat.com (ovpn-123-168.rdu2.redhat.com [10.10.123.168])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6BF4583E86;
+	Fri, 16 Aug 2019 15:52:22 +0000 (UTC)
+Date: Fri, 16 Aug 2019 11:52:20 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Vlastimil Babka <vbabka@suse.cz>, John Hubbard <jhubbard@nvidia.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+Message-ID: <20190816155220.GC3149@redhat.com>
+References: <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
+ <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
+ <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
+ <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
+ <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
+ <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
+ <20190815132622.GG14313@quack2.suse.cz>
+ <20190815133510.GA21302@quack2.suse.cz>
+ <0d6797d8-1e04-1ebe-80a7-3d6895fe71b0@suse.cz>
+ <20190816154404.GF3041@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190815195902.GE2263813@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190816154404.GF3041@quack2.suse.cz>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 16 Aug 2019 15:52:24 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 15-08-19 12:59:02, Tejun Heo wrote:
-> Implement cgroup_writeback_by_id() which initiates cgroup writeback
-> from bdi and memcg IDs.  This will be used by memcg foreign inode
-> flushing.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+On Fri, Aug 16, 2019 at 05:44:04PM +0200, Jan Kara wrote:
+> On Fri 16-08-19 10:47:21, Vlastimil Babka wrote:
+> > On 8/15/19 3:35 PM, Jan Kara wrote:
+> > >>=20
+> > >> So when the GUP user uses MMU notifiers to stop writing to pages w=
+henever
+> > >> they are writeprotected with page_mkclean(), they don't really nee=
+d page
+> > >> pin - their access is then fully equivalent to any other mmap user=
+space
+> > >> access and filesystem knows how to deal with those. I forgot out t=
+his case
+> > >> when I wrote the above sentence.
+> > >>=20
+> > >> So to sum up there are three cases:
+> > >> 1) DIO case - GUP references to pages serving as DIO buffers are n=
+eeded for
+> > >>    relatively short time, no special synchronization with page_mkc=
+lean() or
+> > >>    munmap() =3D> needs FOLL_PIN
+> > >> 2) RDMA case - GUP references to pages serving as DMA buffers need=
+ed for a
+> > >>    long time, no special synchronization with page_mkclean() or mu=
+nmap()
+> > >>    =3D> needs FOLL_PIN | FOLL_LONGTERM
+> > >>    This case has also a special case when the pages are actually D=
+AX. Then
+> > >>    the caller additionally needs file lease and additional file_pi=
+n
+> > >>    structure is used for tracking this usage.
+> > >> 3) ODP case - GUP references to pages serving as DMA buffers, MMU =
+notifiers
+> > >>    used to synchronize with page_mkclean() and munmap() =3D> norma=
+l page
+> > >>    references are fine.
+> >=20
+> > IMHO the munlock lesson told us about another one, that's in the end =
+equivalent
+> > to 3)
+> >=20
+> > 4) pinning for struct page manipulation only =3D> normal page referen=
+ces
+> > are fine
+>=20
+> Right, it's good to have this for clarity.
+>=20
+> > > I want to add that I'd like to convert users in cases 1) and 2) fro=
+m using
+> > > GUP to using differently named function. Users in case 3) can stay =
+as they
+> > > are for now although ultimately I'd like to denote such use cases i=
+n a
+> > > special way as well...
+> >=20
+> > So after 1/2/3 is renamed/specially denoted, only 4) keeps the curren=
+t
+> > interface?
+>=20
+> Well, munlock() code doesn't even use GUP, just follow_page(). I'd wait=
+ to
+> see what's left after handling cases 1), 2), and 3) to decide about the
+> interface for the remainder.
+>=20
 
-Looks good to me. You can add:
+For 3 we do not need to take a reference at all :) So just forget about 3
+it does not exist. For 3 the reference is the reference the CPU page tabl=
+e
+has on the page and that's it. GUP is no longer involve in ODP or anythin=
+g
+like that.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-
-> ---
->  fs/fs-writeback.c         |   67 ++++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/writeback.h |    2 +
->  2 files changed, 69 insertions(+)
-> 
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -892,6 +892,73 @@ restart:
->  }
->  
->  /**
-> + * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
-> + * @bdi_id: target bdi id
-> + * @memcg_id: target memcg css id
-> + * @nr_pages: number of pages to write
-> + * @reason: reason why some writeback work initiated
-> + * @done: target wb_completion
-> + *
-> + * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
-> + * with the specified parameters.
-> + */
-> +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
-> +			   enum wb_reason reason, struct wb_completion *done)
-> +{
-> +	struct backing_dev_info *bdi;
-> +	struct cgroup_subsys_state *memcg_css;
-> +	struct bdi_writeback *wb;
-> +	struct wb_writeback_work *work;
-> +	int ret;
-> +
-> +	/* lookup bdi and memcg */
-> +	bdi = bdi_get_by_id(bdi_id);
-> +	if (!bdi)
-> +		return -ENOENT;
-> +
-> +	rcu_read_lock();
-> +	memcg_css = css_from_id(memcg_id, &memory_cgrp_subsys);
-> +	if (memcg_css && !css_tryget(memcg_css))
-> +		memcg_css = NULL;
-> +	rcu_read_unlock();
-> +	if (!memcg_css) {
-> +		ret = -ENOENT;
-> +		goto out_bdi_put;
-> +	}
-> +
-> +	/*
-> +	 * And find the associated wb.  If the wb isn't there already
-> +	 * there's nothing to flush, don't create one.
-> +	 */
-> +	wb = wb_get_lookup(bdi, memcg_css);
-> +	if (!wb) {
-> +		ret = -ENOENT;
-> +		goto out_css_put;
-> +	}
-> +
-> +	/* issue the writeback work */
-> +	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
-> +	if (work) {
-> +		work->nr_pages = nr;
-> +		work->sync_mode = WB_SYNC_NONE;
-> +		work->reason = reason;
-> +		work->done = done;
-> +		work->auto_free = 1;
-> +		wb_queue_work(wb, work);
-> +		ret = 0;
-> +	} else {
-> +		ret = -ENOMEM;
-> +	}
-> +
-> +	wb_put(wb);
-> +out_css_put:
-> +	css_put(memcg_css);
-> +out_bdi_put:
-> +	bdi_put(bdi);
-> +	return ret;
-> +}
-> +
-> +/**
->   * cgroup_writeback_umount - flush inode wb switches for umount
->   *
->   * This function is called when a super_block is about to be destroyed and
-> --- a/include/linux/writeback.h
-> +++ b/include/linux/writeback.h
-> @@ -217,6 +217,8 @@ void wbc_attach_and_unlock_inode(struct
->  void wbc_detach_inode(struct writeback_control *wbc);
->  void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
->  			      size_t bytes);
-> +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
-> +			   enum wb_reason reason, struct wb_completion *done);
->  void cgroup_writeback_umount(void);
->  
->  /**
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Cheers,
+J=E9r=F4me
 
