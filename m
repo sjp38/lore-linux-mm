@@ -2,182 +2,142 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9660C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:33:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA412C3A59E
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:37:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 88D5C20665
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:33:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6FDC22133F
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 16:37:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ohz/lLhc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88D5C20665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="JfOVHWNQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FDC22133F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B1746B0010; Fri, 16 Aug 2019 12:33:51 -0400 (EDT)
+	id 089506B0010; Fri, 16 Aug 2019 12:37:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 063286B0266; Fri, 16 Aug 2019 12:33:51 -0400 (EDT)
+	id 039206B0266; Fri, 16 Aug 2019 12:37:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E92E06B0269; Fri, 16 Aug 2019 12:33:50 -0400 (EDT)
+	id E914D6B0269; Fri, 16 Aug 2019 12:37:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0103.hostedemail.com [216.40.44.103])
-	by kanga.kvack.org (Postfix) with ESMTP id C394B6B0010
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:33:50 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 66C7F181B048B
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:33:50 +0000 (UTC)
-X-FDA: 75828837420.11.rifle66_2172a0600d70f
-X-HE-Tag: rifle66_2172a0600d70f
-X-Filterd-Recvd-Size: 6915
-Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:33:49 +0000 (UTC)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7GGDkXL165766;
-	Fri, 16 Aug 2019 16:33:46 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=yE1enNm7gCBzShIHWinhc7VMx7VLR2+YnUK3tfhEdok=;
- b=ohz/lLhcTITj8487swbsx2o5AO11doE7iBcHAfgfuzMrgRI/uPI1ZoKHyDt2VacKjrME
- c9BGo9u6JLcziz2UlhwjOcbgmNtfXyqbEvjezflZ+9Gx7fRvbzYlbwpXQ745uryC3yd4
- TI2QpSLECousW5DWVuzVM7fwXAt9wfzg9FdEpiAH9UK8AgL+cPE+i1InFVy4iWu0/2YI
- C70BZee3ZPVCS5pByj5ciFt4a+HNYJ/CDRFpENb+kCvmV0wdxUkVGKeo649aXQpzGlxb
- WUeLtQ7q0bVrccC8NFkzgclbkfarnMHDo6AV6dbHDGnDX/XN5L1ghL47uxjz7TtZ+STj IA== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2u9pjr1d2s-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 16 Aug 2019 16:33:46 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7GGXD63186766;
-	Fri, 16 Aug 2019 16:33:45 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3030.oracle.com with ESMTP id 2udgr32pyd-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 16 Aug 2019 16:33:45 +0000
-Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7GGXi9I003706;
-	Fri, 16 Aug 2019 16:33:44 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 16 Aug 2019 09:33:44 -0700
-Subject: Re: [RFC PATCH v2 4/5] hugetlb_cgroup: Add accounting for shared
- mappings
-To: Mina Almasry <almasrymina@google.com>
-Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>,
-        Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>,
-        akpm@linux-foundation.org, khalid.aziz@oracle.com,
-        open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-        linux-kselftest@vger.kernel.org
-References: <20190808231340.53601-1-almasrymina@google.com>
- <20190808231340.53601-5-almasrymina@google.com>
- <47cfc50d-bea3-0247-247e-888d2942f134@oracle.com>
- <CAHS8izNAZLQnHi6qXiO_efgSs1x2NOXKOKy7rZf+oF-8+hq=YQ@mail.gmail.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4ae131d2-97ba-dac0-e747-48469580401e@oracle.com>
-Date: Fri, 16 Aug 2019 09:33:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id C83516B0010
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:37:05 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 783378248ACF
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:37:05 +0000 (UTC)
+X-FDA: 75828845610.25.bread70_3dd35c28fc306
+X-HE-Tag: bread70_3dd35c28fc306
+X-Filterd-Recvd-Size: 5276
+Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 16:37:04 +0000 (UTC)
+Received: by mail-ot1-f67.google.com with SMTP id o101so10122955ota.8
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 09:37:04 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ffwll.ch; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3TjiC7tL5tVLJpZgBmmeBYDZnQ+YoBFviaBZJfxvqRo=;
+        b=JfOVHWNQNFhlm05DIsQUQILP6M8uBwVqZSzqy1eYSpIOTEaQbCtHbvykAwr22Tl6G1
+         RNXH1jUaj+1SuMHTPPN2vG+sS56vR/rcdrJk34I37Kr5H+ovEq9dCHTkoSWPVy5ywMLh
+         lz1n0dh2WMbvNoSKqCFONNRk5N6dN3lYNnwsE=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=3TjiC7tL5tVLJpZgBmmeBYDZnQ+YoBFviaBZJfxvqRo=;
+        b=l9aIKkWpqSzQhoHk0ypwWKILfW1BCq6E3EfdZ5H4muUyYoyCxXlPEbERTobUTfIS4Y
+         mWOIYKJ8DYSllc3XlfcfYe9sU++iDX/fX8QeSlNqN/OmURXUkfsUVLfToY7yLkkgJu1o
+         uUQ+J2iRp5TUT5IteB9agTNx3x0qu1uV86ZG22WQQRAXoCpCRFlw6XOst7FbX3fWevNT
+         nC10KRfXRP+4o4voQnNdd7Ht9ayYgByuw0YD0CCW7t5hsrLwIq/4FE1bCuz71A+hvwFz
+         dM/4Z69cIpz9+8xBDGhHFQSb6/uhf8vkR6aywxnty0xpWeae0ObdbshsTgzbce6f23e7
+         RPMQ==
+X-Gm-Message-State: APjAAAUbUBQabzjRtS67WoMrmb7bxixpLDZUP9qCWjWqe7a6ZcEB0s7r
+	sCdxtQnawfeQdDk1JCIrtscqd6Yv8g/1AHBICwhVlg==
+X-Google-Smtp-Source: APXvYqxJCBauYrVR7fqS+LuWRAKsoJ5dG70QezYi/k/QXJiyisCvN0d9PyJccgTFO91to0aqDKVlvYvo6VHCa8rK6mw=
+X-Received: by 2002:a9d:1ca3:: with SMTP id l35mr7813768ota.106.1565973423804;
+ Fri, 16 Aug 2019 09:37:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAHS8izNAZLQnHi6qXiO_efgSs1x2NOXKOKy7rZf+oF-8+hq=YQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9351 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908160172
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9351 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908160171
+References: <20190815190525.GS9477@dhcp22.suse.cz> <20190815191810.GR21596@ziepe.ca>
+ <20190815193526.GT9477@dhcp22.suse.cz> <CAKMK7uH42EgdxL18yce-7yay=x=Gb21nBs3nY7RA92Nsd-HCNA@mail.gmail.com>
+ <20190815202721.GV21596@ziepe.ca> <CAKMK7uER0u1TqeJBXarKakphnyZTHOmedOfXXqLGVDE2mE-mAQ@mail.gmail.com>
+ <20190816010036.GA9915@ziepe.ca> <CAKMK7uH0oa10LoCiEbj1NqAfWitbdOa-jQm9hM=iNL-=8gH9nw@mail.gmail.com>
+ <20190816121243.GB5398@ziepe.ca> <CAKMK7uHk03OD+N-anPf-ADPzvQJ_NbQXFh5WsVUo-Ewv9vcOAw@mail.gmail.com>
+ <20190816143819.GE5398@ziepe.ca>
+In-Reply-To: <20190816143819.GE5398@ziepe.ca>
+From: Daniel Vetter <daniel@ffwll.ch>
+Date: Fri, 16 Aug 2019 18:36:52 +0200
+Message-ID: <CAKMK7uGzOO4nZPbZzmaDjjBGZiV2HjgdbT45q9Rd5wTO14VH2w@mail.gmail.com>
+Subject: Re: [Intel-gfx] [PATCH 2/5] kernel.h: Add non_block_start/end()
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Michal Hocko <mhocko@kernel.org>, Feng Tang <feng.tang@intel.com>, 
+	Randy Dunlap <rdunlap@infradead.org>, Kees Cook <keescook@chromium.org>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Peter Zijlstra <peterz@infradead.org>, 
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Jann Horn <jannh@google.com>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	DRI Development <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, 
+	David Rientjes <rientjes@google.com>, Wei Wang <wvw@google.com>, 
+	Daniel Vetter <daniel.vetter@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>, 
+	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/15/19 4:08 PM, Mina Almasry wrote:
-> On Tue, Aug 13, 2019 at 4:54 PM Mike Kravetz <mike.kravetz@oracle.com> wrote:
->>>  mm/hugetlb.c | 208 +++++++++++++++++++++++++++++++++++++++++----------
->>>  1 file changed, 170 insertions(+), 38 deletions(-)
->>>
->>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>> index 235996aef6618..d76e3137110ab 100644
->>> --- a/mm/hugetlb.c
->>> +++ b/mm/hugetlb.c
->>> @@ -242,8 +242,72 @@ struct file_region {
->>>       struct list_head link;
->>>       long from;
->>>       long to;
->>> +#ifdef CONFIG_CGROUP_HUGETLB
->>> +     /*
->>> +      * On shared mappings, each reserved region appears as a struct
->>> +      * file_region in resv_map. These fields hold the info needed to
->>> +      * uncharge each reservation.
->>> +      */
->>> +     struct page_counter *reservation_counter;
->>> +     unsigned long pages_per_hpage;
->>> +#endif
->>>  };
->>>
->>> +/* Must be called with resv->lock held. Calling this with dry_run == true will
->>> + * count the number of pages added but will not modify the linked list.
->>> + */
->>> +static long consume_regions_we_overlap_with(struct file_region *rg,
->>> +             struct list_head *head, long f, long *t,
->>> +             struct hugetlb_cgroup *h_cg,
->>> +             struct hstate *h,
->>> +             bool dry_run)
->>> +{
->>> +     long add = 0;
->>> +     struct file_region *trg = NULL, *nrg = NULL;
->>> +
->>> +     /* Consume any regions we now overlap with. */
->>> +     nrg = rg;
->>> +     list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
->>> +             if (&rg->link == head)
->>> +                     break;
->>> +             if (rg->from > *t)
->>> +                     break;
->>> +
->>> +             /* If this area reaches higher then extend our area to
->>> +              * include it completely.  If this is not the first area
->>> +              * which we intend to reuse, free it.
->>> +              */
->>> +             if (rg->to > *t)
->>> +                     *t = rg->to;
->>> +             if (rg != nrg) {
->>> +                     /* Decrement return value by the deleted range.
->>> +                      * Another range will span this area so that by
->>> +                      * end of routine add will be >= zero
->>> +                      */
->>> +                     add -= (rg->to - rg->from);
->>> +                     if (!dry_run) {
->>> +                             list_del(&rg->link);
->>> +                             kfree(rg);
->>
->> Is it possible that the region struct we are deleting pointed to
->> a reservation_counter?  Perhaps even for another cgroup?
->> Just concerned with the way regions are coalesced that we may be
->> deleting counters.
->>
-> 
-> Yep, that needs to be handled I think. Thanks for catching!
-> 
+On Fri, Aug 16, 2019 at 4:38 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Fri, Aug 16, 2019 at 04:11:34PM +0200, Daniel Vetter wrote:
+> > Also, aside from this patch (which is prep for the next) and some
+> > simple reordering conflicts they're all independent. So if there's no
+> > way to paint this bikeshed here (technicolor perhaps?) then I'd like
+> > to get at least the others considered.
+>
+> Sure, I think for conflict avoidance reasons I'm probably taking
+> mmu_notifier stuff via hmm.git, so:
+>
+> - Andrew had a minor remark on #1, I am ambivalent and would take it
+>   as-is. Your decision if you want to respin.
 
-I believe that we will no longer be able to coalesce reserv_map entries
-for shared mappings.  That is because we need to record who is responsible
-for creating reservation entries.
+I like mine better, see also the reply from Ralph Campbell.
 
+> - #2/#3 is this issue, I would stand by the preempt_disable/etc path
+>   Our situation matches yours, debug tests run lockdep/etc.
+
+Since Michal requested the current flavour I think we need spin a bit
+more on these here. I guess I'll just rebase them to the end so
+they're not holding up the others.
+
+> - #4 I like a lot, except the map should enclose range_end too,
+>   this can be done after the mm_has_notifiers inside the
+>   __mmu_notifier function
+
+To make sure I get this right: The same lockdep context, but also
+wrapped around invalidate_range_end? From my understanding of pte
+zapping that makes sense, but I'm definitely not well-versed enough
+for that.
+
+>   Can you respin?
+
+Will do.
+
+>   I will propose preloading the map in another patch
+> - #5 is already applied in -rc
+
+Yup, I'll drop that one.
+
+Thanks, Daniel
 -- 
-Mike Kravetz
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
