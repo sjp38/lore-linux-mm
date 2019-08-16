@@ -2,166 +2,162 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18707C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 11:57:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52A2EC3A59E
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:12:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFE992086C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 11:57:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0C37021655
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 12:12:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="OT5TKuvU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFE992086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="K074sQzn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C37021655
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B20E6B0003; Fri, 16 Aug 2019 07:57:45 -0400 (EDT)
+	id 87B3B6B0007; Fri, 16 Aug 2019 08:12:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 662A56B0005; Fri, 16 Aug 2019 07:57:45 -0400 (EDT)
+	id 82B9E6B0008; Fri, 16 Aug 2019 08:12:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 550E36B0006; Fri, 16 Aug 2019 07:57:45 -0400 (EDT)
+	id 719D16B000A; Fri, 16 Aug 2019 08:12:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0234.hostedemail.com [216.40.44.234])
-	by kanga.kvack.org (Postfix) with ESMTP id 3380F6B0003
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 07:57:45 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id CB221AF68
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 11:57:44 +0000 (UTC)
-X-FDA: 75828141648.20.hat88_609c06f68ca1b
-X-HE-Tag: hat88_609c06f68ca1b
-X-Filterd-Recvd-Size: 8369
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40080.outbound.protection.outlook.com [40.107.4.80])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 11:57:43 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=htqbcar2YMQf/h00xNlWhyTwILds+Z/P32vyI8uv76WA4NLCtDqAaASsvJgSvPvfRWrmW68HF3cVrWma3Kcg8equ9Jn58FOQ5qdOyaNTAWAdDILiGsSSbXWrlajE3kqkY/3X9haj9Jdx09d45oJz2nSs4jvh9pOfI+lsXdDDDaN1fN1d7yVkiUq0NbTfF1twJ3G2R7VflbMlQLo/Shtp1FywjmMJ6MDOvAi2WXbruSfaeZ32MS2T91ZLAn411OuKfOvALFU1fqIBKqhSmBcMqwPqYCzglu2YHMYxEficKuXu0uMbCz7VO4xQa68QPYK9j/k+0cQ7ieSgwjKsoZTy8g==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=lZhLO4ofK9hiYxDDbjru964S2Ow8QRvo6QEzrOLAGQc=;
- b=B1kRzw4ccG4YewD15OWLKJ4gbS01WdB3Y+szb42l7TKPrUgJ3oh9KLa+SZ4dLOdtCN9TGL2CB8pRllcePWRO3IFrvermh1DWyiJmOErJhLUIIdg53a0pouyK08WZxLhn7584zn7WNy2GPofIfBQFcjWW7KSckKX1U5MdLHb/fSkB2FfwL6ku4+et9v0ygvMbr1mptCl1OuJTr0HFoDHc+KyDmpB8JXmKP0lb2v+qSQkK189T/FvNQYdu22+dsDgZCMSPTTnr6oGhEkQtBVteMRWaO0693W4sd1YKQ/ZmIZbqNgHfnIbH7ZKkTizj+K9bWXh88m9ScKNNnuMKt6tshQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=lZhLO4ofK9hiYxDDbjru964S2Ow8QRvo6QEzrOLAGQc=;
- b=OT5TKuvUIzQk06ilXAQ6UhI4P9uvLKclXvc1uham7X0zFPcjSXZAZeWiuzRvxAq+5BapoOSH2McjSIHqV+BtzpIp+hOh8hqpLjWFL4wSvMo+rRbg4aGYZ94bbsZ9U4Ojs+765DWIhBAxTNt1pB7Ys7kkqUVMS8CWJIu83t+Z0xs=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5440.eurprd05.prod.outlook.com (20.177.200.82) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.18; Fri, 16 Aug 2019 11:57:40 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2178.016; Fri, 16 Aug 2019
- 11:57:40 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@infradead.org>
-CC: Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig
-	<hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>,
-	=?iso-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@shipmail.org>, Jerome Glisse
-	<jglisse@redhat.com>, Steven Price <steven.price@arm.com>, Linux-MM
-	<linux-mm@kvack.org>, Linux List Kernel Mailing
-	<linux-kernel@vger.kernel.org>
-Subject: Re: cleanup the walk_page_range interface
-Thread-Topic: cleanup the walk_page_range interface
-Thread-Index: AQHVTf/tP3JKoCdlsUaV5lyTDbBfbKbxh5KAgAvT44CAAFwggA==
-Date: Fri, 16 Aug 2019 11:57:40 +0000
-Message-ID: <20190816115735.GB5412@mellanox.com>
-References: <20190808154240.9384-1-hch@lst.de>
- <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
- <20190816062751.GA16169@infradead.org>
-In-Reply-To: <20190816062751.GA16169@infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YTBPR01CA0029.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b01:14::42) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 3896fe9f-3c68-4c9a-b6f1-08d72240f086
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5440;
-x-ms-traffictypediagnostic: VI1PR05MB5440:
-x-microsoft-antispam-prvs:
- <VI1PR05MB544042057500F5E0658EEF74CFAF0@VI1PR05MB5440.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 0131D22242
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(346002)(376002)(396003)(366004)(39860400002)(136003)(199004)(189003)(53936002)(478600001)(33656002)(476003)(99286004)(6512007)(36756003)(305945005)(7736002)(81156014)(6116002)(3846002)(2906002)(81166006)(6916009)(6436002)(8936002)(66066001)(8676002)(186003)(316002)(52116002)(25786009)(76176011)(4326008)(71190400001)(66476007)(71200400001)(53546011)(386003)(6506007)(26005)(14444005)(256004)(6486002)(6246003)(102836004)(5660300002)(66446008)(486006)(66556008)(54906003)(446003)(66946007)(1076003)(64756008)(14454004)(11346002)(2616005)(229853002)(86362001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5440;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- bHA6tfVGDLM11jekVfVAB46zo9mqR0YCd8nDsdLbakffEcjXAJaSW9o4wh7xaIiGdv6KfXVgrVP9p9Bj5EE8vhfnBbXcqbammySrOtAC6/Z/htFIyOALtK48mn+7eCFYw773WJvkW3+CV8/0DZQECdtHbTe0K2jaQSuj8gIFRyBaa616Yc/8dxXr1ZumA4fTXeug2n08pdAfcYhuNz8X39o3i3mJQX2v+p6at5NRJ7ALjNa4cJqwYZ/6FGInBB3EIeUBIb2bWj2eOkHqv1zkGNb2iaRlaDJ8U/CE4tAt8KBMiX0C1MLDn+vBnJY5ZKO0wsBnb+Fa6ix772kZ1RaZ/NYxhwfnzlu9XfVZmme5w+mIh8vqwrY9G0GOafT4vg8QBXUHrgmfje3eqefrMmwwwJU/DEQwHWzjaCLGS3TlfQk=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <35B5AB222822AA4E835D14641243E8AA@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0107.hostedemail.com [216.40.44.107])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E6216B0007
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:12:46 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E314183FD
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:12:45 +0000 (UTC)
+X-FDA: 75828179490.30.bun52_5246e91cf1812
+X-HE-Tag: bun52_5246e91cf1812
+X-Filterd-Recvd-Size: 6529
+Received: from mail-qk1-f195.google.com (mail-qk1-f195.google.com [209.85.222.195])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:12:45 +0000 (UTC)
+Received: by mail-qk1-f195.google.com with SMTP id g17so4470195qkk.8
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 05:12:45 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=f8owW6EpsmwqtLp0wnKoaaaHq0YX1Y+Qi9vsJyda86Q=;
+        b=K074sQzn3mritfVn1vyEO1cFfN4Z/ArjoqUauJv0wy+G786US9n9P1vD6X+hiV1Vue
+         L0iagywjGWWTZJw6Cr1uKClGUTmJNRFC0EnNA4S2RzUw1XQITq5bgXlU8QfF9Q1zWEpN
+         E/SpAFJNq+LhHWZ6WCWF9IBawfG7nYtybEgTo75npLEVQ4H8CyhvMH07dKg73copwI/H
+         49E1Y6LZ7PzsHJQmnVyw6vril9S6p1AoL+AptSIhY//od14+Os1BKic/sqw8uQRF2Ok5
+         LUzGaTuogV45oW5ff012FxSlHjSnKsqN0UJflMgirTuKBXN0Mi0YoWcPVVjNtE7iJrIx
+         7Esw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=f8owW6EpsmwqtLp0wnKoaaaHq0YX1Y+Qi9vsJyda86Q=;
+        b=iL01hv8BvEntyf6495CKMAmVupdW+mRypwmQ8cBdazk6mcsisJ4c8MtH0nX5WGIN1c
+         UuFDja0cLzMVZ+6OcZOJW9IBnw2qjsbHoYCvx3nlR5ZVVxr75nDNYVuakYK4rk+tA1Y+
+         3MEcg1h232csXaQQxZFGCkW4EA4CoekRDDly3JpxHhjaKyiI8a8iCrNufbq70xMzNtAi
+         1Zt2jAQPQQ7keoZulRaalxBUs/MxKojnNuRbeckTxtt8L4W2b9I7OzsX30weIhvKWbKv
+         pc0PFI630s4KDhaXjLNvtqmMulTwXxLYCQU3lB2biv6cJAbopL5eXZQZgpxfKOWQsjrE
+         uk4Q==
+X-Gm-Message-State: APjAAAXqJapa1pHZdvWS3bAHS0LQ7g+X/BOnNsxp/jvv8+Yhk/zNzc0/
+	W4Ka/38JWua0v3TpZDVDd0K2yQ==
+X-Google-Smtp-Source: APXvYqyMUeYBXW9fbIGoraU2yLXj1zbNq04/jEsVRBfsR3GdBF63NEaqNn9Gsb89FRfUafPCrlPTew==
+X-Received: by 2002:a05:620a:15eb:: with SMTP id p11mr7740939qkm.23.1565957564536;
+        Fri, 16 Aug 2019 05:12:44 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id r4sm3294200qta.93.2019.08.16.05.12.43
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 16 Aug 2019 05:12:43 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hyb63-0001mf-6H; Fri, 16 Aug 2019 09:12:43 -0300
+Date: Fri, 16 Aug 2019 09:12:43 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: Michal Hocko <mhocko@kernel.org>, Feng Tang <feng.tang@intel.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Kees Cook <keescook@chromium.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Jann Horn <jannh@google.com>, LKML <linux-kernel@vger.kernel.org>,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Linux MM <linux-mm@kvack.org>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	David Rientjes <rientjes@google.com>, Wei Wang <wvw@google.com>,
+	Daniel Vetter <daniel.vetter@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>
+Subject: Re: [Intel-gfx] [PATCH 2/5] kernel.h: Add non_block_start/end()
+Message-ID: <20190816121243.GB5398@ziepe.ca>
+References: <20190815174207.GR9477@dhcp22.suse.cz>
+ <20190815182448.GP21596@ziepe.ca>
+ <20190815190525.GS9477@dhcp22.suse.cz>
+ <20190815191810.GR21596@ziepe.ca>
+ <20190815193526.GT9477@dhcp22.suse.cz>
+ <CAKMK7uH42EgdxL18yce-7yay=x=Gb21nBs3nY7RA92Nsd-HCNA@mail.gmail.com>
+ <20190815202721.GV21596@ziepe.ca>
+ <CAKMK7uER0u1TqeJBXarKakphnyZTHOmedOfXXqLGVDE2mE-mAQ@mail.gmail.com>
+ <20190816010036.GA9915@ziepe.ca>
+ <CAKMK7uH0oa10LoCiEbj1NqAfWitbdOa-jQm9hM=iNL-=8gH9nw@mail.gmail.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 3896fe9f-3c68-4c9a-b6f1-08d72240f086
-X-MS-Exchange-CrossTenant-originalarrivaltime: 16 Aug 2019 11:57:40.6455
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: IhNEEv+l45bHrFateBmWwMEbSFHU5nYJCKIIkS9fHQkQtDR4E6CtFgqJAqGwslt7l6LHE2jvdnhv1pXBnTNtxQ==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5440
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKMK7uH0oa10LoCiEbj1NqAfWitbdOa-jQm9hM=iNL-=8gH9nw@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 11:27:51PM -0700, Christoph Hellwig wrote:
-> On Thu, Aug 08, 2019 at 10:50:37AM -0700, Linus Torvalds wrote:
-> > On Thu, Aug 8, 2019 at 8:42 AM Christoph Hellwig <hch@lst.de> wrote:
+On Fri, Aug 16, 2019 at 08:20:55AM +0200, Daniel Vetter wrote:
+> On Fri, Aug 16, 2019 at 3:00 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > On Thu, Aug 15, 2019 at 10:49:31PM +0200, Daniel Vetter wrote:
+> > > On Thu, Aug 15, 2019 at 10:27 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > > > On Thu, Aug 15, 2019 at 10:16:43PM +0200, Daniel Vetter wrote:
+> > > > > So if someone can explain to me how that works with lockdep I can of
+> > > > > course implement it. But afaics that doesn't exist (I tried to explain
+> > > > > that somewhere else already), and I'm no really looking forward to
+> > > > > hacking also on lockdep for this little series.
+> > > >
+> > > > Hmm, kind of looks like it is done by calling preempt_disable()
 > > >
-> > > this series is based on a patch from Linus to split the callbacks
-> > > passed to walk_page_range and walk_page_vma into a separate structure
-> > > that can be marked const, with various cleanups from me on top.
-> >=20
-> > The whole series looks good to me. Ack.
-> >=20
-> > > Note that both Thomas and Steven have series touching this area pendi=
-ng,
-> > > and there are a couple consumer in flux too - the hmm tree already
-> > > conflicts with this series, and I have potential dma changes on top o=
-f
-> > > the consumers in Thomas and Steven's series, so we'll probably need a
-> > > git tree similar to the hmm one to synchronize these updates.
-> >=20
-> > I'd be willing to just merge this now, if that helps. The conversion
-> > is mechanical, and my only slight worry would be that at least for my
-> > original patch I didn't build-test the (few) non-x86
-> > architecture-specific cases. But I did end up looking at them fairly
-> > closely  (basically using some grep/sed scripts to see that the
-> > conversions I did matched the same patterns). And your changes look
-> > like obvious improvements too where any mistake would have been caught
-> > by the compiler.
-> >=20
-> > So I'm not all that worried from a functionality standpoint, and if
-> > this will help the next merge window, I'll happily pull now.
->=20
-> So what is the plan forward?  Probably a little late for 5.3,
-> so queue it up in -mm for 5.4 and deal with the conflicts in at least
-> hmm?  Queue it up in the hmm tree even if it doesn't 100% fit?
+> > > Yup. That was v1, then came the suggestion that disabling preemption
+> > > is maybe not the best thing (the oom reaper could still run for a long
+> > > time comparatively, if it's cleaning out gigabytes of process memory
+> > > or what not, hence this dedicated debug infrastructure).
+> >
+> > Oh, I'm coming in late, sorry
+> >
+> > Anyhow, I was thinking since we agreed this can trigger on some
+> > CONFIG_DEBUG flag, something like
+> >
+> >     /* This is a sleepable region, but use preempt_disable to get debugging
+> >      * for calls that are not allowed to block for OOM [.. insert
+> >      * Michal's explanation.. ] */
+> >     if (IS_ENABLED(CONFIG_DEBUG_ATOMIC_SLEEP) && !mmu_notifier_range_blockable(range))
+> >         preempt_disable();
+> >     ops->invalidate_range_start();
+> 
+> I think we also discussed that, and some expressed concerns it would
+> change behaviour/timing too much for testing. Since this does does
+> disable preemption for real, not just for might_sleep.
 
-Are there conflicts with trees other than hmm?
+I don't follow, this is a debug kernel, it will have widly different
+timing. 
 
-We can put it on a topic branch and merge to hmm to resolve. If hmm
-has problems then send the topic on its own?
+Further the point of this debugging on atomic_sleep is to be as
+timing-independent as possible since functions with rare sleeps should
+be guarded by might_sleep() in their common paths.
+
+I guess I don't get the push to have some low overhead debugging for
+this? Is there something special you are looking for?
 
 Jason
 
