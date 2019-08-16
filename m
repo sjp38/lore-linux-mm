@@ -6,47 +6,48 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32574C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 08:10:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D403C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 08:24:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3847206C2
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 08:10:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3847206C2
+	by mail.kernel.org (Postfix) with ESMTP id 5754120644
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 08:24:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5754120644
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 90A256B0005; Fri, 16 Aug 2019 04:10:34 -0400 (EDT)
+	id C599F6B0007; Fri, 16 Aug 2019 04:24:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8BAB36B0006; Fri, 16 Aug 2019 04:10:34 -0400 (EDT)
+	id C0B406B0008; Fri, 16 Aug 2019 04:24:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D0616B0007; Fri, 16 Aug 2019 04:10:34 -0400 (EDT)
+	id B200E6B000A; Fri, 16 Aug 2019 04:24:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0194.hostedemail.com [216.40.44.194])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA0A6B0005
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 04:10:34 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B7DC6181AC9AE
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:10:33 +0000 (UTC)
-X-FDA: 75827569146.29.coat37_4d895dfe694f
-X-HE-Tag: coat37_4d895dfe694f
-X-Filterd-Recvd-Size: 4590
+Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AF7A6B0007
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 04:24:32 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 3D6826D7A
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:24:32 +0000 (UTC)
+X-FDA: 75827604384.12.bread00_7edbb9247a425
+X-HE-Tag: bread00_7edbb9247a425
+X-Filterd-Recvd-Size: 4315
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:10:33 +0000 (UTC)
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 08:24:31 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 41A16AD20;
-	Fri, 16 Aug 2019 08:10:31 +0000 (UTC)
-Date: Fri, 16 Aug 2019 10:10:29 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 11D2CAFC3;
+	Fri, 16 Aug 2019 08:24:30 +0000 (UTC)
+Date: Fri, 16 Aug 2019 10:24:28 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
 	DRI Development <dri-devel@lists.freedesktop.org>,
 	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
 	Peter Zijlstra <peterz@infradead.org>,
 	Ingo Molnar <mingo@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
 	David Rientjes <rientjes@google.com>,
 	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
@@ -58,21 +59,16 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
 	Randy Dunlap <rdunlap@infradead.org>,
 	Daniel Vetter <daniel.vetter@intel.com>
 Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190816081029.GA27790@dhcp22.suse.cz>
-References: <20190815132127.GI9477@dhcp22.suse.cz>
- <20190815141219.GF21596@ziepe.ca>
- <20190815155950.GN9477@dhcp22.suse.cz>
- <20190815165631.GK21596@ziepe.ca>
- <20190815174207.GR9477@dhcp22.suse.cz>
- <20190815182448.GP21596@ziepe.ca>
- <20190815190525.GS9477@dhcp22.suse.cz>
- <20190815191810.GR21596@ziepe.ca>
- <20190815193526.GT9477@dhcp22.suse.cz>
- <20190815201323.GU21596@ziepe.ca>
+Message-ID: <20190816082428.GB27790@dhcp22.suse.cz>
+References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
+ <20190814202027.18735-3-daniel.vetter@ffwll.ch>
+ <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
+ <20190815084429.GE9477@dhcp22.suse.cz>
+ <20190815151509.9ddbd1f11fb9c4c3e97a67a5@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190815201323.GU21596@ziepe.ca>
+In-Reply-To: <20190815151509.9ddbd1f11fb9c4c3e97a67a5@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -80,82 +76,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 15-08-19 17:13:23, Jason Gunthorpe wrote:
-> On Thu, Aug 15, 2019 at 09:35:26PM +0200, Michal Hocko wrote:
+On Thu 15-08-19 15:15:09, Andrew Morton wrote:
+> On Thu, 15 Aug 2019 10:44:29 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> > > The last detail is I'm still unclear what a GFP flags a blockable
-> > > invalidate_range_start() should use. Is GFP_KERNEL OK?
+> > > I continue to struggle with this.  It introduces a new kernel state
+> > > "running preemptibly but must not call schedule()".  How does this make
+> > > any sense?
+> > > 
+> > > Perhaps a much, much more detailed description of the oom_reaper
+> > > situation would help out.
+> >  
+> > The primary point here is that there is a demand of non blockable mmu
+> > notifiers to be called when the oom reaper tears down the address space.
+> > As the oom reaper is the primary guarantee of the oom handling forward
+> > progress it cannot be blocked on anything that might depend on blockable
+> > memory allocations. These are not really easy to track because they
+> > might be indirect - e.g. notifier blocks on a lock which other context
+> > holds while allocating memory or waiting for a flusher that needs memory
+> > to perform its work. If such a blocking state happens that we can end up
+> > in a silent hang with an unusable machine.
+> > Now we hope for reasonable implementations of mmu notifiers (strong
+> > words I know ;) and this should be relatively simple and effective catch
+> > all tool to detect something suspicious is going on.
 > > 
-> > I hope I will not make this muddy again ;)
-> > invalidate_range_start in the blockable mode can use/depend on any sleepable
-> > allocation allowed in the context it is called from. 
+> > Does that make the situation more clear?
 > 
-> 'in the context is is called from' is the magic phrase, as
-> invalidate_range_start is called while holding several different mm
-> related locks. I know at least write mmap_sem and i_mmap_rwsem
-> (write?)
+> Yes, thanks, much.  Maybe a code comment along the lines of
 > 
-> Can GFP_KERNEL be called while holding those locks?
+>   This is on behalf of the oom reaper, specifically when it is
+>   calling the mmu notifiers.  The problem is that if the notifier were
+>   to block on, for example, mutex_lock() and if the process which holds
+>   that mutex were to perform a sleeping memory allocation, the oom
+>   reaper is now blocked on completion of that memory allocation.
 
-i_mmap_rwsem would be problematic because it is taken during the
-reclaim.
+    reaper is now blocked on completion of that memory allocation
+    and cannot provide the guarantee of the OOM forward progress.
 
-> This is the question of indirect dependency on reclaim via locks you
-> raised earlier.
-> 
-> > So in other words it is no different from any other function in the
-> > kernel that calls into allocator. As the API is missing gfp context
-> > then I hope it is not called from any restricted contexts (except
-> > from the oom which we have !blockable for).
-> 
-> Yes, the callers are exactly my concern.
->  
-> > > Lockdep has
-> > > complained on that in past due to fs_reclaim - how do you know if it
-> > > is a false positive?
-> > 
-> > I would have to see the specific lockdep splat.
-> 
-> See below. I found it when trying to understand why the registration
-> of the mmu notififer was so oddly coded.
-> 
-> The situation was:
-> 
->   down_write(&mm->mmap_sem);
->   mm_take_all_locks(mm);
->   kmalloc(GFP_KERNEL);  <--- lockdep warning
+OK. 
+ 
+> btw, do we need task_struct.non_block_count?  Perhaps the oom reaper
+> thread could set a new PF_NONBLOCK (which would be more general than
+> PF_OOM_REAPER).  If we run out of PF_ flags, use (current == oom_reaper_th).
 
-Ugh. mm_take_all_locks :/
-
-> I understood Daniel said he saw this directly on a recent kernel when
-> working with his lockdep patch?
-> 
-> Checking myself, on todays kernel I see a call chain:
-> 
-> shrink_all_memory
->   fs_reclaim_acquire(sc.gfp_mask);
->   [..]
->   do_try_to_free_pages
->    shrink_zones
->     shrink_node
->      shrink_node_memcg
->       shrink_list
->        shrink_active_list
->         page_referenced
->          rmap_walk
->           rmap_walk_file
->            i_mmap_lock_read
->             down_read(i_mmap_rwsem)
-> 
-> So it is possible that the down_read() above will block on
-> i_mmap_rwsem being held in the caller of invalidate_range_start which
-> is doing kmalloc(GPF_KERNEL).
-> 
-> Is this OK? The lockdep annotation says no..
-
-It's not as per the above code patch which is easily possible because
-mm_take_all_locks will lock all file vmas.
-
+Well, I do not have a strong opinion here. A simple check for the value
+seems to be trivial. There are quite some holes in task_struct to hide
+this counter without increasing the size.
 -- 
 Michal Hocko
 SUSE Labs
