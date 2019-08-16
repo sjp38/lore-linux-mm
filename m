@@ -4,101 +4,178 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 98A96C3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:02:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0308C3A59E
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:14:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4DB0D2133F
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:02:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DB0D2133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id AFF012133F
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 10:14:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFF012133F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 866686B0005; Fri, 16 Aug 2019 06:02:13 -0400 (EDT)
+	id 466E86B0008; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8176C6B0006; Fri, 16 Aug 2019 06:02:13 -0400 (EDT)
+	id 4487E6B000D; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72D186B0007; Fri, 16 Aug 2019 06:02:13 -0400 (EDT)
+	id 32CDF6B000A; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0087.hostedemail.com [216.40.44.87])
-	by kanga.kvack.org (Postfix) with ESMTP id 5006D6B0005
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:02:13 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id AF4C255F84
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:02:12 +0000 (UTC)
-X-FDA: 75827850504.29.head91_6a7c09c3fcf16
-X-HE-Tag: head91_6a7c09c3fcf16
-X-Filterd-Recvd-Size: 2806
-Received: from mailgw02.mediatek.com (unknown [210.61.82.184])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:02:11 +0000 (UTC)
-X-UUID: 0b041ddbb7cf48c9a475ca5cb00b09e1-20190816
-X-UUID: 0b041ddbb7cf48c9a475ca5cb00b09e1-20190816
-Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw02.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 706142265; Fri, 16 Aug 2019 18:02:05 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs06n1.mediatek.inc (172.21.101.129) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Fri, 16 Aug 2019 18:02:05 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Fri, 16 Aug 2019 18:02:07 +0800
-From: Miles Chen <miles.chen@mediatek.com>
-To: Hugh Dickins <hughd@google.com>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>, Miles Chen
-	<miles.chen@mediatek.com>
-Subject: [PATCH] shmem: fix obsolete comment in shmem_getpage_gfp()
-Date: Fri, 16 Aug 2019 18:02:04 +0800
-Message-ID: <20190816100204.9781-1-miles.chen@mediatek.com>
-X-Mailer: git-send-email 2.18.0
+Received: from forelay.hostedemail.com (smtprelay0086.hostedemail.com [216.40.44.86])
+	by kanga.kvack.org (Postfix) with ESMTP id 118A56B0007
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 06:14:09 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id BC88762CA
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:14:08 +0000 (UTC)
+X-FDA: 75827880576.10.shoes94_413ab5da3a414
+X-HE-Tag: shoes94_413ab5da3a414
+X-Filterd-Recvd-Size: 4870
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:14:08 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7AFBEAF30;
+	Fri, 16 Aug 2019 10:14:06 +0000 (UTC)
+From: Vlastimil Babka <vbabka@suse.cz>
+To: linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Matthew Wilcox <willy@infradead.org>,
+	Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 1/3] mm, page_owner: record page owner for each subpage
+Date: Fri, 16 Aug 2019 12:13:59 +0200
+Message-Id: <20190816101401.32382-2-vbabka@suse.cz>
+X-Mailer: git-send-email 2.22.0
+In-Reply-To: <20190816101401.32382-1-vbabka@suse.cz>
+References: <20190816101401.32382-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-MTK: N
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+Content-Transfer-Encoding: quoted-printable
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Replace "fault_mm" with "vmf" in code comment
-because the commit cfda05267f7b ("userfaultfd: shmem: add userfaultfd
-hook for shared memory faults") has changed the prototpye of
-shmem_getpage_gfp() - pass vmf instead of fault_mm to the function.
+Currently, page owner info is only recorded for the first page of a high-=
+order
+allocation, and copied to tail pages in the event of a split page. With t=
+he
+plan to keep previous owner info after freeing the page, it would be bene=
+fical
+to record page owner for each subpage upon allocation. This increases the
+overhead for high orders, but that should be acceptable for a debugging o=
+ption.
 
-Before:
-static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp,
-		gfp_t gfp, struct mm_struct *fault_mm, int *fault_type);
-After:
-static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp,
-		gfp_t gfp, struct vm_area_struct *vma,
-		struct vm_fault *vmf, vm_fault_t *fault_type);
+The order stored for each subpage is the order of the whole allocation. T=
+his
+makes it possible to calculate the "head" pfn and to recognize "tail" pag=
+es
+(quoted because not all high-order allocations are compound pages with tr=
+ue
+head and tail pages). When reading the page_owner debugfs file, keep skip=
+ping
+the "tail" pages so that stats gathered by existing scripts don't get inf=
+lated.
 
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/shmem.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_owner.c | 40 ++++++++++++++++++++++++++++------------
+ 1 file changed, 28 insertions(+), 12 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2bed4761f279..fed9ebea316c 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1719,7 +1719,7 @@ static int shmem_swapin_page(struct inode *inode, pgoff_t index,
-  * vm. If we swap it in we mark it dirty since we also free the swap
-  * entry since a page cannot live in both the swap and page cache.
-  *
-- * fault_mm and fault_type are only supplied by shmem_fault:
-+ * vmf and fault_type are only supplied by shmem_fault:
-  * otherwise they are NULL.
-  */
- static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
--- 
-2.18.0
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index addcbb2ae4e4..813fcb70547b 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -154,18 +154,23 @@ static noinline depot_stack_handle_t save_stack(gfp=
+_t flags)
+ 	return handle;
+ }
+=20
+-static inline void __set_page_owner_handle(struct page_ext *page_ext,
+-	depot_stack_handle_t handle, unsigned int order, gfp_t gfp_mask)
++static inline void __set_page_owner_handle(struct page *page,
++	struct page_ext *page_ext, depot_stack_handle_t handle,
++	unsigned int order, gfp_t gfp_mask)
+ {
+ 	struct page_owner *page_owner;
++	int i;
+=20
+-	page_owner =3D get_page_owner(page_ext);
+-	page_owner->handle =3D handle;
+-	page_owner->order =3D order;
+-	page_owner->gfp_mask =3D gfp_mask;
+-	page_owner->last_migrate_reason =3D -1;
++	for (i =3D 0; i < (1 << order); i++) {
++		page_owner =3D get_page_owner(page_ext);
++		page_owner->handle =3D handle;
++		page_owner->order =3D order;
++		page_owner->gfp_mask =3D gfp_mask;
++		page_owner->last_migrate_reason =3D -1;
++		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+=20
+-	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
++		page_ext =3D lookup_page_ext(page + i);
++	}
+ }
+=20
+ noinline void __set_page_owner(struct page *page, unsigned int order,
+@@ -178,7 +183,7 @@ noinline void __set_page_owner(struct page *page, uns=
+igned int order,
+ 		return;
+=20
+ 	handle =3D save_stack(gfp_mask);
+-	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
++	__set_page_owner_handle(page, page_ext, handle, order, gfp_mask);
+ }
+=20
+ void __set_page_owner_migrate_reason(struct page *page, int reason)
+@@ -204,8 +209,11 @@ void __split_page_owner(struct page *page, unsigned =
+int order)
+=20
+ 	page_owner =3D get_page_owner(page_ext);
+ 	page_owner->order =3D 0;
+-	for (i =3D 1; i < (1 << order); i++)
+-		__copy_page_owner(page, page + i);
++	for (i =3D 1; i < (1 << order); i++) {
++		page_ext =3D lookup_page_ext(page + i);
++		page_owner =3D get_page_owner(page_ext);
++		page_owner->order =3D 0;
++	}
+ }
+=20
+ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+@@ -483,6 +491,13 @@ read_page_owner(struct file *file, char __user *buf,=
+ size_t count, loff_t *ppos)
+=20
+ 		page_owner =3D get_page_owner(page_ext);
+=20
++		/*
++		 * Don't print "tail" pages of high-order allocations as that
++		 * would inflate the stats.
++		 */
++		if (!IS_ALIGNED(pfn, 1 << page_owner->order))
++			continue;
++
+ 		/*
+ 		 * Access to page_ext->handle isn't synchronous so we should
+ 		 * be careful to access it.
+@@ -562,7 +577,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, stru=
+ct zone *zone)
+ 				continue;
+=20
+ 			/* Found early allocated page */
+-			__set_page_owner_handle(page_ext, early_handle, 0, 0);
++			__set_page_owner_handle(page, page_ext, early_handle,
++						0, 0);
+ 			count++;
+ 		}
+ 		cond_resched();
+--=20
+2.22.0
 
 
