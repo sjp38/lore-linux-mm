@@ -2,237 +2,227 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D267EC3A59E
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 19:05:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06BB1C41514
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 19:19:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 960602171F
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 19:05:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 960602171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 911812171F
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 19:19:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="gxEPt1uo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 911812171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 289F56B0008; Fri, 16 Aug 2019 15:05:33 -0400 (EDT)
+	id D7B376B0008; Fri, 16 Aug 2019 15:19:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23A4F6B000A; Fri, 16 Aug 2019 15:05:33 -0400 (EDT)
+	id D2BD96B000A; Fri, 16 Aug 2019 15:19:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 128786B000C; Fri, 16 Aug 2019 15:05:33 -0400 (EDT)
+	id BF2AE6B000C; Fri, 16 Aug 2019 15:19:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0147.hostedemail.com [216.40.44.147])
-	by kanga.kvack.org (Postfix) with ESMTP id E6AC56B0008
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:05:32 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 940791254
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 19:05:32 +0000 (UTC)
-X-FDA: 75829219704.19.bell32_30380aae97905
-X-HE-Tag: bell32_30380aae97905
-X-Filterd-Recvd-Size: 9494
-Received: from mga11.intel.com (mga11.intel.com [192.55.52.93])
+Received: from forelay.hostedemail.com (smtprelay0223.hostedemail.com [216.40.44.223])
+	by kanga.kvack.org (Postfix) with ESMTP id 994476B0008
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 15:19:33 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 3F5FB8248AD6
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 19:19:33 +0000 (UTC)
+X-FDA: 75829255026.30.tray77_191f8d38b9b29
+X-HE-Tag: tray77_191f8d38b9b29
+X-Filterd-Recvd-Size: 9293
+Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
 	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 19:05:31 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Aug 2019 12:05:29 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,394,1559545200"; 
-   d="scan'208";a="201624636"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga004.fm.intel.com with ESMTP; 16 Aug 2019 12:05:28 -0700
-Date: Fri, 16 Aug 2019 12:05:28 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
-	linux-ext4@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190814101714.GA26273@quack2.suse.cz>
- <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
- <20190815130558.GF14313@quack2.suse.cz>
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 19:19:32 +0000 (UTC)
+Received: by mail-ed1-f68.google.com with SMTP id a21so6018820edt.11
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 12:19:32 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3jF3dCb2clsfRC1m94tcLbnSszpxa5sBshy2qiTh8jg=;
+        b=gxEPt1uocQDpIezjyohy2qto3E8gIiDnEHN32P3VqscpBrrNMwtA3BtMF3s++tzJxq
+         6kgB6+aBZI1uAPe20Dd93//Rou1NZFSa+MlWea7a4apfw6OU+WNkDTTxBkPNID2GHATe
+         t42yFyoLnXCko8curvYSSF1lf9tSApzuS5XLuzSVHL9RU+7/PgPybAIRNb6GRoBqh9Q9
+         KP9CSr87IGrsAbI+1alnAZVLaVXDAH3e9VQ9vu7x04WDBbFucF0TwGDhQspBGA4nRKhj
+         45N8ABX3JDmEvTNT0c2XvkyGQESg+VonUAvhTVD8r9TF95vOAVrW+WProjVr0iUCAO/2
+         7GUQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=3jF3dCb2clsfRC1m94tcLbnSszpxa5sBshy2qiTh8jg=;
+        b=J5PrDkIPVqevIrszsR3Ozur1gb1kaSB7lccNHjkzU+41xMKpdivP/uRzrUXuIcroRB
+         SIT2ebwowjtpmhjCLzch967F8GS7PGEy6i1h18hwEZIVQvl4ms6F6C3XA7dcc1Gi7B3B
+         wx/P0k6nnTIrg+7mFV5iEf6lJkbokwA+/av1gzcbl0uwYfyZwp+coQHY+VJXt+tGcYYn
+         znZa70FKSUJ8XDJoIVdBT/D4cNAEzLmQ93JMi/bHWa/W4agFp2hSH4H/Ywjf6o1Tdup2
+         /oCENMxa0/LnnBsbCLwllUwnSaahsIUXpDqO2Lyv+0KZ4oj/m/c66AtuJeKUDveKLN3v
+         YimA==
+X-Gm-Message-State: APjAAAXggHUw2PxkJk4tCPP10zQDkbL4O8HG6jNjkcwQNqo4zy6zGKPo
+	UNKdJuuks1NHNBJwSJeFHD0UurltCQ7KmkAxQax2IA==
+X-Google-Smtp-Source: APXvYqxtnJ7RnETBEd87ybXfkvbUZMocGjLwMeZ0V/1j7afCA1u9g/f9Sqry1klH6iFYLjEc8dWocaje0P2sPtZ57pc=
+X-Received: by 2002:a17:906:1112:: with SMTP id h18mr10882905eja.165.1565983171200;
+ Fri, 16 Aug 2019 12:19:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815130558.GF14313@quack2.suse.cz>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
+ <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+ <ba8a2519-ed95-2518-d0e8-66e8e0c14ff5@arm.com> <CA+CK2bAqBi43Cchr=md7EPRuEWH-iuToK0PxN3ysSBQ42Hd0-g@mail.gmail.com>
+ <746ceee3-43a7-231d-b2f6-0991a4148a28@arm.com>
+In-Reply-To: <746ceee3-43a7-231d-b2f6-0991a4148a28@arm.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Fri, 16 Aug 2019 15:19:20 -0400
+Message-ID: <CA+CK2bAEFU2s5v9seo4Y_5M0WLp0PCQGAZ=ovgO855jR7zDSwg@mail.gmail.com>
+Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
+To: James Morse <james.morse@arm.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
+	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, 
+	Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
+	Vladimir Murzin <vladimir.murzin@arm.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
+	Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 03:05:58PM +0200, Jan Kara wrote:
-> On Wed 14-08-19 11:08:49, Ira Weiny wrote:
-> > On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
-> > > Hello!
-> > > 
-> > > On Fri 09-08-19 15:58:14, ira.weiny@intel.com wrote:
-> > > > Pre-requisites
-> > > > ==============
-> > > > 	Based on mmotm tree.
-> > > > 
-> > > > Based on the feedback from LSFmm, the LWN article, the RFC series since
-> > > > then, and a ton of scenarios I've worked in my mind and/or tested...[1]
-> > > > 
-> > > > Solution summary
-> > > > ================
-> > > > 
-> > > > The real issue is that there is no use case for a user to have RDMA pinn'ed
-> > > > memory which is then truncated.  So really any solution we present which:
-> > > > 
-> > > > A) Prevents file system corruption or data leaks
-> > > > ...and...
-> > > > B) Informs the user that they did something wrong
-> > > > 
-> > > > Should be an acceptable solution.
-> > > > 
-> > > > Because this is slightly new behavior.  And because this is going to be
-> > > > specific to DAX (because of the lack of a page cache) we have made the user
-> > > > "opt in" to this behavior.
-> > > > 
-> > > > The following patches implement the following solution.
-> > > > 
-> > > > 0) Registrations to Device DAX char devs are not affected
-> > > > 
-> > > > 1) The user has to opt in to allowing page pins on a file with an exclusive
-> > > >    layout lease.  Both exclusive and layout lease flags are user visible now.
-> > > > 
-> > > > 2) page pins will fail if the lease is not active when the file back page is
-> > > >    encountered.
-> > > > 
-> > > > 3) Any truncate or hole punch operation on a pinned DAX page will fail.
-> > > 
-> > > So I didn't fully grok the patch set yet but by "pinned DAX page" do you
-> > > mean a page which has corresponding file_pin covering it? Or do you mean a
-> > > page which has pincount increased? If the first then I'd rephrase this to
-> > > be less ambiguous, if the second then I think it is wrong. 
-> > 
-> > I mean the second.  but by "fail" I mean hang.  Right now the "normal" page
-> > pincount processing will hang the truncate.  Given the discussion with John H
-> > we can make this a bit better if we use something like FOLL_PIN and the page
-> > count bias to indicate this type of pin.  Then I could fail the truncate
-> > outright.  but that is not done yet.
-> > 
-> > so... I used the word "fail" to be a bit more vague as the final implementation
-> > may return ETXTBUSY or hang as noted.
-> 
-> Ah, OK. Hanging is fine in principle but with longterm pins, your work
-> makes sure they actually fail with ETXTBUSY, doesn't it? The thing is that
-> e.g. DIO will use page pins as well for its buffers and we must wait there
-> until the pin is released. So please just clarify your 'fail' here a bit
-> :).
+Hi James,
 
-It will fail with ETXTBSY.  I've fixed a bug...  See below.
+Thank you for your feedback, my replies below:
 
-> 
-> > > > 4) The user has the option of holding the lease or releasing it.  If they
-> > > >    release it no other pin calls will work on the file.
-> > > 
-> > > Last time we spoke the plan was that the lease is kept while the pages are
-> > > pinned (and an attempt to release the lease would block until the pages are
-> > > unpinned). That also makes it clear that the *lease* is what is making
-> > > truncate and hole punch fail with ETXTBUSY and the file_pin structure is
-> > > just an implementation detail how the existence is efficiently tracked (and
-> > > what keeps the backing file for the pages open so that the lease does not
-> > > get auto-destroyed). Why did you change this?
-> > 
-> > closing the file _and_ unmaping it will cause the lease to be released
-> > regardless of if we allow this or not.
-> > 
-> > As we discussed preventing the close seemed intractable.
-> 
-> Yes, preventing the application from closing the file is difficult. But
-> from a quick look at your patches it seemed to me that you actually hold a
-> backing file reference from the file_pin structure thus even though the
-> application closes its file descriptor, the struct file (and thus the
-> lease) lives further until the file_pin gets released. And that should last
-> as long as the pages are pinned. Am I missing something?
-> 
-> > I thought about failing the munmap but that seemed wrong as well.  But more
-> > importantly AFAIK RDMA can pass its memory pins to other processes via FD
-> > passing...  This means that one could pin this memory, pass it to another
-> > process and exit.  The file lease on the pin'ed file is lost.
-> 
-> Not if file_pin grabs struct file reference as I mentioned above...
->  
-> > The file lease is just a key to get the memory pin.  Once unlocked the procfs
-> > tracking keeps track of where that pin goes and which processes need to be
-> > killed to get rid of it.
-> 
-> I think having file lease being just a key to get the pin is conceptually
-> wrong. The lease is what expresses: "I'm accessing these blocks directly,
-> don't touch them without coordinating with me." So it would be only natural
-> if we maintained the lease while we are accessing blocks instead of
-> transferring this protection responsibility to another structure - namely
-> file_pin - and letting the lease go.
+> > It is not really an all-new implementation of hibernate (for kexec it
+> > is true though). I used the current implementation of hibernate as
+> > bases, and simply generalized the functions by providing a flexible
+> > interface. So what you are asking is actually exactly what I am doing.
+>
+> I disagree. The resume page-table code is the bulk of the complexity in hibernate.c. Your
+> first patch dumps ~200 lines of differently-complex code, and your second switches
+> hibernate over to it.
 
-We do transfer that protection to the file_pin but we don't have to "let the
-lease" go.  We just keep the lease with the file_pin as you said.  See below...
+OK, I will make the change incremental.
 
-> But maybe I miss some technical reason
-> why maintaining file lease is difficult. If that's the case, I'd like to hear
-> what...
+>
+> Instead, please move that code, keeping it as it is. git will spot the move, and the
+> generated diffstat should only reflect the build-system changes. You don't need to 'switch
+> hibernate to transitional page tables.'
+>
+> Adding kexec will then show-up what needs changing, each change comes with a commit
+> message explaining why. Having these as 'generalisations' in the first patch is a mess.
 
-Ok, I've thought a bit about what you said and indeed it should work that way.
-The reason I had to think a bit is that I was not sure why I thought we needed
-to hang...  Turns out there were a couple of reasons...  1 not so good and 1 ok
-but still not good enough to allow this...
+Makes sense, I will fix it.
 
-1) I had a bug in the XFS code which should have failed rather than hanging...
-   So this was not a good reason...  And I was able to find/fix it...  Thanks!
+>
+> There is existing code that we don't want to break. Any changes need to be done as a
+> sequence of small incremental changes. It can't be reviewed any other way.
+>
+>
+> > I realize, that I introduced a bug that I will fix.
+>
+> Done as a sequence of small incremental changes, I could bisect it to the patch that
+> introduces the bug, and probably fix it from the description in the commit message.
 
-2) Second reason is that I thought I did not have a good way to tell if the
-   lease was actually in use.  What I mean is that letting the lease go should
-   be ok IFF we don't have any pins...  I was thinking that without John's code
-   we don't have a way to know if there are any pins...  But that is wrong...
-   All we have to do is check
+BTW, I root caused it, there were two trivial errors:
+1. In "arm64, mm: transitional tables"
+int i = pgd_index(addr);
+In trans_table_copy_*:
+should be: pte_index(), pmd_index(), pud_index(), accordingly.
+2. In trans_table_create_copy()
+pgd_offset_k(PAGE_OFFSET) should be: mm_init.pgd
 
-	!list_empty(file->file_pins)
+> >> It looks like you are creating the page tables just after the kexec:segments have been
+> >> loaded. This will go horribly wrong if anything changes between then and kexec time. (e.g.
+> >> memory you've got mapped gets hot-removed).
+> >> This needs to be done as late as possible, so we don't waste memory, and the world can't
+> >> change around us. Reboot notifiers run before kexec, can't we do the memory-allocation there?
+>
+> > Kexec by design does not allow allocate during kexec time. This is
+> > because we cannot fail during kexec syscall.
+>
+> This problem needs solving.
+>
+> | Reboot notifiers run before kexec, can't we do the memory-allocation there?
+>
+>
+> > All allocations must be done during kexec load time.
+>
+> This increases the memory footprint. I don't think we should waste ~2MB per GB of kernel
+> memory on this feature. (Assuming 4K pages and rodata_full)
+>
+> Another option is to allocate this memory at load time, but then free it so it can be used
+> in the meantime. You can keep the list of allocated pfn, as we know they aren't in use by
+> the running kernel, kexec metadata, loaded images etc.
 
-So now with this detail I think you are right, we should be able to hold the
-lease through the struct file even if the process no longer has any
-"references" to it (ie closes and munmaps the file).
+This is until a new kernel module is loaded, I do not think this is safe to do.
 
-I'm going to add a patch to fail releasing the lease and remove this (item 4)
-as part of the overall solution.
+In my opinion 2M per 1 GB is a fair trade off for a faster kexec
+performance. Unlike with crash kexec for which we do not add any
+memory useage, the kernel does not have to be all the time in memory,
+but can be loaded by user before reboot. If machine is so scare on
+memory resources that 2M per 1G matters, user simply won't keep new
+kernel in memory until it is actually needed.
 
->  
-> > > > 5) Closing the file is ok.
-> > > > 
-> > > > 6) Unmapping the file is ok
-> > > > 
-> > > > 7) Pins against the files are tracked back to an owning file or an owning mm
-> > > >    depending on the internal subsystem needs.  With RDMA there is an owning
-> > > >    file which is related to the pined file.
-> > > > 
-> > > > 8) Only RDMA is currently supported
-> > > 
-> > > If you currently only need "owning file" variant in your patch set, then
-> > > I'd just implement that and leave "owning mm" variant for later if it
-> > > proves to be necessary. The things are complex enough as is...
-> > 
-> > I can do that...  I was trying to get io_uring working as well with the
-> > owning_mm but I should save that for later.
-> 
-> Ah, OK. Yes, I guess io_uring can be next step.
+>
+> Memory hotplug would need handling carefully, as would anything that 'donates' memory to
+> another agent. (I suspect the TEE stuff does this, I don't know how it interacts with kexec)
+>
+>
+> > Kernel memory cannot be hot-removed, as
+> > it is not part of ZONE_MOVABLE, and cannot be migrated.
+>
+> Today, yes. Tomorrow?, "arm64/mm: Enable memory hot remove":
+> https://lore.kernel.org/r/1563171470-3117-1-git-send-email-anshuman.khandual@arm.com
 
-FWIW I have split the mm_struct stuff out.  I can keep it as a follow on series
-for other users later.  At this point I have to solve the issue Jason brought
-up WRT the RDMA file reference counting.
+I understand that ARM64 is about to get hot-remove feature, but what I
+am saying is that my feature does not introduce new problem because
+the current kexec code assumes that kernel memory is not movable
+(array of sparse physical source dest addresses in kimage->head). It
+is possible to offline and hot-remove only memory that can be freed by
+page migration, the pages that were allocated for kexec kernel are not
+one of them.
 
-Thanks!
-Ira
+> >>>> Previously:
+> >>>> kernel shutdown 0.022131328s
+> >>>> relocation      0.440510736s
+> >>>> kernel startup  0.294706768s
+> >>>>
+> >>>> Relocation was taking: 58.2% of reboot time
+> >>>>
+> >>>> Now:
+> >>>> kernel shutdown 0.032066576s
+> >>>> relocation      0.022158152s
+> >>>> kernel startup  0.296055880s
+> >>>>
+> >>>> Now: Relocation takes 6.3% of reboot time
+> >>>>
+> >>>> Total reboot is x2.16 times faster.
+> >>
+> >> When I first saw these numbers they were ~'0.29s', which I wrongly assumed was 29 seconds.
+> >> Savings in milliseconds, for _reboot_ is a hard sell. I'm hoping that on the machines that
+> >> take minutes to kexec we'll get numbers that make this change more convincing.
+>
+> > Sure, this userland is very small kernel+userland is only 47M. Here is
+> > another data point: fitImage: 380M, it contains a larger userland.
+> > The numbers for kernel shutdown and startup are the same as this is
+> > the same kernel, but relocation takes: 3.58s
+> > shutdown: 0.02s
+> > relocation: 3.58s
+> > startup:  0.30s
+> >
+> > Relocation take 88% of reboot time. And, we must have it under one second.
+>
+> Where does this one second number come from? (was it ever a reasonable starting point?)
 
+Currently we have two fitImages for this system in development: one
+that has a bare minimal userland, only ~40 packages, and another has a
+more complete userland. So, my first experiment shows the data from
+this first bare minimum ftImage, the second experiment from the second
+more complete fitImage. As I stated in cover letter, kexec time is
+proportional to the size of the image and this series fixes this
+scalability issue by making relocation  ~20 times faster.
+
+Pasha
 
