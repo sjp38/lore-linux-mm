@@ -2,517 +2,121 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FABFC3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 13:55:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB896C3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 14:04:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE13F206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 13:55:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE13F206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id AAF7A206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 14:04:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="YnSjsjmq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAF7A206C1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FE076B0005; Fri, 16 Aug 2019 09:55:33 -0400 (EDT)
+	id 36BF36B0005; Fri, 16 Aug 2019 10:04:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 287886B0006; Fri, 16 Aug 2019 09:55:33 -0400 (EDT)
+	id 31D466B0006; Fri, 16 Aug 2019 10:04:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 175B36B0007; Fri, 16 Aug 2019 09:55:33 -0400 (EDT)
+	id 20AF46B0007; Fri, 16 Aug 2019 10:04:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
-	by kanga.kvack.org (Postfix) with ESMTP id E83F26B0005
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 09:55:32 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 987B8180AD809
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:55:32 +0000 (UTC)
-X-FDA: 75828438504.19.tax32_6a3e32bb82202
-X-HE-Tag: tax32_6a3e32bb82202
-X-Filterd-Recvd-Size: 13828
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:55:29 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 92EBB344;
-	Fri, 16 Aug 2019 06:55:28 -0700 (PDT)
-Received: from arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 062AD3F694;
-	Fri, 16 Aug 2019 06:55:24 -0700 (PDT)
-Date: Fri, 16 Aug 2019 14:55:22 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Subject: Re: [PATCH v8 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-Message-ID: <20190816135520.GN10425@arm.com>
-References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
- <20190813205225.12032-23-yu-cheng.yu@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0031.hostedemail.com [216.40.44.31])
+	by kanga.kvack.org (Postfix) with ESMTP id EEC616B0005
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:04:33 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 920038780
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:04:33 +0000 (UTC)
+X-FDA: 75828461226.27.goose96_27bb74365f419
+X-HE-Tag: goose96_27bb74365f419
+X-Filterd-Recvd-Size: 4522
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 14:04:32 +0000 (UTC)
+Received: by mail-ed1-f67.google.com with SMTP id h13so5199016edq.10
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 07:04:32 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=j/6BPKwgYdq3kl7X0DqLCdZOmgeTKbt4kEmnV+oeC6I=;
+        b=YnSjsjmqORHGTHdLdT4KBnuh8v3t5NbxdxRxz3vfItQsLFguH8BIUURBkKImiy3fc+
+         QKMSsp4mKy1//EDwlszPaGY31GZAyFNdG4ssiVrhdszq9NlYgjlosyognbxKAcI3ilra
+         N/JfIZ8yhEgylnIyMvpv1wmwtlDBvAcfCtiYWfk9USKXRvvTP0EkR6dYW7QHIP0dfzBb
+         A0ac3u0A4PJ8TfFimtt9BL7EOajczxJ2XfDozJdP3e/pu3EntdUyw/HNezq23EFggd7A
+         +83PyOi1icjBaMtvayv/2K09oVZtJ3h4iUj0aHkVaDkYwd3Nk/aXrAwbLxEvTQlhoJRU
+         djfQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=j/6BPKwgYdq3kl7X0DqLCdZOmgeTKbt4kEmnV+oeC6I=;
+        b=J4PsaWMvAfiLff73zTkWpKfNHWNJIMEd/30WEK8mYxlchwN+wTcGQDrbWdAhyaU//y
+         YJ3j9KrWiZKZZcVO5QBE/q1SGfFDxMAvByPMPYUJabZIj9XUNKpRdwGYfIf8ych+tQyM
+         +EjB4eXpNSyUi5dSTofikmg0AsI9axwEyBDJAHH3Nu+rdPPOG05RiXofrJCuo3ftFRm+
+         27dEUHPdLw+J+buceu3ByL8fgM5ucz/gEZs3DssIfjqudB2ijWYqDjvXPe2X/HRU7K+6
+         vU+sL1jhOzo1mBRPnJY1DsJ2YYH1LYBl7Cw516kQ+MJkfQh0sLZPCMS9PqWg2v03KMCt
+         318w==
+X-Gm-Message-State: APjAAAUUvZWFUZCckKoE4Al9tAnvNd4fl6VyLGMbFewKQZkVzlEPMSZ4
+	scRsd/+s/11Sjkzptmkq6ri8dg==
+X-Google-Smtp-Source: APXvYqwqdMEG9G2Oq0aACS617rRtH166b9AKeywrjTiPb1fssPssuw3ekoGQZcKpFtGVZiXPMI46Rg==
+X-Received: by 2002:a50:e8c5:: with SMTP id l5mr11205255edn.120.1565964271580;
+        Fri, 16 Aug 2019 07:04:31 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id gz5sm829374ejb.21.2019.08.16.07.04.30
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Aug 2019 07:04:30 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 263B710490E; Fri, 16 Aug 2019 17:04:30 +0300 (+03)
+Date: Fri, 16 Aug 2019 17:04:30 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/3] mm, page_owner: record page owner for each subpage
+Message-ID: <20190816140430.aoya6k7qxxrls72h@box>
+References: <20190816101401.32382-1-vbabka@suse.cz>
+ <20190816101401.32382-2-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190813205225.12032-23-yu-cheng.yu@intel.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <20190816101401.32382-2-vbabka@suse.cz>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 01:52:20PM -0700, Yu-cheng Yu wrote:
-> An ELF file's .note.gnu.property indicates features the executable file
-> can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
-> indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
-> GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+On Fri, Aug 16, 2019 at 12:13:59PM +0200, Vlastimil Babka wrote:
+> Currently, page owner info is only recorded for the first page of a high-order
+> allocation, and copied to tail pages in the event of a split page. With the
+> plan to keep previous owner info after freeing the page, it would be benefical
+> to record page owner for each subpage upon allocation. This increases the
+> overhead for high orders, but that should be acceptable for a debugging option.
 > 
-> With this patch, if an arch needs to setup features from ELF properties,
-> it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and specific
-> arch_parse_property() and arch_setup_property().
+> The order stored for each subpage is the order of the whole allocation. This
+> makes it possible to calculate the "head" pfn and to recognize "tail" pages
+> (quoted because not all high-order allocations are compound pages with true
+> head and tail pages). When reading the page_owner debugfs file, keep skipping
+> the "tail" pages so that stats gathered by existing scripts don't get inflated.
 > 
-> For example, for X86_64:
-> 
-> int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
-> {
-> 	int r;
-> 	uint32_t property;
-> 
-> 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
-> 			     &property);
-> 	...
-> }
-> 
-> This patch is derived from code provided by H.J. Lu <hjl.tools@gmail.com>.
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-This is a nice simplification over the previous version, but I'm still
-wondering whether it would be better to follow others folks' suggestions
-and simply iterate over all the properties found, calling an arch
-function for each note that the core doesn't care about.
+Hm. That's all reasonable, but I have a question: do you see how page
+owner thing works for THP now?
 
-Something like the following pseudocode:
+I don't see anything in split_huge_page() path (do not confuse it with
+split_page() path) that would copy the information to tail pages. Do you?
 
-include/x86/elf.h:
-	int arch_elf_property(p)
-	{
-		if (p->pr_type == GNU_PROPERTY_X86_FEATURE_1_AND)
-			return elf_property_x86_feature_1_and(p);
-		else
-			return 0;
-	}
-
-binfmt_elf.c:
-	while (p = find next property)
-		arch_elf_property(p);
-
-
-This would also be more efficient when more than one property needs to
-be extracted, since it ensures the file is only read once.
-
-Anyway, comments below...
-
-> 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  fs/Kconfig.binfmt        |   3 +
->  fs/Makefile              |   1 +
->  fs/binfmt_elf.c          |  20 +++++
->  fs/gnu_property.c        | 178 +++++++++++++++++++++++++++++++++++++++
->  include/linux/elf.h      |  11 +++
->  include/uapi/linux/elf.h |  14 +++
->  6 files changed, 227 insertions(+)
->  create mode 100644 fs/gnu_property.c
-> 
-> diff --git a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
-> index 62dc4f577ba1..d2cfe0729a73 100644
-> --- a/fs/Kconfig.binfmt
-> +++ b/fs/Kconfig.binfmt
-> @@ -36,6 +36,9 @@ config COMPAT_BINFMT_ELF
->  config ARCH_BINFMT_ELF_STATE
->  	bool
->  
-> +config ARCH_USE_GNU_PROPERTY
-> +	bool
-> +
->  config BINFMT_ELF_FDPIC
->  	bool "Kernel support for FDPIC ELF binaries"
->  	default y if !BINFMT_ELF
-> diff --git a/fs/Makefile b/fs/Makefile
-> index d60089fd689b..939b1eb7e8cc 100644
-> --- a/fs/Makefile
-> +++ b/fs/Makefile
-> @@ -44,6 +44,7 @@ obj-$(CONFIG_BINFMT_ELF)	+= binfmt_elf.o
->  obj-$(CONFIG_COMPAT_BINFMT_ELF)	+= compat_binfmt_elf.o
->  obj-$(CONFIG_BINFMT_ELF_FDPIC)	+= binfmt_elf_fdpic.o
->  obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
-> +obj-$(CONFIG_ARCH_USE_GNU_PROPERTY) += gnu_property.o
->  
->  obj-$(CONFIG_FS_MBCACHE)	+= mbcache.o
->  obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o
-> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-> index d4e11b2e04f6..a4e87fcb10a8 100644
-> --- a/fs/binfmt_elf.c
-> +++ b/fs/binfmt_elf.c
-> @@ -852,6 +852,21 @@ static int load_elf_binary(struct linux_binprm *bprm)
->  			}
->  	}
->  
-> +	if (interpreter) {
-> +		retval = arch_parse_property(&loc->interp_elf_ex,
-> +					     interp_elf_phdata,
-> +					     interpreter, true,
-> +					     &arch_state);
-> +	} else {
-> +		retval = arch_parse_property(&loc->elf_ex,
-> +					     elf_phdata,
-> +					     bprm->file, false,
-> +					     &arch_state);
-> +	}
-> +
-> +	if (retval)
-> +		goto out_free_dentry;
-> +
->  	/*
->  	 * Allow arch code to reject the ELF at this point, whilst it's
->  	 * still possible to return an error to the code that invoked
-> @@ -1080,6 +1095,11 @@ static int load_elf_binary(struct linux_binprm *bprm)
->  		goto out_free_dentry;
->  	}
->  
-> +	retval = arch_setup_property(&arch_state);
-> +
-> +	if (retval < 0)
-> +		goto out_free_dentry;
-> +
->  	if (interpreter) {
->  		unsigned long interp_map_addr = 0;
->  
-> diff --git a/fs/gnu_property.c b/fs/gnu_property.c
-> new file mode 100644
-> index 000000000000..b22b43f4d6a0
-> --- /dev/null
-> +++ b/fs/gnu_property.c
-> @@ -0,0 +1,178 @@
-> +/* SPDX-License-Identifier: GPL-2.0-only */
-> +/*
-> + * Extract an ELF file's .note.gnu.property.
-> + *
-> + * The path from the ELF header to .note.gnu.property is:
-> + *	elfhdr->elf_phdr->elf_note.
-> + *
-> + * .note.gnu.property layout:
-> + *
-> + *	struct elf_note {
-> + *		u32 n_namesz; --> sizeof(n_name[]); always (4)
-> + *		u32 n_ndescsz;--> sizeof(property[])
-> + *		u32 n_type;   --> always NT_GNU_PROPERTY_TYPE_0 (5)
-> + *	};
-> + *	char n_name[4]; --> always 'GNU\0'
-> + *
-> + *	struct {
-> + *		struct gnu_property {
-> + *			u32 pr_type;
-> + *			u32 pr_datasz;
-> + *		};
-> + *		u8 pr_data[pr_datasz];
-> + *	}[];
-> + */
-
-Do we need all this comment?  We already have Elf{32,64}_Nhdr and
-struct gnu_property in <uapi/elf.h>.
-
-> +
-> +#include <linux/elf.h>
-> +#include <linux/slab.h>
-> +#include <linux/fs.h>
-> +#include <linux/string.h>
-> +#include <linux/compat.h>
-> +
-> +/*
-> + * Search a note's payload for 'pr_type'.
-> + */
-> +static int check_note_payload(void *buf, unsigned long len, u32 pr_type,
-> +			      u32 *property)
-> +{
-> +	u32 pr_type_max = 0;
-> +
-> +	*property = 0;
-> +
-> +	while (len > 0) {
-> +		struct gnu_property *pr = buf;
-> +		unsigned long pr_len;
-> +
-> +		if (sizeof(*pr) > len)
-
-checkpatch? (space required between sizeof and "(")
-
-> +			return 0;
-
-Shouldn't this be an error?
-I'd have thought we should return 0 only if the property is found.
-
-> +
-> +		pr_len = sizeof(*pr) + pr->pr_datasz;
-
-Overflow?
-
-> +
-> +		if (pr_len > len)
-> +			return -ENOEXEC;
-
-These seem to be the same class of error, i.e., trailing garbage in the
-note, so why don't we return the same thing in both cases?
-
-Maybe
-
-	if (sizeof (*pr) > len ||
-	    pr->pr_datasz > len - sizeof (*pr))
-		return -ENOEXEC;
-
-	pr_len = sizeof (*pr) + pr->pr_datasz;
-
-> +		/* property types are in ascending order */
-> +		if ((pr_type_max != 0) && (pr->pr_type > pr_type_max))
-> +			return 0;
-
-Redundant ().  The first part of the condition may be redundant too.
-We also don't check for pr->pr_type == pr_type_max (which is presume
-is also not supposed to happen).
-
-Do we really need to check this anyway?  I presume this rule is only in
-the spec to facilitate binary search (which the spec then defeats by
-having a variable property size).
-
-If we consider the ELF file invalid when this check fails, shouldn't
-this be -ENOEXEC?
-
-> +		if (pr->pr_type > pr_type)
-> +			return 0;
-> +
-> +		if ((pr->pr_type == pr_type) &&
-> +		    (pr->pr_datasz >= sizeof(u32))) {
-> +			*property = *(u32 *)(buf + sizeof(*pr));
-> +			return 0;
-> +		}
-
-Shouldn't pr->pr_datasz be exactly == sizeof (u32)?
-
-> +
-> +		if (pr->pr_type > pr_type_max)
-> +			pr_type_max = pr->pr_type;
-
-All these checks have my head spinning... if we ignore the ordering
-requirement, can't we reduce it all to
-
-	if (pr->pr_type == pr_type) {
-		if (pr->pr_datasz != sizeof (u32))
-			return -ENOEXEC;
-
-		*property = *(u32 *)(buf + sizeof (*pr));
-		return 0;
-	}
-
-> +
-
-Do we need to up to the appropriate alignment after each property?
-
-> +		buf += pr_len;
-> +		len -= pr_len;
-> +	}
-> +
-> +	return 0;
-
--ENOENT?
-
-> +}
-> +
-> +/*
-> + * Look at an ELF file's NT_GNU_PROPERTY for the property of pr_type.
-> + *
-> + * Input:
-> + *	buf: the buffer containing the whole note.
-> + *	len: size of buf.
-> + *	align: alignment of the note's payload.
-> + *	pr_type: the property type.
-> + *
-> + * Output:
-> + *	The property found.
-> + *
-> + * Return:
-> + *	Zero or error.
-> + */
-> +static int check_note(void *buf, unsigned long len, int align,
-> +			  u32 pr_type, u32 *property)
-
-check_note_payload() and check_note() are somewhat misleadingly named,
-since they don't just check.
-
-Maybe call them gnu_property_type_0_extract_property(),
-note_extract_property()?
-
-Admittedly the first of those names would be super-verbose :/
-
-> +{
-> +	struct elf_note *n = buf;
-> +	char *note_name = buf + sizeof(*n);
-> +	unsigned long payload_offset;
-> +	unsigned long payload_len;
-> +
-> +	if (len < sizeof(*n) + 4)
-> +		return -ENOEXEC;
-> +
-> +	if ((n->n_namesz != 4) || strncmp("GNU", note_name, 3))
-> +		return -ENOEXEC;
-
-Should that be , n->n_namesz? (or , sizeof ("GNU"))?
-
-Also, no check on n->n_type?
-
-Alternatively, we could just not bother to check the note header:
-this was found via PT_GNU_PROPERTY, so if it's not a properly
-formatted NT_GNU_PROPERTY_TYPE_0 then the file is garbage anyway
-and it doesn't matter exactly what we do.
-
-Personally I would check it though.
-
-> +
-> +	payload_offset = round_up(sizeof(*n) + n->n_namesz, align);
-> +	payload_len = n->n_descsz;
-> +
-> +	if (payload_offset + payload_len > len)
-
-May this overflow on 32-bit?
-
-What about:
-
-	if (payload_offset > len ||
-	    payload_len > len - payload_offset)
-
-> +		return -ENOEXEC;
-> +
-> +	buf += payload_offset;
-> +	len -= payload_offset;
-> +
-> +	return check_note_payload(buf, len, pr_type, property);
-> +}
-> +
-> +#define find_note(phdr, nr_phdrs, align, pos, len) { \
-> +	int cnt; \
-> +	\
-> +	for (cnt = 0; cnt < nr_phdrs; cnt++) { \
-
-Just to avoid future surprises:
-
-(nr_phdrs)
-
-> +		if ((phdr)[cnt].p_align != align) \
-
-Similarly:
-
-(align)
-
-> +			continue; \
-> +		if ((phdr)[cnt].p_type == PT_GNU_PROPERTY) { \
-> +			pos = (phdr)[cnt].p_offset; \
-> +			len = (phdr)[cnt].p_filesz; \
-> +		} \
-> +	} \
-> +}
-> +
-> +int get_gnu_property(void *ehdr, void *phdr, struct file *file,
-> +		     u32 pr_type, u32 *property)
-> +{
-> +	Elf64_Ehdr *ehdr64 = ehdr;
-> +	Elf32_Ehdr *ehdr32 = ehdr;
-> +	void *buf;
-> +	int align;
-> +	loff_t pos = 0;
-> +	unsigned long len = 0;
-> +	int err = 0;
-> +
-> +	/*
-> +	 * Find PT_GNU_PROPERTY from ELF program headers.
-> +	 */
-> +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
-
-Can we trust e_ident[EI_CLASS] to tell us how big the header is?
-
-We don't check that anywhere AFAICT.  For the ELF interpreter in
-particular, we kmalloc() the appropriate header size determined by
-e_machine, so a malicious binary could have e_machine = EM_I386 with
-e_ident[ELFCLASS] == ELFCLASSS64, causing a buffer overrun here.
-
-For the main elf header, we get away with it because the bprm->buf[] is
-statically allocated as BINPRM_BUF_SIZE and zero-padded in the case of a
-short read.
-
-We could pass in the header size explicitly here, or otherwise
-validate that e_ident[ELFCLASS] is sane before calling in.
-
-> +		align = 8;
-> +		find_note((Elf64_Phdr *)phdr, ehdr64->e_phnum, align, pos, len);
-> +	} else if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
-> +		align = 4;
-> +		find_note((Elf32_Phdr *)phdr, ehdr32->e_phnum, align, pos, len);
-> +	}
-
-Maybe make the name of find_note upper case, or pass pos and len by
-reference.  Otherwise, this looks a bit like a function call -- in
-which case pos and len couldn't be modified.
-
-> +
-> +	/*
-> +	 * Read in the whole note.  PT_GNU_PROPERTY
-> +	 * is not expected to be larger than a page.
-> +	 */
-> +	if (len == 0)
-> +		return 0;
-> +
-> +	if (len > PAGE_SIZE)
-> +		return -ENOEXEC;
-
-Add a comment explaining the rationale?
-
-> +
-> +	buf = kmalloc(len, GFP_KERNEL);
-> +	if (!buf)
-> +		return -ENOMEM;
-> +
-> +	err = kernel_read(file, buf, len, &pos);
-> +	if (err < len) {
-> +		if (err >= 0)
-> +			err = -EIO;
-> +		goto out;
-> +	}
-> +
-> +	err = check_note(buf, len, align, pr_type, property);
-> +out:
-> +	kfree(buf);
-> +	return err;
-> +}
-
-[...]
-
-Cheers
----Dave
+-- 
+ Kirill A. Shutemov
 
