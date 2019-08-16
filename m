@@ -2,122 +2,118 @@ Return-Path: <SRS0=YXmN=WM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF8AEC3A59C
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:21:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B68FAC3A59C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:23:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91C312064A
-	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:21:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7735B2086C
+	for <linux-mm@archiver.kernel.org>; Fri, 16 Aug 2019 17:23:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="QCN9eZvx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91C312064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="PKOKEY8h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7735B2086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 40F586B0006; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
+	id 287116B0006; Fri, 16 Aug 2019 13:23:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3BF2C6B0007; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
+	id 210A66B0007; Fri, 16 Aug 2019 13:23:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D5986B000A; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
+	id 0D7726B000A; Fri, 16 Aug 2019 13:23:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7AD6B0006
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:21:55 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 9F38E180AD7C1
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:21:54 +0000 (UTC)
-X-FDA: 75828958548.06.list69_1097fb5bbbb55
-X-HE-Tag: list69_1097fb5bbbb55
-X-Filterd-Recvd-Size: 4732
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:21:53 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id e12so10204112otp.10
-        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:21:53 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
+	by kanga.kvack.org (Postfix) with ESMTP id D9B876B0006
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 13:23:28 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 7AE65181B048A
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:23:28 +0000 (UTC)
+X-FDA: 75828962496.27.balls35_1e47315aacc56
+X-HE-Tag: balls35_1e47315aacc56
+X-Filterd-Recvd-Size: 4026
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 17:23:27 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id 201so5299691qkm.9
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 10:23:27 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=zMvxega2p/6F2S/eoDzz+sN4i7bM8B+uz60Grtez1JE=;
-        b=QCN9eZvxzAPGmUPLnJH/woDtKhvSbyWNPI2WVuuw78XLs8YTeApowbbTpG4QmVhRT8
-         KiEz3hmHc4YlVhpGKa4TQ2iVsusMkMmynlM+BCY4q+fdKS3rJPykSdyfO9A3QGOq+bCv
-         Ep1qhKfWcW3SsmTBurcp0FktyN0IH0JZXWMk3EtkNfv4UCl45hWL/qKUAJyVWq8HCPc+
-         04MySaN5P2L8D4z2nil2AJHtxzcCAXe9+Ae3Qzl3Th1EMpkCiYr6W6vATmErlpeFN+X6
-         UckZrP9+cKrZkBK1Mne3Ywq2nD/UZNxrcPAq4iFlzuaxVK76A2sJ0kE48E61MlCk6O69
-         /0RQ==
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=pD8Tbdojb+tV/T42U7/Bt4fJei4dk6nxHPESNZBzUPg=;
+        b=PKOKEY8hGxaOdpj1T8hBrDGYtsUrnU0AObkNmorj7jn7hBXpX2Kp/ztvI9DGVCYTQE
+         dc7AfGY5084FNsyK1iFgRwps/IMRwPx5SDeHZ6iG6Vx1Auh9Jiwqi8IwIFgmkC1IyaaP
+         ZG/0N27IRdZCGF/hPvMRXRbsTrG+8jAJ2xVMkv6g6aeYSe5QxCHrQ2ZmirGBi7NhhAtL
+         8LPoo597le/ShD9ep2nuha5j6xRqGlB/XWU5NWICIfVLLTfLX0mziYqsaSh3ZaTmUF0u
+         cvAphTs2Z1DvPDJOzISG6/SYjf5j85EYdPNZa7ztM4aMs2xfCrXlpdbNpKuWGh1E+PLB
+         PLqA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=zMvxega2p/6F2S/eoDzz+sN4i7bM8B+uz60Grtez1JE=;
-        b=c5sAM8yq6i9L9qibAVArPiMcLLbtJCr3h37LcsUCVNHvSQnwix7lV2iwTCQ5OZQZE8
-         PXhym40zwuKijVaZJIjkrPuhSdzUGjVQBcR9iaPeVNtZ/ib7bUOUxkK5KnrcuJPEhR3U
-         nF9mp4HAaaOIbDg6NSuTRVi3Cb5XqLX8kz6mUrEdM5RSkWXldJxJJs9NVqQAqpxmaOqF
-         XPUuw5wRSUP1HTMFYfp8bJX/M7KLdbOB0k9sTMiAme/2DS8vIgiNZZNj0gst6BJcxmsY
-         p3s7Rcq4eDSHXWM0v0bvf7tffS1IVOuOnZ1E7u/Xsnt4X+wMGOZFyhYM/Inqf/u09Xl2
-         RmwQ==
-X-Gm-Message-State: APjAAAXWT9MK3BE1Keb/cyCX/muxawJQIBVc/Ix31LE5JQywnT7tAHwg
-	FkeJJLHQj6q47bHMp4GOhiTaKBHbXJ+IvU7dekmVMQ==
-X-Google-Smtp-Source: APXvYqwNxRXX6MojhKuxmTIkgv8yzk3NfRtB0XcnaOCwg7viPPwMQ/JTCtWNqWdiMYWGOJVL8emAQc22ws+XFOORnhM=
-X-Received: by 2002:a9d:6b96:: with SMTP id b22mr8643397otq.363.1565976113121;
- Fri, 16 Aug 2019 10:21:53 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=pD8Tbdojb+tV/T42U7/Bt4fJei4dk6nxHPESNZBzUPg=;
+        b=XumYUJTsw0iM3Phyt6KI+CX/WphmEU/8ZM+qUx8IDKF3Ocj+iKxg4QhjhRlXfniUqC
+         FhQa7/PAmmmi4KPPQtunfO0i91eZcmFzOkGYUPAB6jJiIRoGZbKrQ0K17n87I6TydYHj
+         8C61rfEUtYXm7x240e8FOUTA2ujW0KE1lJFws73t/tevGb/6IeEPhx4QHkkkeSBr5bpL
+         4ADAhKdDfL8SjoJcoGRSmq7o4jhRLJRX1YGSBpNOlNSBy/zRjcobDnr+jvVHRPJoCVQc
+         XiUeJUFA7DQ7i0lVRJUiB1oUI57EPXcZDrMeOK90By8JPpyJPwtAXnVSD8famYSoA/Ga
+         uoWA==
+X-Gm-Message-State: APjAAAUt0sXt4IMWwUQpr87oC6OEh+HFdqgoaq3gdYAdPDYRACCRsVZD
+	urT334RNGlC5wCodrlZ4qX2ChppalgA=
+X-Google-Smtp-Source: APXvYqyAuZxMtBrIj2lrXbWPNUHVpEBKMq4p2dvILNeEBwhH8SLFMps9jaKCtPjbt9+U/fOmx5c77w==
+X-Received: by 2002:a37:805:: with SMTP id 5mr9982722qki.351.1565976207466;
+        Fri, 16 Aug 2019 10:23:27 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id 23sm3185723qkk.121.2019.08.16.10.23.27
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 16 Aug 2019 10:23:27 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hyfwk-0000tb-MA; Fri, 16 Aug 2019 14:23:26 -0300
+Date: Fri, 16 Aug 2019 14:23:26 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Bharata B Rao <bharata@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: turn hmm migrate_vma upside down v3
+Message-ID: <20190816172326.GI5398@ziepe.ca>
+References: <20190814075928.23766-1-hch@lst.de>
+ <20190816065141.GA6996@lst.de>
 MIME-Version: 1.0
-References: <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
- <20190815180325.GA4920@redhat.com> <CAPcyv4g4hzcEA=TPYVTiqpbtOoS30ahogRUttCvQAvXQbQjfnw@mail.gmail.com>
- <20190815194339.GC9253@redhat.com> <CAPcyv4jid8_=-8hBpn_Qm=c4S8BapL9B9RGT7e9uu303yH=Yqw@mail.gmail.com>
- <20190815203306.GB25517@redhat.com> <20190815204128.GI22970@mellanox.com>
- <CAPcyv4j_Mxbw+T+yXTMdkrMoS_uxg+TXXgTM_EPBJ8XfXKxytA@mail.gmail.com>
- <20190816004053.GB9929@mellanox.com> <CAPcyv4gMPVmY59aQAT64jQf9qXrACKOuV=DfVs4sNySCXJhkdA@mail.gmail.com>
- <20190816122414.GC5412@mellanox.com>
-In-Reply-To: <20190816122414.GC5412@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 16 Aug 2019 10:21:41 -0700
-Message-ID: <CAPcyv4jgHF05gdRoOFZORqeOBE9Z7PhagsSD+LVnjH2dc3mrFg@mail.gmail.com>
-Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Ben Skeggs <bskeggs@redhat.com>, 
-	Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190816065141.GA6996@lst.de>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 5:24 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
->
-> On Thu, Aug 15, 2019 at 08:54:46PM -0700, Dan Williams wrote:
->
-> > > However, this means we cannot do any processing of ZONE_DEVICE pages
-> > > outside the driver lock, so eg, doing any DMA map that might rely on
-> > > MEMORY_DEVICE_PCI_P2PDMA has to be done in the driver lock, which is
-> > > a bit unfortunate.
-> >
-> > Wouldn't P2PDMA use page pins? Not needing to hold a lock over
-> > ZONE_DEVICE page operations was one of the motivations for plumbing
-> > get_dev_pagemap() with a percpu-ref.
->
-> hmm_range_fault() doesn't use page pins at all, so if a ZONE_DEVICE
-> page comes out of it then it needs to use another locking pattern.
->
-> If I follow it all right:
->
-> We can do a get_dev_pagemap inside the page_walk and touch the pgmap,
-> or we can do the 'device mutex && retry' pattern and touch the pgmap
-> in the driver, under that lock.
->
-> However in all cases the current get_dev_pagemap()'s in the page walk
-> are not necessary, and we can delete them.
+On Fri, Aug 16, 2019 at 08:51:41AM +0200, Christoph Hellwig wrote:
+> Jason,
+> 
+> are you going to look into picking this up?  Unfortunately there is
+> a hole pile in this area still pending, including the kvmppc secure
+> memory driver from Bharata that depends on the work.
 
-Yes, as long as 'struct page' instances resulting from that lookup are
-not passed outside of that lock.
+Done,
+
+Lets see if Dan will comment on the pagemap part (looks
+straightforward to me), and then after we grab that I will declare
+hmm.git non-rebasing and Bharata can build his series upon it.
+
+As a reminder, please do not send hmm.git inside another pull request
+to Linus without making it very clear in that cover letter and Cc'ing
+me. Thanks.
+
+Regards,
+Jason
 
