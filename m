@@ -6,124 +6,130 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDB2CC3A59B
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 06:58:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 135E9C3A59F
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 07:38:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91842205ED
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 06:58:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A14FD2086C
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 07:38:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="PDUnjM99"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91842205ED
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="ROBhpTcY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A14FD2086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E39B6B000C; Sat, 17 Aug 2019 02:58:41 -0400 (EDT)
+	id 3B1B46B0007; Sat, 17 Aug 2019 03:38:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 295A66B000D; Sat, 17 Aug 2019 02:58:41 -0400 (EDT)
+	id 33B826B000A; Sat, 17 Aug 2019 03:38:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1AB1F6B000E; Sat, 17 Aug 2019 02:58:41 -0400 (EDT)
+	id 1DE076B000C; Sat, 17 Aug 2019 03:38:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0039.hostedemail.com [216.40.44.39])
-	by kanga.kvack.org (Postfix) with ESMTP id E76006B000C
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:58:40 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 9F6A218028E7C
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 06:58:40 +0000 (UTC)
-X-FDA: 75831016800.05.night32_11717f337535f
-X-HE-Tag: night32_11717f337535f
-X-Filterd-Recvd-Size: 4112
-Received: from ozlabs.org (ozlabs.org [203.11.71.1])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 06:58:39 +0000 (UTC)
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 469WHb1gbnz9sDQ;
-	Sat, 17 Aug 2019 16:58:35 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1566025115;
-	bh=IgDPuugh05x57YEiYN8l0nhY63HAUdNvpnSeuQDLtzA=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=PDUnjM99KXvRE/LY1XQl8szCrxOwfSSMNms7ZMIibixxcCVDs9T17uSzkBz5tvS0s
-	 cWTYRzY4vTs1EEjnnbFmUDFMsCrh9TnTubPFYiQbfLessT+i4bXUs2qHNJ0XBzvYnN
-	 QCsjPqAbva+NZv29Ro0m5bevRnB84TTmDtRXt/ACYmUB8ov95ERNdqMLzlpBL/Il+i
-	 yFvDS8BSXlRXIPqQkp/7PRk+0ItnOK5qeI4sJTo3QDVo+HDXQJgiXzkMBt0rMYLoTB
-	 duyAXrgHUw21TMRX9o32n+IiSM/OvW9/vhSCz1p2xSJR7BkRx9xTZ+NZzSNlzPIJt3
-	 z2hpwAzIfqrow==
-Date: Sat, 17 Aug 2019 16:58:33 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe
- <jgg@mellanox.com>, Christoph Hellwig <hch@infradead.org>, Linus Torvalds
- <torvalds@linux-foundation.org>, Thomas =?UTF-8?B?SGVsbHN0csO2bQ==?=
- <thomas@shipmail.org>, Jerome Glisse <jglisse@redhat.com>, Steven Price
- <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>, Linux List Kernel
- Mailing <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
-Subject: Re: cleanup the walk_page_range interface
-Message-ID: <20190817165833.369c943c@canb.auug.org.au>
-In-Reply-To: <20190817064301.GA18544@lst.de>
-References: <20190808154240.9384-1-hch@lst.de>
-	<CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
-	<20190816062751.GA16169@infradead.org>
-	<20190816115735.GB5412@mellanox.com>
-	<20190816123258.GA22140@lst.de>
-	<20190816140623.4e3a5f04ea1c08925ac4581f@linux-foundation.org>
-	<20190817164124.683d67ff@canb.auug.org.au>
-	<20190817064301.GA18544@lst.de>
+Received: from forelay.hostedemail.com (smtprelay0072.hostedemail.com [216.40.44.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D586B0007
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 03:38:09 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 914BB181AC9CB
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 07:38:09 +0000 (UTC)
+X-FDA: 75831116298.04.shelf60_4726fd5dc5c5a
+X-HE-Tag: shelf60_4726fd5dc5c5a
+X-Filterd-Recvd-Size: 5136
+Received: from mail-lj1-f193.google.com (mail-lj1-f193.google.com [209.85.208.193])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 07:38:08 +0000 (UTC)
+Received: by mail-lj1-f193.google.com with SMTP id f9so7196285ljc.13
+        for <linux-mm@kvack.org>; Sat, 17 Aug 2019 00:38:08 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qjmefjZhoyebLftZlaWwOgZmDLyOFDxgkvKQNDD6muU=;
+        b=ROBhpTcYE5sMsKscWoxHvuN7/rDEB2KBhTYVGBrSf8McXkjaPUHTa+vvnR7jS1c/98
+         Yu6WhN2x/RHdyfcAwhc/BsVF52q/Dl9W3Rtsq3Qr7rrbg5HT3lgtH2ByzJiZhVIANWGB
+         WyzMcJJ8ndT8ewyDylRfnDShKXqexN+HkPk/E=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=qjmefjZhoyebLftZlaWwOgZmDLyOFDxgkvKQNDD6muU=;
+        b=Tb6coyKGRqvs+XbbwXs0fRVpL5EyC5K35HgcwjDG60kZn8eYMR8XwuPcIO6QxsJgZ8
+         Zn6Qyz8yFIDc/yE5/mh9idoKGHJiFtu/8LXuO/iwMc0Kmgds2y5iMbskoECQ9DyRMpDv
+         ltYf+hWC0AYKHUyIUpE5HNcT9u7KyxE6xnpWiPplME47f77AXgwEnZUlqKNznpgmN1jW
+         2qYfD7tzmkPTmybRpos4E9MQaZkIy6R2SoyXalF7WALOFJuAEsGS+OtY6qMUX/Gs7Dmn
+         jbKtIabg6CFGm0qzny8VzWEPciIx+RmkrBnqzNzqAhj5dwIfKsvpVU2UKkTP2dlBIfRh
+         m73Q==
+X-Gm-Message-State: APjAAAVS0iXp85FSC+bZWMEvqHxNIC7UNb5ffFiyTneFjlL+xz0QoHqP
+	ffkKRIj/DxW3X9c5gVaqEk4/uhT8Pqs=
+X-Google-Smtp-Source: APXvYqzApNSfTmMfPdfxEGxNibzU4AhMV9alI08GvMdCLlA5GCzoRIO2GcTwEc2M1GpYaDssXdqHIw==
+X-Received: by 2002:a2e:8e99:: with SMTP id z25mr7546276ljk.121.1566027486951;
+        Sat, 17 Aug 2019 00:38:06 -0700 (PDT)
+Received: from mail-lj1-f169.google.com (mail-lj1-f169.google.com. [209.85.208.169])
+        by smtp.gmail.com with ESMTPSA id j21sm1284241lfb.38.2019.08.17.00.38.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Sat, 17 Aug 2019 00:38:05 -0700 (PDT)
+Received: by mail-lj1-f169.google.com with SMTP id e27so7220064ljb.7
+        for <linux-mm@kvack.org>; Sat, 17 Aug 2019 00:38:05 -0700 (PDT)
+X-Received: by 2002:a2e:3a0e:: with SMTP id h14mr7640810lja.180.1566027485396;
+ Sat, 17 Aug 2019 00:38:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="Sig_/iX30a6+fK46SGJZm6D6NOuh";
- protocol="application/pgp-signature"; micalg=pgp-sha256
+References: <20190808154240.9384-1-hch@lst.de> <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+ <20190816062751.GA16169@infradead.org> <20190816115735.GB5412@mellanox.com>
+ <20190816123258.GA22140@lst.de> <20190816140623.4e3a5f04ea1c08925ac4581f@linux-foundation.org>
+ <20190817164124.683d67ff@canb.auug.org.au>
+In-Reply-To: <20190817164124.683d67ff@canb.auug.org.au>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 17 Aug 2019 00:37:49 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wheUwELKxhouLs4b==w9DxMrCPh2R_FTsTeVi0=d0S_OA@mail.gmail.com>
+Message-ID: <CAHk-=wheUwELKxhouLs4b==w9DxMrCPh2R_FTsTeVi0=d0S_OA@mail.gmail.com>
+Subject: Re: cleanup the walk_page_range interface
+To: Stephen Rothwell <sfr@canb.auug.org.au>, David Howells <dhowells@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
+	Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@infradead.org>, 
+	=?UTF-8?Q?Thomas_Hellstr=C3=B6m?= <thomas@shipmail.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/iX30a6+fK46SGJZm6D6NOuh
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-
-Hi Christoph,
-
-On Sat, 17 Aug 2019 08:43:01 +0200 Christoph Hellwig <hch@lst.de> wrote:
+On Fri, Aug 16, 2019 at 11:41 PM Stephen Rothwell <sfr@canb.auug.org.au> wrote:
 >
-> On Sat, Aug 17, 2019 at 04:41:24PM +1000, Stephen Rothwell wrote:
-> > I certainly prefer that method of API change :-)
-> > (see the current "keys: Replace uid/gid/perm permissions checking with
-> > an ACL" in linux-next and the (currently) three merge fixup patches I
-> > am carrying.  Its not bad when people provide the fixes, but I am no
-> > expert in most areas of the kernel ...) =20
->=20
-> It would mean pretty much duplicating all the code.  And then never
-> finish the migration because new users of the old interfaces keep
-> popping up.  Compared to that I'd much much prefer either Linus
-> taking it now or a branch.
+> I certainly prefer that method of API change :-)
+> (see the current "keys: Replace uid/gid/perm permissions checking with
+> an ACL" in linux-next
 
-Sure, I have no problem with either of these two choices, or, at least,
-hints/resolutions when conflicts are expected.  My time (each day) is
-already getting pretty short since we are almost up to -rc5 ...
+Side note: I will *not* be pulling that again.
 
---=20
-Cheers,
-Stephen Rothwell
+It was broken last time, and without more people reviewing the code,
+I' m not pulling it for 5.4 either even if David has an additional
+commit on top that might have fixed the original problem.
 
---Sig_/iX30a6+fK46SGJZm6D6NOuh
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+There's still a pending kernel test report on commit f771fde82051
+("keys: Simplify key description management") from another of David's
+pulls for 5.3 - one that didn't get reverted.
 
------BEGIN PGP SIGNATURE-----
+David, look in your inbox for a kernel test report about
 
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAl1XpZkACgkQAVBC80lX
-0GzXcQf9HYr6iyLSWWl6YlnndTg8ZfbycnJCmqM6lBYVCOkuVySHLdB4Eu2McHZv
-DYKUMhRtQ3Mll/VNFZeeEDGrSLR3mhbLBT+BudyUeT/yeSkTQZifX9lXacio/4yk
-SarLK0SXRZx2sI6LjoQ8iUzEhX8clDCcK1yO+qlyZEtGUt06JeKC+KJwWf5Rg6eC
-zW7lGPDRr01bMwxNWbthufjq2NxHheaD/fPdKfUSd5byxSY70W992VuI733WwdCK
-68fHAEOsFsyzTmQguV1vkF7t9bsLslj9aIYUvBOfx5EWjQ1ktJ+76qYGlyeVe6HH
-6dOh9g3EbXB6FL6GtvGxnor89gnNiQ==
-=2W8r
------END PGP SIGNATURE-----
+  kernel BUG at security/keys/keyring.c:1245!
 
---Sig_/iX30a6+fK46SGJZm6D6NOuh--
+(It's the
+
+        BUG_ON(index_key->desc_len == 0);
+
+line - the line numbers have since changed, and it's line 1304 in the
+current tree).
+
+I'm not sure why _that_ BUG_ON() now triggers, but I wonder if it's
+because 'desc_len' went from a 'size_t' to an 'u8', and now a desc_len
+of 256 is 0. Or something. The point being that there have been too
+many bugs in the pulls and nobody but David apparently ever had
+anything to do with any of the development. This code needs more eyes,
+not more random changes.
+
+So I won't be compounding on that workflow problem next merge window.
+
+                  Linus
 
