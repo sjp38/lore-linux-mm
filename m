@@ -2,171 +2,132 @@ Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91D70C3A59E
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 08:09:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A2A2C3A59F
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 09:00:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 52C2E2077C
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 08:09:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="PFmZ3tEw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 52C2E2077C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 31F0C2077C
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 09:00:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31F0C2077C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD2C76B000C; Sat, 17 Aug 2019 04:09:50 -0400 (EDT)
+	id 87D036B0007; Sat, 17 Aug 2019 05:00:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D834B6B000D; Sat, 17 Aug 2019 04:09:50 -0400 (EDT)
+	id 82D586B000A; Sat, 17 Aug 2019 05:00:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C99FF6B000E; Sat, 17 Aug 2019 04:09:50 -0400 (EDT)
+	id 71BC16B000C; Sat, 17 Aug 2019 05:00:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0088.hostedemail.com [216.40.44.88])
-	by kanga.kvack.org (Postfix) with ESMTP id A8EB36B000C
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 04:09:50 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 4D40C181AC9C9
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 08:09:50 +0000 (UTC)
-X-FDA: 75831196140.28.songs74_38b4b3176575e
-X-HE-Tag: songs74_38b4b3176575e
-X-Filterd-Recvd-Size: 5023
-Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 08:09:49 +0000 (UTC)
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 469Xsk4XFmz9typx;
-	Sat, 17 Aug 2019 10:09:46 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=PFmZ3tEw; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id sNvX-0_3f_4K; Sat, 17 Aug 2019 10:09:46 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 469Xsk3PNRz9typs;
-	Sat, 17 Aug 2019 10:09:46 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1566029386; bh=pVI9gY6iiTOKFqgekWFv504Tf/QYksOUjRjQFOu2kD0=;
-	h=Subject:To:References:From:Date:In-Reply-To:From;
-	b=PFmZ3tEwbCcnorGnd5QrmBxwxFFSuDEhTO5ZjS4uBLNisb+UKUNsl94HoIWJQIWXF
-	 bOBEfuKIST6lerMbAPKSPdZzybS4qFVQ/HaIuSoZO3dGUCBsiLoMn8RJkAXWz528uW
-	 yVq0TMp+3G9mqWqk98b8zsX+IrJ6HBJWVGviJp44=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 9214B8B793;
-	Sat, 17 Aug 2019 10:09:47 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id Lp6brMJxdad5; Sat, 17 Aug 2019 10:09:47 +0200 (CEST)
-Received: from [192.168.232.53] (unknown [192.168.232.53])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id EAA278B790;
-	Sat, 17 Aug 2019 10:09:46 +0200 (CEST)
-Subject: Re: [Bug 204371] BUG kmalloc-4k (Tainted: G W ): Object padding
- overwritten
-To: bugzilla-daemon@bugzilla.kernel.org, linuxppc-dev@lists.ozlabs.org,
- Andrew Morton <akpm@linux-foundation.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- linux-btrfs@vger.kernel.org, erhard_f@mailbox.org, Chris Mason <clm@fb.com>,
- Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
- Michael Ellerman <mpe@ellerman.id.au>
-References: <bug-204371-206035@https.bugzilla.kernel.org/>
- <bug-204371-206035-O9m4mwJN9f@https.bugzilla.kernel.org/>
-From: christophe leroy <christophe.leroy@c-s.fr>
-Message-ID: <e8b5b450-bdb2-6be8-8b14-bd76b81de9a0@c-s.fr>
-Date: Sat, 17 Aug 2019 10:09:46 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1176B0007
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 05:00:34 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id EA0FB1E098
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 09:00:33 +0000 (UTC)
+X-FDA: 75831323946.29.group51_3f143f5bd0b14
+X-HE-Tag: group51_3f143f5bd0b14
+X-Filterd-Recvd-Size: 4417
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 09:00:33 +0000 (UTC)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7H8v0Yb134101
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 05:00:32 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uecw4ahyw-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 05:00:31 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sat, 17 Aug 2019 10:00:29 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sat, 17 Aug 2019 10:00:26 +0100
+Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7H90Pst49807532
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 17 Aug 2019 09:00:25 GMT
+Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 282265206C;
+	Sat, 17 Aug 2019 09:00:25 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.204.148])
+	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id 2AA2C52050;
+	Sat, 17 Aug 2019 09:00:24 +0000 (GMT)
+Date: Sat, 17 Aug 2019 12:00:22 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
+        Russell King <linux@armlinux.org.uk>, Rob Herring <robh@kernel.org>,
+        Florian Fainelli <f.fainelli@gmail.com>,
+        Geert Uytterhoeven <geert@linux-m68k.org>,
+        Doug Berger <opendmb@gmail.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] arch : arm : add a criteria for pfn_valid
+References: <1566010813-27219-1-git-send-email-huangzhaoyang@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <bug-204371-206035-O9m4mwJN9f@https.bugzilla.kernel.org/>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-X-Antivirus: Avast (VPS 190816-4, 16/08/2019), Outbound message
-X-Antivirus-Status: Clean
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1566010813-27219-1-git-send-email-huangzhaoyang@gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19081709-0008-0000-0000-0000030A0077
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19081709-0009-0000-0000-00004A281F4C
+Message-Id: <20190817090021.GA10627@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-17_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908170099
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, Aug 17, 2019 at 11:00:13AM +0800, Zhaoyang Huang wrote:
+> From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+> 
+> pfn_valid can be wrong while the MSB of physical address be trimed as pfn
+> larger than the max_pfn.
 
+How the overflow of __pfn_to_phys() is related to max_pfn?
+Where is the guarantee that __pfn_to_phys(max_pfn) won't overflow?
+ 
+> Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+> ---
+>  arch/arm/mm/init.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> index c2daabb..9c4d938 100644
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -177,7 +177,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
+>  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>  int pfn_valid(unsigned long pfn)
+>  {
+> -	return memblock_is_map_memory(__pfn_to_phys(pfn));
+> +	return (pfn > max_pfn) ?
+> +		false : memblock_is_map_memory(__pfn_to_phys(pfn));
+>  }
+>  EXPORT_SYMBOL(pfn_valid);
+>  #endif
+> -- 
+> 1.9.1
+> 
 
-Le 30/07/2019 =C3=A0 20:52, bugzilla-daemon@bugzilla.kernel.org a =C3=A9c=
-rit=C2=A0:
-> https://bugzilla.kernel.org/show_bug.cgi?id=3D204371
->=20
-> --- Comment #2 from Andrew Morton (akpm@linux-foundation.org) ---
-> (switched to email.  Please respond via emailed reply-to-all, not via t=
-he
-> bugzilla web interface).
-
-Reply all replies to bugzilla-daemon@bugzilla.kernel.org only.
-
-
-[...]
-
-
->=20
-> cc'ing various people here.
-
-Hum ... only got that email through the bugzilla interface, and CC'ed=20
-people don't show up.
-
-
->=20
-> I suspect proc_cgroup_show() is innocent and that perhaps
-> bpf_prepare_filter() had a memory scribble.  iirc there has been at
-> least one recent pretty serious bpf fix applied recently.  Can others
-> please take a look?
->=20
-> (Seriously - please don't modify this report via the bugzilla web inter=
-face!)
->=20
-
-Haven't got the original CC'ed list, so please reply with missing Cc's=20
-if any.
-
-We have well progressed on this case.
-
-Erhard made a relation being this "Object padding overwritten" issue=20
-arising on any driver, and the presence of the BTRFS driver.
-
-Then he was able to bisect the issue to:
-
-commit 69d2480456d1baf027a86e530989d7bedd698d5f
-Author: David Sterba <dsterba@suse.com>
-Date:   Fri Jun 29 10:56:44 2018 +0200
-
-     btrfs: use copy_page for copying pages instead of memcpy
-
-     Use the helper that's possibly optimized for full page copies.
-
-     Signed-off-by: David Sterba <dsterba@suse.com>
-
-
-
-After looking in the code, it has appeared that some of the said "pages"=20
-were allocated with "kzalloc()".
-
-Using the patch https://patchwork.ozlabs.org/patch/1148033/ Erhard=20
-confirmed that some btrfs functions were calling copy_page() with=20
-misaligned destinations.
-
-copy_page(), at least on powerpc, expects cache aligned destination.
-
-The patch https://patchwork.ozlabs.org/patch/1148606/ fixes the issue.
-
-Christophe
-
----
-L'absence de virus dans ce courrier =C3=A9lectronique a =C3=A9t=C3=A9 v=C3=
-=A9rifi=C3=A9e par le logiciel antivirus Avast.
-https://www.avast.com/antivirus
+-- 
+Sincerely yours,
+Mike.
 
 
