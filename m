@@ -2,56 +2,56 @@ Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8366CC3A59E
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EF86C3A59E
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E94C2133F
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 19D172133F
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="UrOX2DWB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E94C2133F
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="kkkl/f/U"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19D172133F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A8246B0010; Fri, 16 Aug 2019 22:24:26 -0400 (EDT)
+	id E87816B0269; Fri, 16 Aug 2019 22:24:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7354C6B0266; Fri, 16 Aug 2019 22:24:26 -0400 (EDT)
+	id E106E6B026A; Fri, 16 Aug 2019 22:24:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5FBA46B0269; Fri, 16 Aug 2019 22:24:26 -0400 (EDT)
+	id CB4CB6B026B; Fri, 16 Aug 2019 22:24:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0012.hostedemail.com [216.40.44.12])
-	by kanga.kvack.org (Postfix) with ESMTP id 3548E6B0010
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:24:26 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D3A25180AD805
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:25 +0000 (UTC)
-X-FDA: 75830325690.03.bun09_608630ef90811
-X-HE-Tag: bun09_608630ef90811
-X-Filterd-Recvd-Size: 4017
+Received: from forelay.hostedemail.com (smtprelay0009.hostedemail.com [216.40.44.9])
+	by kanga.kvack.org (Postfix) with ESMTP id 9334B6B0269
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:24:28 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 4A3F2813F
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:28 +0000 (UTC)
+X-FDA: 75830325816.06.songs03_612bec74e633b
+X-HE-Tag: songs03_612bec74e633b
+X-Filterd-Recvd-Size: 4323
 Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:23 +0000 (UTC)
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:27 +0000 (UTC)
 Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5765580001>; Fri, 16 Aug 2019 19:24:24 -0700
+	id <B5d5765580000>; Fri, 16 Aug 2019 19:24:24 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
   by hqpgpgate102.nvidia.com (PGP Universal service);
   Fri, 16 Aug 2019 19:24:21 -0700
 X-PGP-Universal: processed;
 	by hqpgpgate102.nvidia.com on Fri, 16 Aug 2019 19:24:21 -0700
-Received: from HQMAIL105.nvidia.com (172.20.187.12) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
+Received: from HQMAIL107.nvidia.com (172.20.187.13) by HQMAIL104.nvidia.com
+ (172.18.146.11) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
  2019 02:24:21 +0000
-Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL105.nvidia.com
- (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
+Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
  Transport; Sat, 17 Aug 2019 02:24:21 +0000
 Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d5765550001>; Fri, 16 Aug 2019 19:24:21 -0700
+	id <B5d5765550000>; Fri, 16 Aug 2019 19:24:21 -0700
 From: <jhubbard@nvidia.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
@@ -61,27 +61,25 @@ CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
 	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
 	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
 	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
-Subject: [RFC PATCH v2 1/3] For Ira: tiny formatting tweak to kerneldoc
-Date: Fri, 16 Aug 2019 19:24:17 -0700
-Message-ID: <20190817022419.23304-2-jhubbard@nvidia.com>
+Subject: [RFC PATCH v2 0/3] mm/gup: introduce vaddr_pin_pages_remote(), FOLL_PIN
+Date: Fri, 16 Aug 2019 19:24:16 -0700
+Message-ID: <20190817022419.23304-1-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.22.1
-In-Reply-To: <20190817022419.23304-1-jhubbard@nvidia.com>
-References: <20190817022419.23304-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 X-NVConfidentiality: public
 Content-Transfer-Encoding: quoted-printable
 Content-Type: text/plain
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566008664; bh=vujlpEbUPcZOIHM0E4+H2IssxqbGZn6F4auD5+LUKwo=;
+	t=1566008664; bh=cCBt59CWewaBIVEcA498iHRyQV6bodOTBBV+5/6So/Y=;
 	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
-	 Content-Transfer-Encoding:Content-Type;
-	b=UrOX2DWBxcLHfSdWH9D1O4EqxSJYzLmgQW88SJBsz2UXDE9uNYezznYJFM9XFY1+R
-	 yL20cRMLCB+M51fikAto9Y7iuHTb2RxVyglHrqlQWYjoP7bj9A8Rbm69Yb5Kz0biu4
-	 Di0qY0Zwu6Xhp5HVhjQFdLlH/yP7SgnWMEQx53qsQp1ClujvwGwtwOwHdduYJ5kBaY
-	 WzHujmy4Nfh7VqdbvTyufzCUrO7xgAmcDs12SRcm00djT2WyKpcPNOhiFrnk9HdML5
-	 CGgFJOMySWlq3Tg1MLyGwnBseQ04uzqWAOAvEWfm/gTUp1onvO5OfqmzsMH55SwGm8
-	 uhx3wILje553g==
+	 MIME-Version:X-NVConfidentiality:Content-Transfer-Encoding:
+	 Content-Type;
+	b=kkkl/f/UoNGU6FK/KdkQCX3YCPwYCnNXbf01z2x4dt7QASf7pR39O4CIg1mZFS88g
+	 Fx/XdwN929OPjhQ7ioyJ3sMzlsI3gOEetwXdW8wXH96UWABayyIFFCxiXXdA+ATrXU
+	 szUHbZRFKqefq4YoGrJA7bE8TUArVyykiCp1YgMmp5+AJgNd0ZtFi/j6g6+0WUUS+g
+	 AfED/9jTR9gazFuk9sVLtOyXpcFPV2riKtj5KnGo3e4yzUrPG3s8XdNWpM8ksXHnFR
+	 JDWTzCIDuOGXbvcM+zwS36d+kd7qP4IrjH4yQZ4gRK/Z/K4mE7XPlVXOvw8LGU6qgy
+	 /RgdQLtU2pBAQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -90,41 +88,41 @@ List-ID: <linux-mm.kvack.org>
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-For your vaddr_pin_pages() and vaddr_unpin_pages().
-Just merge it into wherever it goes please. Didn't want to
-cause merge problems so it's a separate patch-let.
+Hi Ira,
 
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- mm/gup.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+As requested, this is for your tree:
+https://github.com/weiny2/linux-kernel.git (mmotm-rdmafsdax-b0-v4), to be
+applied at your last authored commit, which is: commit f625f92ecfb4
+("mm/gup: Remove FOLL_LONGTERM DAX exclusion"). In other words, please
+delete my previous patches from the tree, and apply these replacement
+patches.
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 56421b880325..e49096d012ea 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2465,7 +2465,7 @@ int get_user_pages_fast(unsigned long start, int nr_p=
-ages,
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
-=20
- /**
-- * vaddr_pin_pages pin pages by virtual address and return the pages to th=
-e
-+ * vaddr_pin_pages() - pin pages by virtual address and return the pages t=
-o the
-  * user.
-  *
-  * @addr: start address
-@@ -2505,7 +2505,7 @@ long vaddr_pin_pages(unsigned long addr, unsigned lon=
-g nr_pages,
- EXPORT_SYMBOL(vaddr_pin_pages);
-=20
- /**
-- * vaddr_unpin_pages - counterpart to vaddr_pin_pages
-+ * vaddr_unpin_pages() - counterpart to vaddr_pin_pages
-  *
-  * @pages: array of pages returned
-  * @nr_pages: number of pages in pages
+This now has a user for the new vaddr_pin_user_pages_remote() call. And
+it also moves the gup flag setting out to the caller.
+
+I'm pretty pleased to be able to include a bit of documentation (see the
+FOLL_PIN patch) that covers those four cases. This should really help
+clarify things. Thanks to Jan Kara and Vlastimil Babka for providing
+the meaingful core of that documentation.
+
+The naming can of course be tweaked to match whatever the final is. For
+now, I've used vaddr_pin_user_pages_remote(). That addresses Jason's
+request for a "user" in the name, and it also makes it very clear that
+it's a replacement for get_user_pages_remote().
+
+v1 of this RFC is here:
+https://lore.kernel.org/r/20190812015044.26176-1-jhubbard@nvidia.com
+
+John Hubbard (3):
+  For Ira: tiny formatting tweak to kerneldoc
+  mm/gup: introduce FOLL_PIN flag for get_user_pages()
+  mm/gup: introduce vaddr_pin_pages_remote(), and invoke it
+
+ include/linux/mm.h     | 61 +++++++++++++++++++++++++++++++++++++-----
+ mm/gup.c               | 37 +++++++++++++++++++++++--
+ mm/process_vm_access.c | 23 +++++++++-------
+ 3 files changed, 104 insertions(+), 17 deletions(-)
+
 --=20
 2.22.1
 
