@@ -2,123 +2,208 @@ Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33FB0C3A59E
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:36:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA4FBC3A59D
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:46:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC8342133F
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:36:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A433E21019
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:46:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="hFZ0vcWd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC8342133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="JDS9LlpV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A433E21019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94EB66B026C; Fri, 16 Aug 2019 22:36:03 -0400 (EDT)
+	id 3EF9E6B0007; Fri, 16 Aug 2019 22:46:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8FF6A6B026D; Fri, 16 Aug 2019 22:36:03 -0400 (EDT)
+	id 39FE26B000A; Fri, 16 Aug 2019 22:46:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 812E96B026E; Fri, 16 Aug 2019 22:36:03 -0400 (EDT)
+	id 28D486B026C; Fri, 16 Aug 2019 22:46:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2A36B026C
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:36:03 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id F053219440
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:36:02 +0000 (UTC)
-X-FDA: 75830354964.01.cent91_34c0df48f873e
-X-HE-Tag: cent91_34c0df48f873e
-X-Filterd-Recvd-Size: 4105
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com [216.228.121.65])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:36:02 +0000 (UTC)
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5768140000>; Fri, 16 Aug 2019 19:36:04 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 16 Aug 2019 19:36:01 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 16 Aug 2019 19:36:01 -0700
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
- 2019 02:36:01 +0000
-Subject: Re: [RFC PATCH v2 2/3] mm/gup: introduce FOLL_PIN flag for
- get_user_pages()
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
-	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
-	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
-References: <20190817022419.23304-1-jhubbard@nvidia.com>
- <20190817022419.23304-3-jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <5a95d15b-f54c-e663-7031-c2bf9b19899e@nvidia.com>
-Date: Fri, 16 Aug 2019 19:36:00 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0240.hostedemail.com [216.40.44.240])
+	by kanga.kvack.org (Postfix) with ESMTP id 06FBD6B0007
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:46:32 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 9FE0A4430
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:46:32 +0000 (UTC)
+X-FDA: 75830381424.04.grade04_906133fc34003
+X-HE-Tag: grade04_906133fc34003
+X-Filterd-Recvd-Size: 6940
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:46:32 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id u190so6359283qkh.5
+        for <linux-mm@kvack.org>; Fri, 16 Aug 2019 19:46:31 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=p98dmgBDeDcssd4yKsWE/iQqs5p9wP/9+OXRV1ENewU=;
+        b=JDS9LlpV2ta9byDzMY6b9v39r4r4effVrLjzxfOMxfazK25Y7wTPyhsbXZ66QpIJUP
+         HcGNwuH3KpQVzNhgJ2NNBfm5jg8IhCzp+ffvV+Tc9K2hEPOrg0Kp0/28WE0CWLNhifxT
+         yoJeW3JhBjArtLdX6XkSvzvEyxm8fdUp9hiaD4zeWviKaDpetWIY4AdemrlQA3Z97re2
+         i/qBSDGjjETysQY9urMcD0rH1/EVNndFeiorcfXvA+yr7Dy6VTA65yXhPAXHqX6ip7iz
+         LKOgTkMRtHG5FVjALunMYIuDqiBZBonlVu3APly7gtxaYleUcH+TGcvRZwHxAAu/abCa
+         VPiA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=p98dmgBDeDcssd4yKsWE/iQqs5p9wP/9+OXRV1ENewU=;
+        b=Y0ZLkaEJXhx9UFImU+Ec8xlgWlcwOCfl9Z6mZNsbBXqL8BTjc+Xy1M57jnVjX7o+ee
+         dp+O4pZ2+RaayF8CQhX3p6uEEoLVvPNNgvYWZS+9vtkFKr8jpX/ygyPqrOxg4xWJQ94V
+         sK1gNeBu2W/03Ax1DC/lad/TwVmJt6FqezlZwIKVrr9K6uDk3fDNWRKrNGfgZyfn3Q4L
+         2CvMoVGY4hPxMwis8My2mCxct/Ar/7a8tXQs/7R1ccQ6r3dGKWh/5DKMJda1qpM7/ujq
+         s1jScmh4LfHd/EWa3ec9hdPWmvzKdmvZk8tTmIEaccW6KZ8b9Mpb+Ete1Dz0jF6lyVAr
+         vFQg==
+X-Gm-Message-State: APjAAAWSX7YfzVS/odTJOCK4C8yIlnS6kU1lsMJ3vKD/bO5LUXzo7vM7
+	V8YIgndq6/NMeMMXGAuvM6cL9g==
+X-Google-Smtp-Source: APXvYqxk6U1QbP7pDBIw3UpMgdwmknnD6IQo5oeUJswdhs4UX5w4SKba4s8Bv/AQr8d6aSCLhUMxoA==
+X-Received: by 2002:ae9:e707:: with SMTP id m7mr11883927qka.50.1566009991502;
+        Fri, 16 Aug 2019 19:46:31 -0700 (PDT)
+Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
+        by smtp.gmail.com with ESMTPSA id o9sm3454657qtr.71.2019.08.16.19.46.30
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 16 Aug 2019 19:46:30 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+To: pasha.tatashin@soleen.com,
+	jmorris@namei.org,
+	sashal@kernel.org,
+	ebiederm@xmission.com,
+	kexec@lists.infradead.org,
+	linux-kernel@vger.kernel.org,
+	corbet@lwn.net,
+	catalin.marinas@arm.com,
+	will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	marc.zyngier@arm.com,
+	james.morse@arm.com,
+	vladimir.murzin@arm.com,
+	matthias.bgg@gmail.com,
+	bhsharma@redhat.com,
+	linux-mm@kvack.org
+Subject: [PATCH v2 00/14] arm64: MMU enabled kexec relocation
+Date: Fri, 16 Aug 2019 22:46:15 -0400
+Message-Id: <20190817024629.26611-1-pasha.tatashin@soleen.com>
+X-Mailer: git-send-email 2.22.1
 MIME-Version: 1.0
-In-Reply-To: <20190817022419.23304-3-jhubbard@nvidia.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566009364; bh=sE67K9fwIddpKrmhvFzA734CgzzbX9SZq+iv3kZAz2w=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=hFZ0vcWdyLiGQwiXX3Y10mhCJJf+AmVotZCRIlH6k5DvM3CCW3nIgqqR6lisrOEnR
-	 1KwzKfW2/WjOh6jyBIh8h7eM6kvwvJXUXbqmPGV/Z6x6gf9WAIjqyXDhu7TvWXYBN1
-	 z2QRG5bVbbSRIgx+AhzYx1xWPpl7v7//YhoAWd2kh66/zvvF3dBs32yl23astlWp1+
-	 cobexpvrVCOLw/KWOFcnMrlxE7G0FNhPPExrKnBhyE5qL/76s/MXDyJuwRrY5TwIwL
-	 n05vuoQ3bpFknPNNEcuIBzSI0daHr+RI3oI1Ho0gQejhc8bPjTtz4U6ho+nXdmFCxp
-	 W04D395kWA7Zg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/16/19 7:24 PM, jhubbard@nvidia.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> DKIM-Signature: v=01 a a-sha256; c=0Elaxed/relaxed; d idia.com; s=01;
-> 	t=1566008674; bh=05Mai0va6k/z2enpQJ4Nfvbj5WByFxGAO1JwdIBbXio	h PGP-Unive=
-rsal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-> 	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
-> 	 Content-Transfer-Encoding:Content-Type;
-> 	b=C3=96UDSde9XF/IsNteBaYOBWeKiHhWmeU9ekUJNvCviHssBDCtw0T+M/2TlEPEzomIT
-> 	 fGXzIQNlGN6MXFbaBoyBmF/zjCu02TmTNExbVJ3/5N6PTyOuJFCx9ZN1/5gXsB11m1
-> 	 xAHIWE+VOZs4qqDeHDBqKZq+FaxQHNvGz0j6lyVBA70TfseNoZqZZrSil8uvaKJwKd
-> 	 TQ1ht+AGWbw9p610JmaPb4u6o/eV6Ns8Sl3EVnjWWu94T6ISNIaWCiC6wQQF6L1YCH
-> 	 G5Pjn+0rEjhk6XG4TyLudi5lWp3IVBHd8+WlWlnl+bvLCC55RUAjPJLn7LaVyVdh0F
-> 	 nLHwm3bN2Jotg
+Changelog:
+v2:
+	- Fixed hibernate bug reported by James Morse
+	- Addressed comments from James Morse:
+	  * More incremental changes to trans_table
+	  * Removed TRANS_FORCEMAP
+	  * Added kexec reboot data for image with 380M in size.
 
-I cannot readily explain the above email glitch, but I did just now switch
-back to mailgw.nvidia.com for this patchset, in order to get the nice behav=
-ior
-of having "From:" really be my native NVIDIA email address. That's very nic=
-e,
-but if the glitches happen again, I'll switch back to using gmail for=20
-git-send-email.
+Enable MMU during kexec relocation in order to improve reboot performance=
+.
 
-Sorry about the weirdness. It does still let you apply the patch, I
-just now checked on that.
+If kexec functionality is used for a fast system update, with a minimal
+downtime, the relocation of kernel + initramfs takes a significant portio=
+n
+of reboot.
 
-thanks,
+The reason for slow relocation is because it is done without MMU, and thu=
+s
+not benefiting from D-Cache.
+
+Performance data
+----------------
+For this experiment, the size of kernel plus initramfs is small, only 25M=
+.
+If initramfs was larger, than the improvements would be greater, as time
+spent in relocation is proportional to the size of relocation.
+
+Previously:
+kernel shutdown	0.022131328s
+relocation	0.440510736s
+kernel startup	0.294706768s
+
+Relocation was taking: 58.2% of reboot time
+
+Now:
+kernel shutdown	0.032066576s
+relocation	0.022158152s
+kernel startup	0.296055880s
+
+Now: Relocation takes 6.3% of reboot time
+
+Total reboot is x2.16 times faster.
+
+With bigger userland (fitImage 380M), the reboot time is improved by 3.57=
+s,
+and is reduced from 3.9s down to 0.33s
+
+Previous approaches and discussions
+-----------------------------------
+https://lore.kernel.org/lkml/20190801152439.11363-1-pasha.tatashin@soleen=
+.com/
+version 1 of this series
+
+https://lore.kernel.org/lkml/20190709182014.16052-1-pasha.tatashin@soleen=
+.com
+reserve space for kexec to avoid relocation, involves changes to generic =
+code
+to optimize a problem that exists on arm64 only:
+
+https://lore.kernel.org/lkml/20190716165641.6990-1-pasha.tatashin@soleen.=
+com
+The first attempt to enable MMU, some bugs that prevented performance
+improvement. The page tables unnecessary configured idmap for the whole
+physical space.
+
+https://lore.kernel.org/lkml/20190731153857.4045-1-pasha.tatashin@soleen.=
+com
+No linear copy, bug with EL2 reboots.
+
+Pavel Tatashin (14):
+  kexec: quiet down kexec reboot
+  arm64, hibernate: create_safe_exec_page cleanup
+  arm64, hibernate: add trans_table public functions
+  arm64, hibernate: move page handling function to new trans_table.c
+  arm64, trans_table: make trans_table_map_page generic
+  arm64, trans_table: add trans_table_create_empty
+  arm64, trans_table: adjust trans_table_create_copy interface
+  arm64, trans_table: add PUD_SECT_RDONLY
+  arm64, trans_table: complete generalization of trans_tables
+  kexec: add machine_kexec_post_load()
+  arm64, kexec: move relocation function setup and clean up
+  arm64, kexec: add expandable argument to relocation function
+  arm64, kexec: configure transitional page table for kexec
+  arm64, kexec: enable MMU during kexec relocation
+
+ arch/arm64/Kconfig                     |   4 +
+ arch/arm64/include/asm/kexec.h         |  51 ++++-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/include/asm/trans_table.h   |  64 ++++++
+ arch/arm64/kernel/asm-offsets.c        |  14 ++
+ arch/arm64/kernel/cpu-reset.S          |   4 +-
+ arch/arm64/kernel/cpu-reset.h          |   8 +-
+ arch/arm64/kernel/hibernate.c          | 261 ++++++-----------------
+ arch/arm64/kernel/machine_kexec.c      | 199 ++++++++++++++----
+ arch/arm64/kernel/relocate_kernel.S    | 196 +++++++++---------
+ arch/arm64/mm/Makefile                 |   1 +
+ arch/arm64/mm/trans_table.c            | 274 +++++++++++++++++++++++++
+ kernel/kexec.c                         |   4 +
+ kernel/kexec_core.c                    |   8 +-
+ kernel/kexec_file.c                    |   4 +
+ kernel/kexec_internal.h                |   2 +
+ 16 files changed, 755 insertions(+), 340 deletions(-)
+ create mode 100644 arch/arm64/include/asm/trans_table.h
+ create mode 100644 arch/arm64/mm/trans_table.c
+
 --=20
-John Hubbard
-NVIDIA
+2.22.1
 
 
