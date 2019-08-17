@@ -2,465 +2,248 @@ Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A005FC3A59D
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:05:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CBA83C3A59D
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 182B521019
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:05:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="PYV3CKdM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 182B521019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 88A5E2184D
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88A5E2184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 741A96B0007; Fri, 16 Aug 2019 22:05:40 -0400 (EDT)
+	id 18E796B000D; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F1666B000A; Fri, 16 Aug 2019 22:05:40 -0400 (EDT)
+	id 14A9C6B0010; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E18F6B000C; Fri, 16 Aug 2019 22:05:40 -0400 (EDT)
+	id F20C96B000E; Fri, 16 Aug 2019 22:24:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0171.hostedemail.com [216.40.44.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EA1D6B0007
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:05:40 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C35BF181AC9CB
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:05:39 +0000 (UTC)
-X-FDA: 75830278398.16.honey19_4e7b52e57181a
-X-HE-Tag: honey19_4e7b52e57181a
-X-Filterd-Recvd-Size: 12062
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:05:39 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7H243XR011062;
-	Sat, 17 Aug 2019 02:05:33 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2019-08-05;
- bh=HaT8jQwewItp7FDTL/t6pNw2r4NYEruEsMdvu+I1SYM=;
- b=PYV3CKdMspiNfgyrLFYecsCZcAHUQRCm9Njd7VvaMNPZqhEqhQjEEMUe1BoVFF02EBkk
- SSnzJPNs162VJNa9iV0cKsbdG0fX7whveTI8U64UYkPoNqOuUsU2bd7p6HM/jR7OS4F9
- TjqETxDYXpmYGUQhuerUPpfsLkgh/niLomJObL6sA2yqAZuJ2zrYuymoZ15/Y0FCAHbK
- B7DcRSII3Wg/VNQ9zrlY4i3LgcoPRc7h2KzPxVFosNqvCsyp2llsB/q605AHbDGALv9W
- tlpS7NGmGsMvp3bn3lpwSfCAO4sjk2EXptCi+86ALEunMwDTNJAX+cFdor/U/ZA4GVow 8g== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2u9nbu3cna-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 17 Aug 2019 02:05:33 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7H23db8140055;
-	Sat, 17 Aug 2019 02:05:33 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3030.oracle.com with ESMTP id 2ue6qcjg68-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 17 Aug 2019 02:05:33 +0000
-Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7H25VoB008500;
-	Sat, 17 Aug 2019 02:05:31 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 16 Aug 2019 19:05:31 -0700
-Date: Fri, 16 Aug 2019 19:05:29 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: hch@infradead.org, akpm@linux-foundation.org, tytso@mit.edu,
-        viro@zeniv.linux.org.uk
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        fstests <fstests@vger.kernel.org>
-Subject: [PATCH v2 RFC 3/2] fstests: check that we can't write to swap files
-Message-ID: <20190817020529.GG752159@magnolia>
-References: <156588514105.111054.13645634739408399209.stgit@magnolia>
- <20190815163434.GA15186@magnolia>
+Received: from forelay.hostedemail.com (smtprelay0005.hostedemail.com [216.40.44.5])
+	by kanga.kvack.org (Postfix) with ESMTP id CABBE6B000C
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:24:24 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 59C4C8248AD5
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:24 +0000 (UTC)
+X-FDA: 75830325648.04.bat51_60988f9b95f5e
+X-HE-Tag: bat51_60988f9b95f5e
+X-Filterd-Recvd-Size: 9096
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:23 +0000 (UTC)
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5765610000>; Fri, 16 Aug 2019 19:24:34 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Fri, 16 Aug 2019 19:24:22 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Fri, 16 Aug 2019 19:24:22 -0700
+Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
+ 2019 02:24:21 +0000
+Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
+ Transport; Sat, 17 Aug 2019 02:24:21 +0000
+Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
+	id <B5d5765550002>; Fri, 16 Aug 2019 19:24:21 -0700
+From: <jhubbard@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
+	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, Michal
+ Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH v2 2/3] mm/gup: introduce FOLL_PIN flag for get_user_pages()
+Date: Fri, 16 Aug 2019 19:24:18 -0700
+Message-ID: <20190817022419.23304-3-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.22.1
+In-Reply-To: <20190817022419.23304-1-jhubbard@nvidia.com>
+References: <20190817022419.23304-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815163434.GA15186@magnolia>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9351 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908170020
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9351 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908170020
+X-NVConfidentiality: public
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+From: John Hubbard <jhubbard@nvidia.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1566008674; bh=g5Mai0va6k/z2enpQJ4Nfvbj5WByFxGAO1JwdIBbXio=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
+	 Content-Transfer-Encoding:Content-Type;
+	b=d6UDSde9XF/IsNteBaYOBWeKiHhWmeU9ekUJNvCviHssBDCtw0T+M/2TlEPEzomIT
+	 fGXzIQNlGN6MXFbaBoyBmF/zjCu02TmTNExbVJ3/5N6PTyOuJFCx9ZN1/5gXsB11m1
+	 xAHIWE+VOZs4qqDeHDBqKZq+FaxQHNvGz0j6lyVBA70TfseNoZqZZrSil8uvaKJwKd
+	 TQ1ht+AGWbw9p610JmaPb4u6o/eV6Ns8Sl3EVnjWWu94T6ISNIaWCiC6wQQF6L1YCH
+	 G5Pjn+0rEjhk6XG4TyLudi5lWp3IVBHd8+WlWlnl+bvLCC55RUAjPJLn7LaVyVdh0F
+	 nLHwm3bN2Jotg==
 
-While active, the media backing a swap file is leased to the kernel.
-Userspace has no business writing to it.  Make sure we can't do this.
+FOLL_PIN is set by callers of vaddr_pin_pages(). This is different
+than FOLL_LONGTERM, because even short term page pins need a new kind
+of tracking, if those pinned pages' data is going to potentially
+be modified.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+This situation is described in more detail in commit fc1d8e7cca2d
+("mm: introduce put_user_page*(), placeholder versions").
+
+FOLL_PIN is added now, rather than waiting until there is code that
+takes action based on FOLL_PIN. That's because having FOLL_PIN in
+the code helps to highlight the differences between:
+
+    a) get_user_pages(): soon to be deprecated. Used to pin pages,
+       but without awareness of file systems that might use those
+       pages,
+
+    b) The original vaddr_pin_pages(): intended only for
+       FOLL_LONGTERM and DAX use cases. This assumes direct IO
+       and therefore is not applicable the most of the other
+       callers of get_user_pages(), and
+
+Also add fairly extensive documentation of the meaning and use
+of both FOLL_PIN and FOLL_LONGTERM.
+
+Thanks to Jan Kara and Vlastimil Babka for explaining the 4 cases
+in this documentation. (I've reworded it and expanded on it slightly.)
+
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 ---
-v2: add tests for writable fds after swapon
----
- src/swapon.c          |  135 ++++++++++++++++++++++++++++++++++++++++++++++++-
- tests/generic/717     |   70 +++++++++++++++++++++++++
- tests/generic/717.out |   14 +++++
- tests/generic/718     |   55 ++++++++++++++++++++
- tests/generic/718.out |   12 ++++
- tests/generic/group   |    2 +
- 6 files changed, 284 insertions(+), 4 deletions(-)
- create mode 100755 tests/generic/717
- create mode 100644 tests/generic/717.out
- create mode 100755 tests/generic/718
- create mode 100644 tests/generic/718.out
+ include/linux/mm.h | 56 +++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 50 insertions(+), 6 deletions(-)
 
-diff --git a/src/swapon.c b/src/swapon.c
-index 0cb7108a..afaed405 100644
---- a/src/swapon.c
-+++ b/src/swapon.c
-@@ -3,22 +3,149 @@
- #include <stdio.h>
- #include <stdlib.h>
- #include <unistd.h>
-+#include <string.h>
- #include <sys/swap.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <sys/mman.h>
-+#include <fcntl.h>
-+#include <signal.h>
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bc675e94ddf8..6e7de424bf5e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2644,6 +2644,8 @@ static inline vm_fault_t vmf_error(int err)
+ struct page *follow_page(struct vm_area_struct *vma, unsigned long address=
+,
+ 			 unsigned int foll_flags);
+=20
++/* Flags for follow_page(), get_user_pages ("GUP"), and vaddr_pin_pages():=
+ */
 +
-+static void usage(const char *prog)
-+{
-+	fprintf(stderr, "usage: %s [-v verb] PATH\n", prog);
-+	exit(EXIT_FAILURE);
-+}
-+
-+enum verbs {
-+	TEST_SWAPON = 0,
-+	TEST_WRITE,
-+	TEST_MWRITE_AFTER,
-+	TEST_MWRITE_BEFORE_AND_MWRITE_AFTER,
-+	TEST_MWRITE_BEFORE,
-+	MAX_TEST_VERBS,
-+};
-+
-+#define BUF_SIZE 262144
-+static char buf[BUF_SIZE];
-+
-+static void handle_signal(int signal)
-+{
-+	fprintf(stderr, "Caught signal %d, terminating...\n", signal);
-+	exit(EXIT_FAILURE);
-+}
- 
- int main(int argc, char **argv)
- {
--	int ret;
-+	struct sigaction act = {
-+		.sa_handler	= handle_signal,
-+	};
-+	enum verbs verb = TEST_SWAPON;
-+	void *p;
-+	ssize_t sz;
-+	int fd = -1;
-+	int ret, c;
-+
-+	memset(buf, 0x58, BUF_SIZE);
-+
-+	while ((c = getopt(argc, argv, "v:")) != -1) {
-+		switch (c) {
-+		case 'v':
-+			verb = atoi(optarg);
-+			if (verb < TEST_SWAPON || verb >= MAX_TEST_VERBS) {
-+				fprintf(stderr, "Verbs must be 0-%d.\n",
-+						MAX_TEST_VERBS - 1);
-+				usage(argv[0]);
-+			}
-+			break;
-+		default:
-+			usage(argv[0]);
-+			break;
-+		}
-+	}
- 
--	if (argc != 2) {
--		fprintf(stderr, "usage: %s PATH\n", argv[0]);
-+	ret = sigaction(SIGSEGV, &act, NULL);
-+	if (ret) {
-+		perror("sigsegv action");
- 		return EXIT_FAILURE;
- 	}
- 
--	ret = swapon(argv[1], 0);
-+	ret = sigaction(SIGBUS, &act, NULL);
-+	if (ret) {
-+		perror("sigbus action");
-+		return EXIT_FAILURE;
-+	}
-+
-+	switch (verb) {
-+	case TEST_WRITE:
-+	case TEST_MWRITE_AFTER:
-+	case TEST_MWRITE_BEFORE_AND_MWRITE_AFTER:
-+	case TEST_MWRITE_BEFORE:
-+		fd = open(argv[optind], O_RDWR);
-+		if (fd < 0) {
-+			perror(argv[optind]);
-+			return EXIT_FAILURE;
-+		}
-+		break;
-+	default:
-+		break;
-+	}
-+
-+	switch (verb) {
-+	case TEST_MWRITE_BEFORE_AND_MWRITE_AFTER:
-+	case TEST_MWRITE_BEFORE:
-+		p = mmap(NULL, BUF_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED,
-+				fd, 65536);
-+		if (p == MAP_FAILED) {
-+			perror("mmap");
-+			return EXIT_FAILURE;
-+		}
-+		memcpy(p, buf, BUF_SIZE);
-+		break;
-+	default:
-+		break;
-+	}
-+
-+	if (optind != argc - 1)
-+		usage(argv[0]);
-+
-+	ret = swapon(argv[optind], 0);
- 	if (ret) {
- 		perror("swapon");
- 		return EXIT_FAILURE;
- 	}
- 
-+	switch (verb) {
-+	case TEST_WRITE:
-+		sz = pwrite(fd, buf, BUF_SIZE, 65536);
-+		if (sz < 0) {
-+			perror("pwrite");
-+			return EXIT_FAILURE;
-+		}
-+		break;
-+	case TEST_MWRITE_AFTER:
-+		p = mmap(NULL, BUF_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED,
-+				fd, 65536);
-+		if (p == MAP_FAILED) {
-+			perror("mmap");
-+			return EXIT_FAILURE;
-+		}
-+		/* fall through */
-+	case TEST_MWRITE_BEFORE_AND_MWRITE_AFTER:
-+		memcpy(p, buf, BUF_SIZE);
-+		break;
-+	default:
-+		break;
-+	}
-+
-+	if (fd >= 0) {
-+		ret = fsync(fd);
-+		if (ret)
-+			perror("fsync");
-+		ret = close(fd);
-+		if (ret)
-+			perror("close");
-+	}
-+
- 	return EXIT_SUCCESS;
- }
-diff --git a/tests/generic/717 b/tests/generic/717
-new file mode 100755
-index 00000000..92073dbb
---- /dev/null
-+++ b/tests/generic/717
-@@ -0,0 +1,70 @@
-+#! /bin/bash
-+# SPDX-License-Identifier: GPL-2.0-or-newer
-+# Copyright (c) 2019, Oracle and/or its affiliates.  All Rights Reserved.
-+#
-+# FS QA Test No. 717
-+#
-+# Check that we can't modify a file that's an active swap file.
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1    # failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	swapoff $testfile
-+	rm -rf $tmp.* $testfile
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# real QA test starts here
-+_supported_os Linux
-+_supported_fs generic
-+_require_test_program swapon
-+_require_scratch_swapfile
-+
-+rm -f $seqres.full
-+
-+_scratch_mkfs > $seqres.full 2>&1
-+_scratch_mount >> $seqres.full 2>&1
-+
-+testfile=$SCRATCH_MNT/$seq.swap
-+
-+_format_swapfile $testfile 20m
-+
-+# Can you modify the swapfile via previously open file descriptors?
-+for verb in 1 2 3 4; do
-+	echo "verb $verb"
-+	"$here/src/swapon" -v $verb $testfile
-+	swapoff $testfile
-+done
-+
-+# Now try writing with a new file descriptor.
-+swapon $testfile 2>&1 | _filter_scratch
-+
-+# Can we write to it?
-+$XFS_IO_PROG -c 'pwrite -S 0x59 64k 64k' $testfile
-+$XFS_IO_PROG -d -c 'pwrite -S 0x60 64k 64k' $testfile
-+$XFS_IO_PROG -c 'mmap -rw 64k 64k' -c 'mwrite -S 0x61 64k 64k' $testfile
-+
-+# Can we change the file size?
-+$XFS_IO_PROG -c 'truncate 18m' $testfile
-+
-+# Can you fallocate the file?
-+$XFS_IO_PROG -c 'falloc 0 32m' $testfile
-+
-+# We test that you can't reflink, dedupe, or copy_file_range into a swapfile
-+# in other tests.
-+
-+# success, all done
-+status=0
-+exit
-diff --git a/tests/generic/717.out b/tests/generic/717.out
-new file mode 100644
-index 00000000..59345ca1
---- /dev/null
-+++ b/tests/generic/717.out
-@@ -0,0 +1,14 @@
-+QA output created by 717
-+verb 1
-+pwrite: Text file busy
-+verb 2
-+mmap: Text file busy
-+verb 3
-+Caught signal 7, terminating...
-+verb 4
-+pwrite: Text file busy
-+pwrite: Text file busy
-+mmap: Text file busy
-+no mapped regions, try 'help mmap'
-+ftruncate: Text file busy
-+fallocate: Text file busy
-diff --git a/tests/generic/718 b/tests/generic/718
-new file mode 100755
-index 00000000..504022e1
---- /dev/null
-+++ b/tests/generic/718
-@@ -0,0 +1,55 @@
-+#! /bin/bash
-+# SPDX-License-Identifier: GPL-2.0-or-newer
-+# Copyright (c) 2019, Oracle and/or its affiliates.  All Rights Reserved.
-+#
-+# FS QA Test No. 718
-+#
-+# Check that we can't modify a block device that's an active swap device.
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1    # failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+	cd /
-+	swapoff $SCRATCH_DEV
-+	rm -rf $tmp.*
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+
-+# real QA test starts here
-+_supported_os Linux
-+_supported_fs generic
-+_require_test_program swapon
-+_require_scratch_nocheck
-+
-+rm -f $seqres.full
-+
-+$MKSWAP_PROG "$SCRATCH_DEV" >> $seqres.full
-+
-+# Can you modify the swap dev via previously open file descriptors?
-+for verb in 1 2 3 4; do
-+	echo "verb $verb"
-+	"$here/src/swapon" -v $verb $SCRATCH_DEV
-+	swapoff $SCRATCH_DEV
-+done
-+
-+swapon $SCRATCH_DEV 2>&1 | _filter_scratch
-+
-+# Can we write to it?
-+$XFS_IO_PROG -c 'pwrite -S 0x59 64k 64k' $SCRATCH_DEV
-+$XFS_IO_PROG -d -c 'pwrite -S 0x60 64k 64k' $SCRATCH_DEV
-+$XFS_IO_PROG -c 'mmap -rw 64k 64k' -c 'mwrite -S 0x61 64k 64k' $SCRATCH_DEV
-+
-+# success, all done
-+status=0
-+exit
-diff --git a/tests/generic/718.out b/tests/generic/718.out
-new file mode 100644
-index 00000000..88d5cf3e
---- /dev/null
-+++ b/tests/generic/718.out
-@@ -0,0 +1,12 @@
-+QA output created by 718
-+verb 1
-+pwrite: Text file busy
-+verb 2
-+mmap: Text file busy
-+verb 3
-+Caught signal 7, terminating...
-+verb 4
-+pwrite: Text file busy
-+pwrite: Text file busy
-+mmap: Text file busy
-+no mapped regions, try 'help mmap'
-diff --git a/tests/generic/group b/tests/generic/group
-index 003fa963..c58d41e3 100644
---- a/tests/generic/group
-+++ b/tests/generic/group
-@@ -570,3 +570,5 @@
- 565 auto quick copy_range
- 715 auto quick rw
- 716 auto quick rw
-+717 auto quick rw swap
-+718 auto quick rw swap
+ #define FOLL_WRITE	0x01	/* check pte is writable */
+ #define FOLL_TOUCH	0x02	/* mark page accessed */
+ #define FOLL_GET	0x04	/* do get_page on page */
+@@ -2663,13 +2665,15 @@ struct page *follow_page(struct vm_area_struct *vma=
+, unsigned long address,
+ #define FOLL_ANON	0x8000	/* don't do file mappings */
+ #define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see below=
+ */
+ #define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
++#define FOLL_PIN	0x40000	/* pages must be released via put_user_page() */
+=20
+ /*
+- * NOTE on FOLL_LONGTERM:
++ * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with eac=
+h
++ * other. Here is what they mean, and how to use them:
+  *
+  * FOLL_LONGTERM indicates that the page will be held for an indefinite ti=
+me
+- * period _often_ under userspace control.  This is contrasted with
+- * iov_iter_get_pages() where usages which are transient.
++ * period _often_ under userspace control.  This is in contrast to
++ * iov_iter_get_pages(), where usages which are transient.
+  *
+  * FIXME: For pages which are part of a filesystem, mappings are subject t=
+o the
+  * lifetime enforced by the filesystem and we need guarantees that longter=
+m
+@@ -2684,11 +2688,51 @@ struct page *follow_page(struct vm_area_struct *vma=
+, unsigned long address,
+  * Currently only get_user_pages() and get_user_pages_fast() support this =
+flag
+  * and calls to get_user_pages_[un]locked are specifically not allowed.  T=
+his
+  * is due to an incompatibility with the FS DAX check and
+- * FAULT_FLAG_ALLOW_RETRY
++ * FAULT_FLAG_ALLOW_RETRY.
+  *
+- * In the CMA case: longterm pins in a CMA region would unnecessarily frag=
+ment
+- * that region.  And so CMA attempts to migrate the page before pinning wh=
+en
++ * In the CMA case: long term pins in a CMA region would unnecessarily fra=
+gment
++ * that region.  And so, CMA attempts to migrate the page before pinning, =
+when
+  * FOLL_LONGTERM is specified.
++ *
++ * FOLL_PIN indicates that a special kind of tracking (not just page->_ref=
+count,
++ * but an additional pin counting system) will be invoked. This is intende=
+d for
++ * anything that gets a page reference and then touches page data (for exa=
+mple,
++ * Direct IO). This lets the filesystem know that some non-file-system ent=
+ity is
++ * potentially changing the pages' data. FOLL_PIN pages must be released,
++ * ultimately, by a call to put_user_page(). Typically that will be via on=
+e of
++ * the vaddr_unpin_pages() variants.
++ *
++ * FIXME: note that this special tracking is not in place yet. However, th=
+e
++ * pages should still be released by put_user_page().
++ *
++ * When and where to use each flag:
++ *
++ * CASE 1: Direct IO (DIO). There are GUP references to pages that are ser=
+ving
++ * as DIO buffers. These buffers are needed for a relatively short time (s=
+o they
++ * are not "long term"). No special synchronization with page_mkclean() or
++ * munmap() is provided. Therefore, flags to set at the call site are:
++ *
++ *     FOLL_PIN
++ *
++ * CASE 2: RDMA. There are GUP references to pages that are serving as DMA
++ * buffers. These buffers are needed for a long time ("long term"). No spe=
+cial
++ * synchronization with page_mkclean() or munmap() is provided. Therefore,=
+ flags
++ * to set at the call site are:
++ *
++ *     FOLL_PIN | FOLL_LONGTERM
++ *
++ * There is also a special case when the pages are DAX pages: in addition =
+to the
++ * above flags, the caller needs a file lease. This is provided via the st=
+ruct
++ * vaddr_pin argument to vaddr_pin_pages().
++ *
++ * CASE 3: ODP (Mellanox/Infiniband On Demand Paging: the hardware support=
+s
++ * replayable page faulting). There are GUP references to pages serving as=
+ DMA
++ * buffers. For ODP, MMU notifiers are used to synchronize with page_mkcle=
+an()
++ * and munmap(). Therefore, normal GUP calls are sufficient, so neither fl=
+ag
++ * needs to be set.
++ *
++ * CASE 4: pinning for struct page manipulation only. Here, normal GUP cal=
+ls are
++ * sufficient, so neither flag needs to be set.
+  */
+=20
+ static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
+--=20
+2.22.1
+
 
