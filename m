@@ -2,53 +2,56 @@ Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBA83C3A59D
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D082C3A59E
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 88A5E2184D
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88A5E2184D
+	by mail.kernel.org (Postfix) with ESMTP id BC11D2133F
+	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 02:24:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Y30zmGP3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC11D2133F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18E796B000D; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
+	id 670816B000C; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 14A9C6B0010; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
+	id 5F9636B000E; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F20C96B000E; Fri, 16 Aug 2019 22:24:24 -0400 (EDT)
+	id 49DB66B0010; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0005.hostedemail.com [216.40.44.5])
-	by kanga.kvack.org (Postfix) with ESMTP id CABBE6B000C
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:24:24 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 59C4C8248AD5
+Received: from forelay.hostedemail.com (smtprelay0024.hostedemail.com [216.40.44.24])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3B26B000C
+	for <linux-mm@kvack.org>; Fri, 16 Aug 2019 22:24:25 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 94E17181AC9CB
 	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:24 +0000 (UTC)
-X-FDA: 75830325648.04.bat51_60988f9b95f5e
-X-HE-Tag: bat51_60988f9b95f5e
-X-Filterd-Recvd-Size: 9096
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
-	by imf08.hostedemail.com (Postfix) with ESMTP
+X-FDA: 75830325648.14.geese11_609cafa3e713d
+X-HE-Tag: geese11_609cafa3e713d
+X-Filterd-Recvd-Size: 7825
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com [216.228.121.65])
+	by imf41.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 02:24:23 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5765610000>; Fri, 16 Aug 2019 19:24:34 -0700
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5765590000>; Fri, 16 Aug 2019 19:24:25 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
+  by hqpgpgate101.nvidia.com (PGP Universal service);
   Fri, 16 Aug 2019 19:24:22 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Fri, 16 Aug 2019 19:24:22 -0700
-Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
+	by hqpgpgate101.nvidia.com on Fri, 16 Aug 2019 19:24:22 -0700
+Received: from HQMAIL105.nvidia.com (172.20.187.12) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 17 Aug
  2019 02:24:21 +0000
-Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
+Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
  Transport; Sat, 17 Aug 2019 02:24:21 +0000
 Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d5765550002>; Fri, 16 Aug 2019 19:24:21 -0700
+	id <B5d5765550005>; Fri, 16 Aug 2019 19:24:21 -0700
 From: <jhubbard@nvidia.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
@@ -57,11 +60,10 @@ CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
 	<jgg@ziepe.ca>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
 	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, Michal
- Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH v2 2/3] mm/gup: introduce FOLL_PIN flag for get_user_pages()
-Date: Fri, 16 Aug 2019 19:24:18 -0700
-Message-ID: <20190817022419.23304-3-jhubbard@nvidia.com>
+	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
+Subject: [RFC PATCH v2 3/3] mm/gup: introduce vaddr_pin_pages_remote(), and invoke it
+Date: Fri, 16 Aug 2019 19:24:19 -0700
+Message-ID: <20190817022419.23304-4-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.22.1
 In-Reply-To: <20190817022419.23304-1-jhubbard@nvidia.com>
 References: <20190817022419.23304-1-jhubbard@nvidia.com>
@@ -69,6 +71,17 @@ MIME-Version: 1.0
 X-NVConfidentiality: public
 Content-Transfer-Encoding: quoted-printable
 Content-Type: text/plain
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1566008665; bh=jhSONwSyzrn/izs91P2wXpXqszQlhZsN0gR467gTsjs=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
+	 Content-Transfer-Encoding:Content-Type;
+	b=Y30zmGP3pyJ+i5kjKmTIFHrsqeTMoSxdM8vX1S/23NKbMNSIiKjV7dVPnuKsRPg6v
+	 AOrcco59tMpMfHoitfbXVIX9cRglCfBNwIgxVjkvS2yx1ZbSzbv2fc3pkrO1dxtIYx
+	 4hXSLlFwh4FUyb4+4zC4CecqdFSTu1ORzqaQhivViQEG6gz0XdNK6RGl2Jh/hrGDoU
+	 M2mqRuc0e2pB46DVKNfTZG9dKBn/4wqddlMu7PNSbepRkFDfsKqrrFobOH7HGxPfKd
+	 Bi1iSW1c7CQKoQx2MNmyHk0lzqdk5lbrfs73pZmrTvnScY7SkXfdwLir3EbFdU5PD4
+	 wE3LRPxfTRXNQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -76,173 +89,143 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 From: John Hubbard <jhubbard@nvidia.com>
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566008674; bh=g5Mai0va6k/z2enpQJ4Nfvbj5WByFxGAO1JwdIBbXio=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
-	 Content-Transfer-Encoding:Content-Type;
-	b=d6UDSde9XF/IsNteBaYOBWeKiHhWmeU9ekUJNvCviHssBDCtw0T+M/2TlEPEzomIT
-	 fGXzIQNlGN6MXFbaBoyBmF/zjCu02TmTNExbVJ3/5N6PTyOuJFCx9ZN1/5gXsB11m1
-	 xAHIWE+VOZs4qqDeHDBqKZq+FaxQHNvGz0j6lyVBA70TfseNoZqZZrSil8uvaKJwKd
-	 TQ1ht+AGWbw9p610JmaPb4u6o/eV6Ns8Sl3EVnjWWu94T6ISNIaWCiC6wQQF6L1YCH
-	 G5Pjn+0rEjhk6XG4TyLudi5lWp3IVBHd8+WlWlnl+bvLCC55RUAjPJLn7LaVyVdh0F
-	 nLHwm3bN2Jotg==
 
-FOLL_PIN is set by callers of vaddr_pin_pages(). This is different
-than FOLL_LONGTERM, because even short term page pins need a new kind
-of tracking, if those pinned pages' data is going to potentially
-be modified.
+vaddr_pin_user_pages_remote() is the "vaddr_pin_pages" corresponding
+variant to get_user_pages_remote(): it adds the ability to handle
+FOLL_PIN, FOLL_LONGTERM, or both.
 
-This situation is described in more detail in commit fc1d8e7cca2d
-("mm: introduce put_user_page*(), placeholder versions").
+Note that the put_user_page*() requirement won't be truly required until
+all of the call sites have been converted, and the tracking of pages is
+activated.
 
-FOLL_PIN is added now, rather than waiting until there is code that
-takes action based on FOLL_PIN. That's because having FOLL_PIN in
-the code helps to highlight the differences between:
+Also, change process_vm_rw_single_vec() to invoke the new function.
 
-    a) get_user_pages(): soon to be deprecated. Used to pin pages,
-       but without awareness of file systems that might use those
-       pages,
-
-    b) The original vaddr_pin_pages(): intended only for
-       FOLL_LONGTERM and DAX use cases. This assumes direct IO
-       and therefore is not applicable the most of the other
-       callers of get_user_pages(), and
-
-Also add fairly extensive documentation of the meaning and use
-of both FOLL_PIN and FOLL_LONGTERM.
-
-Thanks to Jan Kara and Vlastimil Babka for explaining the 4 cases
-in this documentation. (I've reworded it and expanded on it slightly.)
-
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Ira Weiny <ira.weiny@intel.com>
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 ---
- include/linux/mm.h | 56 +++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 50 insertions(+), 6 deletions(-)
+ include/linux/mm.h     |  5 +++++
+ mm/gup.c               | 33 +++++++++++++++++++++++++++++++++
+ mm/process_vm_access.c | 23 ++++++++++++++---------
+ 3 files changed, 52 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bc675e94ddf8..6e7de424bf5e 100644
+index 6e7de424bf5e..849b509e9f89 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2644,6 +2644,8 @@ static inline vm_fault_t vmf_error(int err)
- struct page *follow_page(struct vm_area_struct *vma, unsigned long address=
-,
- 			 unsigned int foll_flags);
-=20
-+/* Flags for follow_page(), get_user_pages ("GUP"), and vaddr_pin_pages():=
- */
+@@ -1606,6 +1606,11 @@ int __account_locked_vm(struct mm_struct *mm, unsign=
+ed long pages, bool inc,
+ long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+ 		     unsigned int gup_flags, struct page **pages,
+ 		     struct vaddr_pin *vaddr_pin);
++long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
+ *mm,
++				 unsigned long start, unsigned long nr_pages,
++				 unsigned int gup_flags, struct page **pages,
++				 struct vm_area_struct **vmas, int *locked,
++				 struct vaddr_pin *vaddr_pin);
+ void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
+ 		       struct vaddr_pin *vaddr_pin, bool make_dirty);
+ bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *pa=
+ge);
+diff --git a/mm/gup.c b/mm/gup.c
+index e49096d012ea..d7ce9b38178f 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -2522,3 +2522,36 @@ void vaddr_unpin_pages(struct page **pages, unsigned=
+ long nr_pages,
+ 	__put_user_pages_dirty_lock(pages, nr_pages, make_dirty, vaddr_pin);
+ }
+ EXPORT_SYMBOL(vaddr_unpin_pages);
 +
- #define FOLL_WRITE	0x01	/* check pte is writable */
- #define FOLL_TOUCH	0x02	/* mark page accessed */
- #define FOLL_GET	0x04	/* do get_page on page */
-@@ -2663,13 +2665,15 @@ struct page *follow_page(struct vm_area_struct *vma=
-, unsigned long address,
- #define FOLL_ANON	0x8000	/* don't do file mappings */
- #define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see below=
- */
- #define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
-+#define FOLL_PIN	0x40000	/* pages must be released via put_user_page() */
++/**
++ * vaddr_pin_user_pages_remote() - pin pages by virtual address and return=
+ the
++ * pages to the user.
++ *
++ * @tsk:	the task_struct to use for page fault accounting, or
++ *		NULL if faults are not to be recorded.
++ * @mm:		mm_struct of target mm
++ * @addr:	start address
++ * @nr_pages:	number of pages to pin
++ * @gup_flags:	flags to use for the pin. Please see FOLL_* documentation i=
+n
++ *		mm.h.
++ * @pages:	array of pages returned
++ * @vaddr_pin:  If FOLL_LONGTERM is set, then vaddr_pin should point to an
++ * initialized struct that contains the owning mm and file. Otherwise, vad=
+dr_pin
++ * should be set to NULL.
++ *
++ * This is the "vaddr_pin_pages" corresponding variant to
++ * get_user_pages_remote(), but with the ability to handle FOLL_PIN,
++ * FOLL_LONGTERM, or both.
++ */
++long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
+ *mm,
++				 unsigned long start, unsigned long nr_pages,
++				 unsigned int gup_flags, struct page **pages,
++				 struct vm_area_struct **vmas, int *locked,
++				 struct vaddr_pin *vaddr_pin)
++{
++	gup_flags |=3D FOLL_TOUCH | FOLL_REMOTE;
++
++	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
++				       locked, gup_flags, vaddr_pin);
++}
++EXPORT_SYMBOL(vaddr_pin_user_pages_remote);
+diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+index 357aa7bef6c0..e08c1f760ad4 100644
+--- a/mm/process_vm_access.c
++++ b/mm/process_vm_access.c
+@@ -96,7 +96,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
+ 		flags |=3D FOLL_WRITE;
 =20
- /*
-- * NOTE on FOLL_LONGTERM:
-+ * FOLL_PIN and FOLL_LONGTERM may be used in various combinations with eac=
-h
-+ * other. Here is what they mean, and how to use them:
-  *
-  * FOLL_LONGTERM indicates that the page will be held for an indefinite ti=
-me
-- * period _often_ under userspace control.  This is contrasted with
-- * iov_iter_get_pages() where usages which are transient.
-+ * period _often_ under userspace control.  This is in contrast to
-+ * iov_iter_get_pages(), where usages which are transient.
-  *
-  * FIXME: For pages which are part of a filesystem, mappings are subject t=
-o the
-  * lifetime enforced by the filesystem and we need guarantees that longter=
-m
-@@ -2684,11 +2688,51 @@ struct page *follow_page(struct vm_area_struct *vma=
-, unsigned long address,
-  * Currently only get_user_pages() and get_user_pages_fast() support this =
-flag
-  * and calls to get_user_pages_[un]locked are specifically not allowed.  T=
-his
-  * is due to an incompatibility with the FS DAX check and
-- * FAULT_FLAG_ALLOW_RETRY
-+ * FAULT_FLAG_ALLOW_RETRY.
-  *
-- * In the CMA case: longterm pins in a CMA region would unnecessarily frag=
-ment
-- * that region.  And so CMA attempts to migrate the page before pinning wh=
-en
-+ * In the CMA case: long term pins in a CMA region would unnecessarily fra=
-gment
-+ * that region.  And so, CMA attempts to migrate the page before pinning, =
-when
-  * FOLL_LONGTERM is specified.
-+ *
-+ * FOLL_PIN indicates that a special kind of tracking (not just page->_ref=
-count,
-+ * but an additional pin counting system) will be invoked. This is intende=
-d for
-+ * anything that gets a page reference and then touches page data (for exa=
-mple,
-+ * Direct IO). This lets the filesystem know that some non-file-system ent=
-ity is
-+ * potentially changing the pages' data. FOLL_PIN pages must be released,
-+ * ultimately, by a call to put_user_page(). Typically that will be via on=
-e of
-+ * the vaddr_unpin_pages() variants.
-+ *
-+ * FIXME: note that this special tracking is not in place yet. However, th=
-e
-+ * pages should still be released by put_user_page().
-+ *
-+ * When and where to use each flag:
-+ *
-+ * CASE 1: Direct IO (DIO). There are GUP references to pages that are ser=
-ving
-+ * as DIO buffers. These buffers are needed for a relatively short time (s=
-o they
-+ * are not "long term"). No special synchronization with page_mkclean() or
-+ * munmap() is provided. Therefore, flags to set at the call site are:
-+ *
-+ *     FOLL_PIN
-+ *
-+ * CASE 2: RDMA. There are GUP references to pages that are serving as DMA
-+ * buffers. These buffers are needed for a long time ("long term"). No spe=
-cial
-+ * synchronization with page_mkclean() or munmap() is provided. Therefore,=
- flags
-+ * to set at the call site are:
-+ *
-+ *     FOLL_PIN | FOLL_LONGTERM
-+ *
-+ * There is also a special case when the pages are DAX pages: in addition =
-to the
-+ * above flags, the caller needs a file lease. This is provided via the st=
-ruct
-+ * vaddr_pin argument to vaddr_pin_pages().
-+ *
-+ * CASE 3: ODP (Mellanox/Infiniband On Demand Paging: the hardware support=
-s
-+ * replayable page faulting). There are GUP references to pages serving as=
- DMA
-+ * buffers. For ODP, MMU notifiers are used to synchronize with page_mkcle=
-an()
-+ * and munmap(). Therefore, normal GUP calls are sufficient, so neither fl=
-ag
-+ * needs to be set.
-+ *
-+ * CASE 4: pinning for struct page manipulation only. Here, normal GUP cal=
-ls are
-+ * sufficient, so neither flag needs to be set.
-  */
+ 	while (!rc && nr_pages && iov_iter_count(iter)) {
+-		int pages =3D min(nr_pages, max_pages_per_loop);
++		int pinned_pages =3D min(nr_pages, max_pages_per_loop);
+ 		int locked =3D 1;
+ 		size_t bytes;
 =20
- static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
+@@ -106,14 +106,18 @@ static int process_vm_rw_single_vec(unsigned long add=
+r,
+ 		 * current/current->mm
+ 		 */
+ 		down_read(&mm->mmap_sem);
+-		pages =3D get_user_pages_remote(task, mm, pa, pages, flags,
+-					      process_pages, NULL, &locked);
++
++		flags |=3D FOLL_PIN;
++		pinned_pages =3D vaddr_pin_user_pages_remote(task, mm, pa,
++							   pinned_pages, flags,
++							   process_pages, NULL,
++							   &locked, NULL);
+ 		if (locked)
+ 			up_read(&mm->mmap_sem);
+-		if (pages <=3D 0)
++		if (pinned_pages <=3D 0)
+ 			return -EFAULT;
+=20
+-		bytes =3D pages * PAGE_SIZE - start_offset;
++		bytes =3D pinned_pages * PAGE_SIZE - start_offset;
+ 		if (bytes > len)
+ 			bytes =3D len;
+=20
+@@ -122,10 +126,11 @@ static int process_vm_rw_single_vec(unsigned long add=
+r,
+ 					 vm_write);
+ 		len -=3D bytes;
+ 		start_offset =3D 0;
+-		nr_pages -=3D pages;
+-		pa +=3D pages * PAGE_SIZE;
+-		while (pages)
+-			put_page(process_pages[--pages]);
++		nr_pages -=3D pinned_pages;
++		pa +=3D pinned_pages * PAGE_SIZE;
++
++		/* If vm_write is set, the pages need to be made dirty: */
++		vaddr_unpin_pages(process_pages, pinned_pages, NULL, vm_write);
+ 	}
+=20
+ 	return rc;
 --=20
 2.22.1
 
