@@ -2,188 +2,88 @@ Return-Path: <SRS0=q2Op=WO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B9F8C3A59F
-	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 08:20:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47899C3A589
+	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 08:39:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA4CA21773
-	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 08:20:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA4CA21773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 07C3320B7C
+	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 08:39:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uQpjyXdj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07C3320B7C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6FD3A6B000C; Sun, 18 Aug 2019 04:20:48 -0400 (EDT)
+	id 78BC86B0008; Sun, 18 Aug 2019 04:39:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6ADCC6B000D; Sun, 18 Aug 2019 04:20:48 -0400 (EDT)
+	id 7141F6B000A; Sun, 18 Aug 2019 04:39:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C4E96B000E; Sun, 18 Aug 2019 04:20:48 -0400 (EDT)
+	id 602B16B000C; Sun, 18 Aug 2019 04:39:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CA4E6B000C
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 04:20:48 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id E07D48248AC2
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 08:20:47 +0000 (UTC)
-X-FDA: 75834852534.04.vase86_411ab8ae28508
-X-HE-Tag: vase86_411ab8ae28508
-X-Filterd-Recvd-Size: 6846
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 08:20:47 +0000 (UTC)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7I8GVv5130383
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 04:20:45 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uey3v64dj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 04:20:45 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 18 Aug 2019 09:20:43 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sun, 18 Aug 2019 09:20:39 +0100
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7I8KcEF37879812
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 18 Aug 2019 08:20:38 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B902DA404D;
-	Sun, 18 Aug 2019 08:20:38 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A7FDAA4059;
-	Sun, 18 Aug 2019 08:20:37 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.59])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Sun, 18 Aug 2019 08:20:37 +0000 (GMT)
-Date: Sun, 18 Aug 2019 11:20:35 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Russell King - ARM Linux admin <linux@armlinux.org.uk>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
-        Rob Herring <robh@kernel.org>, Florian Fainelli <f.fainelli@gmail.com>,
-        Geert Uytterhoeven <geert@linux-m68k.org>,
-        Doug Berger <opendmb@gmail.com>,
-        "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] arch : arm : add a criteria for pfn_valid
-References: <1566010813-27219-1-git-send-email-huangzhaoyang@gmail.com>
- <20190817183240.GM13294@shell.armlinux.org.uk>
- <CAGWkznEvHE6B+eLnCn=s8Hgm3FFbbXcEdj_OxCM4NOj0u61FGA@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 395E56B0008
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 04:39:46 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id E49B6181AC9B4
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 08:39:45 +0000 (UTC)
+X-FDA: 75834900330.06.fact93_552c72a872727
+X-HE-Tag: fact93_552c72a872727
+X-Filterd-Recvd-Size: 2566
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 08:39:45 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=A8d2I2K56+XviRcc09JFeUkjqbtGOWdxc/knibMVkIU=; b=uQpjyXdjSpz/Hwt2agEx42kAf
+	g+mz/QcKcO6V1V4Xtq3cYXDNbU+ahexhe6g4YACs/+mbI1t36oXkGrXyP5sfu8d401R4N0lbT7mZ3
+	imAzQ31GommzEmy+3D/q7XEthqyrOBZv/QZxlltY/D60997ot3RhVFCaXTqpDos9//n8D5KLAubry
+	mTO/hAB+WtGqCNfdFaXxeRoIUC3/3JrLsSWAMwxYDxy0R8PHGtlvKuxwedTsclaxY7pbRm5nBkN/J
+	x5vdCXJ0L5ycFl9dJ1RbbfRUB7sbiD2Mh9Q8WnyTvIQvtA/EwNYHv3+l0uiJs0B6j91pFSdNlsOuB
+	tTlE+niug==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hzGiv-0003cZ-6g; Sun, 18 Aug 2019 08:39:37 +0000
+Date: Sun, 18 Aug 2019 01:39:37 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: hch@infradead.org, akpm@linux-foundation.org, tytso@mit.edu,
+	viro@zeniv.linux.org.uk, linux-xfs@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v2 2/2] vfs: don't allow writes to swap files
+Message-ID: <20190818083937.GC13583@infradead.org>
+References: <156588514105.111054.13645634739408399209.stgit@magnolia>
+ <156588515613.111054.13578448017133006248.stgit@magnolia>
+ <20190816161948.GJ15186@magnolia>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGWkznEvHE6B+eLnCn=s8Hgm3FFbbXcEdj_OxCM4NOj0u61FGA@mail.gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19081808-0020-0000-0000-00000360F422
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19081808-0021-0000-0000-000021B61BE5
-Message-Id: <20190818082035.GD10627@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-18_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908180092
+In-Reply-To: <20190816161948.GJ15186@magnolia>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 18, 2019 at 03:46:51PM +0800, Zhaoyang Huang wrote:
-> On Sun, Aug 18, 2019 at 2:32 AM Russell King - ARM Linux admin
-> <linux@armlinux.org.uk> wrote:
-> >
-> > On Sat, Aug 17, 2019 at 11:00:13AM +0800, Zhaoyang Huang wrote:
-> > > From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
-> > >
-> > > pfn_valid can be wrong while the MSB of physical address be trimed as pfn
-> > > larger than the max_pfn.
-> >
-> > What scenario are you addressing here?  At a guess, you're addressing
-> > the non-LPAE case with PFNs that correspond with >= 4GiB of memory?
-> Please find bellowing for the callstack caused by this defect. The
-> original reason is a invalid PFN passed from userspace which will
-> introduce a invalid page within stable_page_flags and then kernel
-> panic.
-
-Yeah, arm64 hit this issue a while ago and it was fixed with commit
-5ad356eabc47 ("arm64: mm: check for upper PAGE_SHIFT bits in pfn_valid()").
-
-IMHO, the check 
-
-	if ((addr >> PAGE_SHIFT) != pfn)
-
-is more robust than comparing pfn to max_pfn.
-
- 
-> [46886.723249] c7 [<c031ff98>] (stable_page_flags) from [<c03203f8>]
-> (kpageflags_read+0x90/0x11c)
-> [46886.723256] c7  r9:c101ce04 r8:c2d0bf70 r7:c2d0bf70 r6:1fbb10fb
-> r5:a8686f08 r4:a8686f08
-> [46886.723264] c7 [<c0320368>] (kpageflags_read) from [<c0312030>]
-> (proc_reg_read+0x80/0x94)
-> [46886.723270] c7  r10:000000b4 r9:00000008 r8:c2d0bf70 r7:00000000
-> r6:00000001 r5:ed8e7240
-> [46886.723272] c7  r4:00000000
-> [46886.723280] c7 [<c0311fb0>] (proc_reg_read) from [<c02a6e6c>]
-> (__vfs_read+0x48/0x150)
-> [46886.723284] c7  r7:c2d0bf70 r6:c0f09208 r5:c0a4f940 r4:c40326c0
-> [46886.723290] c7 [<c02a6e24>] (__vfs_read) from [<c02a7018>]
-> (vfs_read+0xa4/0x158)
-> [46886.723296] c7  r9:a8686f08 r8:00000008 r7:c2d0bf70 r6:a8686f08
-> r5:c40326c0 r4:00000008
-> [46886.723301] c7 [<c02a6f74>] (vfs_read) from [<c02a778c>]
-> (SyS_pread64+0x80/0xb8)
-> [46886.723306] c7  r8:00000008 r7:c0f09208 r6:c40326c0 r5:c40326c0 r4:fdd887d8
-> [46886.723315] c7 [<c02a770c>] (SyS_pread64) from [<c0108620>]
-> (ret_fast_syscall+0x0/0x28)
+On Fri, Aug 16, 2019 at 09:19:49AM -0700, Darrick J. Wong wrote:
+> From: Darrick J. Wong <darrick.wong@oracle.com>
 > 
-> >
-> > >
-> > > Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
-> > > ---
-> > >  arch/arm/mm/init.c | 3 ++-
-> > >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > >
-> > > diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> > > index c2daabb..9c4d938 100644
-> > > --- a/arch/arm/mm/init.c
-> > > +++ b/arch/arm/mm/init.c
-> > > @@ -177,7 +177,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
-> > >  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-> > >  int pfn_valid(unsigned long pfn)
-> > >  {
-> > > -     return memblock_is_map_memory(__pfn_to_phys(pfn));
-> > > +     return (pfn > max_pfn) ?
-> > > +             false : memblock_is_map_memory(__pfn_to_phys(pfn));
-> > >  }
-> > >  EXPORT_SYMBOL(pfn_valid);
-> > >  #endif
-> > > --
-> > > 1.9.1
-> > >
-> > >
-> >
-> > --
-> > RMK's Patch system: https://www.armlinux.org.uk/developer/patches/
-> > FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
-> > According to speedtest.net: 11.9Mbps down 500kbps up
+> Don't let userspace write to an active swap file because the kernel
+> effectively has a long term lease on the storage and things could get
+> seriously corrupted if we let this happen.
 > 
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 
--- 
-Sincerely yours,
-Mike.
+Looks good,
 
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
