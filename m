@@ -1,212 +1,186 @@
-Return-Path: <SRS0=ZelW=WN=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=q2Op=WO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0040C3A59B
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 19:15:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D52E7C3A59B
+	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 00:30:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5545521019
-	for <linux-mm@archiver.kernel.org>; Sat, 17 Aug 2019 19:15:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 563BE2173B
+	for <linux-mm@archiver.kernel.org>; Sun, 18 Aug 2019 00:30:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="CWZOtnGF";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="ARuJCWry"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5545521019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tj8HYYpV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 563BE2173B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 047A86B0006; Sat, 17 Aug 2019 15:15:50 -0400 (EDT)
+	id C03FC6B0008; Sat, 17 Aug 2019 20:30:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F3A966B000C; Sat, 17 Aug 2019 15:15:49 -0400 (EDT)
+	id B8E116B000A; Sat, 17 Aug 2019 20:30:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E28DF6B000D; Sat, 17 Aug 2019 15:15:49 -0400 (EDT)
+	id A53906B000C; Sat, 17 Aug 2019 20:30:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0064.hostedemail.com [216.40.44.64])
-	by kanga.kvack.org (Postfix) with ESMTP id C39DE6B0006
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 15:15:49 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 567E2180AD80F
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 19:15:49 +0000 (UTC)
-X-FDA: 75832874418.19.drop52_32be5dbe7173d
-X-HE-Tag: drop52_32be5dbe7173d
-X-Filterd-Recvd-Size: 10515
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 19:15:48 +0000 (UTC)
-Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7HJCfKu029936;
-	Sat, 17 Aug 2019 12:15:43 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=AXxYrdZTMKjWsJjah2Y6q0/+b31IPfJ2xAtd34l8h04=;
- b=CWZOtnGF26mV8p3GuGvYBdP2qoMJFi/jXoXZII7G1dgGKRGiVMRfJ9ui2c4IctLTr908
- D7IHBxufqkxo5I9nfO4smjOHA5Vy3blrksLfEIkxqZPKMaa5JRgOleRlZ1Xz7tD4UIB0
- 02nBEh/jT9c7eIRATxV1DJYsq0ZcfGCYn6g= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2uegvjs29s-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Sat, 17 Aug 2019 12:15:43 -0700
-Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
- prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Sat, 17 Aug 2019 12:15:42 -0700
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Sat, 17 Aug 2019 12:15:42 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=IMtTa3r4n374hb9sUfIvstiD1cZv2HcCUXnLENAZkL8sa3oSdiXDWRi6nycBV3pCsYD+k+6RCp7fveSLDdmxJ2HRxM0MNxUNilDAxtMTAfX4xuxKlo/ow9dkVDOZ6LsdnSkiC7GgQrbilOrybtFaXtqu5BqDklf20uMH4pZCuuO2uti1mMHA+vfKbqIaQizgGbl5b9P9q47MGWrfuUoSR82uIFvZytu9rs/23Lcmk3C0ZMVS7J8gZXFwKSgbxrUuJhy4k2On5NN0QVlQsptE4r+JxNU5tFLpgcZBm61bIEaUb+s5sFKjnZ4J0FmtHKtE/zGvAUmsZZe6fOvaKsv6UA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=AXxYrdZTMKjWsJjah2Y6q0/+b31IPfJ2xAtd34l8h04=;
- b=JNDvWTramQI8PyzXT4req93HYfCAYfDYFC7p1O1xmhGOWnima+zqvcl7+p10dq++72q2bzdFcH7kCb2gxGSqA4SIEzGNA0sZxRE9hd4OBsv01m911mvbiixtGwXEUbUcxxSb5CwDQhEQsrstfTgybypV1HRpiT9pz32+jDGzxIT128Ycr2v1bML0hnzRcplHUN7kLy1VCZlozttOU23AtD0oT4F71mG7R3mMcBAENbGTcPqwp8I1tyqftd1h8VIsqyhMYcurHNsAzWFniX30Bp7+X3lKq7MtL+LL0Vy1sa6Iw8xHueYG30UhPnSYWakiKq6RaAPt6GVyagoD37qakQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=AXxYrdZTMKjWsJjah2Y6q0/+b31IPfJ2xAtd34l8h04=;
- b=ARuJCWry1yr+WBxINOoLMDutCV9CqQCh4ijl5fCKERyY6B0502aLhiCvdRuSAOfcx5MhnhlvbIZDREPxrNhq/FQ6He8//2YWz7RuwKcYxw9AhLHYuT/DZk2tIPtVG6kLyowncYmVIGy+kRuIOq/fvxITqMFBeZm+VHeoMvF4a0Q=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB2569.namprd15.prod.outlook.com (20.179.160.203) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Sat, 17 Aug 2019 19:15:23 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e%3]) with mapi id 15.20.2178.018; Sat, 17 Aug 2019
- 19:15:23 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Greg KH <greg@kroah.com>
-CC: Andrew Morton <akpm@linux-foundation.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        Michal Hocko <mhocko@kernel.org>,
-        Johannes Weiner
-	<hannes@cmpxchg.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>,
-        Yafang Shao
-	<laoar.shao@gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0120.hostedemail.com [216.40.44.120])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D9616B0008
+	for <linux-mm@kvack.org>; Sat, 17 Aug 2019 20:30:53 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 244B8AC14
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 00:30:53 +0000 (UTC)
+X-FDA: 75833668386.25.ear68_24c7f8122252d
+X-HE-Tag: ear68_24c7f8122252d
+X-Filterd-Recvd-Size: 6854
+Received: from mail-io1-f68.google.com (mail-io1-f68.google.com [209.85.166.68])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 00:30:52 +0000 (UTC)
+Received: by mail-io1-f68.google.com with SMTP id s21so13690982ioa.1
+        for <linux-mm@kvack.org>; Sat, 17 Aug 2019 17:30:52 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=7TCNFB9IApthvRti5TuZchHBScOrRK3vIeUZCqgFKMI=;
+        b=tj8HYYpVDjnt1qYAUFi8njHti8RuQcSWkQtHtqD1We3t+PxlKqxbB/qfwaPyA8nHhp
+         lbZyujDvxpi9CAG9wKs23piBQucNB9PmSt9q5SgWO1Ifod75spKzLsEFXAWix5Ko8yxe
+         dspmNumSio874P0gjjGD3oUC9rtbsiwnVl/cvqgzUtEqgTPY4qP76oeDFzxU/hrh7rVt
+         XqFc2BdsP2K3/J9KKWm4n1JmisYMrtA7po/sepEUkpaEUCpFsv27YDqC0U8WaFTWjh5v
+         utYJ2ffXqr54hNV12WHdRG65pgSnutp5gHjWsPyzCyaaTxYwvPj54xTMw1BrvXuSnorO
+         XyEw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=7TCNFB9IApthvRti5TuZchHBScOrRK3vIeUZCqgFKMI=;
+        b=N4F7IkPJRts2WGus+5nYRN+LzRGKRn7BIdk17QvmHBmh3v3ZNikcRcQv3Ja/QZUADy
+         3R8WcyweltEe2F5cKcn9O9t2liNY1rbFujnZzfE+72I7XvcuRo9pasj6QAu1HtvQRumc
+         NR9IQ4xuoqtLVk+dHnqIXQlexv07tGxK/Okn87NYa3wo7vCqU+DQHeai8oN4d71zJ0Ie
+         JYI1iZXJ3bdE0chLqWdsIWdypYvZOxGa8bNz64zH3B1CD/CpMVzK0Bw0ktv1RzktrTQh
+         aCLeO0FND1rJWl5UD7Mmh4etJpb0kh+6g53vCsahU2ALC/bTjVdZTm6GQgTcs780QXrl
+         GYDg==
+X-Gm-Message-State: APjAAAXAiTxaS0LzdJa78CsuPiSm2TIdxDJh0m6nuVdzAUniBTgaFWhp
+	l970adI9unx8dE0bHnDF2tKIc5IxFl+tc17P71Y=
+X-Google-Smtp-Source: APXvYqw1qG48u3XtTNYDfqmoOH9rsc/UNf1NeLz1rj1kTjqIKQY9w3co5mCGqjVQJYxMGCTLXpee08DDnt3uvuATBKs=
+X-Received: by 2002:a02:1981:: with SMTP id b123mr18589621jab.72.1566088251625;
+ Sat, 17 Aug 2019 17:30:51 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190817004726.2530670-1-guro@fb.com> <CALOAHbBsMNLN6jZn83zx6EWM_092s87zvDQ7p-MZpY+HStk-1Q@mail.gmail.com>
+ <20190817191419.GA11125@castle>
+In-Reply-To: <20190817191419.GA11125@castle>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Sun, 18 Aug 2019 08:30:15 +0800
+Message-ID: <CALOAHbA-Z-1QDSgQ6H6QhPaPwAGyqfpd3Gbq-KLnoO=ZZxWnrw@mail.gmail.com>
 Subject: Re: [PATCH] Partially revert "mm/memcontrol.c: keep local VM counters
  in sync with the hierarchical ones"
-Thread-Topic: [PATCH] Partially revert "mm/memcontrol.c: keep local VM
- counters in sync with the hierarchical ones"
-Thread-Index: AQHVVJVnJCTepTfXpE2m8ikuyJkTSKb+4vkAgADUEgA=
-Date: Sat, 17 Aug 2019 19:15:23 +0000
-Message-ID: <20190817191518.GB11125@castle>
-References: <20190817004726.2530670-1-guro@fb.com>
- <20190817063616.GA11747@kroah.com>
-In-Reply-To: <20190817063616.GA11747@kroah.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR1701CA0012.namprd17.prod.outlook.com
- (2603:10b6:301:14::22) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:180::61b1]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 3dca784f-2915-4a71-6726-08d723474093
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR15MB2569;
-x-ms-traffictypediagnostic: DM6PR15MB2569:
-x-ms-exchange-purlcount: 1
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <DM6PR15MB256919047E442BC54390229FBEAE0@DM6PR15MB2569.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0132C558ED
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(7916004)(39860400002)(366004)(376002)(136003)(346002)(396003)(199004)(189003)(71200400001)(14454004)(54906003)(256004)(4326008)(53936002)(6246003)(76176011)(71190400001)(11346002)(33656002)(25786009)(478600001)(316002)(99286004)(81166006)(8676002)(81156014)(33716001)(8936002)(52116002)(6116002)(6916009)(6436002)(6306002)(305945005)(966005)(7736002)(229853002)(446003)(6512007)(5660300002)(66446008)(66556008)(66476007)(476003)(66946007)(102836004)(64756008)(46003)(386003)(6486002)(186003)(9686003)(6506007)(1076003)(2906002)(86362001)(486006);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2569;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: EA9HJNQ87B94Qt3PbswCnJGYY/vKRCrAUF7ECPjak4TqQ46MwZQteUBZ52vx67p3w5vcBxPGwqfBaemCEgL7PMMqIo1sWTPqS0ghfAgOFcqA8GaaVXPVuEvcaujfVnnr4p2L3pGOw663EovPu55A23aBQ2qo3tlGPeMQV/jLpOtq672Q+LUr0hsct82C79Qf2DpRkb4kAkSEPEqpwRfO5gHhsYnPJXYkDM/zajkYbzkCUK7PbmAjXxnzTvzQu2GShoggW388B6Ur189J9JEEQoo+xLTQYR7joIymQExuDrYOu1+ZzGbLacl3wl0wfE5gCDe0KO34rUWm87RzCItgitV4iJrexS+2i9SVvpshfsr6NuHBBqcn4gVf2r3cmnpm/LmzqcHWB4tntOHoimDbVw7pd0tH0oGVhF+Cas6QlaI=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <0467F09FF93E174C859D845E827A4C37@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 3dca784f-2915-4a71-6726-08d723474093
-X-MS-Exchange-CrossTenant-originalarrivaltime: 17 Aug 2019 19:15:23.1135
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: 6mPtGVpZ0ZdJnOfRrtBxC28DNZjVrHiBTsKoXAXrXvLXC1Ikj28wJR///rX4BxrC
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2569
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-17_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=760 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908170209
-X-FB-Internal: deliver
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, 
+	"stable@vger.kernel.org" <stable@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 17, 2019 at 08:36:16AM +0200, Greg KH wrote:
-> On Fri, Aug 16, 2019 at 05:47:26PM -0700, Roman Gushchin wrote:
-> > Commit 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync
-> > with the hierarchical ones") effectively decreased the precision of
-> > per-memcg vmstats_local and per-memcg-per-node lruvec percpu counters.
-> >=20
-> > That's good for displaying in memory.stat, but brings a serious regress=
-ion
-> > into the reclaim process.
-> >=20
-> > One issue I've discovered and debugged is the following:
-> > lruvec_lru_size() can return 0 instead of the actual number of pages
-> > in the lru list, preventing the kernel to reclaim last remaining
-> > pages. Result is yet another dying memory cgroups flooding.
-> > The opposite is also happening: scanning an empty lru list
-> > is the waste of cpu time.
-> >=20
-> > Also, inactive_list_is_low() can return incorrect values, preventing
-> > the active lru from being scanned and freed. It can fail both because
-> > the size of active and inactive lists are inaccurate, and because
-> > the number of workingset refaults isn't precise. In other words,
-> > the result is pretty random.
-> >=20
-> > I'm not sure, if using the approximate number of slab pages in
-> > count_shadow_number() is acceptable, but issues described above
-> > are enough to partially revert the patch.
-> >=20
-> > Let's keep per-memcg vmstat_local batched (they are only used for
-> > displaying stats to the userspace), but keep lruvec stats precise.
-> > This change fixes the dead memcg flooding on my setup.
-> >=20
-> > Fixes: 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync w=
-ith the hierarchical ones")
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Yafang Shao <laoar.shao@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  mm/memcontrol.c | 8 +++-----
-> >  1 file changed, 3 insertions(+), 5 deletions(-)
->=20
-> <formletter>
->=20
-> This is not the correct way to submit patches for inclusion in the
-> stable kernel tree.  Please read:
->     https://www.kernel.org/doc/html/latest/process/stable-kernel-rules.ht=
-ml
-> for how to do this properly.
+On Sun, Aug 18, 2019 at 3:14 AM Roman Gushchin <guro@fb.com> wrote:
+>
+> On Sat, Aug 17, 2019 at 11:33:57AM +0800, Yafang Shao wrote:
+> > On Sat, Aug 17, 2019 at 8:47 AM Roman Gushchin <guro@fb.com> wrote:
+> > >
+> > > Commit 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync
+> > > with the hierarchical ones") effectively decreased the precision of
+> > > per-memcg vmstats_local and per-memcg-per-node lruvec percpu counters.
+> > >
+> > > That's good for displaying in memory.stat, but brings a serious regression
+> > > into the reclaim process.
+> > >
+> > > One issue I've discovered and debugged is the following:
+> > > lruvec_lru_size() can return 0 instead of the actual number of pages
+> > > in the lru list, preventing the kernel to reclaim last remaining
+> > > pages. Result is yet another dying memory cgroups flooding.
+> > > The opposite is also happening: scanning an empty lru list
+> > > is the waste of cpu time.
+> > >
+> > > Also, inactive_list_is_low() can return incorrect values, preventing
+> > > the active lru from being scanned and freed. It can fail both because
+> > > the size of active and inactive lists are inaccurate, and because
+> > > the number of workingset refaults isn't precise. In other words,
+> > > the result is pretty random.
+> > >
+> > > I'm not sure, if using the approximate number of slab pages in
+> > > count_shadow_number() is acceptable, but issues described above
+> > > are enough to partially revert the patch.
+> > >
+> > > Let's keep per-memcg vmstat_local batched (they are only used for
+> > > displaying stats to the userspace), but keep lruvec stats precise.
+> > > This change fixes the dead memcg flooding on my setup.
+> > >
+> >
+> > That will make some misunderstanding if the local counters are not in
+> > sync with the hierarchical ones
+> > (someone may doubt whether there're something leaked.).
+>
+> Sure, but the actual leakage is a much more serious issue.
+>
+> > If we have to do it like this, I think we should better document this behavior.
+>
+> Lru size calculations can be done using per-zone counters, which is
+> actually cheaper, because the number of zones is usually smaller than
+> the number of cpus. I'll send a corresponding patch on Monday.
+>
 
-Oh, I'm sorry, will read and follow next time. Thanks!
+Looks like a good idea.
 
->=20
-> </formletter>
+> Maybe other use cases can also be converted?
+
+We'd better keep the behavior the same across counters. I think you
+can have a try.
+
+Thanks
+Yafang
+
+>
+> Thanks!
+>
+> >
+> > > Fixes: 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync with the hierarchical ones")
+> > > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > > Cc: Yafang Shao <laoar.shao@gmail.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > ---
+> > >  mm/memcontrol.c | 8 +++-----
+> > >  1 file changed, 3 insertions(+), 5 deletions(-)
+> > >
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index 249187907339..3429340adb56 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -746,15 +746,13 @@ void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+> > >         /* Update memcg */
+> > >         __mod_memcg_state(memcg, idx, val);
+> > >
+> > > +       /* Update lruvec */
+> > > +       __this_cpu_add(pn->lruvec_stat_local->count[idx], val);
+> > > +
+> > >         x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
+> > >         if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
+> > >                 struct mem_cgroup_per_node *pi;
+> > >
+> > > -               /*
+> > > -                * Batch local counters to keep them in sync with
+> > > -                * the hierarchical ones.
+> > > -                */
+> > > -               __this_cpu_add(pn->lruvec_stat_local->count[idx], x);
+> > >                 for (pi = pn; pi; pi = parent_nodeinfo(pi, pgdat->node_id))
+> > >                         atomic_long_add(x, &pi->lruvec_stat[idx]);
+> > >                 x = 0;
+> > > --
+> > > 2.21.0
+> > >
 
