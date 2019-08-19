@@ -2,245 +2,168 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BE11C3A59B
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:25:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02C34C3A59D
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:30:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 086332087E
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:25:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 086332087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id B59B52087E
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:30:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B59B52087E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 970786B0006; Mon, 19 Aug 2019 05:25:24 -0400 (EDT)
+	id 54E616B0006; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 922106B0007; Mon, 19 Aug 2019 05:25:24 -0400 (EDT)
+	id 4D6756B0007; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80F056B0008; Mon, 19 Aug 2019 05:25:24 -0400 (EDT)
+	id 39DFF6B0008; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B61C6B0006
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:25:24 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id F3E10181AC9AE
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:25:23 +0000 (UTC)
-X-FDA: 75838644168.25.face06_693eca229a059
-X-HE-Tag: face06_693eca229a059
-X-Filterd-Recvd-Size: 8905
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:25:23 +0000 (UTC)
-Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id C3A4743DB5F;
-	Mon, 19 Aug 2019 19:25:16 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hzdtZ-0003uw-KP; Mon, 19 Aug 2019 19:24:09 +1000
-Date: Mon, 19 Aug 2019 19:24:09 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Jan Kara <jack@suse.cz>
-Cc: Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190819092409.GM7777@dread.disaster.area>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190814101714.GA26273@quack2.suse.cz>
- <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
- <20190815130558.GF14313@quack2.suse.cz>
- <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
- <20190817022603.GW6129@dread.disaster.area>
- <20190819063412.GA20455@quack2.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
+	by kanga.kvack.org (Postfix) with ESMTP id 1521F6B0006
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id A73918248AB1
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:30:56 +0000 (UTC)
+X-FDA: 75838658112.19.mint37_82e950dbec3f
+X-HE-Tag: mint37_82e950dbec3f
+X-Filterd-Recvd-Size: 6455
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:30:56 +0000 (UTC)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7J9MAgM061656
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:55 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ufrf71pph-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:54 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 19 Aug 2019 10:30:53 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 19 Aug 2019 10:30:50 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7J9Un0d22151242
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 19 Aug 2019 09:30:49 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 850604C04A;
+	Mon, 19 Aug 2019 09:30:49 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A075A4C052;
+	Mon, 19 Aug 2019 09:30:48 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.124.35.64])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon, 19 Aug 2019 09:30:48 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Subject: Re: [PATCH v5 3/4] mm/nvdimm: Use correct #defines instead of open coding
+In-Reply-To: <87v9ut1vev.fsf@linux.ibm.com>
+References: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com> <20190809074520.27115-4-aneesh.kumar@linux.ibm.com> <CAPcyv4hc_-oGMp6jGVknnYs+rmj4W1A_gFCbmAX2LFw0hsfL5g@mail.gmail.com> <87v9ut1vev.fsf@linux.ibm.com>
+Date: Mon, 19 Aug 2019 15:00:47 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190819063412.GA20455@quack2.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
-	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=IkcTkHD0fZMA:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=uRkhnK3tQF7xzalHlfoA:9 a=qxnrrwIs3tiBhskk:21
-	a=zvn5vesPaJoFCDyj:21 a=QEXdDO2ut3YA:10 a=biEYGPWJfzWAr4FL6Ov7:22
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19081909-4275-0000-0000-0000035AAE53
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19081909-4276-0000-0000-0000386CCA5F
+Message-Id: <87mug5biyg.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-19_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908190107
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 08:34:12AM +0200, Jan Kara wrote:
-> On Sat 17-08-19 12:26:03, Dave Chinner wrote:
-> > On Fri, Aug 16, 2019 at 12:05:28PM -0700, Ira Weiny wrote:
-> > > On Thu, Aug 15, 2019 at 03:05:58PM +0200, Jan Kara wrote:
-> > > > On Wed 14-08-19 11:08:49, Ira Weiny wrote:
-> > > > > On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
-> > > 2) Second reason is that I thought I did not have a good way to tel=
-l if the
-> > >    lease was actually in use.  What I mean is that letting the leas=
-e go should
-> > >    be ok IFF we don't have any pins...  I was thinking that without=
- John's code
-> > >    we don't have a way to know if there are any pins...  But that i=
-s wrong...
-> > >    All we have to do is check
-> > >=20
-> > > 	!list_empty(file->file_pins)
-> > >=20
-> > > So now with this detail I think you are right, we should be able to=
- hold the
-> > > lease through the struct file even if the process no longer has any
-> > > "references" to it (ie closes and munmaps the file).
-> >=20
-> > I really, really dislike the idea of zombie layout leases. It's a
-> > nasty hack for poor application behaviour. This is a "we allow use
-> > after layout lease release" API, and I think encoding largely
-> > untraceable zombie objects into an API is very poor design.
-> >=20
-> > From the fcntl man page:
-> >=20
-> > LEASES
-> > 	Leases are associated with an open file description (see
-> > 	open(2)).  This means that duplicate file descriptors
-> > 	(created by, for example, fork(2) or dup(2))  re=E2=80=90 fer  to
-> > 	the  same  lease,  and this lease may be modified or
-> > 	released using any of these descriptors.  Furthermore, the
-> > 	lease is released by either an explicit F_UNLCK operation on
-> > 	any of these duplicate file descriptors, or when all such
-> > 	file descriptors have been closed.
-> >=20
-> > Leases are associated with *open* file descriptors, not the
-> > lifetime of the struct file in the kernel. If the application closes
-> > the open fds that refer to the lease, then the kernel does not
-> > guarantee, and the application has no right to expect, that the
-> > lease remains active in any way once the application closes all
-> > direct references to the lease.
-> >=20
-> > IOWs, applications using layout leases need to hold the lease fd
-> > open for as long as the want access to the physical file layout. It
-> > is a also a requirement of the layout lease that the holder releases
-> > the resources it holds on the layout before it releases the layout
-> > lease, exclusive lease or not. Closing the fd indicates they do not
-> > need access to the file any more, and so the lease should be
-> > reclaimed at that point.
-> >=20
-> > I'm of a mind to make the last close() on a file block if there's an
-> > active layout lease to prevent processes from zombie-ing layout
-> > leases like this. i.e. you can't close the fd until resources that
-> > pin the lease have been released.
->=20
-> Yeah, so this was my initial though as well [1]. But as the discussion =
-in
-> that thread revealed, the problem with blocking last close is that kern=
-el
-> does not really expect close to block. You could easily deadlock e.g. i=
-f
-> the process gets SIGKILL, file with lease has fd 10, and the RDMA conte=
-xt
-> holding pages pinned has fd 15.
+Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
 
-Sure, I did think about this a bit about it before suggesting it :)
+> Dan Williams <dan.j.williams@intel.com> writes:
+>
+>> On Fri, Aug 9, 2019 at 12:45 AM Aneesh Kumar K.V
+>> <aneesh.kumar@linux.ibm.com> wrote:
+>>>
+>>
 
-The last close is an interesting case because the __fput() call
-actually runs from task_work() context, not where the last reference
-is actually dropped. So it already has certain specific interactions
-with signals and task exit processing via task_add_work() and
-task_work_run().
+...
 
-task_add_work() calls set_notify_resume(task), so if nothing else
-triggers when returning to userspace we run this path:
+>>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+>>> index 37e96811c2fc..c1d9be609322 100644
+>>> --- a/drivers/nvdimm/pfn_devs.c
+>>> +++ b/drivers/nvdimm/pfn_devs.c
+>>> @@ -725,7 +725,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>>>                  * when populating the vmemmap. This *should* be equal to
+>>>                  * PMD_SIZE for most architectures.
+>>>                  */
+>>> -               offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
+>>> +               offset = ALIGN(start + SZ_8K + sizeof(struct page) * npfns,
+>>
+>> I'd prefer if this was not dynamic and was instead set to the maximum
+>> size of 'struct page' across all archs just to enhance cross-arch
+>> compatibility. I think that answer is '64'.
+>
+>
+> That still doesn't take care of the case where we add new elements to
+> struct page later. If we have struct page size changing across
+> architectures, we should still be ok as long as new size is less than what is
+> stored in pfn superblock? I understand the desire to keep it
+> non-dynamic. But we also need to make sure we don't reserve less space
+> when creating a new namespace on a config that got struct page size >
+> 64? 
 
-exit_to_usermode_loop()
-  tracehook_notify_resume()
-    task_work_run()
-      __fput()
-	locks_remove_file()
-	  locks_remove_lease()
-	    ....
 
-It's worth noting that locks_remove_lease() does a
-percpu_down_read() which means we can already block in this context
-removing leases....
+How about
 
-If there is a signal pending, the task work is run this way (before
-the above notify path):
+libnvdimm/pfn_dev: Add a build check to make sure we notice when struct page size change
 
-exit_to_usermode_loop()
-  do_signal()
-    get_signal()
-      task_work_run()
-        __fput()
+When namespace is created with map device as pmem device, struct page is stored in the
+reserve block area. We need to make sure we account for the right struct page
+size while doing this. Instead of directly depending on sizeof(struct page)
+which can change based on different kernel config option, use the max struct
+page size (64) while calculating the reserve block area. This makes sure pmem
+device can be used across kernels built with different configs.
 
-We can detect this case via signal_pending() and even SIGKILL via
-fatal_signal_pending(), and so we can decide not to block based on
-the fact the process is about to be reaped and so the lease largely
-doesn't matter anymore. I'd argue that it is close and we can't
-easily back out, so we'd only break the block on a fatal signal....
+If the above assumption of max struct page size change, we need to update the
+reserve block allocation space for new namespaces created.
 
-And then, of course, is the call path through do_exit(), which has
-the PF_EXITING task flag set:
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 
-do_exit()
-  exit_task_work()
-    task_work_run()
-      __fput()
+1 file changed, 7 insertions(+)
+drivers/nvdimm/pfn_devs.c | 7 +++++++
 
-and so it's easy to avoid blocking in this case, too.
+modified   drivers/nvdimm/pfn_devs.c
+@@ -722,7 +722,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 		 * The altmap should be padded out to the block size used
+ 		 * when populating the vmemmap. This *should* be equal to
+ 		 * PMD_SIZE for most architectures.
++		 *
++		 * Also make sure size of struct page is less than 64. We
++		 * want to make sure we use large enough size here so that
++		 * we don't have a dynamic reserve space depending on
++		 * struct page size. But we also want to make sure we notice
++		 * if we end up adding new elements to struct page.
+ 		 */
++		BUILD_BUG_ON(64 < sizeof(struct page));
+ 		offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
+ 	} else if (nd_pfn->mode == PFN_MODE_RAM)
+ 		offset = ALIGN(start + SZ_8K, align) - start;
 
-So that leaves just the normal close() syscall exit case, where the
-application has full control of the order in which resources are
-released. We've already established that we can block in this
-context.  Blocking in an interruptible state will allow fatal signal
-delivery to wake us, and then we fall into the
-fatal_signal_pending() case if we get a SIGKILL while blocking.
 
-Hence I think blocking in this case would be OK - it indicates an
-application bug (releasing a lease before releasing the resources)
-but leaves SIGKILL available to administrators to resolve situations
-involving buggy applications.
+-aneesh
 
-This requires applications to follow the rules: any process
-that pins physical resources must have an active reference to a
-layout lease, either via a duplicated fd or it's own private lease.
-If the app doesn't play by the rules, it hangs in close() until it
-is killed.
-
-> Or you could wait for another process to
-> release page pins and blocking SIGKILL on that is also bad.
-
-Again, each individual process that pins pages from the layout must
-have it's own active layout lease reference.
-
-> So in the end
-> the least bad solution we've come up with were these "zombie" leases as=
- you
-> call them and tracking them in /proc so that userspace at least has a w=
-ay
-> of seeing them. But if you can come up with a different solution, I'm
-> certainly not attached to the current one...
-
-It might be the "least bad" solution, but it's still a pretty bad
-one. And one that I don't think is necessary if we simply enforce
-the "process must have active references for the entire time the
-process uses the resource" rule. That's the way file access has
-always worked, I don't see why we should be doing anything different
-for access to the physical layout of files...
-
-Cheers,
-
-Dave.
---=20
-Dave Chinner
-david@fromorbit.com
 
