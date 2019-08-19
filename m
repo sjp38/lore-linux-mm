@@ -2,112 +2,123 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 047E7C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:03:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67E48C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:16:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FFFA2085A
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:03:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2771420651
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:16:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="0nEyQxrz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FFFA2085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GASLs+yZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2771420651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 230156B0006; Mon, 19 Aug 2019 11:03:55 -0400 (EDT)
+	id 92ADB6B000A; Mon, 19 Aug 2019 11:16:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1BA286B0007; Mon, 19 Aug 2019 11:03:55 -0400 (EDT)
+	id 8DD246B000C; Mon, 19 Aug 2019 11:16:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 059006B0008; Mon, 19 Aug 2019 11:03:54 -0400 (EDT)
+	id 7CA976B000E; Mon, 19 Aug 2019 11:16:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0098.hostedemail.com [216.40.44.98])
-	by kanga.kvack.org (Postfix) with ESMTP id D1EEE6B0006
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:03:54 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 786BA55F99
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:03:54 +0000 (UTC)
-X-FDA: 75839497188.09.work34_4f1195d8560a
-X-HE-Tag: work34_4f1195d8560a
-X-Filterd-Recvd-Size: 3353
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:03:53 +0000 (UTC)
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6E95F2082A;
-	Mon, 19 Aug 2019 15:03:46 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566227032;
-	bh=r6Qgo/EerA13r1XKtNaY4F+Fih36uuDtTQD1GOLw7VQ=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=0nEyQxrzKySESBGUKFh6Mc7GKgYYTSFMG2ya3Aynwg+mkt7CdHwX1ZGgwWQIBVQNC
-	 csQxb4ByJHAcqnYqU7+Fm9Hsps67VrFjc2c/XCKmA+NKVGLnxTKLf6kehDfxn/TIGn
-	 4gQpsLvC7laSzTwVSqSMjm+lPXfV7VopH5mFLfEs=
-Date: Mon, 19 Aug 2019 16:03:43 +0100
-From: Will Deacon <will@kernel.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org, Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH ARM] selftests, arm64: fix uninitialized symbol in
- tags_test.c
-Message-ID: <20190819150342.sxk3zzxvrxhkpp6j@willie-the-truck>
-References: <00eb8ba84205c59cac01b1b47615116a461c302c.1566220355.git.andreyknvl@google.com>
+Received: from forelay.hostedemail.com (smtprelay0167.hostedemail.com [216.40.44.167])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A8646B000A
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:16:51 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id B8C60181AC9B4
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:16:50 +0000 (UTC)
+X-FDA: 75839529780.12.bead12_75ec31dc7cf1b
+X-HE-Tag: bead12_75ec31dc7cf1b
+X-Filterd-Recvd-Size: 4780
+Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:16:50 +0000 (UTC)
+Received: by mail-pl1-f194.google.com with SMTP id t14so1103127plr.11
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:16:50 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=GlFmsxpfwLpG5XFQZcDJGrUJIAXAnOONymKIPYeVWy4=;
+        b=GASLs+yZnKXgCHGknNLNo71e6UtRt515EbzdpWYm/Hpg75x/UubNKrVS4Ph4uPK+8D
+         Ti+bZvb7RwZ8Rgn5diZiCZOC7bC9H+dTrKcVTPMW/pFv9U1AucjO/hRKCCkTBhzRIaU3
+         D9sPMjOcAkw+sn0WiouQhRmANU/HoJXNnBPivxMzU2mCd+1bqEU622XIt7CtOkyBUScf
+         CddY5regO8tRNMImraZP3DECenQ45DhILnBAxk2TuQ3iyHoyjpEbXWuF3zSR6z/Z8e3z
+         D8kAaqFBdLd66b1BOwiK9p1SMntN4cI0JAUQgHjwyJ5ye9BNp3phuuPzg6paxdjmOKUJ
+         Bduw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=GlFmsxpfwLpG5XFQZcDJGrUJIAXAnOONymKIPYeVWy4=;
+        b=bberPfouWWzGFEuTx/ey7EFY7oGHiIkq3KDQ9bMrffv1iyPpTPJzO7m561BdlCwFYX
+         6qolk0bvXSweb2S7YEl3/3kFXCbDWTKJxF29R5nzFGosQSOcyp3QS/1RzBOlo6wYGiy6
+         ZurFQtyZeLPPb3Q1QRui0y1a+tT6MUGcCvWod//c8dHsFnwhEMtKMYvBzSgO8TbXUsyl
+         4wYB7XzyQh7/IEKbaFReDqh0zdCw6Uh6RlfX/NOgW/wcXOTB+zAGODcucz/EWr/SZhSa
+         RatH/WocAcFzdbGUvf9ZSutZev+UD70UOdaAVUT7oXCvq7/1AiF3GcH7iOQrHeYXcSJG
+         Eo1Q==
+X-Gm-Message-State: APjAAAVgl1ImaZ8EvfvclSMYu5p4IMKLQL2atINbTs8ns30B+ExOiyWC
+	5rxRL3YgsU0D92ccUmHrB5ev6kd+O8FMAJC5LNwGFg==
+X-Google-Smtp-Source: APXvYqxAVYv/X47htv2GfhrYLw10pOmVgC147AdMR4amTTESkgYjtOO9fvfN54mImyUI3YtolKb0GRqZDtWypE7Vt8Q=
+X-Received: by 2002:a17:902:ab96:: with SMTP id f22mr23622721plr.147.1566227808825;
+ Mon, 19 Aug 2019 08:16:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00eb8ba84205c59cac01b1b47615116a461c302c.1566220355.git.andreyknvl@google.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+References: <00eb8ba84205c59cac01b1b47615116a461c302c.1566220355.git.andreyknvl@google.com>
+ <20190819150342.sxk3zzxvrxhkpp6j@willie-the-truck>
+In-Reply-To: <20190819150342.sxk3zzxvrxhkpp6j@willie-the-truck>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 19 Aug 2019 17:16:37 +0200
+Message-ID: <CAAeHK+xP6HnLJt_RKW67x8nbJLJp5A=av57BfwiFrA88eFn60w@mail.gmail.com>
+Subject: Re: [PATCH ARM] selftests, arm64: fix uninitialized symbol in tags_test.c
+To: Will Deacon <will@kernel.org>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
+	Catalin Marinas <catalin.marinas@arm.com>, Kostya Serebryany <kcc@google.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Leon Romanovsky <leon@kernel.org>, Christoph Hellwig <hch@infradead.org>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	Dave Martin <Dave.Martin@arm.com>, Evgeniy Stepanov <eugenis@google.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Alex Williamson <alex.williamson@redhat.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Dan Carpenter <dan.carpenter@oracle.com>, 
+	Lee Smith <Lee.Smith@arm.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>, 
+	Robin Murphy <robin.murphy@arm.com>, Christian Koenig <Christian.Koenig@amd.com>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 03:14:42PM +0200, Andrey Konovalov wrote:
-> Fix tagged_ptr not being initialized when TBI is not enabled.
-> 
-> Dan Carpenter <dan.carpenter@oracle.com>
+On Mon, Aug 19, 2019 at 5:03 PM Will Deacon <will@kernel.org> wrote:
+>
+> On Mon, Aug 19, 2019 at 03:14:42PM +0200, Andrey Konovalov wrote:
+> > Fix tagged_ptr not being initialized when TBI is not enabled.
+> >
+> > Dan Carpenter <dan.carpenter@oracle.com>
+>
+> Guessing this was Reported-by, or has Dan introduced his own tag now? ;)
 
-Guessing this was Reported-by, or has Dan introduced his own tag now? ;)
+Oops, yes, Reported-by :)
 
-Got a link to the report?
+>
+> Got a link to the report?
 
-Will
+https://www.spinics.net/lists/linux-kselftest/msg09446.html
+
+>
+> Will
 
