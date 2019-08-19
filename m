@@ -2,170 +2,130 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0AECC3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:30:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ECC9AC41514
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:39:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 744D72082C
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:30:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B048C22CE2
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:39:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YbCC/THX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 744D72082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="QRXT896q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B048C22CE2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 096EA6B000E; Mon, 19 Aug 2019 11:30:07 -0400 (EDT)
+	id 486836B000E; Mon, 19 Aug 2019 11:39:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 021056B0269; Mon, 19 Aug 2019 11:30:06 -0400 (EDT)
+	id 419536B0269; Mon, 19 Aug 2019 11:39:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E288C6B026A; Mon, 19 Aug 2019 11:30:06 -0400 (EDT)
+	id 2D69A6B026A; Mon, 19 Aug 2019 11:39:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0229.hostedemail.com [216.40.44.229])
-	by kanga.kvack.org (Postfix) with ESMTP id BB1036B000E
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:30:06 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id E0C67610D
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:30:05 +0000 (UTC)
-X-FDA: 75839563170.10.wood07_5812aab77eb36
-X-HE-Tag: wood07_5812aab77eb36
-X-Filterd-Recvd-Size: 5490
-Received: from mail-oi1-f196.google.com (mail-oi1-f196.google.com [209.85.167.196])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:30:04 +0000 (UTC)
-Received: by mail-oi1-f196.google.com with SMTP id c15so1604986oic.3
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:30:04 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=j8ka/lSpx7x87DLc83+R4USIti/BoN9Ffmdc3jaOX2Q=;
-        b=YbCC/THXJ+jW3CX9FXHClKXeCtKiLUPIuAcslTQaG+QSmimIH99mMK/nFW7Ftl9eQF
-         eDMyAMXlqQzz2qS3NvwOgii1mrdv2rMg1HXXyOTcx1usHidRZyFkmVtsY2ySgpvSqJoa
-         KWUXVre94APcbRzJkR+LWl13Ufg4AltWnGGhsH7wnaPpjq1C2F2QPm8prfNSK9zaCb19
-         WQjUQ5Sioh4i9AkdytmGK5ClbiZRAvEnmdnvGxIQibMG6B0E+VuBhLlTbsyHUEBvy5rp
-         37Gx4fOMHkBIAF9u1Oo5vGmA54Ue429pgpP7/99V+YFAu2vyPhif9dvma00qVEFSWmPz
-         R6xw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=j8ka/lSpx7x87DLc83+R4USIti/BoN9Ffmdc3jaOX2Q=;
-        b=eJKsoB519WzA9T4e4jkDDrNBpZYc/byM+CcA/lceWya9FfpNtF09ebBn77FlcUf8jr
-         m9WYo9OWkyZIld4o56di/rUGy7qM9yoimGgol0IEvhyHMzZqbAxkMxa5IECK2jwUPobr
-         xdsA3dC1Ib/iM6fLRIyNQb24R59Djk4+P/JknHCBKFxEHQT/jfrTfHVdGi1zOUokLlFN
-         d+kjsUDQjhQRJORwIwvSobb+0YkAmzD8paE/pLo3JIIox7V3L4bmTXLTVM1FxvvBrXtz
-         OWqAXLRbzrg6uaydzzxegalPpv5cPWwHIIKY/33iPZ23HG7e3E+kf8zA5OGDo2AZUQwd
-         e07w==
-X-Gm-Message-State: APjAAAXHdkfqaKDLhvFP6yJuihsYYomCSBf/n5f5D76UtVXAEkQ1OcZa
-	IYndNGLJCIBq3roeJw0CXjAeG3KsqoKxkArvdI4=
-X-Google-Smtp-Source: APXvYqydVhuF3ntnoIzw4WdaFZsGX6v0yJ381g5t+kAPdv9EwyYq9UGMZNp6eBqM0v83H75PPht5fdfswl306n8hArw=
-X-Received: by 2002:aca:d60b:: with SMTP id n11mr13195651oig.22.1566228603622;
- Mon, 19 Aug 2019 08:30:03 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 04DAC6B000E
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:39:09 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 80B66181AC9BA
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:39:09 +0000 (UTC)
+X-FDA: 75839586018.04.limit36_1588449f46554
+X-HE-Tag: limit36_1588449f46554
+X-Filterd-Recvd-Size: 4084
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf40.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:39:07 +0000 (UTC)
+Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 665E8206BB;
+	Mon, 19 Aug 2019 15:39:00 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1566229146;
+	bh=mU4ouJkj7NaS3vquiJ3mn2kEexO3/gSWokZg7nn5uQA=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=QRXT896qGq/WiHyf17lxsprNRQAfPEOU3Z+5CjXNL2fEnpIDD7ajhOWUK4biSQh33
+	 2ijToYzNGWeRrOdqqSLtcBmrSdl9BJssStybtDcjEQR6fHT1uFfB6cz07Uv9ONyRWy
+	 ioL0yg4XhRdRVMfY281I2aZx/KgI2/YhO+Z/GTZc=
+Date: Mon, 19 Aug 2019 16:38:57 +0100
+From: Will Deacon <will@kernel.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Dave Martin <Dave.Martin@arm.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH ARM] selftests, arm64: fix uninitialized symbol in
+ tags_test.c
+Message-ID: <20190819153856.odtneqxfxva2wjgu@willie-the-truck>
+References: <00eb8ba84205c59cac01b1b47615116a461c302c.1566220355.git.andreyknvl@google.com>
+ <20190819150342.sxk3zzxvrxhkpp6j@willie-the-truck>
+ <CAAeHK+xP6HnLJt_RKW67x8nbJLJp5A=av57BfwiFrA88eFn60w@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190817105102.11732-1-lpf.vector@gmail.com> <d0549e44-a885-2178-3f98-596eff765b3d@suse.cz>
-In-Reply-To: <d0549e44-a885-2178-3f98-596eff765b3d@suse.cz>
-From: Pengfei Li <lpf.vector@gmail.com>
-Date: Mon, 19 Aug 2019 23:29:51 +0800
-Message-ID: <CAD7_sbGYGhCTt_rfL8wX-FrXMFpSD_v7zPz9ic1Li6Jurc1ajQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: cleanup __alloc_pages_direct_compact()
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, osalvador@suse.de, 
-	pavel.tatashin@microsoft.com, Mel Gorman <mgorman@techsingularity.net>, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+xP6HnLJt_RKW67x8nbJLJp5A=av57BfwiFrA88eFn60w@mail.gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 9:50 PM Vlastimil Babka <vbabka@suse.cz> wrote:
->
-> On 8/17/19 12:51 PM, Pengfei Li wrote:
-> > This patch cleans up the if(page).
+On Mon, Aug 19, 2019 at 05:16:37PM +0200, Andrey Konovalov wrote:
+> On Mon, Aug 19, 2019 at 5:03 PM Will Deacon <will@kernel.org> wrote:
 > >
-> > No functional change.
+> > On Mon, Aug 19, 2019 at 03:14:42PM +0200, Andrey Konovalov wrote:
+> > > Fix tagged_ptr not being initialized when TBI is not enabled.
+> > >
+> > > Dan Carpenter <dan.carpenter@oracle.com>
 > >
-> > Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
->
-> I don't see much benefit here. The indentation wasn't that bad that it
-> had to be reduced using goto. But the patch is not incorrect so I'm not
-> NACKing.
->
+> > Guessing this was Reported-by, or has Dan introduced his own tag now? ;)
+> 
+> Oops, yes, Reported-by :)
+> 
+> >
+> > Got a link to the report?
+> 
+> https://www.spinics.net/lists/linux-kselftest/msg09446.html
 
-Thanks for your review and comments.
+Thanks, I'll fix up the commit message and push this out later on. If you
+get a chance, would you be able to look at the pending changes from
+Catalin[1], please?
 
-This patch reduces the number of times the if(page)
-(as the compiler does), and the downside is that there is a goto.
+Will
 
-If this improves readability, accept it. Otherwise, leave it as it is.
-
-Thanks again.
-
----
-Pengfei
-
-
-> > ---
-> >  mm/page_alloc.c | 28 ++++++++++++++++------------
-> >  1 file changed, 16 insertions(+), 12 deletions(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 272c6de1bf4e..51f056ac09f5 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3890,6 +3890,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-> >               enum compact_priority prio, enum compact_result *compact_result)
-> >  {
-> >       struct page *page = NULL;
-> > +     struct zone *zone;
-> >       unsigned long pflags;
-> >       unsigned int noreclaim_flag;
-> >
-> > @@ -3911,23 +3912,26 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-> >        */
-> >       count_vm_event(COMPACTSTALL);
-> >
-> > -     /* Prep a captured page if available */
-> > -     if (page)
-> > +     if (page) {
-> > +             /* Prep a captured page if available */
-> >               prep_new_page(page, order, gfp_mask, alloc_flags);
-> > -
-> > -     /* Try get a page from the freelist if available */
-> > -     if (!page)
-> > +     } else {
-> > +             /* Try get a page from the freelist if available */
-> >               page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-> >
-> > -     if (page) {
-> > -             struct zone *zone = page_zone(page);
-> > -
-> > -             zone->compact_blockskip_flush = false;
-> > -             compaction_defer_reset(zone, order, true);
-> > -             count_vm_event(COMPACTSUCCESS);
-> > -             return page;
-> > +             if (!page)
-> > +                     goto failed;
-> >       }
-> >
-> > +     zone = page_zone(page);
-> > +     zone->compact_blockskip_flush = false;
-> > +     compaction_defer_reset(zone, order, true);
-> > +
-> > +     count_vm_event(COMPACTSUCCESS);
-> > +
-> > +     return page;
-> > +
-> > +failed:
-> >       /*
-> >        * It's bad if compaction run occurs and fails. The most likely reason
-> >        * is that pages exist, but not enough to satisfy watermarks.
-> >
->
+[1] https://lkml.kernel.org/r/20190815154403.16473-1-catalin.marinas@arm.com
 
