@@ -2,129 +2,131 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 490F1C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:48:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4A30C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:56:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0AAB820989
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:48:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AAB820989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6459220851
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:56:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6459220851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=hpe.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 41C2E6B0008; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
+	id E75606B0008; Mon, 19 Aug 2019 08:56:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3CC6A6B000A; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
+	id E26116B000A; Mon, 19 Aug 2019 08:56:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E23F6B000C; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
+	id D3CEF6B000C; Mon, 19 Aug 2019 08:56:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE186B0008
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id A51B72DF0
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:48:41 +0000 (UTC)
-X-FDA: 75839156442.13.birth19_8603f79581120
-X-HE-Tag: birth19_8603f79581120
-X-Filterd-Recvd-Size: 4553
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:48:40 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3B0E2C059758;
-	Mon, 19 Aug 2019 12:48:39 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (ovpn-204-244.brq.redhat.com [10.40.204.244])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 993C358C9C;
-	Mon, 19 Aug 2019 12:48:33 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Mon, 19 Aug 2019 14:48:38 +0200 (CEST)
-Date: Mon, 19 Aug 2019 14:48:33 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Kefeng Wang <wangkefeng.wang@huawei.com>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
-Message-ID: <20190819124832.GA15044@redhat.com>
-References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
- <20190814135351.GY17933@dhcp22.suse.cz>
- <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
- <20190814151049.GD11595@redhat.com>
- <20190814154101.GF11595@redhat.com>
- <0cfded81-6668-905f-f2be-490bf7c750fb@huawei.com>
- <20190815095409.GC32051@redhat.com>
- <3b521a8c-586f-251e-f486-d71ff094b8e9@huawei.com>
+Received: from forelay.hostedemail.com (smtprelay0198.hostedemail.com [216.40.44.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B31866B0008
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:56:18 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 56B4E34A4
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:56:18 +0000 (UTC)
+X-FDA: 75839175636.01.waves87_36fd9a322ff54
+X-HE-Tag: waves87_36fd9a322ff54
+X-Filterd-Recvd-Size: 4182
+Received: from mx0b-002e3701.pphosted.com (mx0b-002e3701.pphosted.com [148.163.143.35])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:56:17 +0000 (UTC)
+Received: from pps.filterd (m0150244.ppops.net [127.0.0.1])
+	by mx0b-002e3701.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7JCu9K9030104;
+	Mon, 19 Aug 2019 12:56:13 GMT
+Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com [15.241.140.75])
+	by mx0b-002e3701.pphosted.com with ESMTP id 2ufstss30v-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Mon, 19 Aug 2019 12:56:13 +0000
+Received: from g9t2301.houston.hpecorp.net (g9t2301.houston.hpecorp.net [16.220.97.129])
+	by g4t3426.houston.hpe.com (Postfix) with ESMTP id 6A1D65D;
+	Mon, 19 Aug 2019 12:56:12 +0000 (UTC)
+Received: from hpe.com (teo-eag.americas.hpqcorp.net [10.33.152.10])
+	by g9t2301.houston.hpecorp.net (Postfix) with ESMTP id 824F04A;
+	Mon, 19 Aug 2019 12:56:11 +0000 (UTC)
+Date: Mon, 19 Aug 2019 07:56:11 -0500
+From: Dimitri Sivanich <sivanich@hpe.com>
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: sivanich@hpe.com, jhubbard@nvidia.com, jglisse@redhat.com,
+        ira.weiny@intel.com, gregkh@linuxfoundation.org, arnd@arndb.de,
+        william.kucharski@oracle.com, hch@lst.de, inux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel-mentees@lists.linuxfoundation.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [Linux-kernel-mentees][PATCH v6 1/2] sgi-gru: Convert put_page()
+ to put_user_page*()
+Message-ID: <20190819125611.GA5808@hpe.com>
+References: <1566157135-9423-1-git-send-email-linux.bhar@gmail.com>
+ <1566157135-9423-2-git-send-email-linux.bhar@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <3b521a8c-586f-251e-f486-d71ff094b8e9@huawei.com>
+In-Reply-To: <1566157135-9423-2-git-send-email-linux.bhar@gmail.com>
 User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Mon, 19 Aug 2019 12:48:39 +0000 (UTC)
+X-HPE-SCL: -1
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-19_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908190147
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kefeng, et al, sorry I am travelling till the next monday, can't even
-open my laptop too often.
+Reviewed-by: Dimitri Sivanich <sivanich@hpe.com>
 
-On 08/16, Kefeng Wang wrote:
->
-> The patch do fix the UAF and avoid panic, and it doesn't seem to cause new issue,
-> even if there are some another issue, it can be fixed later :)
-
-Yes... but if we want a hot fix without any understanding why does it
-help in this particular case we can simply add mmget_still_valid() into
-handle_userfault(), I am almost sure this should equally "fix" (hide) the
-problem.
-
-But to clarify, let me repeat that I still think the patch I sent makes
-sense anyway; __handle_mm_fault() is possible even after do_coredump()
-sets mm->core_state and after userfaultfd_unregister().
-
-> >> [   67.430243] RIP: 0010:copy_user_handle_tail+0x2/0x10
-> >> [   67.431586] Code: c3 0f 1f 80 00 00 00 00 66 66 90 83 fa 40 0f 82 70 ff ff ff 89 d1 f3 a4 31 c0 66 66 90 c3 66 2e 0f 1f 84 00 00 00 00 00 89 d1 <f3> a4 89 c8 66 66 90 c3 66 0f 1f 44 00 00 66 66 90 83 fa 08 0f 82
-> >> [   67.436978] RSP: 0018:ffff8883c4e8f908 EFLAGS: 00010246
-> >> [   67.438743] RAX: 0000000000000001 RBX: 0000000020ffd000 RCX: 0000000000001000
-> >> [   67.441101] RDX: 0000000000001000 RSI: 0000000020ffd000 RDI: ffff8883c0aa4000
-> >> [   67.442865] RBP: 0000000000001000 R08: ffffed1078154a00 R09: 0000000000000000
-> >> [   67.444534] R10: 0000000000000200 R11: ffffed10781549ff R12: ffff8883c0aa4000
-> >> [   67.446216] R13: ffff8883c6096000 R14: ffff88837721f838 R15: ffff8883c6096000
-> >> [   67.448388]  _copy_from_user+0xa1/0xd0
-> >> [   67.449655]  mcopy_atomic+0xb3d/0x1380
-> >> [   67.450991]  ? lock_downgrade+0x3a0/0x3a0
-> >> [   67.452337]  ? mm_alloc_pmd+0x130/0x130
-> >> [   67.453618]  ? __might_fault+0x7d/0xe0
-> >> [   67.454980]  userfaultfd_ioctl+0x14a2/0x1c30
-> >
-> > This must not be called after __fput(). So I think there is something else,
-> > may by just an unbalanced userfaultfd_ctx_put(). I dunno, I know nothing
-> > about usefaultfd.
->
-> There are different processes, maybe some concurrency problems.
-
-and this is what I think we need to understand...
-
-
-> > It would be nice to understand what this reproducer does...
->
-> I tried strace -f the reproducer, but can't find any useful info.
-
-Could you send me the output of strace -f ? Not sure it will help and
-again, I am not sure I will have a chance to read it this week.
-
-Perhaps it is possible to translate this test-case to C somehow?
-
-Oleg.
-
+On Mon, Aug 19, 2019 at 01:08:54AM +0530, Bharath Vedartham wrote:
+> For pages that were retained via get_user_pages*(), release those pages
+> via the new put_user_page*() routines, instead of via put_page() or
+> release_pages().
+>=20
+> This is part a tree-wide conversion, as described in commit fc1d8e7cca2=
+d
+> ("mm: introduce put_user_page*(), placeholder versions").
+>=20
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: J=E9r=F4me Glisse <jglisse@redhat.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Dimitri Sivanich <sivanich@sgi.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: William Kucharski <william.kucharski@oracle.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel-mentees@lists.linuxfoundation.org
+> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+> Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+> Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+> ---
+>  drivers/misc/sgi-gru/grufault.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/gru=
+fault.c
+> index 4b713a8..61b3447 100644
+> --- a/drivers/misc/sgi-gru/grufault.c
+> +++ b/drivers/misc/sgi-gru/grufault.c
+> @@ -188,7 +188,7 @@ static int non_atomic_pte_lookup(struct vm_area_str=
+uct *vma,
+>  	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <=3D=
+ 0)
+>  		return -EFAULT;
+>  	*paddr =3D page_to_phys(page);
+> -	put_page(page);
+> +	put_user_page(page);
+>  	return 0;
+>  }
+> =20
+> --=20
+> 2.7.4
+>=20
 
