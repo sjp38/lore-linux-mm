@@ -2,224 +2,181 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49C83C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:20:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84FE2C41514
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:52:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E69E3214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:20:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2057A214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:52:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="joRnM+dJ";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="Eh1SJOxh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E69E3214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="ZIz4IZob"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2057A214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66C6B6B0005; Mon, 19 Aug 2019 17:20:46 -0400 (EDT)
+	id 7B4606B0005; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 61EAF6B0006; Mon, 19 Aug 2019 17:20:46 -0400 (EDT)
+	id 765B36B0006; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E5066B000A; Mon, 19 Aug 2019 17:20:46 -0400 (EDT)
+	id 654E16B0007; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
-	by kanga.kvack.org (Postfix) with ESMTP id 27EC26B0005
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:20:46 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C16E76889
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:20:45 +0000 (UTC)
-X-FDA: 75840446850.03.cart19_5dd925cd7ed4a
-X-HE-Tag: cart19_5dd925cd7ed4a
-X-Filterd-Recvd-Size: 11321
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:20:44 +0000 (UTC)
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7JLK40N010019;
-	Mon, 19 Aug 2019 14:20:41 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=QWfM2Olb7uQqW8UJKVeRaHYQpHU/Kt1yx/pLSeeFZ/w=;
- b=joRnM+dJMqiv2BvZMYgNfuAeihOS73PBBw0mPhujx50/8ciOstASG2dvDlH40UnYdy+u
- DCDuObtxC7BqgkRR87uuNVoS30807J+PMxhWb5FF+j8dViCXPmXCvnkKzBUxVYMXiICH
- LLltWFVY1TsJ1nRF3xbRXYi+boaqfks9y6k= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ufxh31h89-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 19 Aug 2019 14:20:41 -0700
-Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 19 Aug 2019 14:20:40 -0700
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 19 Aug 2019 14:20:40 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=IHFTxkv9N2auaBxbeLJBr0dF27sR7DIp72gRx1HwhYABS2ElOf+ZPGW3g6eiFV+ZZ9ZReW8IMLrInxBYTcXxHVSz7aVKIZXrB04yl4MOoV6fuOMNKXgyfzPNQYsrJ8WqRopiS2XAWs2nONxFg89LQ1Imeh3Yfwc/H+xkUr2aVMjKc/Ca+gtq3o3c3MBvp2zoafe66r0CMo0AZJeW1fFyCbDlvaVsecorVQ90cTIBGB4SPLV+MORN9zRbK+cQYm2acYyTTL7zq9LTO13k+zHzkU9VkSvE+0bTgkLAAuYl3f0xkvA11n41LOT4yfoXzryq6d5NMN0P9fBH2/Q7tfvacQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=QWfM2Olb7uQqW8UJKVeRaHYQpHU/Kt1yx/pLSeeFZ/w=;
- b=Xw5m7MAci7I/5UDz3+uqjtlY0bM4ajDnaNqy48RCWdqV8UqH661Agttm6M65/J8oyBYaD7U8qI2lxFxzwo/7i9/ppm/XKUE2KIRb0eUmsf6xS5K7gY+mTPxYK3vwSPNWnXQ5DzhfV6i0jqPldv08hYtK8EsYNLj9MDt+jVUPSgf4xJL/mhrGC4YUQqHbQ/5VjQDRNj9yPNp2/DHjcKOUJFOC2q0yF44+rVKJrNeULQwe1H54R7EtvgBZ2iYpFedUTEQoSAtNHdV6ptJyZhd16JVv9bq6P1xPMu7V4Vmoj5bRpid012Eicl+hg46l19YxeVtsQs6MpDpSXWg0FjTNMw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=QWfM2Olb7uQqW8UJKVeRaHYQpHU/Kt1yx/pLSeeFZ/w=;
- b=Eh1SJOxhe1u0RhvkEUPCEYCaBnjsfv+OPMw83SdBPAOsmCnXhy6VTwlgavzkyfoAx4TFxVImnM4rPuG7fhr3Fcu6ayMVK6x9eiBIk3Ti8rIe0NyFrMiG9B16ZyN8n22x5rBQLNwAzaFoBpqD4iMjj8WuxqaYkGoXMnFihG+IBgQ=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB2394.namprd15.prod.outlook.com (20.176.66.12) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Mon, 19 Aug 2019 21:20:38 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e%3]) with mapi id 15.20.2178.018; Mon, 19 Aug 2019
- 21:20:38 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>,
-        Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
-        LKML
-	<linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>
-Subject: Re: [PATCH] Partially revert "mm/memcontrol.c: keep local VM counters
- in sync with the hierarchical ones"
-Thread-Topic: [PATCH] Partially revert "mm/memcontrol.c: keep local VM
- counters in sync with the hierarchical ones"
-Thread-Index: AQHVVJVnJCTepTfXpE2m8ikuyJkTSKb+sAiAgAEGvYCAAFhFgIAC76oA
-Date: Mon, 19 Aug 2019 21:20:38 +0000
-Message-ID: <20190819212034.GB24956@tower.dhcp.thefacebook.com>
-References: <20190817004726.2530670-1-guro@fb.com>
- <CALOAHbBsMNLN6jZn83zx6EWM_092s87zvDQ7p-MZpY+HStk-1Q@mail.gmail.com>
- <20190817191419.GA11125@castle>
- <CALOAHbA-Z-1QDSgQ6H6QhPaPwAGyqfpd3Gbq-KLnoO=ZZxWnrw@mail.gmail.com>
-In-Reply-To: <CALOAHbA-Z-1QDSgQ6H6QhPaPwAGyqfpd3Gbq-KLnoO=ZZxWnrw@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR0201CA0084.namprd02.prod.outlook.com
- (2603:10b6:301:75::25) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:4a49]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 7312defa-0880-4dd7-d8cf-08d724eb14f4
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:DM6PR15MB2394;
-x-ms-traffictypediagnostic: DM6PR15MB2394:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <DM6PR15MB2394377EB26C4375DDC48865BEA80@DM6PR15MB2394.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0134AD334F
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(346002)(396003)(376002)(366004)(136003)(199004)(189003)(6246003)(25786009)(14454004)(478600001)(66446008)(66476007)(66556008)(53936002)(102836004)(4326008)(6916009)(229853002)(6486002)(5660300002)(6506007)(1076003)(66946007)(64756008)(6116002)(386003)(53546011)(14444005)(256004)(7736002)(305945005)(33656002)(476003)(486006)(71190400001)(71200400001)(316002)(99286004)(86362001)(186003)(81156014)(81166006)(8676002)(8936002)(52116002)(54906003)(9686003)(6512007)(446003)(2906002)(76176011)(6436002)(11346002)(46003);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2394;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: QF3x/W1OP8EFyvHS4vbslBEJ9YHGAb7BhOBabLWkjLgU3q7me/S1+6U35flvq8LB8pydX0fR99NyUTbiNunYlK7DRagrqL6OLfYTofpdECdnotEI84Vi409ysFtoN8A0HCdPIZd7wNHCdyZpdrifPdOeCgkyulyXnRVE+h9eyNqTCOBIpB2xSvfvjy0PZ3ctQO3X2FFUvFo5PasG5O1HYf7g8U2A8iiopKIkhIcSJlxZi9DOI/tZjyk+KpJm4LuMkl42Apxa9+xo9RZ0LUpfZ6tdCfjR1TPW0T0b+MuTFIfOgeHD4Rr+d0/8nqRQ7kkZfZdJGhdVFImbxK2TGbJKTgCcfnG2dn1VfWYZdIcVvyatlu4b6Hat2P/EKrCELqjgCrjxw+7ydaR/2H4ZGsU5KembHLYDXNvJVqEHh4eXnic=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <AAF21E35EDBA8F48ACD70AD8B24500DB@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0159.hostedemail.com [216.40.44.159])
+	by kanga.kvack.org (Postfix) with ESMTP id 4494C6B0005
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id ECB2C180AD7C3
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:52:20 +0000 (UTC)
+X-FDA: 75840526440.21.dad55_4ea4d8219be0f
+X-HE-Tag: dad55_4ea4d8219be0f
+X-Filterd-Recvd-Size: 7462
+Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com [209.85.215.194])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:52:20 +0000 (UTC)
+Received: by mail-pg1-f194.google.com with SMTP id o13so1940327pgp.12
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 14:52:20 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1NM94xksOiht8RmgWrLEcFY3PgSHOoB3FnNWuwtEkT8=;
+        b=ZIz4IZobyazBKzjPdPXduiU9VmQv41GRQbby3Zhrveo6Tz9PhO7CfVQSbB/TBOqzVV
+         HKeoTTvO+/pPOZ6NjxPybqIoS90KhiOlS45PxA7pJUrdFjv/+xi3aMSn2GcoZjntjeft
+         Q/tWStO+V0j/UbB2Xya/5GYUIAa/rOxLiAaAo=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=1NM94xksOiht8RmgWrLEcFY3PgSHOoB3FnNWuwtEkT8=;
+        b=ALs5oWzgocsohVGM9cFpIx34i26oio+9QIj6KtKW0PeT9yqQc03NcE04sjl1Dd5xGC
+         H6lJ6fW7ZhosXHe2o/UeHJWDeESM5msHrn+MfqMgFsuhhTxP7BCRSQqNa6j4bztePX6b
+         KMEHGlRoQyH/bWsB2F6iJ1LPZadiLY1z21DzwMjEezaDU12uM5MKmIausxqgv+FLWGa3
+         W2dy6pVsprJLWh9VuSaDcdZNppX4MwrDa4cHf+pNEDtbe+a2EHgq0mE0HcZKwGxyA/h5
+         rpT4bLbev7JSvHZ412YFMClSuoitExRlSIYRQ+RMsXaqDH6bCZSS5hsmV0PFmhmW2fdR
+         2dRg==
+X-Gm-Message-State: APjAAAWjUu5cjPoLVYCjKvoP9vsNumTs9/Ow6sK4h1kDrBXPeQV7R3+B
+	TXeZu6REFMpOJIxo2L/Hb8wq0g==
+X-Google-Smtp-Source: APXvYqwUvaI7TTB3Cq1JrLcXYfbfWpzlEsBG0HdCSLwtiPUe8V7Jo54+xeveGTu2L+fiSxLgsLREgA==
+X-Received: by 2002:a17:90a:3321:: with SMTP id m30mr23192445pjb.2.1566251538929;
+        Mon, 19 Aug 2019 14:52:18 -0700 (PDT)
+Received: from localhost ([172.19.216.18])
+        by smtp.gmail.com with ESMTPSA id v8sm19341824pjb.6.2019.08.19.14.52.17
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 19 Aug 2019 14:52:18 -0700 (PDT)
+Date: Mon, 19 Aug 2019 17:52:01 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jann Horn <jannh@google.com>,
+	Daniel Gruss <daniel.gruss@iaik.tugraz.at>,
+	kernel list <linux-kernel@vger.kernel.org>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>,
+	Daniel Colascione <dancol@google.com>, fmayer@google.com,
+	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	kernel-team <kernel-team@android.com>,
+	Linux API <linux-api@vger.kernel.org>, linux-doc@vger.kernel.org,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.ibm.com>,
+	Minchan Kim <minchan@kernel.org>, namhyung@google.com,
+	"Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
+ using virtual index
+Message-ID: <20190819215201.GG117548@google.com>
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <CAG48ez0ysprvRiENhBkLeV9YPTN_MB18rbu2HDa2jsWo5FYR8g@mail.gmail.com>
+ <20190813100856.GF17933@dhcp22.suse.cz>
+ <CAG48ez2cuqe_VYhhaqw8Hcyswv47cmz2XmkqNdvkXEhokMVaXg@mail.gmail.com>
+ <20190814075601.GO17933@dhcp22.suse.cz>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 7312defa-0880-4dd7-d8cf-08d724eb14f4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Aug 2019 21:20:38.5768
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: Jrg03qRK3p7jCog0hUHMoSg44FKvXI1h8QCIltk7bB+JhlknjuYfOKWARfhRHOLo
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2394
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-19_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908190213
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190814075601.GO17933@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 18, 2019 at 08:30:15AM +0800, Yafang Shao wrote:
-> On Sun, Aug 18, 2019 at 3:14 AM Roman Gushchin <guro@fb.com> wrote:
-> >
-> > On Sat, Aug 17, 2019 at 11:33:57AM +0800, Yafang Shao wrote:
-> > > On Sat, Aug 17, 2019 at 8:47 AM Roman Gushchin <guro@fb.com> wrote:
-> > > >
-> > > > Commit 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sy=
-nc
-> > > > with the hierarchical ones") effectively decreased the precision of
-> > > > per-memcg vmstats_local and per-memcg-per-node lruvec percpu counte=
-rs.
-> > > >
-> > > > That's good for displaying in memory.stat, but brings a serious reg=
-ression
-> > > > into the reclaim process.
-> > > >
-> > > > One issue I've discovered and debugged is the following:
-> > > > lruvec_lru_size() can return 0 instead of the actual number of page=
-s
-> > > > in the lru list, preventing the kernel to reclaim last remaining
-> > > > pages. Result is yet another dying memory cgroups flooding.
-> > > > The opposite is also happening: scanning an empty lru list
-> > > > is the waste of cpu time.
-> > > >
-> > > > Also, inactive_list_is_low() can return incorrect values, preventin=
-g
-> > > > the active lru from being scanned and freed. It can fail both becau=
-se
-> > > > the size of active and inactive lists are inaccurate, and because
-> > > > the number of workingset refaults isn't precise. In other words,
-> > > > the result is pretty random.
-> > > >
-> > > > I'm not sure, if using the approximate number of slab pages in
-> > > > count_shadow_number() is acceptable, but issues described above
-> > > > are enough to partially revert the patch.
-> > > >
-> > > > Let's keep per-memcg vmstat_local batched (they are only used for
-> > > > displaying stats to the userspace), but keep lruvec stats precise.
-> > > > This change fixes the dead memcg flooding on my setup.
-> > > >
+On Wed, Aug 14, 2019 at 09:56:01AM +0200, Michal Hocko wrote:
+[snip]
+> > > > Can this be used to observe which library pages other processes are
+> > > > accessing, even if you don't have access to those processes, as long
+> > > > as you can map the same libraries? I realize that there are already a
+> > > > bunch of ways to do that with side channels and such; but if you're
+> > > > adding an interface that allows this by design, it seems to me like
+> > > > something that should be gated behind some sort of privilege check.
 > > >
-> > > That will make some misunderstanding if the local counters are not in
-> > > sync with the hierarchical ones
-> > > (someone may doubt whether there're something leaked.).
-> >
-> > Sure, but the actual leakage is a much more serious issue.
-> >
-> > > If we have to do it like this, I think we should better document this=
- behavior.
-> >
-> > Lru size calculations can be done using per-zone counters, which is
-> > actually cheaper, because the number of zones is usually smaller than
-> > the number of cpus. I'll send a corresponding patch on Monday.
-> >
->=20
-> Looks like a good idea.
->=20
-> > Maybe other use cases can also be converted?
->=20
-> We'd better keep the behavior the same across counters. I think you
-> can have a try.
+> > > Hmm, you need to be priviledged to get the pfn now and without that you
+> > > cannot get to any page so the new interface is weakening the rules.
+> > > Maybe we should limit setting the idle state to processes with the write
+> > > status. Or do you think that even observing idle status is useful for
+> > > practical side channel attacks? If yes, is that a problem of the
+> > > profiler which does potentially dangerous things?
+> > 
+> > I suppose read-only access isn't a real problem as long as the
+> > profiler isn't writing the idle state in a very tight loop... but I
+> > don't see a usecase where you'd actually want that? As far as I can
+> > tell, if you can't write the idle state, being able to read it is
+> > pretty much useless.
+> > 
+> > If the profiler only wants to profile process-private memory, then
+> > that should be implementable in a safe way in principle, I think, but
+> > since Joel said that they want to profile CoW memory as well, I think
+> > that's inherently somewhat dangerous.
+> 
+> I cannot really say how useful that would be but I can see that
+> implementing ownership checks would be really non-trivial for
+> shared pages. Reducing the interface to exclusive pages would make it
+> easier as you noted but less helpful.
+> 
+> Besides that the attack vector shouldn't be really much different from
+> the page cache access, right? So essentially can_do_mincore model.
+> 
+> I guess we want to document that page idle tracking should be used with
+> care because it potentially opens a side channel opportunity if used
+> on sensitive data.
 
-As I said, consistency of counters is important, but not nearly as importan=
-t
-as the real behavior of the system. Especially because we talk about
-per-node memcg statistics, which I believe is mostly used for debugging.
+I have been thinking of this, and discussing with our heap profiler folks.
+Not being able to track shared pages would be a limitation, but I don't see
+any way forward considering this security concern so maybe we have to
+limit what we can do.
 
-So for now I think the right thing to do is to revert the change to fix
-the memory reclaim process. And then we can discuss how to get counters
-right.
+I will look into implementing this without doing the rmap but still make it
+work on shared pages from the point of view of the process being tracked. It
+just would no longer through the PTEs of *other* processes sharing the page.
 
-Thanks!
+My current thought is to just rely on the PTE accessed bit, and not use the
+PageIdle flag at all. But we'd still set the PageYoung flag so that the
+reclaim code still sees the page as accessed. The reason I feel like avoiding
+the PageIdle flag is:
+
+1. It looks like mark_page_accessed() can be called from other paths which
+can also result in some kind of side-channel issue if a page was shared.
+
+2. I don't think I need the PageIdle flag since the access bit alone should
+let me know, although it could be a bit slower. Since previously, I did not
+need to check every PTE and if the PageIdle flag was already cleared, then
+the page was declared as idle.
+
+At least this series resulted in a bug fix and a tonne of learning, so thank
+you everyone!
+
+Any other thoughts?
+
+thanks,
+
+ - Joel
+
 
