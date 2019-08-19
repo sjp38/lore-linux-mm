@@ -2,181 +2,116 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84FE2C41514
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:52:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03058C3A5A1
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:53:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2057A214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:52:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="ZIz4IZob"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2057A214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id C4B1C22CEC
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:53:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4B1C22CEC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B4606B0005; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
+	id 6551B6B0005; Mon, 19 Aug 2019 17:53:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 765B36B0006; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
+	id 5DE396B0006; Mon, 19 Aug 2019 17:53:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 654E16B0007; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
+	id 4CC5D6B0007; Mon, 19 Aug 2019 17:53:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0159.hostedemail.com [216.40.44.159])
-	by kanga.kvack.org (Postfix) with ESMTP id 4494C6B0005
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:52:21 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id ECB2C180AD7C3
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:52:20 +0000 (UTC)
-X-FDA: 75840526440.21.dad55_4ea4d8219be0f
-X-HE-Tag: dad55_4ea4d8219be0f
-X-Filterd-Recvd-Size: 7462
-Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com [209.85.215.194])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:52:20 +0000 (UTC)
-Received: by mail-pg1-f194.google.com with SMTP id o13so1940327pgp.12
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 14:52:20 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1NM94xksOiht8RmgWrLEcFY3PgSHOoB3FnNWuwtEkT8=;
-        b=ZIz4IZobyazBKzjPdPXduiU9VmQv41GRQbby3Zhrveo6Tz9PhO7CfVQSbB/TBOqzVV
-         HKeoTTvO+/pPOZ6NjxPybqIoS90KhiOlS45PxA7pJUrdFjv/+xi3aMSn2GcoZjntjeft
-         Q/tWStO+V0j/UbB2Xya/5GYUIAa/rOxLiAaAo=
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=1NM94xksOiht8RmgWrLEcFY3PgSHOoB3FnNWuwtEkT8=;
-        b=ALs5oWzgocsohVGM9cFpIx34i26oio+9QIj6KtKW0PeT9yqQc03NcE04sjl1Dd5xGC
-         H6lJ6fW7ZhosXHe2o/UeHJWDeESM5msHrn+MfqMgFsuhhTxP7BCRSQqNa6j4bztePX6b
-         KMEHGlRoQyH/bWsB2F6iJ1LPZadiLY1z21DzwMjEezaDU12uM5MKmIausxqgv+FLWGa3
-         W2dy6pVsprJLWh9VuSaDcdZNppX4MwrDa4cHf+pNEDtbe+a2EHgq0mE0HcZKwGxyA/h5
-         rpT4bLbev7JSvHZ412YFMClSuoitExRlSIYRQ+RMsXaqDH6bCZSS5hsmV0PFmhmW2fdR
-         2dRg==
-X-Gm-Message-State: APjAAAWjUu5cjPoLVYCjKvoP9vsNumTs9/Ow6sK4h1kDrBXPeQV7R3+B
-	TXeZu6REFMpOJIxo2L/Hb8wq0g==
-X-Google-Smtp-Source: APXvYqwUvaI7TTB3Cq1JrLcXYfbfWpzlEsBG0HdCSLwtiPUe8V7Jo54+xeveGTu2L+fiSxLgsLREgA==
-X-Received: by 2002:a17:90a:3321:: with SMTP id m30mr23192445pjb.2.1566251538929;
-        Mon, 19 Aug 2019 14:52:18 -0700 (PDT)
-Received: from localhost ([172.19.216.18])
-        by smtp.gmail.com with ESMTPSA id v8sm19341824pjb.6.2019.08.19.14.52.17
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 19 Aug 2019 14:52:18 -0700 (PDT)
-Date: Mon, 19 Aug 2019 17:52:01 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jann Horn <jannh@google.com>,
-	Daniel Gruss <daniel.gruss@iaik.tugraz.at>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
+Received: from forelay.hostedemail.com (smtprelay0220.hostedemail.com [216.40.44.220])
+	by kanga.kvack.org (Postfix) with ESMTP id 2496F6B0005
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:53:28 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 91BF3181AC9AE
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:53:27 +0000 (UTC)
+X-FDA: 75840529254.29.net37_5845d837b4d5e
+X-HE-Tag: net37_5845d837b4d5e
+X-Filterd-Recvd-Size: 3477
+Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:53:26 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Aug 2019 14:53:24 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,406,1559545200"; 
+   d="scan'208";a="189658795"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga002.jf.intel.com with ESMTP; 19 Aug 2019 14:53:23 -0700
+Date: Mon, 19 Aug 2019 14:53:23 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>,
-	Daniel Colascione <dancol@google.com>, fmayer@google.com,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	kernel-team <kernel-team@android.com>,
-	Linux API <linux-api@vger.kernel.org>, linux-doc@vger.kernel.org,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.ibm.com>,
-	Minchan Kim <minchan@kernel.org>, namhyung@google.com,
-	"Paul E. McKenney" <paulmck@linux.ibm.com>,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
- using virtual index
-Message-ID: <20190819215201.GG117548@google.com>
-References: <20190807171559.182301-1-joel@joelfernandes.org>
- <CAG48ez0ysprvRiENhBkLeV9YPTN_MB18rbu2HDa2jsWo5FYR8g@mail.gmail.com>
- <20190813100856.GF17933@dhcp22.suse.cz>
- <CAG48ez2cuqe_VYhhaqw8Hcyswv47cmz2XmkqNdvkXEhokMVaXg@mail.gmail.com>
- <20190814075601.GO17933@dhcp22.suse.cz>
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190819215322.GA2839@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190814101714.GA26273@quack2.suse.cz>
+ <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+ <20190815130558.GF14313@quack2.suse.cz>
+ <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
+ <20190819063412.GA20455@quack2.suse.cz>
+ <20190819092409.GM7777@dread.disaster.area>
+ <20190819123841.GC5058@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190814075601.GO17933@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190819123841.GC5058@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 09:56:01AM +0200, Michal Hocko wrote:
-[snip]
-> > > > Can this be used to observe which library pages other processes are
-> > > > accessing, even if you don't have access to those processes, as long
-> > > > as you can map the same libraries? I realize that there are already a
-> > > > bunch of ways to do that with side channels and such; but if you're
-> > > > adding an interface that allows this by design, it seems to me like
-> > > > something that should be gated behind some sort of privilege check.
-> > >
-> > > Hmm, you need to be priviledged to get the pfn now and without that you
-> > > cannot get to any page so the new interface is weakening the rules.
-> > > Maybe we should limit setting the idle state to processes with the write
-> > > status. Or do you think that even observing idle status is useful for
-> > > practical side channel attacks? If yes, is that a problem of the
-> > > profiler which does potentially dangerous things?
-> > 
-> > I suppose read-only access isn't a real problem as long as the
-> > profiler isn't writing the idle state in a very tight loop... but I
-> > don't see a usecase where you'd actually want that? As far as I can
-> > tell, if you can't write the idle state, being able to read it is
-> > pretty much useless.
-> > 
-> > If the profiler only wants to profile process-private memory, then
-> > that should be implementable in a safe way in principle, I think, but
-> > since Joel said that they want to profile CoW memory as well, I think
-> > that's inherently somewhat dangerous.
+On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
+> On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
 > 
-> I cannot really say how useful that would be but I can see that
-> implementing ownership checks would be really non-trivial for
-> shared pages. Reducing the interface to exclusive pages would make it
-> easier as you noted but less helpful.
+> > So that leaves just the normal close() syscall exit case, where the
+> > application has full control of the order in which resources are
+> > released. We've already established that we can block in this
+> > context.  Blocking in an interruptible state will allow fatal signal
+> > delivery to wake us, and then we fall into the
+> > fatal_signal_pending() case if we get a SIGKILL while blocking.
 > 
-> Besides that the attack vector shouldn't be really much different from
-> the page cache access, right? So essentially can_do_mincore model.
+> The major problem with RDMA is that it doesn't always wait on close() for the
+> MR holding the page pins to be destoyed. This is done to avoid a
+> deadlock of the form:
 > 
-> I guess we want to document that page idle tracking should be used with
-> care because it potentially opens a side channel opportunity if used
-> on sensitive data.
+>    uverbs_destroy_ufile_hw()
+>       mutex_lock()
+>        [..]
+>         mmput()
+>          exit_mmap()
+>           remove_vma()
+>            fput();
+>             file_operations->release()
+>              ib_uverbs_close()
+>               uverbs_destroy_ufile_hw()
+>                mutex_lock()   <-- Deadlock
+> 
+> But, as I said to Ira earlier, I wonder if this is now impossible on
+> modern kernels and we can switch to making the whole thing
+> synchronous. That would resolve RDMA's main problem with this.
 
-I have been thinking of this, and discussing with our heap profiler folks.
-Not being able to track shared pages would be a limitation, but I don't see
-any way forward considering this security concern so maybe we have to
-limit what we can do.
+I'm still looking into this...  but my bigger concern is that the RDMA FD can
+be passed to other processes via SCM_RIGHTS.  Which means the process holding
+the pin may _not_ be the one with the open file and layout lease...
 
-I will look into implementing this without doing the rmap but still make it
-work on shared pages from the point of view of the process being tracked. It
-just would no longer through the PTEs of *other* processes sharing the page.
-
-My current thought is to just rely on the PTE accessed bit, and not use the
-PageIdle flag at all. But we'd still set the PageYoung flag so that the
-reclaim code still sees the page as accessed. The reason I feel like avoiding
-the PageIdle flag is:
-
-1. It looks like mark_page_accessed() can be called from other paths which
-can also result in some kind of side-channel issue if a page was shared.
-
-2. I don't think I need the PageIdle flag since the access bit alone should
-let me know, although it could be a bit slower. Since previously, I did not
-need to check every PTE and if the PageIdle flag was already cleared, then
-the page was declared as idle.
-
-At least this series resulted in a bug fix and a tonne of learning, so thank
-you everyone!
-
-Any other thoughts?
-
-thanks,
-
- - Joel
+Ira
 
 
