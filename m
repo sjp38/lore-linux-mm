@@ -5,70 +5,71 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76C0AC3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:36:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B02AC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:45:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A22F206DF
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:36:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2ECAB2184E
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:45:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rmwhJ68b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A22F206DF
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lk9B74sU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2ECAB2184E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE0FE6B0006; Sun, 18 Aug 2019 21:36:23 -0400 (EDT)
+	id AEF866B0006; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B91EC6B0007; Sun, 18 Aug 2019 21:36:23 -0400 (EDT)
+	id A9FB66B0007; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A59606B000C; Sun, 18 Aug 2019 21:36:23 -0400 (EDT)
+	id 9B51F6B000C; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
-	by kanga.kvack.org (Postfix) with ESMTP id 8462F6B0006
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 21:36:23 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 31D6D8248AAB
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:36:23 +0000 (UTC)
-X-FDA: 75837462246.01.gold71_54d04cca0b62c
-X-HE-Tag: gold71_54d04cca0b62c
-X-Filterd-Recvd-Size: 3672
-Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:36:22 +0000 (UTC)
-Received: by mail-pl1-f193.google.com with SMTP id 4so140617pld.10
-        for <linux-mm@kvack.org>; Sun, 18 Aug 2019 18:36:22 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0218.hostedemail.com [216.40.44.218])
+	by kanga.kvack.org (Postfix) with ESMTP id 79C676B0006
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1C5AD37E7
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:45:35 +0000 (UTC)
+X-FDA: 75837485430.09.snow98_139d7047f9c0f
+X-HE-Tag: snow98_139d7047f9c0f
+X-Filterd-Recvd-Size: 3950
+Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:45:34 +0000 (UTC)
+Received: by mail-pg1-f193.google.com with SMTP id k3so183576pgb.10
+        for <linux-mm@kvack.org>; Sun, 18 Aug 2019 18:45:34 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:subject:date:message-id;
-        bh=LSOAA5WYzKw0JvVlfOw/ASbOuyrAtA84sOX9wyeMQQk=;
-        b=rmwhJ68bsyBgvRaAN2KzT5g9kG+b9OwIFCFDoEZNKXTlaXBq8OespKeAsa2UGSXMPX
-         7us1NQh2WtencQSZrs4QcBmftwAO3G6968wZpjQH/Ul4KSa6+S2En5SDEtStyk8J0KoC
-         9vtWESAKBB4cNHBCZT2ChDq/vuSrv18J+Ssp4EhZ5IYIzJrIYbfYxLSdX8d8Wy4s9nmh
-         fOXGLIRf6jpRo3TNeBn47J9Y/TVC98rzBXOLBq5+j30tqOzVmPMrh64lraCfcKnJWq+j
-         7qVu+DiRlu3TdXPJUxvhyDLnrOlb66whXG/si0XnFKwACEdNUeiRryLQV6FDllsM3n4Q
-         XGeg==
+        h=from:to:subject:date:message-id:in-reply-to:references;
+        bh=8ulvqLtIjt1EZTpvZlOcKq5+wnFD1h6zkmMfE2XMDMs=;
+        b=lk9B74sUPKdnznjzJvazsFGf5amGxQcibjlqaGnEJyrgRa1yrVBIYoiiLv6/n15Gzr
+         CfiTp8gC5/lBWIpK+kliQKnmLLV05RdtIzRtRTzeyMW446M0t5liiraWlz7Rg0CpmYBA
+         osyAaWTkhvczzTT2Huyrl9smQVOaIamZY+mv5xYJOQCGWJCc1Vbaskf2qj1xT0QChH1J
+         lR/0o2YrH2Oc+cMqjfiF6Qo4fbVs0cIyaklprx5n/LhIIrxIGK1W1M52HdSxgHovkNdx
+         asYaF96OU2XCimqFH/b2CLkppQkyqPfhu8Ggr1EHPCg/lNKexpER+Hl4Xjg2iMDQw5v3
+         Qzcw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:subject:date:message-id;
-        bh=LSOAA5WYzKw0JvVlfOw/ASbOuyrAtA84sOX9wyeMQQk=;
-        b=MqE2+CUx83ykyy+jkpOtka3nS+nzCP2pf/4j4WjHFVONrvOwo5ZelT2MgjyRVSxU1N
-         4Gtjhj3s2cK2096cyJB9RgpF5NEhhOERZUJUJMyJ8eimJn2afpJCQFG2rqmMHdHv+E76
-         SQNy9jP/X2i8drf5dqKzbZJvsdgHi51J+wOcFGCBPIAeyKrr6MPGsTnctF1VvO+OAWjq
-         PArsT2MHfaZHPbJv7vy9P7/Ra4t8jRHD67vKR7vpVvEBtIPttLP7oznvrFtuh7fm6Zta
-         qSSd75vZTXeqJL1rEaB4L0qRYLAP5W7E/HcifRcxDNz9PYWlgN50WH30laF1usUNeSD0
-         LKoQ==
-X-Gm-Message-State: APjAAAWjuINWYokIv72WpdcEvoCcF4KN87qi5aUDZ79/0hzEIQO2P+ZM
-	utfjLX83OzWEFEiuG656TBw=
-X-Google-Smtp-Source: APXvYqxG/5xLYdDoMuufP03PO6w1afA06ovqP1QxFMYGOHzw7r7TeRUsj7e1a+629jm6Au0LWtVnYA==
-X-Received: by 2002:a17:902:4383:: with SMTP id j3mr19718912pld.69.1566178581777;
-        Sun, 18 Aug 2019 18:36:21 -0700 (PDT)
+        h=x-gm-message-state:from:to:subject:date:message-id:in-reply-to
+         :references;
+        bh=8ulvqLtIjt1EZTpvZlOcKq5+wnFD1h6zkmMfE2XMDMs=;
+        b=dT9n7cS4/4aRiVSrXQCtLdO9GCr85Tbq5v1AsRywJpWM2gx36fzeNb4/OAp2D+K9FF
+         wm9+zu7ujQrgkGoQkOED7WhuE4bckmPPyaUhGzEBPN4MfLuthsUnN6eTTMayP18Q0X1T
+         qkPeVje+zktsKwyhCzHiJEqHEWljgYF5Ec7mqB203x6XjiBWyCP6hb8JLnex54j35Mzo
+         oOVMl7nFVksNkrU1uuDYjKwcMj70MMN4NmGEtl2Z+N6oeTP7MAgZZEqjfFSIxVDlfAj/
+         hqdiAyUV0K4kEeohRYc3moNk4CeDtFryhYvfUbYciTyIOnCN0JqpNxQAPbhJuX8V/T8Z
+         5kyQ==
+X-Gm-Message-State: APjAAAVN9CXvbSKwP/+1ygkciTp6IKqglvJS/X5yaxSMsiyjk16VgvBH
+	0AEGpDyf4ZonRvHxDni/5fA=
+X-Google-Smtp-Source: APXvYqxbfn6JAf2SZn6812vnEPToa4GjGn1SpXMPO49PKbkgenbO9egoQ9AbZaJDQPHs62M3EtUiBQ==
+X-Received: by 2002:aa7:9298:: with SMTP id j24mr21172221pfa.58.1566179133706;
+        Sun, 18 Aug 2019 18:45:33 -0700 (PDT)
 Received: from bj03382pcu.spreadtrum.com ([117.18.48.82])
-        by smtp.gmail.com with ESMTPSA id 16sm24011616pfc.66.2019.08.18.18.36.14
+        by smtp.gmail.com with ESMTPSA id k5sm16293114pfg.167.2019.08.18.18.45.28
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 18 Aug 2019 18:36:21 -0700 (PDT)
+        Sun, 18 Aug 2019 18:45:33 -0700 (PDT)
 From: Zhaoyang Huang <huangzhaoyang@gmail.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
@@ -81,9 +82,11 @@ To: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
 Subject: [PATCH v2] arch : arm : add a criteria for pfn_valid
-Date: Mon, 19 Aug 2019 09:36:09 +0800
-Message-Id: <1566178569-5674-1-git-send-email-huangzhaoyang@gmail.com>
+Date: Mon, 19 Aug 2019 09:45:20 +0800
+Message-Id: <1566179120-5910-1-git-send-email-huangzhaoyang@gmail.com>
 X-Mailer: git-send-email 1.7.9.5
+In-Reply-To: <1566178569-5674-1-git-send-email-huangzhaoyang@gmail.com>
+References: <1566178569-5674-1-git-send-email-huangzhaoyang@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -96,6 +99,8 @@ pfn_valid can be wrong when parsing a invalid pfn whose phys address
 exceeds BITS_PER_LONG as the MSB will be trimed when shifted.
 
 Signed-off-by: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+---
+v2: use __pfn_to_phys/__phys_to_pfn instead of max_pfn as the criteria
 ---
  arch/arm/mm/init.c | 5 +++++
  1 file changed, 5 insertions(+)
