@@ -7,136 +7,140 @@ X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36558C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 17:49:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF2E9C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 18:28:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA719218BA
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 17:49:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6EFED218BA
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 18:28:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="i47gkGxK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA719218BA
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Xeoq2S9u"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6EFED218BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FE636B0005; Mon, 19 Aug 2019 13:49:29 -0400 (EDT)
+	id BF7196B000A; Mon, 19 Aug 2019 14:28:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 387E06B0006; Mon, 19 Aug 2019 13:49:29 -0400 (EDT)
+	id BA7DA6B000C; Mon, 19 Aug 2019 14:28:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 277616B0007; Mon, 19 Aug 2019 13:49:29 -0400 (EDT)
+	id A97E16B000D; Mon, 19 Aug 2019 14:28:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0138.hostedemail.com [216.40.44.138])
-	by kanga.kvack.org (Postfix) with ESMTP id E401E6B0005
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:49:28 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 85748180AD7C1
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:49:28 +0000 (UTC)
-X-FDA: 75839914416.07.body02_8ccafdb5b6928
-X-HE-Tag: body02_8ccafdb5b6928
-X-Filterd-Recvd-Size: 37025
-Received: from mail-lf1-f65.google.com (mail-lf1-f65.google.com [209.85.167.65])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:49:27 +0000 (UTC)
-Received: by mail-lf1-f65.google.com with SMTP id 62so2029798lfa.8
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 10:49:27 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0127.hostedemail.com [216.40.44.127])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C35E6B000A
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 14:28:00 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 1CCFE181AC9B4
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 18:28:00 +0000 (UTC)
+X-FDA: 75840011520.22.team24_28a5d2b9a7c22
+X-HE-Tag: team24_28a5d2b9a7c22
+X-Filterd-Recvd-Size: 15926
+Received: from mail-lj1-f194.google.com (mail-lj1-f194.google.com [209.85.208.194])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 18:27:59 +0000 (UTC)
+Received: by mail-lj1-f194.google.com with SMTP id h15so2679005ljg.10
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:27:59 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=lw+G8QwQP2ZFWR8z3eUZJdf1Q7D0C/rG+YP12I/wJNw=;
-        b=i47gkGxKUkCEv/zYYDFVSvX4D0RZtuyNRrgICPKwqM4CDDV9gYzKctauQvKnNZGiuI
-         km6n1EMntolw1Fp8mfVx5ser26yi6E/q7ZsGnwvWaK8UCCr7uaIIEYfCmpWRHaK+Q7hX
-         JdrB96Mju2PUgJmpZDgUhSAFux7+/FZUWDHi+UxipvoepNomfhdJxr9/ZVuUlc7dRbUT
-         Ncx0vMySbd4StyVpf7+v2muGgiSML2y7ZdTlcqMGuLY+dsSRpv1LBxNn041pn11p1UKT
-         Lb9R2ysgboREAYZekB3tnGmINzQjJvuwckHxcNTvQvYFnZNGnNbNn44g7uZO4lmae2km
-         lxqQ==
+        bh=2Uhn1WQSv06ksN37dFDEFH7yXxJJzBud7jwe2stfefU=;
+        b=Xeoq2S9uneaNoMMIX72JwjjUlWWwZo2f4HetNYInqMfELi7b0vsOnSkCi5Fx2Fc7Ej
+         f3ufMpIB08PccJuTFZPijksWFvY79l7VmKarN2UIo8IN+7y5GKb5UoTD9M90HiZp0Pzk
+         AcROh9rn2BzPMjJNiMJaZ7XgHRKnFthWlamkMub1vkMf/fZDDX6FA9wgA/7rtzq1LdpG
+         DlLy4QVtdM2JxvLBf9/NfAtpKoQsLkR4uJaCEKCplr5B4TaRSbWuma/KBKIUwHoIdNAJ
+         fmJRi0UG2kK9NNKQ1kH/zRAnMS/ycDyn1SmBB3v02jcFz1vylYO1mb8yL59uodOMnjrX
+         ST2Q==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=lw+G8QwQP2ZFWR8z3eUZJdf1Q7D0C/rG+YP12I/wJNw=;
-        b=lEHmTXNrwCO2NMkdXXXYJg1JDtUaCSEEejgi948ftrO8wx8iwQkjRw5kWTeV3mdqbY
-         1djRHXM5VTSg1685Xc/dnaPKsdJUTKOG1DX583Xu+DOcDLx3EifK+cmj6QXwFKFQ3IOt
-         ZfoEKX0BGYOhCL3l63pM+cPQuow5B/0ZgD8yZXFPd8InEVEdNSw/lQZft/2Vmrl9hW4S
-         JEQEDD03VRfvT2YvP58/S8m8hhcK5LBWR5Lbt7jkm+/L55pSs5p1krVlpWTmeYr68Wj/
-         I6NGtQDUWUeHA0LTdKK97DJs5EWmPAib7NqItLL/HxVRNwX6tktyswGyQYpoJ1svFz9T
-         a+5Q==
-X-Gm-Message-State: APjAAAV7eXFlgFuFoh25UfkkWBppJIIaoA04gfLdNH3RwNCMYaVG4QvR
-	7+76J/r+bYXvUFeyfeeeq8gRca9dN2UffEbj4Tg=
-X-Google-Smtp-Source: APXvYqwMJ2CaEnFpHBTZk670fPofZbeXTIb8kWYljKs8+jAjpnKUgg9KTR4L+ZvbKd/bytwz6kthOAOnKhjEP29JxW0=
-X-Received: by 2002:ac2:592f:: with SMTP id v15mr12638024lfi.57.1566236965674;
- Mon, 19 Aug 2019 10:49:25 -0700 (PDT)
+        bh=2Uhn1WQSv06ksN37dFDEFH7yXxJJzBud7jwe2stfefU=;
+        b=VL/I+suo72K1nB58KA0NpJKLUsh33W13O+9rOX8CRuWpVC+wesBui57VW/unoCCO5M
+         DSe/KEd6LddWdiTbWmk5rpj1Cvv6mCcOobnNtQuVqzCxS1hs8XV16w9hMwAXZm9CXMLx
+         XYHCbeKmD10exo5IAnuyGuXsRCgIT7hVb4eaYSvyMdmrKrFPsmlisj7Y37NdRfPlpti3
+         tQDE9xSPgtvztaqEK8VWWs33TWubhSEu6ErnsK4bUkJNMv0ag/5n2LpbYkuwbDn+DTkc
+         mwR9mCAgBjAzg5KjYD78Uk806ZhN6uIjLi2TXUbuBwGtJvVCHv4XwY2oxf480dwvdBak
+         w6ow==
+X-Gm-Message-State: APjAAAX3oFwCWTjjF5px7L634+Q9XOjiNf4frGisBYq9UmC3BalMZhRz
+	rAimqIip5rq8i9P4xjsOo7tVV6CdPvMlwVTUtMw=
+X-Google-Smtp-Source: APXvYqw2B0oKIyYCcqzlj1E4yq14IWF+A1kWu2SQsNRGowV4/PL4cIhtxxpZM6f8iImOI69CdmmalsWwId1PGKCgCKo=
+X-Received: by 2002:a2e:b4d4:: with SMTP id r20mr13468515ljm.5.1566239277367;
+ Mon, 19 Aug 2019 11:27:57 -0700 (PDT)
 MIME-Version: 1.0
 References: <CAH6yVy3s6Z6EH+7QRcN740pZe6CP-kkC83VwYd4RvbRm6LF4OQ@mail.gmail.com>
  <20190819073456.GC3111@dhcp22.suse.cz> <CAMJBoFPGT0_GqZLuOxLWPtrYkwM2WLvZ9=8F7phnGEoGYSEW8Q@mail.gmail.com>
  <CAMJBoFN-TPggasbaEnpubXt+77XHQt+AGmu9A9JX2c=h7Tog0Q@mail.gmail.com>
- <CAH6yVy0S_=2tOcx2+LMT7DOe8xg+4KaVnzQiSGwLfGPsxD1g1Q@mail.gmail.com> <CAMJBoFPAOSd3w9YECBqT3nudBozEsMi7ODNE+3nCvKEjT-nhnQ@mail.gmail.com>
-In-Reply-To: <CAMJBoFPAOSd3w9YECBqT3nudBozEsMi7ODNE+3nCvKEjT-nhnQ@mail.gmail.com>
+ <CAH6yVy0S_=2tOcx2+LMT7DOe8xg+4KaVnzQiSGwLfGPsxD1g1Q@mail.gmail.com>
+ <CAMJBoFPAOSd3w9YECBqT3nudBozEsMi7ODNE+3nCvKEjT-nhnQ@mail.gmail.com> <CAH6yVy3N0Khp8sdwU-h=jgX_ynoWfCVRzk3uJiYJGAYXBnHJTQ@mail.gmail.com>
+In-Reply-To: <CAH6yVy3N0Khp8sdwU-h=jgX_ynoWfCVRzk3uJiYJGAYXBnHJTQ@mail.gmail.com>
 From: Markus Linnala <markus.linnala@gmail.com>
-Date: Mon, 19 Aug 2019 20:49:14 +0300
-Message-ID: <CAH6yVy3N0Khp8sdwU-h=jgX_ynoWfCVRzk3uJiYJGAYXBnHJTQ@mail.gmail.com>
+Date: Mon, 19 Aug 2019 21:27:45 +0300
+Message-ID: <CAH6yVy2T6rtcXgC+DRR=nRHCE-NFyiXELYf1PMhrR5=uF1eQOQ@mail.gmail.com>
 Subject: Re: PROBLEM: zswap with z3fold makes swap stuck
 To: Vitaly Wool <vitalywool@gmail.com>
 Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, 
 	Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>
-Content-Type: multipart/mixed; boundary="000000000000f9c8cd05907bf5e5"
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---000000000000f9c8cd05907bf5e5
-Content-Type: text/plain; charset="UTF-8"
+I got different call trace. Attached as console-1566238241.520493280.log
 
-I have applied your patch against vanilla v5.3-rc5. There was no config changes.
-
-So far I've gotten couple of these GPF. I guess this is different
-issue. It will take several hours to get full view.
-
-I've attached one full console log as: console-1566235171.001993084.log
-
-[   13.821223] general protection fault: 0000 [#1] SMP PTI
-[   13.821882] CPU: 0 PID: 151 Comm: kswapd0 Tainted: G        W
+[  460.814661] kernel BUG at lib/list_debug.c:51!
+[  460.815798] invalid opcode: 0000 [#1] SMP PTI
+[  460.816417] CPU: 0 PID: 1829 Comm: stress Tainted: G        W
   5.3.0-rc5+ #71
-[   13.822755] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009),
+[  460.817470] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009),
 BIOS 1.12.0-2.fc30 04/01/2014
-[   13.824272] RIP: 0010:handle_to_buddy+0x20/0x30
-[   13.824786] Code: 84 00 00 00 00 00 0f 1f 40 00 0f 1f 44 00 00 53
-48 89 fb 83 e7 01 0f 85 31 26 00 00 48 8b 03 5b 48 89 c2 48 81 e2 00
-f0 ff ff <0f> b6 92 ca 00 00 00 29 d0 83 e0 03 c3 0f 1f 00 0f 1f 44 00
-00 55
-[   13.826854] RSP: 0000:ffffb18cc01977f0 EFLAGS: 00010206
-[   13.827452] RAX: 00ffff97dd890fd0 RBX: fffff63080243f40 RCX: 0000000000000000
-[   13.828256] RDX: 00ffff97dd890000 RSI: ffff97ddbe5d89c8 RDI: ffff97ddbe5d89c8
-[   13.829056] RBP: ffff97dd890fd000 R08: ffff97ddbe5d89c8 R09: 0000000000000000
-[   13.829860] R10: 0000000000000000 R11: 0000000000000000 R12: ffff97dd890fd001
-[   13.830660] R13: ffff97dd890fd010 R14: ffff97ddb5f96408 R15: ffffb18cc0197838
-[   13.831468] FS:  0000000000000000(0000) GS:ffff97ddbe400000(0000)
+[  460.818658] RIP: 0010:__list_del_entry_valid.cold+0x31/0x55
+[  460.819500] Code: fc 11 a6 e8 34 7d bf ff 0f 0b 48 c7 c7 a0 fd 11
+a6 e8 26 7d bf ff 0f 0b 48 89 f2 48 89 fe 48 c7 c7 60 fd 11 a6 e8 12
+7d bf ff <0f> 0b 48 89 fe 4c 89 c2 48 c7 c7 28 fd 11 a6 e8 fe 7c bf ff
+0f 0b
+[  460.822146] RSP: 0018:ffffbdad80947b20 EFLAGS: 00010046
+[  460.822908] RAX: 0000000000000054 RBX: ffffa03f75f1fe00 RCX: 0000000000000000
+[  460.823919] RDX: 0000000000000000 RSI: ffffa03f7e5d89c8 RDI: ffffa03f7e5d89c8
+[  460.824931] RBP: ffffa03f75f1fe08 R08: ffffa03f7e5d89c8 R09: 0000000000000001
+[  460.825954] R10: 0000000000000001 R11: 0000000000000000 R12: ffffa03f55c08058
+[  460.826975] R13: ffffa03f55c08000 R14: ffffa03f55c08010 R15: 0000000000000000
+[  460.828008] FS:  00007fe19aa85740(0000) GS:ffffa03f7e400000(0000)
 knlGS:0000000000000000
-[   13.832673] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   13.833593] CR2: 00007fec8745f010 CR3: 0000000006212004 CR4: 0000000000160ef0
-[   13.834508] Call Trace:
-[   13.834828]  z3fold_zpool_map+0x76/0x110
-[   13.835332]  zswap_writeback_entry+0x50/0x410
-[   13.835888]  z3fold_zpool_shrink+0x3d1/0x570
-[   13.836434]  ? sched_clock_cpu+0xc/0xc0
-[   13.836919]  zswap_frontswap_store+0x424/0x7c1
-[   13.837484]  __frontswap_store+0xc4/0x162
-[   13.837992]  swap_writepage+0x39/0x70
-[   13.838460]  pageout.isra.0+0x12c/0x5d0
-[   13.838950]  shrink_page_list+0x1124/0x1830
-[   13.839484]  shrink_inactive_list+0x1da/0x460
-[   13.840036]  shrink_node_memcg+0x202/0x770
-[   13.840746]  shrink_node+0xdf/0x490
-[   13.841931]  balance_pgdat+0x2db/0x580
-[   13.842396]  kswapd+0x239/0x500
-[   13.842772]  ? finish_wait+0x90/0x90
-[   13.847323]  kthread+0x108/0x140
-[   13.848358]  ? balance_pgdat+0x580/0x580
-[   13.849626]  ? kthread_park+0x80/0x80
-[   13.850352]  ret_from_fork+0x3a/0x50
-[   13.851086] Modules linked in: ip6t_rpfilter ip6t_REJECT
+[  460.829160] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  460.830011] CR2: 00007fe19ac482c8 CR3: 0000000035a1c002 CR4: 0000000000160ef0
+[  460.831032] Call Trace:
+[  460.831380]  z3fold_zpool_free+0x234/0x323
+[  460.831969]  zswap_free_entry+0x43/0x50
+[  460.832522]  zswap_frontswap_invalidate_page+0x8c/0x90
+[  460.833261]  __frontswap_invalidate_page+0x56/0x90
+[  460.833963]  swap_range_free+0xb2/0xd0
+[  460.834494]  swapcache_free_entries+0x128/0x1a0
+[  460.835167]  free_swap_slot+0xd5/0xf0
+[  460.835706]  __swap_entry_free.constprop.0+0x8c/0xa0
+[  460.836418]  free_swap_and_cache+0x35/0x70
+[  460.837020]  unmap_page_range+0x4c8/0xd00
+[  460.837595]  unmap_vmas+0x70/0xd0
+[  460.838042]  unmap_region+0xa8/0x110
+[  460.838533]  __do_munmap+0x297/0x460
+[  460.839008]  __vm_munmap+0x6a/0xc0
+[  460.839462]  __x64_sys_munmap+0x28/0x30
+[  460.839982]  do_syscall_64+0x5a/0x220
+[  460.840488]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+[  460.841147] RIP: 0033:0x7fe19ab7e1eb
+[  460.841646] Code: 8b 15 a1 9c 0c 00 f7 d8 64 89 02 48 c7 c0 ff ff
+ff ff eb 89 66 2e 0f 1f 84 00 00 00 00 00 90 f3 0f 1e fa b8 0b 00 00
+00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 6d 9c 0c 00 f7 d8 64 89
+01 48
+[  460.844838] RSP: 002b:00007fffd016cc18 EFLAGS: 00000206 ORIG_RAX:
+000000000000000b
+[  460.845657] RAX: ffffffffffffffda RBX: ffffffffffffffff RCX: 00007fe19ab7e1eb
+[  460.846424] RDX: 000000000000000f RSI: 000000000b87f000 RDI: 00007fe18f206000
+[  460.850824] RBP: 00007fe18f206010 R08: 00007fe18f206000 R09: 0000000000000000
+[  460.855463] R10: 00007fe19aa84010 R11: 0000000000000206 R12: 000056292b3c8004
+[  460.860138] R13: 0000000000000002 R14: 0000000000001000 R15: 000000000b87ec00
+[  460.864922] Modules linked in: ip6t_rpfilter ip6t_REJECT
 nf_reject_ipv6 ipt_REJECT nf_reject_ipv4 xt_conntrack ip6table_nat
 ip6table_mangle ip6table_raw ip6table_security iptable_nat nf_nat
 iptable_mangle iptable_raw iptable_security nf_conntrack
@@ -145,466 +149,224 @@ ip6table_filter ip6_tables iptable_filter ip_tables crct10dif_pclmul
 crc32_pclmul ghash_clmulni_intel virtio_net virtio_balloon
 net_failover failover intel_agp intel_gtt qxl drm_kms_helper
 syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm crc32c_intel
-virtio_blk virtio_console serio_raw agpgart qemu_fw_cfg
-[   13.857818] ---[ end trace 4517028df5e476fe ]---
-[   13.858400] RIP: 0010:handle_to_buddy+0x20/0x30
-[   13.859761] Code: 84 00 00 00 00 00 0f 1f 40 00 0f 1f 44 00 00 53
-48 89 fb 83 e7 01 0f 85 31 26 00 00 48 8b 03 5b 48 89 c2 48 81 e2 00
-f0 ff ff <0f> b6 92 ca 00 00 00 29 d0 83 e0 03 c3 0f 1f 00 0f 1f 44 00
-00 55
-[   13.862703] RSP: 0000:ffffb18cc01977f0 EFLAGS: 00010206
-[   13.864232] RAX: 00ffff97dd890fd0 RBX: fffff63080243f40 RCX: 0000000000000000
-[   13.865834] RDX: 00ffff97dd890000 RSI: ffff97ddbe5d89c8 RDI: ffff97ddbe5d89c8
-[   13.867362] RBP: ffff97dd890fd000 R08: ffff97ddbe5d89c8 R09: 0000000000000000
-[   13.869121] R10: 0000000000000000 R11: 0000000000000000 R12: ffff97dd890fd001
-[   13.871091] R13: ffff97dd890fd010 R14: ffff97ddb5f96408 R15: ffffb18cc0197838
-[   13.872742] FS:  0000000000000000(0000) GS:ffff97ddbe400000(0000)
-knlGS:0000000000000000
-[   13.874448] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   13.876382] CR2: 00007fec8745f010 CR3: 0000000006212004 CR4: 0000000000160ef0
-[   13.878007] ------------[ cut here ]------------
+serio_raw virtio_blk virtio_console agpgart qemu_fw_cfg
+[  460.903490] ---[ end trace bd72aa26a921e57c ]---
 
 
-(gdb) l *handle_to_buddy+0x20
-0xffffffff813376b0 is in handle_to_buddy (/src/linux/mm/z3fold.c:429).
-424 unsigned long addr;
-425
-426 WARN_ON(handle & (1 << PAGE_HEADLESS));
-427 addr = *(unsigned long *)handle;
-428 zhdr = (struct z3fold_header *)(addr & PAGE_MASK);
-429 return (addr - zhdr->first_num) & BUDDY_MASK;
-430 }
-431
-432 static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
-433 {
-(gdb) l *z3fold_zpool_map+0x76
-0xffffffff81337cb6 is in z3fold_zpool_map (/src/linux/mm/z3fold.c:1257).
-1252 if (test_bit(PAGE_HEADLESS, &page->private))
-1253 goto out;
-1254
-1255 z3fold_page_lock(zhdr);
-1256 buddy = handle_to_buddy(handle);
-1257 switch (buddy) {
-1258 case FIRST:
-1259 addr += ZHDR_SIZE_ALIGNED;
-1260 break;
-1261 case MIDDLE:
-(gdb) l *zswap_writeback_entry+0x50
-0xffffffff812e8260 is in zswap_writeback_entry (/src/linux/mm/zswap.c:858).
-853 .sync_mode = WB_SYNC_NONE,
-854 };
-855
-856 /* extract swpentry from data */
-857 zhdr = zpool_map_handle(pool, handle, ZPOOL_MM_RO);
-858 swpentry = zhdr->swpentry; /* here */
-859 zpool_unmap_handle(pool, handle);
-860 tree = zswap_trees[swp_type(swpentry)];
-861 offset = swp_offset(swpentry);
-(gdb) l *z3fold_zpool_shrink+0x3d1
-0xffffffff81338821 is in z3fold_zpool_shrink (/src/linux/mm/z3fold.c:1186).
-1181 ret = pool->ops->evict(pool, middle_handle);
-1182 if (ret)
-1183 goto next;
-1184 }
-1185 if (first_handle) {
-1186 ret = pool->ops->evict(pool, first_handle);
-1187 if (ret)
-1188 goto next;
-1189 }
-1190 if (last_handle) {
+(gdb) l *z3fold_zpool_free+0x234
+0xffffffff81339be4 is in z3fold_zpool_free
+(/src/linux/include/linux/list.h:190).
+185 * list_del_init - deletes entry from list and reinitialize it.
+186 * @entry: the element to delete from the list.
+187 */
+188 static inline void list_del_init(struct list_head *entry)
+189 {
+190 __list_del_entry(entry);
+191 INIT_LIST_HEAD(entry);
+192 }
+193
+194 /**
+(gdb) l *zswap_free_entry+0x43
+0xffffffff812e7ed3 is in zswap_free_entry (/src/linux/mm/zswap.c:329).
+324 {
+325 if (!entry->length)
+326 atomic_dec(&zswap_same_filled_pages);
+327 else {
+328 zpool_free(entry->pool->zpool, entry->handle);
+329 zswap_pool_put(entry->pool);
+330 }
+331 zswap_entry_cache_free(entry);
+332 atomic_dec(&zswap_stored_pages);
+333 zswap_update_total_size();
+(gdb) l *zswap_frontswap_invalidate_page+0x8c
+0xffffffff812e7f9c is in zswap_frontswap_invalidate_page
+(/src/linux/include/linux/spinlock.h:378).
+373 raw_spin_lock_irqsave_nested(spinlock_check(lock), flags, subclass); \
+374 } while (0)
+375
+376 static __always_inline void spin_unlock(spinlock_t *lock)
+377 {
+378 raw_spin_unlock(&lock->rlock);
+379 }
+380
+381 static __always_inline void spin_unlock_bh(spinlock_t *lock)
+382 {
 
-
-To compare, I got following Call Trace "signatures" against vanilla
-v5.3-rc5. Some of them might not be related to zswap at all.
-
-[   15.469831] Call Trace:
-[   15.470171]  migrate_pages+0x20c/0xfb0
-[   15.470678]  ? isolate_freepages_block+0x410/0x410
-[   15.471344]  ? __ClearPageMovable+0x90/0x90
-[   15.471914]  compact_zone+0x74c/0xef0
---
-[  105.611480] Call Trace:
-[  105.611817]  zswap_writeback_entry+0x50/0x410
-[  105.612417]  z3fold_zpool_shrink+0x29d/0x540
-[  105.612947]  zswap_frontswap_store+0x424/0x7c1
-[  105.613494]  __frontswap_store+0xc4/0x162
---
-[   15.103942] Call Trace:
-[   15.104280]  z3fold_zpool_map+0x76/0x110
-[   15.104824]  zswap_writeback_entry+0x50/0x410
-[   15.105398]  z3fold_zpool_shrink+0x3c4/0x540
-[   15.105960]  zswap_frontswap_store+0x424/0x7c1
---
-[  632.066122] Call Trace:
-[  632.066124]  z3fold_zpool_map+0x76/0x110
-[  632.066128]  zswap_writeback_entry+0x50/0x410
-[  632.069101]  do_user_addr_fault+0x1fe/0x480
-[  632.069650]  z3fold_zpool_shrink+0x3c4/0x540
---
-[  133.419601] Call Trace:
-[  133.420199]  zswap_writeback_entry+0x50/0x410
-[  133.421244]  z3fold_zpool_shrink+0x4a6/0x540
-[  133.422266]  zswap_frontswap_store+0x424/0x7c1
-[  133.423386]  __frontswap_store+0xc4/0x162
---
-[  155.374773] Call Trace:
-[  155.375122]  get_page_from_freelist+0x57d/0x1a40
-[  155.375725]  __alloc_pages_nodemask+0x19d/0x400
-[  155.376354]  alloc_pages_vma+0xcc/0x170
-[  155.376854]  __read_swap_cache_async+0x1e9/0x3e0
---
-[   23.849834] Call Trace:
-[   23.851038]  get_page_from_freelist+0x57d/0x1a40
-[   23.853300]  ? wake_all_kswapds+0x54/0xb0
-[   23.855280]  __alloc_pages_slowpath+0x1ae/0x1000
-[   23.857512]  ? __lock_acquire+0x247/0x1900
---
-[  197.206331] Call Trace:
-[  197.207923]  __release_z3fold_page.constprop.0+0x7e/0x130
-[  197.211387]  do_compact_page+0x2c9/0x430
-[  197.213830]  process_one_work+0x272/0x5a0
-[  197.216392]  worker_thread+0x50/0x3b0
-
---000000000000f9c8cd05907bf5e5
-Content-Type: text/x-log; charset="US-ASCII"; name="console-1566235171.001993084.log"
-Content-Disposition: attachment; filename="console-1566235171.001993084.log"
-Content-Transfer-Encoding: base64
-Content-ID: <f_jziotxsy0>
-X-Attachment-Id: f_jziotxsy0
-
-RmVkb3JhIDMwIChUaGlydHkpDQpLZXJuZWwgNS4zLjAtcmM1KyBvbiBhbiB4ODZfNjQgKHR0eVMw
-KQ0KDQpsb2NhbGhvc3QgbG9naW46IFsgICAxMy44MjEyMjNdIGdlbmVyYWwgcHJvdGVjdGlvbiBm
-YXVsdDogMDAwMCBbIzFdIFNNUCBQVEkNClsgICAxMy44MjE4ODJdIENQVTogMCBQSUQ6IDE1MSBD
-b21tOiBrc3dhcGQwIFRhaW50ZWQ6IEcgICAgICAgIFcgICAgICAgICA1LjMuMC1yYzUrICM3MQ0K
-WyAgIDEzLjgyMjc1NV0gSGFyZHdhcmUgbmFtZTogUUVNVSBTdGFuZGFyZCBQQyAoUTM1ICsgSUNI
-OSwgMjAwOSksIEJJT1MgMS4xMi4wLTIuZmMzMCAwNC8wMS8yMDE0DQpbICAgMTMuODI0MjcyXSBS
-SVA6IDAwMTA6aGFuZGxlX3RvX2J1ZGR5KzB4MjAvMHgzMA0KWyAgIDEzLjgyNDc4Nl0gQ29kZTog
-ODQgMDAgMDAgMDAgMDAgMDAgMGYgMWYgNDAgMDAgMGYgMWYgNDQgMDAgMDAgNTMgNDggODkgZmIg
-ODMgZTcgMDEgMGYgODUgMzEgMjYgMDAgMDAgNDggOGIgMDMgNWIgNDggODkgYzIgNDggODEgZTIg
-MDAgZjAgZmYgZmYgPDBmPiBiNiA5MiBjYSAwMCAwMCAwMCAyOSBkMCA4MyBlMCAwMyBjMyAwZiAx
-ZiAwMCAwZiAxZiA0NCAwMCAwMCA1NQ0KWyAgIDEzLjgyNjg1NF0gUlNQOiAwMDAwOmZmZmZiMThj
-YzAxOTc3ZjAgRUZMQUdTOiAwMDAxMDIwNg0KWyAgIDEzLjgyNzQ1Ml0gUkFYOiAwMGZmZmY5N2Rk
-ODkwZmQwIFJCWDogZmZmZmY2MzA4MDI0M2Y0MCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDANClsgICAx
-My44MjgyNTZdIFJEWDogMDBmZmZmOTdkZDg5MDAwMCBSU0k6IGZmZmY5N2RkYmU1ZDg5YzggUkRJ
-OiBmZmZmOTdkZGJlNWQ4OWM4DQpbICAgMTMuODI5MDU2XSBSQlA6IGZmZmY5N2RkODkwZmQwMDAg
-UjA4OiBmZmZmOTdkZGJlNWQ4OWM4IFIwOTogMDAwMDAwMDAwMDAwMDAwMA0KWyAgIDEzLjgyOTg2
-MF0gUjEwOiAwMDAwMDAwMDAwMDAwMDAwIFIxMTogMDAwMDAwMDAwMDAwMDAwMCBSMTI6IGZmZmY5
-N2RkODkwZmQwMDENClsgICAxMy44MzA2NjBdIFIxMzogZmZmZjk3ZGQ4OTBmZDAxMCBSMTQ6IGZm
-ZmY5N2RkYjVmOTY0MDggUjE1OiBmZmZmYjE4Y2MwMTk3ODM4DQpbICAgMTMuODMxNDY4XSBGUzog
-IDAwMDAwMDAwMDAwMDAwMDAoMDAwMCkgR1M6ZmZmZjk3ZGRiZTQwMDAwMCgwMDAwKSBrbmxHUzow
-MDAwMDAwMDAwMDAwMDAwDQpbICAgMTMuODMyNjczXSBDUzogIDAwMTAgRFM6IDAwMDAgRVM6IDAw
-MDAgQ1IwOiAwMDAwMDAwMDgwMDUwMDMzDQpbICAgMTMuODMzNTkzXSBDUjI6IDAwMDA3ZmVjODc0
-NWYwMTAgQ1IzOiAwMDAwMDAwMDA2MjEyMDA0IENSNDogMDAwMDAwMDAwMDE2MGVmMA0KWyAgIDEz
-LjgzNDUwOF0gQ2FsbCBUcmFjZToNClsgICAxMy44MzQ4MjhdICB6M2ZvbGRfenBvb2xfbWFwKzB4
-NzYvMHgxMTANClsgICAxMy44MzUzMzJdICB6c3dhcF93cml0ZWJhY2tfZW50cnkrMHg1MC8weDQx
-MA0KWyAgIDEzLjgzNTg4OF0gIHozZm9sZF96cG9vbF9zaHJpbmsrMHgzZDEvMHg1NzANClsgICAx
-My44MzY0MzRdICA/IHNjaGVkX2Nsb2NrX2NwdSsweGMvMHhjMA0KWyAgIDEzLjgzNjkxOV0gIHpz
-d2FwX2Zyb250c3dhcF9zdG9yZSsweDQyNC8weDdjMQ0KWyAgIDEzLjgzNzQ4NF0gIF9fZnJvbnRz
-d2FwX3N0b3JlKzB4YzQvMHgxNjINClsgICAxMy44Mzc5OTJdICBzd2FwX3dyaXRlcGFnZSsweDM5
-LzB4NzANClsgICAxMy44Mzg0NjBdICBwYWdlb3V0LmlzcmEuMCsweDEyYy8weDVkMA0KWyAgIDEz
-LjgzODk1MF0gIHNocmlua19wYWdlX2xpc3QrMHgxMTI0LzB4MTgzMA0KWyAgIDEzLjgzOTQ4NF0g
-IHNocmlua19pbmFjdGl2ZV9saXN0KzB4MWRhLzB4NDYwDQpbICAgMTMuODQwMDM2XSAgc2hyaW5r
-X25vZGVfbWVtY2crMHgyMDIvMHg3NzANClsgICAxMy44NDA3NDZdICBzaHJpbmtfbm9kZSsweGRm
-LzB4NDkwDQpbICAgMTMuODQxOTMxXSAgYmFsYW5jZV9wZ2RhdCsweDJkYi8weDU4MA0KWyAgIDEz
-Ljg0MjM5Nl0gIGtzd2FwZCsweDIzOS8weDUwMA0KWyAgIDEzLjg0Mjc3Ml0gID8gZmluaXNoX3dh
-aXQrMHg5MC8weDkwDQpbICAgMTMuODQ3MzIzXSAga3RocmVhZCsweDEwOC8weDE0MA0KWyAgIDEz
-Ljg0ODM1OF0gID8gYmFsYW5jZV9wZ2RhdCsweDU4MC8weDU4MA0KWyAgIDEzLjg0OTYyNl0gID8g
-a3RocmVhZF9wYXJrKzB4ODAvMHg4MA0KWyAgIDEzLjg1MDM1Ml0gIHJldF9mcm9tX2ZvcmsrMHgz
-YS8weDUwDQpbICAgMTMuODUxMDg2XSBNb2R1bGVzIGxpbmtlZCBpbjogaXA2dF9ycGZpbHRlciBp
-cDZ0X1JFSkVDVCBuZl9yZWplY3RfaXB2NiBpcHRfUkVKRUNUIG5mX3JlamVjdF9pcHY0IHh0X2Nv
-bm50cmFjayBpcDZ0YWJsZV9uYXQgaXA2dGFibGVfbWFuZ2xlIGlwNnRhYmxlX3JhdyBpcDZ0YWJs
-ZV9zZWN1cml0eSBpcHRhYmxlX25hdCBuZl9uYXQgaXB0YWJsZV9tYW5nbGUgaXB0YWJsZV9yYXcg
-aXB0YWJsZV9zZWN1cml0eSBuZl9jb25udHJhY2sgbmZfZGVmcmFnX2lwdjYgbmZfZGVmcmFnX2lw
-djQgbGliY3JjMzJjIGlwX3NldCBuZm5ldGxpbmsgaXA2dGFibGVfZmlsdGVyIGlwNl90YWJsZXMg
-aXB0YWJsZV9maWx0ZXIgaXBfdGFibGVzIGNyY3QxMGRpZl9wY2xtdWwgY3JjMzJfcGNsbXVsIGdo
-YXNoX2NsbXVsbmlfaW50ZWwgdmlydGlvX25ldCB2aXJ0aW9fYmFsbG9vbiBuZXRfZmFpbG92ZXIg
-ZmFpbG92ZXIgaW50ZWxfYWdwIGludGVsX2d0dCBxeGwgZHJtX2ttc19oZWxwZXIgc3lzY29weWFy
-ZWEgc3lzZmlsbHJlY3Qgc3lzaW1nYmx0IGZiX3N5c19mb3BzIHR0bSBkcm0gY3JjMzJjX2ludGVs
-IHZpcnRpb19ibGsgdmlydGlvX2NvbnNvbGUgc2VyaW9fcmF3IGFncGdhcnQgcWVtdV9md19jZmcN
-ClsgICAxMy44NTc4MThdIC0tLVsgZW5kIHRyYWNlIDQ1MTcwMjhkZjVlNDc2ZmUgXS0tLQ0KWyAg
-IDEzLjg1ODQwMF0gUklQOiAwMDEwOmhhbmRsZV90b19idWRkeSsweDIwLzB4MzANClsgICAxMy44
-NTk3NjFdIENvZGU6IDg0IDAwIDAwIDAwIDAwIDAwIDBmIDFmIDQwIDAwIDBmIDFmIDQ0IDAwIDAw
-IDUzIDQ4IDg5IGZiIDgzIGU3IDAxIDBmIDg1IDMxIDI2IDAwIDAwIDQ4IDhiIDAzIDViIDQ4IDg5
-IGMyIDQ4IDgxIGUyIDAwIGYwIGZmIGZmIDwwZj4gYjYgOTIgY2EgMDAgMDAgMDAgMjkgZDAgODMg
-ZTAgMDMgYzMgMGYgMWYgMDAgMGYgMWYgNDQgMDAgMDAgNTUNClsgICAxMy44NjI3MDNdIFJTUDog
-MDAwMDpmZmZmYjE4Y2MwMTk3N2YwIEVGTEFHUzogMDAwMTAyMDYNClsgICAxMy44NjQyMzJdIFJB
-WDogMDBmZmZmOTdkZDg5MGZkMCBSQlg6IGZmZmZmNjMwODAyNDNmNDAgUkNYOiAwMDAwMDAwMDAw
-MDAwMDAwDQpbICAgMTMuODY1ODM0XSBSRFg6IDAwZmZmZjk3ZGQ4OTAwMDAgUlNJOiBmZmZmOTdk
-ZGJlNWQ4OWM4IFJESTogZmZmZjk3ZGRiZTVkODljOA0KWyAgIDEzLjg2NzM2Ml0gUkJQOiBmZmZm
-OTdkZDg5MGZkMDAwIFIwODogZmZmZjk3ZGRiZTVkODljOCBSMDk6IDAwMDAwMDAwMDAwMDAwMDAN
-ClsgICAxMy44NjkxMjFdIFIxMDogMDAwMDAwMDAwMDAwMDAwMCBSMTE6IDAwMDAwMDAwMDAwMDAw
-MDAgUjEyOiBmZmZmOTdkZDg5MGZkMDAxDQpbICAgMTMuODcxMDkxXSBSMTM6IGZmZmY5N2RkODkw
-ZmQwMTAgUjE0OiBmZmZmOTdkZGI1Zjk2NDA4IFIxNTogZmZmZmIxOGNjMDE5NzgzOA0KWyAgIDEz
-Ljg3Mjc0Ml0gRlM6ICAwMDAwMDAwMDAwMDAwMDAwKDAwMDApIEdTOmZmZmY5N2RkYmU0MDAwMDAo
-MDAwMCkga25sR1M6MDAwMDAwMDAwMDAwMDAwMA0KWyAgIDEzLjg3NDQ0OF0gQ1M6ICAwMDEwIERT
-OiAwMDAwIEVTOiAwMDAwIENSMDogMDAwMDAwMDA4MDA1MDAzMw0KWyAgIDEzLjg3NjM4Ml0gQ1Iy
-OiAwMDAwN2ZlYzg3NDVmMDEwIENSMzogMDAwMDAwMDAwNjIxMjAwNCBDUjQ6IDAwMDAwMDAwMDAx
-NjBlZjANClsgICAxMy44NzgwMDddIC0tLS0tLS0tLS0tLVsgY3V0IGhlcmUgXS0tLS0tLS0tLS0t
-LQ0KWyAgIDEzLjg3OTQ2MV0gV0FSTklORzogQ1BVOiAwIFBJRDogMTUxIGF0IGtlcm5lbC9leGl0
-LmM6Nzg1IGRvX2V4aXQuY29sZCsweGMvMHgxMjENClsgICAxMy44ODQ1MjddIE1vZHVsZXMgbGlu
-a2VkIGluOiBpcDZ0X3JwZmlsdGVyIGlwNnRfUkVKRUNUIG5mX3JlamVjdF9pcHY2IGlwdF9SRUpF
-Q1QgbmZfcmVqZWN0X2lwdjQgeHRfY29ubnRyYWNrIGlwNnRhYmxlX25hdCBpcDZ0YWJsZV9tYW5n
-bGUgaXA2dGFibGVfcmF3IGlwNnRhYmxlX3NlY3VyaXR5IGlwdGFibGVfbmF0IG5mX25hdCBpcHRh
-YmxlX21hbmdsZSBpcHRhYmxlX3JhdyBpcHRhYmxlX3NlY3VyaXR5IG5mX2Nvbm50cmFjayBuZl9k
-ZWZyYWdfaXB2NiBuZl9kZWZyYWdfaXB2NCBsaWJjcmMzMmMgaXBfc2V0IG5mbmV0bGluayBpcDZ0
-YWJsZV9maWx0ZXIgaXA2X3RhYmxlcyBpcHRhYmxlX2ZpbHRlciBpcF90YWJsZXMgY3JjdDEwZGlm
-X3BjbG11bCBjcmMzMl9wY2xtdWwgZ2hhc2hfY2xtdWxuaV9pbnRlbCB2aXJ0aW9fbmV0IHZpcnRp
-b19iYWxsb29uIG5ldF9mYWlsb3ZlciBmYWlsb3ZlciBpbnRlbF9hZ3AgaW50ZWxfZ3R0IHF4bCBk
-cm1fa21zX2hlbHBlciBzeXNjb3B5YXJlYSBzeXNmaWxscmVjdCBzeXNpbWdibHQgZmJfc3lzX2Zv
-cHMgdHRtIGRybSBjcmMzMmNfaW50ZWwgdmlydGlvX2JsayB2aXJ0aW9fY29uc29sZSBzZXJpb19y
-YXcgYWdwZ2FydCBxZW11X2Z3X2NmZw0KWyAgIDEzLjkwMDg1N10gQ1BVOiAwIFBJRDogMTUxIENv
-bW06IGtzd2FwZDAgVGFpbnRlZDogRyAgICAgIEQgVyAgICAgICAgIDUuMy4wLXJjNSsgIzcxDQpb
-ICAgMTMuOTAyNTIzXSBIYXJkd2FyZSBuYW1lOiBRRU1VIFN0YW5kYXJkIFBDIChRMzUgKyBJQ0g5
-LCAyMDA5KSwgQklPUyAxLjEyLjAtMi5mYzMwIDA0LzAxLzIwMTQNClsgICAxMy45MDQyNzFdIFJJ
-UDogMDAxMDpkb19leGl0LmNvbGQrMHhjLzB4MTIxDQpbICAgMTMuOTA1NTUzXSBDb2RlOiAxZiA0
-NCAwMCAwMCA4YiA0ZiA2OCA0OCA4YiA1NyA2MCA4YiA3NyA1OCA0OCA4YiA3ZiAyOCBlOSA1OCBm
-ZiBmZiBmZiAwZiAxZiA0NCAwMCAwMCAwZiAwYiA0OCBjNyBjNyA4OCA5OSAwYSA4MiBlOCBmMyAx
-NCAwOCAwMCA8MGY+IDBiIGU5IGVlIGVlIGZmIGZmIDY1IDQ4IDhiIDA0IDI1IDgwIDdmIDAxIDAw
-IDhiIDkwIGE4IDA4IDAwIDAwDQpbICAgMTMuOTA5OTU3XSBSU1A6IDAwMDA6ZmZmZmIxOGNjMDE5
-N2VlMCBFRkxBR1M6IDAwMDEwMjQ2DQpbICAgMTMuOTEyMjQ0XSBSQVg6IDAwMDAwMDAwMDAwMDAw
-MjQgUkJYOiBmZmZmOTdkZGJkMmYwMDAwIFJDWDogMDAwMDAwMDAwMDAwMDAwMA0KWyAgIDEzLjkx
-NTA4OV0gUkRYOiAwMDAwMDAwMDAwMDAwMDAwIFJTSTogZmZmZjk3ZGRiZTVkODljOCBSREk6IGZm
-ZmY5N2RkYmU1ZDg5YzgNClsgICAxMy45MTgwMzddIFJCUDogMDAwMDAwMDAwMDAwMDAwYiBSMDg6
-IGZmZmY5N2RkYmU1ZDg5YzggUjA5OiAwMDAwMDAwMDAwMDAwMDAwDQpbICAgMTMuOTIxMTEyXSBS
-MTA6IDAwMDAwMDAwMDAwMDAwMDEgUjExOiAwMDAwMDAwMDAwMDAwMDAwIFIxMjogMDAwMDAwMDAw
-MDAwMDAwYg0KWyAgIDEzLjkyNDE2MF0gUjEzOiAwMDAwMDAwMDAwMDAwMDAwIFIxNDogMDAwMDAw
-MDAwMDAwMDAwMCBSMTU6IDAwMDAwMDAwMDAwMDAwMDANClsgICAxMy45MjcyODFdIEZTOiAgMDAw
-MDAwMDAwMDAwMDAwMCgwMDAwKSBHUzpmZmZmOTdkZGJlNDAwMDAwKDAwMDApIGtubEdTOjAwMDAw
-MDAwMDAwMDAwMDANClsgICAxMy45MzAzOTJdIENTOiAgMDAxMCBEUzogMDAwMCBFUzogMDAwMCBD
-UjA6IDAwMDAwMDAwODAwNTAwMzMNClsgICAxMy45MzI5NjZdIENSMjogMDAwMDdmZWM4NzQ1ZjAx
-MCBDUjM6IDAwMDAwMDAwMDYyMTIwMDQgQ1I0OiAwMDAwMDAwMDAwMTYwZWYwDQpbICAgMTMuOTM2
-NTI1XSBDYWxsIFRyYWNlOg0KWyAgIDEzLjkzODU5Nl0gID8ga3RocmVhZCsweDEwOC8weDE0MA0K
-WyAgIDEzLjk0MDgyMl0gIHJld2luZF9zdGFja19kb19leGl0KzB4MTcvMHgyMA0KWyAgIDEzLjk0
-Mjk1Nl0gaXJxIGV2ZW50IHN0YW1wOiAzNTUxMTgxDQpbICAgMTMuOTQ1NjM3XSBoYXJkaXJxcyBs
-YXN0ICBlbmFibGVkIGF0ICgzNTUxMTgxKTogWzxmZmZmZmZmZjgxMDE1ZWZjPl0gZG9fZ2VuZXJh
-bF9wcm90ZWN0aW9uKzB4MTZjLzB4MWIwDQpbICAgMTMuOTQ5MDU1XSBoYXJkaXJxcyBsYXN0IGRp
-c2FibGVkIGF0ICgzNTUxMTgwKTogWzxmZmZmZmZmZjgxMDAxYzhhPl0gdHJhY2VfaGFyZGlycXNf
-b2ZmX3RodW5rKzB4MWEvMHgyMA0KWyAgIDEzLjk1MjQ3Nl0gc29mdGlycXMgbGFzdCAgZW5hYmxl
-ZCBhdCAoMzU1MTA2OCk6IFs8ZmZmZmZmZmY4MWMwMDM1MT5dIF9fZG9fc29mdGlycSsweDM1MS8w
-eDQ1MQ0KWyAgIDEzLjk1NjQ2Nl0gc29mdGlycXMgbGFzdCBkaXNhYmxlZCBhdCAoMzU1MTA1OSk6
-IFs8ZmZmZmZmZmY4MTBjOTgyMT5dIGlycV9leGl0KzB4ZjEvMHgxMDANClsgICAxMy45NTg1NTVd
-IC0tLVsgZW5kIHRyYWNlIDQ1MTcwMjhkZjVlNDc2ZmYgXS0tLQ0KWyAgIDEzLjk2MDE0MV0gQlVH
-OiBzbGVlcGluZyBmdW5jdGlvbiBjYWxsZWQgZnJvbSBpbnZhbGlkIGNvbnRleHQgYXQgaW5jbHVk
-ZS9saW51eC9wZXJjcHUtcndzZW0uaDozOA0KWyAgIDEzLjk2MjMwMF0gaW5fYXRvbWljKCk6IDEs
-IGlycXNfZGlzYWJsZWQoKTogMCwgcGlkOiAxNTEsIG5hbWU6IGtzd2FwZDANClsgICAxMy45NjQw
-MzZdIElORk86IGxvY2tkZXAgaXMgdHVybmVkIG9mZi4NClsgICAxMy45NjYwMDRdIENQVTogMCBQ
-SUQ6IDE1MSBDb21tOiBrc3dhcGQwIFRhaW50ZWQ6IEcgICAgICBEIFcgICAgICAgICA1LjMuMC1y
-YzUrICM3MQ0KWyAgIDEzLjk2OTExN10gSGFyZHdhcmUgbmFtZTogUUVNVSBTdGFuZGFyZCBQQyAo
-UTM1ICsgSUNIOSwgMjAwOSksIEJJT1MgMS4xMi4wLTIuZmMzMCAwNC8wMS8yMDE0DQpbICAgMTMu
-OTcyNTg4XSBDYWxsIFRyYWNlOg0KWyAgIDEzLjk3Mzk0N10gIGR1bXBfc3RhY2srMHg2Ny8weDkw
-DQpbICAgMTMuOTc4MzI2XSAgX19fbWlnaHRfc2xlZXAuY29sZCsweDlmLzB4YWYNClsgICAxMy45
-Nzk1ODddICBleGl0X3NpZ25hbHMrMHgzMC8weDMzMA0KWyAgIDEzLjk4MDc2OV0gIGRvX2V4aXQr
-MHhjYi8weGNkMA0KWyAgIDEzLjk4MTg5N10gID8ga3RocmVhZCsweDEwOC8weDE0MA0KWyAgIDEz
-Ljk4MzAyOF0gIHJld2luZF9zdGFja19kb19leGl0KzB4MTcvMHgyMA0KWyAgIDEzLjk4NDM0Ml0g
-bm90ZToga3N3YXBkMFsxNTFdIGV4aXRlZCB3aXRoIHByZWVtcHRfY291bnQgMQ0KWyAgIDEzLjk4
-NTgxOF0ga3N3YXBkMCAoMTUxKSB1c2VkIGdyZWF0ZXN0IHN0YWNrIGRlcHRoOiAxMTMxMiBieXRl
-cyBsZWZ0DQpbICAgMzguMDA0MzQzXSB3YXRjaGRvZzogQlVHOiBzb2Z0IGxvY2t1cCAtIENQVSMw
-IHN0dWNrIGZvciAyMXMhIFtzdHJlc3M6MTAzOF0NClsgICAzOC4wMDk2NjddIE1vZHVsZXMgbGlu
-a2VkIGluOiBpcDZ0X3JwZmlsdGVyIGlwNnRfUkVKRUNUIG5mX3JlamVjdF9pcHY2IGlwdF9SRUpF
-Q1QgbmZfcmVqZWN0X2lwdjQgeHRfY29ubnRyYWNrIGlwNnRhYmxlX25hdCBpcDZ0YWJsZV9tYW5n
-bGUgaXA2dGFibGVfcmF3IGlwNnRhYmxlX3NlY3VyaXR5IGlwdGFibGVfbmF0IG5mX25hdCBpcHRh
-YmxlX21hbmdsZSBpcHRhYmxlX3JhdyBpcHRhYmxlX3NlY3VyaXR5IG5mX2Nvbm50cmFjayBuZl9k
-ZWZyYWdfaXB2NiBuZl9kZWZyYWdfaXB2NCBsaWJjcmMzMmMgaXBfc2V0IG5mbmV0bGluayBpcDZ0
-YWJsZV9maWx0ZXIgaXA2X3RhYmxlcyBpcHRhYmxlX2ZpbHRlciBpcF90YWJsZXMgY3JjdDEwZGlm
-X3BjbG11bCBjcmMzMl9wY2xtdWwgZ2hhc2hfY2xtdWxuaV9pbnRlbCB2aXJ0aW9fbmV0IHZpcnRp
-b19iYWxsb29uIG5ldF9mYWlsb3ZlciBmYWlsb3ZlciBpbnRlbF9hZ3AgaW50ZWxfZ3R0IHF4bCBk
-cm1fa21zX2hlbHBlciBzeXNjb3B5YXJlYSBzeXNmaWxscmVjdCBzeXNpbWdibHQgZmJfc3lzX2Zv
-cHMgdHRtIGRybSBjcmMzMmNfaW50ZWwgdmlydGlvX2JsayB2aXJ0aW9fY29uc29sZSBzZXJpb19y
-YXcgYWdwZ2FydCBxZW11X2Z3X2NmZw0KWyAgIDM4LjA0Nzc3NF0gaXJxIGV2ZW50IHN0YW1wOiAy
-MDE4MjQ5DQpbICAgMzguMDUwODI3XSBoYXJkaXJxcyBsYXN0ICBlbmFibGVkIGF0ICgyMDE4MjQ5
-KTogWzxmZmZmZmZmZjgxMmQ1Yzc4Pl0gZnJlZV91bnJlZl9wYWdlX2xpc3QrMHgyMTgvMHgyNjAN
-ClsgICAzOC4wNTc1MjBdIGhhcmRpcnFzIGxhc3QgZGlzYWJsZWQgYXQgKDIwMTgyNDgpOiBbPGZm
-ZmZmZmZmODEyZDViMTc+XSBmcmVlX3VucmVmX3BhZ2VfbGlzdCsweGI3LzB4MjYwDQpbICAgMzgu
-MDYxNTcyXSB3YXRjaGRvZzogQlVHOiBzb2Z0IGxvY2t1cCAtIENQVSMxIHN0dWNrIGZvciAyMXMh
-IFtzdHJlc3M6MTA0Ml0NClsgICAzOC4wNjQxMzNdIHNvZnRpcnFzIGxhc3QgIGVuYWJsZWQgYXQg
-KDIwMTgyMzQpOiBbPGZmZmZmZmZmODFjMDAzNTE+XSBfX2RvX3NvZnRpcnErMHgzNTEvMHg0NTEN
-ClsgICAzOC4wNjU2MzhdIE1vZHVsZXMgbGlua2VkIGluOiBpcDZ0X3JwZmlsdGVyIGlwNnRfUkVK
-RUNUIG5mX3JlamVjdF9pcHY2IGlwdF9SRUpFQ1QgbmZfcmVqZWN0X2lwdjQgeHRfY29ubnRyYWNr
-IGlwNnRhYmxlX25hdCBpcDZ0YWJsZV9tYW5nbGUgaXA2dGFibGVfcmF3IGlwNnRhYmxlX3NlY3Vy
-aXR5IGlwdGFibGVfbmF0IG5mX25hdCBpcHRhYmxlX21hbmdsZSBpcHRhYmxlX3JhdyBpcHRhYmxl
-X3NlY3VyaXR5IG5mX2Nvbm50cmFjayBuZl9kZWZyYWdfaXB2NiBuZl9kZWZyYWdfaXB2NCBsaWJj
-cmMzMmMgaXBfc2V0IG5mbmV0bGluayBpcDZ0YWJsZV9maWx0ZXIgaXA2X3RhYmxlcyBpcHRhYmxl
-X2ZpbHRlciBpcF90YWJsZXMgY3JjdDEwZGlmX3BjbG11bCBjcmMzMl9wY2xtdWwgZ2hhc2hfY2xt
-dWxuaV9pbnRlbCB2aXJ0aW9fbmV0IHZpcnRpb19iYWxsb29uIG5ldF9mYWlsb3ZlciBmYWlsb3Zl
-ciBpbnRlbF9hZ3AgaW50ZWxfZ3R0IHF4bCBkcm1fa21zX2hlbHBlciBzeXNjb3B5YXJlYSBzeXNm
-aWxscmVjdCBzeXNpbWdibHQgZmJfc3lzX2ZvcHMgdHRtIGRybSBjcmMzMmNfaW50ZWwgdmlydGlv
-X2JsayB2aXJ0aW9fY29uc29sZSBzZXJpb19yYXcgYWdwZ2FydCBxZW11X2Z3X2NmZw0KWyAgIDM4
-LjA3MTg2M10gc29mdGlycXMgbGFzdCBkaXNhYmxlZCBhdCAoMjAxODE4Nyk6IFs8ZmZmZmZmZmY4
-MTBjOTgyMT5dIGlycV9leGl0KzB4ZjEvMHgxMDANClsgICAzOC4wODE0NTNdIGlycSBldmVudCBz
-dGFtcDogMjE1MDY3MA0KWyAgIDM4LjA4MTQ1N10gaGFyZGlycXMgbGFzdCAgZW5hYmxlZCBhdCAo
-MjE1MDY2OSk6IFs8ZmZmZmZmZmY4MTlkNmIwOT5dIF9yYXdfc3Bpbl91bmxvY2tfaXJxKzB4Mjkv
-MHg0MA0KWyAgIDM4LjA4NzQyMF0gQ1BVOiAwIFBJRDogMTAzOCBDb21tOiBzdHJlc3MgVGFpbnRl
-ZDogRyAgICAgIEQgVyAgICAgICAgIDUuMy4wLXJjNSsgIzcxDQpbICAgMzguMDg4NTc2XSBoYXJk
-aXJxcyBsYXN0IGRpc2FibGVkIGF0ICgyMTUwNjcwKTogWzxmZmZmZmZmZjgxOWNlZjY0Pl0gX19z
-Y2hlZHVsZSsweGM0LzB4OGEwDQpbICAgMzguMDg4NTc4XSBzb2Z0aXJxcyBsYXN0ICBlbmFibGVk
-IGF0ICgyMTUwNjI0KTogWzxmZmZmZmZmZjgxYzAwMzUxPl0gX19kb19zb2Z0aXJxKzB4MzUxLzB4
-NDUxDQpbICAgMzguMDk1MTY0XSBIYXJkd2FyZSBuYW1lOiBRRU1VIFN0YW5kYXJkIFBDIChRMzUg
-KyBJQ0g5LCAyMDA5KSwgQklPUyAxLjEyLjAtMi5mYzMwIDA0LzAxLzIwMTQNClsgICAzOC4wOTY4
-MDldIHNvZnRpcnFzIGxhc3QgZGlzYWJsZWQgYXQgKDIxNTA1NjUpOiBbPGZmZmZmZmZmODEwYzk4
-MjE+XSBpcnFfZXhpdCsweGYxLzB4MTAwDQpbICAgMzguMDk2ODExXSBDUFU6IDEgUElEOiAxMDQy
-IENvbW06IHN0cmVzcyBUYWludGVkOiBHICAgICAgRCBXICAgICAgICAgNS4zLjAtcmM1KyAjNzEN
-ClsgICAzOC4xMDI5MTFdIFJJUDogMDAxMDpxdWV1ZWRfc3Bpbl9sb2NrX3Nsb3dwYXRoKzB4NDIv
-MHgxZTANClsgICAzOC4xMDQ2NTldIEhhcmR3YXJlIG5hbWU6IFFFTVUgU3RhbmRhcmQgUEMgKFEz
-NSArIElDSDksIDIwMDkpLCBCSU9TIDEuMTIuMC0yLmZjMzAgMDQvMDEvMjAxNA0KWyAgIDM4LjEw
-NDY2Ml0gUklQOiAwMDEwOnF1ZXVlZF9zcGluX2xvY2tfc2xvd3BhdGgrMHgxMjQvMHgxZTANClsg
-ICAzOC4xMTA4ODRdIENvZGU6IDQ5IGYwIDBmIGJhIDJmIDA4IDBmIDkyIGMwIDBmIGI2IGMwIGMx
-IGUwIDA4IDg5IGMyIDhiIDA3IDMwIGU0IDA5IGQwIGE5IDAwIDAxIGZmIGZmIDc1IDIzIDg1IGMw
-IDc0IDBlIDhiIDA3IDg0IGMwIDc0IDA4IGYzIDkwIDw4Yj4gMDcgODQgYzAgNzUgZjggYjggMDEg
-MDAgMDAgMDAgNjYgODkgMDcgNjUgNDggZmYgMDUgZTggZjcgMDkgN2YNClsgICAzOC4xMTI2MDNd
-IENvZGU6IDAwIDg5IDFkIDAwIGViIGExIDQxIDgzIGMwIDAxIGMxIGUxIDEwIDQxIGMxIGUwIDEy
-IDQ0IDA5IGMxIDg5IGM4IGMxIGU4IDEwIDY2IDg3IDQ3IDAyIDg5IGM2IGMxIGU2IDEwIDc1IDNj
-IDMxIGY2IGViIDAyIGYzIDkwIDw4Yj4gMDcgNjYgODUgYzAgNzUgZjcgNDEgODkgYzAgNjYgNDUg
-MzEgYzAgNDEgMzkgYzggNzQgNjQgYzYgMDcgMDENClsgICAzOC4xMTc4ODBdIHdhdGNoZG9nOiBC
-VUc6IHNvZnQgbG9ja3VwIC0gQ1BVIzIgc3R1Y2sgZm9yIDIxcyEgW3N0cmVzczoxMDQwXQ0KWyAg
-IDM4LjExNzg4MV0gTW9kdWxlcyBsaW5rZWQgaW46IGlwNnRfcnBmaWx0ZXIgaXA2dF9SRUpFQ1Qg
-bmZfcmVqZWN0X2lwdjYgaXB0X1JFSkVDVCBuZl9yZWplY3RfaXB2NCB4dF9jb25udHJhY2sgaXA2
-dGFibGVfbmF0IGlwNnRhYmxlX21hbmdsZSBpcDZ0YWJsZV9yYXcgaXA2dGFibGVfc2VjdXJpdHkg
-aXB0YWJsZV9uYXQgbmZfbmF0IGlwdGFibGVfbWFuZ2xlIGlwdGFibGVfcmF3IGlwdGFibGVfc2Vj
-dXJpdHkgbmZfY29ubnRyYWNrIG5mX2RlZnJhZ19pcHY2IG5mX2RlZnJhZ19pcHY0IGxpYmNyYzMy
-YyBpcF9zZXQgbmZuZXRsaW5rIGlwNnRhYmxlX2ZpbHRlciBpcDZfdGFibGVzIGlwdGFibGVfZmls
-dGVyIGlwX3RhYmxlcyBjcmN0MTBkaWZfcGNsbXVsIGNyYzMyX3BjbG11bCBnaGFzaF9jbG11bG5p
-X2ludGVsIHZpcnRpb19uZXQgdmlydGlvX2JhbGxvb24gbmV0X2ZhaWxvdmVyIGZhaWxvdmVyIGlu
-dGVsX2FncCBpbnRlbF9ndHQgcXhsIGRybV9rbXNfaGVscGVyIHN5c2NvcHlhcmVhIHN5c2ZpbGxy
-ZWN0IHN5c2ltZ2JsdCBmYl9zeXNfZm9wcyB0dG0gZHJtIGNyYzMyY19pbnRlbCB2aXJ0aW9fYmxr
-IHZpcnRpb19jb25zb2xlIHNlcmlvX3JhdyBhZ3BnYXJ0IHFlbXVfZndfY2ZnDQpbICAgMzguMTE3
-ODk2XSBpcnEgZXZlbnQgc3RhbXA6IDIxNDA1MTgNClsgICAzOC4xMTc4OTldIGhhcmRpcnFzIGxh
-c3QgIGVuYWJsZWQgYXQgKDIxNDA1MTcpOiBbPGZmZmZmZmZmODE5ZDZiMDk+XSBfcmF3X3NwaW5f
-dW5sb2NrX2lycSsweDI5LzB4NDANClsgICAzOC4xMTc5MDBdIGhhcmRpcnFzIGxhc3QgZGlzYWJs
-ZWQgYXQgKDIxNDA1MTgpOiBbPGZmZmZmZmZmODE5Y2VmNjQ+XSBfX3NjaGVkdWxlKzB4YzQvMHg4
-YTANClsgICAzOC4xMTc5MDJdIHNvZnRpcnFzIGxhc3QgIGVuYWJsZWQgYXQgKDIxMzk2NTApOiBb
-PGZmZmZmZmZmODFjMDAzNTE+XSBfX2RvX3NvZnRpcnErMHgzNTEvMHg0NTENClsgICAzOC4xMTc5
-MDNdIHNvZnRpcnFzIGxhc3QgZGlzYWJsZWQgYXQgKDIxMzk2MjkpOiBbPGZmZmZmZmZmODEwYzk4
-MjE+XSBpcnFfZXhpdCsweGYxLzB4MTAwDQpbICAgMzguMTE3OTA0XSBDUFU6IDIgUElEOiAxMDQw
-IENvbW06IHN0cmVzcyBUYWludGVkOiBHICAgICAgRCBXICAgICAgICAgNS4zLjAtcmM1KyAjNzEN
-ClsgICAzOC4xMTc5MDVdIEhhcmR3YXJlIG5hbWU6IFFFTVUgU3RhbmRhcmQgUEMgKFEzNSArIElD
-SDksIDIwMDkpLCBCSU9TIDEuMTIuMC0yLmZjMzAgMDQvMDEvMjAxNA0KWyAgIDM4LjExNzkwN10g
-UklQOiAwMDEwOnF1ZXVlZF9zcGluX2xvY2tfc2xvd3BhdGgrMHg0Mi8weDFlMA0KWyAgIDM4LjEx
-NzkwOF0gQ29kZTogNDkgZjAgMGYgYmEgMmYgMDggMGYgOTIgYzAgMGYgYjYgYzAgYzEgZTAgMDgg
-ODkgYzIgOGIgMDcgMzAgZTQgMDkgZDAgYTkgMDAgMDEgZmYgZmYgNzUgMjMgODUgYzAgNzQgMGUg
-OGIgMDcgODQgYzAgNzQgMDggZjMgOTAgPDhiPiAwNyA4NCBjMCA3NSBmOCBiOCAwMSAwMCAwMCAw
-MCA2NiA4OSAwNyA2NSA0OCBmZiAwNSBlOCBmNyAwOSA3Zg0KWyAgIDM4LjExNzkwOV0gUlNQOiAw
-MDAwOmZmZmZiMThjYzBhODc2YzggRUZMQUdTOiAwMDAwMDIwMiBPUklHX1JBWDogZmZmZmZmZmZm
-ZmZmZmYxMw0KWyAgIDM4LjExNzkxMF0gUkFYOiAwMDAwMDAwMDAwMDAwMTAxIFJCWDogZmZmZjk3
-ZGRiMzAzYmQ4MCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDANClsgICAzOC4xMTc5MTFdIFJEWDogMDAw
-MDAwMDAwMDAwMDAwMCBSU0k6IDAwMDAwMDAwMDAwMDAwMDAgUkRJOiBmZmZmOTdkZGIzMDNiZDgw
-DQpbICAgMzguMTE3OTExXSBSQlA6IGZmZmY5N2RkYjMwM2JkODAgUjA4OiAwMDAwMDAwMDAwMDAw
-MDAxIFIwOTogMDAwMDAwMDAwMDAwMDAwMA0KWyAgIDM4LjExNzkxMl0gUjEwOiAwMDAwMDAwMDAw
-MDAwMDAwIFIxMTogMDAwMDAwMDAwMDAwMDAwMCBSMTI6IGZmZmY5N2RkYjMwM2JkOTgNClsgICAz
-OC4xMTc5MTJdIFIxMzogMDAwMDAwMDAwMDAwMDAwMCBSMTQ6IDAwMDAwMDA3ZmVjODgwOWYgUjE1
-OiAwMDAwMDAwN2ZlYzg4MDlmDQpbICAgMzguMTE3OTE1XSBGUzogIDAwMDA3ZmVjOGQyMWY3NDAo
-MDAwMCkgR1M6ZmZmZjk3ZGRiZTgwMDAwMCgwMDAwKSBrbmxHUzowMDAwMDAwMDAwMDAwMDAwDQpb
-ICAgMzguMTE3OTE2XSBDUzogIDAwMTAgRFM6IDAwMDAgRVM6IDAwMDAgQ1IwOiAwMDAwMDAwMDgw
-MDUwMDMzDQpbICAgMzguMTE3OTE2XSBDUjI6IDAwMDA3ZmVjODg5ZjQwMTAgQ1IzOiAwMDAwMDAw
-MDM5MDcyMDAxIENSNDogMDAwMDAwMDAwMDE2MGVlMA0KWyAgIDM4LjExNzkxN10gQ2FsbCBUcmFj
-ZToNClsgICAzOC4xMTc5MjBdICBkb19yYXdfc3Bpbl9sb2NrKzB4YWIvMHhiMA0KWyAgIDM4LjEx
-NzkyM10gIF9yYXdfc3Bpbl9sb2NrKzB4NjMvMHg4MA0KWyAgIDM4LjExNzkyNV0gIHBhZ2Vfdm1h
-X21hcHBlZF93YWxrKzB4NGFjLzB4N2IwDQpbICAgMzguMTE3OTI3XSAgcGFnZV9yZWZlcmVuY2Vk
-X29uZSsweDliLzB4MTcwDQpbICAgMzguMTE3OTMwXSAgcm1hcF93YWxrX2Fub24rMHgxNzMvMHgz
-OTANClsgICAzOC4xMTc5MzJdICBwYWdlX3JlZmVyZW5jZWQrMHgxNDkvMHgxNzANClsgICAzOC4x
-MTc5MzRdICA/IHBhZ2VfbWFwY291bnRfaXNfemVybysweDIwLzB4MjANClsgICAzOC4xMTc5MzVd
-ICA/IHBhZ2VfZ2V0X2Fub25fdm1hKzB4MWMwLzB4MWMwDQpbICAgMzguMTE3OTM4XSAgc2hyaW5r
-X3BhZ2VfbGlzdCsweDhmZC8weDE4MzANClsgICAzOC4xMTc5NDJdICBzaHJpbmtfaW5hY3RpdmVf
-bGlzdCsweDFkYS8weDQ2MA0KWyAgIDM4LjExNzk0Nl0gIHNocmlua19ub2RlX21lbWNnKzB4MjAy
-LzB4NzcwDQpbICAgMzguMTE3OTUxXSAgc2hyaW5rX25vZGUrMHhkZi8weDQ5MA0KWyAgIDM4LjEx
-Nzk1NF0gIGRvX3RyeV90b19mcmVlX3BhZ2VzKzB4ZGIvMHgzYzANClsgICAzOC4xMTc5NTddICB0
-cnlfdG9fZnJlZV9wYWdlcysweDExMi8weDJlMA0KWyAgIDM4LjExNzk2MF0gIF9fYWxsb2NfcGFn
-ZXNfc2xvd3BhdGgrMHg0MjIvMHgxMDAwDQpbICAgMzguMTE3OTY2XSAgX19hbGxvY19wYWdlc19u
-b2RlbWFzaysweDM3Zi8weDQwMA0KWyAgIDM4LjExNzk3MF0gIGFsbG9jX3BhZ2VzX3ZtYSsweGNj
-LzB4MTcwDQpbICAgMzguMTE3OTczXSAgX19oYW5kbGVfbW1fZmF1bHQrMHg5OTYvMHgxOTAwDQpb
-ICAgMzguMTE3OTc3XSAgaGFuZGxlX21tX2ZhdWx0KzB4MTU5LzB4MzQwDQpbICAgMzguMTE3OTgw
-XSAgZG9fdXNlcl9hZGRyX2ZhdWx0KzB4MWZlLzB4NDgwDQpbICAgMzguMTE3OTgyXSAgZG9fcGFn
-ZV9mYXVsdCsweDMxLzB4MjEwDQpbICAgMzguMTE3OTg0XSAgcGFnZV9mYXVsdCsweDNlLzB4NTAN
-ClsgICAzOC4xMTc5ODZdIFJJUDogMDAzMzoweDU1ZTUzN2I2ZTI1MA0KWyAgIDM4LjExNzk4N10g
-Q29kZTogMGYgODQgODggMDIgMDAgMDAgOGIgNTQgMjQgMGMgMzEgYzAgODUgZDIgMGYgOTQgYzAg
-ODkgMDQgMjQgNDEgODMgZmQgMDIgMGYgOGYgZjEgMDAgMDAgMDAgMzEgYzAgNGQgODUgZmYgN2Ug
-MTIgMGYgMWYgNDQgMDAgMDAgPGM2PiA0NCAwNSAwMCA1YSA0YyAwMSBmMCA0OSAzOSBjNyA3ZiBm
-MyA0OCA4NSBkYiAwZiA4NCBkZCAwMSAwMCAwMA0KWyAgIDM4LjExNzk4OF0gUlNQOiAwMDJiOjAw
-MDA3ZmZjZTA2NDhlNTAgRUZMQUdTOiAwMDAxMDIwNg0KWyAgIDM4LjExNzk4OV0gUkFYOiAwMDAw
-MDAwMDA1NmNlMDAwIFJCWDogZmZmZmZmZmZmZmZmZmZmZiBSQ1g6IDAwMDA3ZmVjOGQzMTgxNTYN
-ClsgICAzOC4xMTc5ODldIFJEWDogMDAwMDAwMDAwMDAwMDAwMCBSU0k6IDAwMDAwMDAwMDllZjkw
-MDAgUkRJOiAwMDAwMDAwMDAwMDAwMDAwDQpbICAgMzguMTE3OTkwXSBSQlA6IDAwMDA3ZmVjODMz
-MjYwMTAgUjA4OiAwMDAwN2ZlYzgzMzI2MDEwIFIwOTogMDAwMDAwMDAwMDAwMDAwMA0KWyAgIDM4
-LjExNzk5MF0gUjEwOiAwMDAwMDAwMDAwMDAwMDIyIFIxMTogMDAwMDAwMDAwMDAwMDI0NiBSMTI6
-IDAwMDA1NWU1MzdiNzAwMDQNClsgICAzOC4xMTc5OTFdIFIxMzogMDAwMDAwMDAwMDAwMDAwMiBS
-MTQ6IDAwMDAwMDAwMDAwMDEwMDAgUjE1OiAwMDAwMDAwMDA5ZWY4MDAwDQpbICAgMzguMTE4MzMz
-XSBSU1A6IDAwMDA6ZmZmZmIxOGNjMGEwYmQzMCBFRkxBR1M6IDAwMDAwMjAyIE9SSUdfUkFYOiBm
-ZmZmZmZmZmZmZmZmZjEzDQpbICAgMzguMTE5NzUzXSBSU1A6IDAwMDA6ZmZmZmIxOGNjMGE5NzY3
-OCBFRkxBR1M6IDAwMDAwMjAyIE9SSUdfUkFYOiBmZmZmZmZmZmZmZmZmZjEzDQpbICAgMzguMTI2
-MDE3XSBSQVg6IDAwMDAwMDAwMDAwODAxMDEgUkJYOiBmZmZmOTdkZGI1MzA3OTQwIFJDWDogMDAw
-MDAwMDAwMDAwMDAwMA0KWyAgIDM4LjEyNzQ2OV0gUkFYOiAwMDAwMDAwMDAwMDgwMTAxIFJCWDog
-ZmZmZjk3ZGRiNTMwNzk0MCBSQ1g6IDAwMDAwMDAwMDAwODAwMDANClsgICAzOC4xMjc0NzBdIFJE
-WDogZmZmZjk3ZGRiZTdlYzQwMCBSU0k6IDAwMDAwMDAwMDAwMDAwMDAgUkRJOiBmZmZmOTdkZGI1
-MzA3OTQwDQpbICAgMzguMTQxMDQ3XSBSRFg6IDAwMDAwMDAwMDAwMDAwMDAgUlNJOiAwMDAwMDAw
-MDAwMDAwMDAwIFJESTogZmZmZjk3ZGRiNTMwNzk0MA0KWyAgIDM4LjE0NDg2MF0gUkJQOiBmZmZm
-OTdkZGI1MzA3OTQwIFIwODogMDAwMDAwMDAwMDA4MDAwMCBSMDk6IDAwMDAwMDAwMDAwMDAwMDAN
-ClsgICAzOC4xNDQ4NjFdIFIxMDogMDAwMDAwMDAwMDAwMDAwMCBSMTE6IDAwMDAwMDAwMDAwMDAw
-MDAgUjEyOiBmZmZmOTdkZGI1MzA3OTU4DQpbICAgMzguMTUwMTY0XSBSQlA6IGZmZmY5N2RkYjUz
-MDc5NDAgUjA4OiAwMDAwMDAwMDAwMDAwMDAxIFIwOTogMDAwMDAwMDAwMDAwMDAwMA0KWyAgIDM4
-LjE2MDYxOF0gUjEzOiBmZmZmOTdkZGJiOTM0ODk4IFIxNDogMDAwMDAwMDAwMDAwMDAwMSBSMTU6
-IDAwMDAwMDA3ZmVjODgwMDANClsgICAzOC4xNjA2MjFdIEZTOiAgMDAwMDdmZWM4ZDIxZjc0MCgw
-MDAwKSBHUzpmZmZmOTdkZGJlNjAwMDAwKDAwMDApIGtubEdTOjAwMDAwMDAwMDAwMDAwMDANClsg
-ICAzOC4xNjM4NDRdIFIxMDogMDAwMDAwMDAwMDAwMDAwMCBSMTE6IDAwMDAwMDAwMDAwMDAwMDAg
-UjEyOiBmZmZmOTdkZGI1MzA3OTU4DQpbICAgMzguMTY1ODA1XSBDUzogIDAwMTAgRFM6IDAwMDAg
-RVM6IDAwMDAgQ1IwOiAwMDAwMDAwMDgwMDUwMDMzDQpbICAgMzguMTY1ODA2XSBDUjI6IDAwMDA3
-ZmVjOGM3ZGMwMTAgQ1IzOiAwMDAwMDAwMDNiMjYwMDAzIENSNDogMDAwMDAwMDAwMDE2MGVlMA0K
-WyAgIDM4LjE3MjA3Nl0gUjEzOiAwMDAwMDAwMDAwMDNiY2E1IFIxNDogMDAwMDAwMDAwMDAzYmNh
-NSBSMTU6IGZmZmZmNjMwODA5MjdkNDANClsgICAzOC4xNzIwNzldIEZTOiAgMDAwMDdmZWM4ZDIx
-Zjc0MCgwMDAwKSBHUzpmZmZmOTdkZGJlNDAwMDAwKDAwMDApIGtubEdTOjAwMDAwMDAwMDAwMDAw
-MDANClsgICAzOC4xNzM5ODJdIENhbGwgVHJhY2U6DQpbICAgMzguMTgwMTk3XSBDUzogIDAwMTAg
-RFM6IDAwMDAgRVM6IDAwMDAgQ1IwOiAwMDAwMDAwMDgwMDUwMDMzDQpbICAgMzguMTgyMTUyXSAg
-ZG9fcmF3X3NwaW5fbG9jaysweGFiLzB4YjANClsgICAzOC4xODg2MTRdIENSMjogMDAwMDdmZWM4
-NDY3NzAxMCBDUjM6IDAwMDAwMDAwMzcwNmUwMDMgQ1I0OiAwMDAwMDAwMDAwMTYwZWYwDQpbICAg
-MzguMTg4NjE2XSBDYWxsIFRyYWNlOg0KWyAgIDM4LjE5MDg3NV0gIF9yYXdfc3Bpbl9sb2NrKzB4
-NjMvMHg4MA0KWyAgIDM4LjIwNDk4MV0gIGRvX3Jhd19zcGluX2xvY2srMHhhYi8weGIwDQpbICAg
-MzguMjA3NzM0XSAgX19zd2FwX2R1cGxpY2F0ZSsweDE2My8weDIyMA0KWyAgIDM4LjIxMzMzMV0g
-IF9yYXdfc3Bpbl9sb2NrKzB4NjMvMHg4MA0KWyAgIDM4LjIxNTk1OF0gIHN3YXBfZHVwbGljYXRl
-KzB4MTYvMHg0MA0KWyAgIDM4LjIyMTUwNl0gIF9fc3dhcF9lbnRyeV9mcmVlLmNvbnN0cHJvcC4w
-KzB4ODIvMHhhMA0KWyAgIDM4LjIyNDA5NV0gIHRyeV90b191bm1hcF9vbmUrMHg4MWMvMHhlMjAN
-ClsgICAzOC4yMjk2MTJdICBkb19zd2FwX3BhZ2UrMHg2MDgvMHhjMjANClsgICAzOC4yMzI0MDVd
-ICBybWFwX3dhbGtfYW5vbisweDE3My8weDM5MA0KWyAgIDM4LjIzNzAyM10gIF9faGFuZGxlX21t
-X2ZhdWx0KzB4OGRhLzB4MTkwMA0KWyAgIDM4LjIzOTU5M10gIHRyeV90b191bm1hcCsweGZlLzB4
-MTUwDQpbICAgMzguMjQyMDg1XSAgaGFuZGxlX21tX2ZhdWx0KzB4MTU5LzB4MzQwDQpbICAgMzgu
-MjQzODcxXSAgPyBwYWdlX3JlbW92ZV9ybWFwKzB4NDkwLzB4NDkwDQpbICAgMzguMjQ3MTA3XSAg
-ZG9fdXNlcl9hZGRyX2ZhdWx0KzB4MWZlLzB4NDgwDQpbICAgMzguMjQ4OTc1XSAgPyBwYWdlX25v
-dF9tYXBwZWQrMHgyMC8weDIwDQpbICAgMzguMjQ4OTc2XSAgPyBwYWdlX2dldF9hbm9uX3ZtYSsw
-eDFjMC8weDFjMA0KWyAgIDM4LjI1MjUyMV0gIGRvX3BhZ2VfZmF1bHQrMHgzMS8weDIxMA0KWyAg
-IDM4LjI1NDIyNF0gIHNocmlua19wYWdlX2xpc3QrMHhmMmYvMHgxODMwDQpbICAgMzguMjU3NTYy
-XSAgcGFnZV9mYXVsdCsweDNlLzB4NTANClsgICAzOC4yNTkzODVdICBzaHJpbmtfaW5hY3RpdmVf
-bGlzdCsweDFkYS8weDQ2MA0KWyAgIDM4LjI2MjkyNV0gUklQOiAwMDMzOjB4NTVlNTM3YjZlMjk4
-DQpbICAgMzguMjY0NjQ4XSAgc2hyaW5rX25vZGVfbWVtY2crMHgyMDIvMHg3NzANClsgICAzOC4y
-NjgyMTZdIENvZGU6IDdlIDAxIDAwIDAwIDg5IGRmIGU4IDQ3IGUxIGZmIGZmIDQ0IDhiIDJkIDg0
-IDRkIDAwIDAwIDRkIDg1IGZmIDdlIDQwIDMxIGMwIGViIDBmIDBmIDFmIDgwIDAwIDAwIDAwIDAw
-IDRjIDAxIGYwIDQ5IDM5IGM3IDdlIDJkIDw4MD4gN2MgMDUgMDAgNWEgNGMgOGQgNTQgMDUgMDAg
-NzQgZWMgNGMgODkgMTQgMjQgNDUgODUgZWQgMGYgODkgZGUNClsgICAzOC4yNjk5MjZdICBzaHJp
-bmtfbm9kZSsweGRmLzB4NDkwDQpbICAgMzguMjcyOTEyXSBSU1A6IDAwMmI6MDAwMDdmZmNlMDY0
-OGU1MCBFRkxBR1M6IDAwMDEwMjA2DQpbICAgMzguMjc0NjM2XSAgZG9fdHJ5X3RvX2ZyZWVfcGFn
-ZXMrMHhkYi8weDNjMA0KWyAgIDM4LjI3Nzk5N10gUkFYOiAwMDAwMDAwMDA5OTBiMDAwIFJCWDog
-ZmZmZmZmZmZmZmZmZmZmZiBSQ1g6IDAwMDA3ZmVjOGQzMTgxNTYNClsgICAzOC4yNzk3ODFdICB0
-cnlfdG9fZnJlZV9wYWdlcysweDExMi8weDJlMA0KWyAgIDM4LjI4MzQwNV0gUkRYOiAwMDAwMDAw
-MDAwMDAwMDAwIFJTSTogMDAwMDAwMDAwOWVmOTAwMCBSREk6IDAwMDAwMDAwMDAwMDAwMDANClsg
-ICAzOC4yODM0MDZdIFJCUDogMDAwMDdmZWM4MzMyNjAxMCBSMDg6IDAwMDA3ZmVjODMzMjYwMTAg
-UjA5OiAwMDAwMDAwMDAwMDAwMDAwDQpbICAgMzguMjg0OTgzXSAgX19hbGxvY19wYWdlc19zbG93
-cGF0aCsweDQyMi8weDEwMDANClsgICAzOC4yODgzNTVdIFIxMDogMDAwMDdmZWM4Y2MzMDAxMCBS
-MTE6IDAwMDAwMDAwMDAwMDAyNDYgUjEyOiAwMDAwNTVlNTM3YjcwMDA0DQpbICAgMzguMjg4MzU2
-XSBSMTM6IDAwMDAwMDAwMDAwMDAwMDIgUjE0OiAwMDAwMDAwMDAwMDAxMDAwIFIxNTogMDAwMDAw
-MDAwOWVmODAwMA0KWyAgIDM4LjI4OTkyNF0gIF9fYWxsb2NfcGFnZXNfbm9kZW1hc2srMHgzN2Yv
-MHg0MDANClsgICAzOC40MTQ1MDFdICBhbGxvY19wYWdlc192bWErMHhjYy8weDE3MA0KWyAgIDM4
-LjQxNTk0NV0gIF9faGFuZGxlX21tX2ZhdWx0KzB4OTk2LzB4MTkwMA0KWyAgIDM4LjQxNzQ2NV0g
-IGhhbmRsZV9tbV9mYXVsdCsweDE1OS8weDM0MA0KWyAgIDM4LjQxODkxNV0gIGRvX3VzZXJfYWRk
-cl9mYXVsdCsweDFmZS8weDQ4MA0KWyAgIDM4LjQyMDQyMl0gIGRvX3BhZ2VfZmF1bHQrMHgzMS8w
-eDIxMA0KWyAgIDM4LjQyMTc5N10gIHBhZ2VfZmF1bHQrMHgzZS8weDUwDQpbICAgMzguNDIzMDg0
-XSBSSVA6IDAwMzM6MHg1NWU1MzdiNmUyNTANClsgICAzOC40MjQ0MjZdIENvZGU6IDBmIDg0IDg4
-IDAyIDAwIDAwIDhiIDU0IDI0IDBjIDMxIGMwIDg1IGQyIDBmIDk0IGMwIDg5IDA0IDI0IDQxIDgz
-IGZkIDAyIDBmIDhmIGYxIDAwIDAwIDAwIDMxIGMwIDRkIDg1IGZmIDdlIDEyIDBmIDFmIDQ0IDAw
-IDAwIDxjNj4gNDQgMDUgMDAgNWEgNGMgMDEgZjAgNDkgMzkgYzcgN2YgZjMgNDggODUgZGIgMGYg
-ODQgZGQgMDEgMDAgMDANClsgICAzOC40Mjk3OTVdIFJTUDogMDAyYjowMDAwN2ZmY2UwNjQ4ZTUw
-IEVGTEFHUzogMDAwMTAyMDYNClsgICAzOC40MzE1NDldIFJBWDogMDAwMDAwMDAwOTRiNjAwMCBS
-Qlg6IGZmZmZmZmZmZmZmZmZmZmYgUkNYOiAwMDAwN2ZlYzhkMzE4MTU2DQpbICAgMzguNDMzNzQ3
-XSBSRFg6IDAwMDAwMDAwMDAwMDAwMDAgUlNJOiAwMDAwMDAwMDA5ZWY5MDAwIFJESTogMDAwMDAw
-MDAwMDAwMDAwMA0KWyAgIDM4LjQzNTkzOF0gUkJQOiAwMDAwN2ZlYzgzMzI2MDEwIFIwODogMDAw
-MDdmZWM4MzMyNjAxMCBSMDk6IDAwMDAwMDAwMDAwMDAwMDANClsgICAzOC40MzgxMjJdIFIxMDog
-MDAwMDAwMDAwMDAwMDAyMiBSMTE6IDAwMDAwMDAwMDAwMDAyNDYgUjEyOiAwMDAwNTVlNTM3Yjcw
-MDA0DQpbICAgMzguNDQwMzI0XSBSMTM6IDAwMDAwMDAwMDAwMDAwMDIgUjE0OiAwMDAwMDAwMDAw
-MDAxMDAwIFIxNTogMDAwMDAwMDAwOWVmODAwMA0K
---000000000000f9c8cd05907bf5e5--
+ma 19. elok. 2019 klo 20.49 Markus Linnala (markus.linnala@gmail.com) kirjoitti:
+>
+> I have applied your patch against vanilla v5.3-rc5. There was no config changes.
+>
+> So far I've gotten couple of these GPF. I guess this is different
+> issue. It will take several hours to get full view.
+>
+> I've attached one full console log as: console-1566235171.001993084.log
+>
+> [   13.821223] general protection fault: 0000 [#1] SMP PTI
+> [   13.821882] CPU: 0 PID: 151 Comm: kswapd0 Tainted: G        W
+>   5.3.0-rc5+ #71
+> [   13.822755] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009),
+> BIOS 1.12.0-2.fc30 04/01/2014
+> [   13.824272] RIP: 0010:handle_to_buddy+0x20/0x30
+> [   13.824786] Code: 84 00 00 00 00 00 0f 1f 40 00 0f 1f 44 00 00 53
+> 48 89 fb 83 e7 01 0f 85 31 26 00 00 48 8b 03 5b 48 89 c2 48 81 e2 00
+> f0 ff ff <0f> b6 92 ca 00 00 00 29 d0 83 e0 03 c3 0f 1f 00 0f 1f 44 00
+> 00 55
+> [   13.826854] RSP: 0000:ffffb18cc01977f0 EFLAGS: 00010206
+> [   13.827452] RAX: 00ffff97dd890fd0 RBX: fffff63080243f40 RCX: 0000000000000000
+> [   13.828256] RDX: 00ffff97dd890000 RSI: ffff97ddbe5d89c8 RDI: ffff97ddbe5d89c8
+> [   13.829056] RBP: ffff97dd890fd000 R08: ffff97ddbe5d89c8 R09: 0000000000000000
+> [   13.829860] R10: 0000000000000000 R11: 0000000000000000 R12: ffff97dd890fd001
+> [   13.830660] R13: ffff97dd890fd010 R14: ffff97ddb5f96408 R15: ffffb18cc0197838
+> [   13.831468] FS:  0000000000000000(0000) GS:ffff97ddbe400000(0000)
+> knlGS:0000000000000000
+> [   13.832673] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   13.833593] CR2: 00007fec8745f010 CR3: 0000000006212004 CR4: 0000000000160ef0
+> [   13.834508] Call Trace:
+> [   13.834828]  z3fold_zpool_map+0x76/0x110
+> [   13.835332]  zswap_writeback_entry+0x50/0x410
+> [   13.835888]  z3fold_zpool_shrink+0x3d1/0x570
+> [   13.836434]  ? sched_clock_cpu+0xc/0xc0
+> [   13.836919]  zswap_frontswap_store+0x424/0x7c1
+> [   13.837484]  __frontswap_store+0xc4/0x162
+> [   13.837992]  swap_writepage+0x39/0x70
+> [   13.838460]  pageout.isra.0+0x12c/0x5d0
+> [   13.838950]  shrink_page_list+0x1124/0x1830
+> [   13.839484]  shrink_inactive_list+0x1da/0x460
+> [   13.840036]  shrink_node_memcg+0x202/0x770
+> [   13.840746]  shrink_node+0xdf/0x490
+> [   13.841931]  balance_pgdat+0x2db/0x580
+> [   13.842396]  kswapd+0x239/0x500
+> [   13.842772]  ? finish_wait+0x90/0x90
+> [   13.847323]  kthread+0x108/0x140
+> [   13.848358]  ? balance_pgdat+0x580/0x580
+> [   13.849626]  ? kthread_park+0x80/0x80
+> [   13.850352]  ret_from_fork+0x3a/0x50
+> [   13.851086] Modules linked in: ip6t_rpfilter ip6t_REJECT
+> nf_reject_ipv6 ipt_REJECT nf_reject_ipv4 xt_conntrack ip6table_nat
+> ip6table_mangle ip6table_raw ip6table_security iptable_nat nf_nat
+> iptable_mangle iptable_raw iptable_security nf_conntrack
+> nf_defrag_ipv6 nf_defrag_ipv4 libcrc32c ip_set nfnetlink
+> ip6table_filter ip6_tables iptable_filter ip_tables crct10dif_pclmul
+> crc32_pclmul ghash_clmulni_intel virtio_net virtio_balloon
+> net_failover failover intel_agp intel_gtt qxl drm_kms_helper
+> syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm crc32c_intel
+> virtio_blk virtio_console serio_raw agpgart qemu_fw_cfg
+> [   13.857818] ---[ end trace 4517028df5e476fe ]---
+> [   13.858400] RIP: 0010:handle_to_buddy+0x20/0x30
+> [   13.859761] Code: 84 00 00 00 00 00 0f 1f 40 00 0f 1f 44 00 00 53
+> 48 89 fb 83 e7 01 0f 85 31 26 00 00 48 8b 03 5b 48 89 c2 48 81 e2 00
+> f0 ff ff <0f> b6 92 ca 00 00 00 29 d0 83 e0 03 c3 0f 1f 00 0f 1f 44 00
+> 00 55
+> [   13.862703] RSP: 0000:ffffb18cc01977f0 EFLAGS: 00010206
+> [   13.864232] RAX: 00ffff97dd890fd0 RBX: fffff63080243f40 RCX: 0000000000000000
+> [   13.865834] RDX: 00ffff97dd890000 RSI: ffff97ddbe5d89c8 RDI: ffff97ddbe5d89c8
+> [   13.867362] RBP: ffff97dd890fd000 R08: ffff97ddbe5d89c8 R09: 0000000000000000
+> [   13.869121] R10: 0000000000000000 R11: 0000000000000000 R12: ffff97dd890fd001
+> [   13.871091] R13: ffff97dd890fd010 R14: ffff97ddb5f96408 R15: ffffb18cc0197838
+> [   13.872742] FS:  0000000000000000(0000) GS:ffff97ddbe400000(0000)
+> knlGS:0000000000000000
+> [   13.874448] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   13.876382] CR2: 00007fec8745f010 CR3: 0000000006212004 CR4: 0000000000160ef0
+> [   13.878007] ------------[ cut here ]------------
+>
+>
+> (gdb) l *handle_to_buddy+0x20
+> 0xffffffff813376b0 is in handle_to_buddy (/src/linux/mm/z3fold.c:429).
+> 424 unsigned long addr;
+> 425
+> 426 WARN_ON(handle & (1 << PAGE_HEADLESS));
+> 427 addr = *(unsigned long *)handle;
+> 428 zhdr = (struct z3fold_header *)(addr & PAGE_MASK);
+> 429 return (addr - zhdr->first_num) & BUDDY_MASK;
+> 430 }
+> 431
+> 432 static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
+> 433 {
+> (gdb) l *z3fold_zpool_map+0x76
+> 0xffffffff81337cb6 is in z3fold_zpool_map (/src/linux/mm/z3fold.c:1257).
+> 1252 if (test_bit(PAGE_HEADLESS, &page->private))
+> 1253 goto out;
+> 1254
+> 1255 z3fold_page_lock(zhdr);
+> 1256 buddy = handle_to_buddy(handle);
+> 1257 switch (buddy) {
+> 1258 case FIRST:
+> 1259 addr += ZHDR_SIZE_ALIGNED;
+> 1260 break;
+> 1261 case MIDDLE:
+> (gdb) l *zswap_writeback_entry+0x50
+> 0xffffffff812e8260 is in zswap_writeback_entry (/src/linux/mm/zswap.c:858).
+> 853 .sync_mode = WB_SYNC_NONE,
+> 854 };
+> 855
+> 856 /* extract swpentry from data */
+> 857 zhdr = zpool_map_handle(pool, handle, ZPOOL_MM_RO);
+> 858 swpentry = zhdr->swpentry; /* here */
+> 859 zpool_unmap_handle(pool, handle);
+> 860 tree = zswap_trees[swp_type(swpentry)];
+> 861 offset = swp_offset(swpentry);
+> (gdb) l *z3fold_zpool_shrink+0x3d1
+> 0xffffffff81338821 is in z3fold_zpool_shrink (/src/linux/mm/z3fold.c:1186).
+> 1181 ret = pool->ops->evict(pool, middle_handle);
+> 1182 if (ret)
+> 1183 goto next;
+> 1184 }
+> 1185 if (first_handle) {
+> 1186 ret = pool->ops->evict(pool, first_handle);
+> 1187 if (ret)
+> 1188 goto next;
+> 1189 }
+> 1190 if (last_handle) {
+>
+>
+> To compare, I got following Call Trace "signatures" against vanilla
+> v5.3-rc5. Some of them might not be related to zswap at all.
+>
+> [   15.469831] Call Trace:
+> [   15.470171]  migrate_pages+0x20c/0xfb0
+> [   15.470678]  ? isolate_freepages_block+0x410/0x410
+> [   15.471344]  ? __ClearPageMovable+0x90/0x90
+> [   15.471914]  compact_zone+0x74c/0xef0
+> --
+> [  105.611480] Call Trace:
+> [  105.611817]  zswap_writeback_entry+0x50/0x410
+> [  105.612417]  z3fold_zpool_shrink+0x29d/0x540
+> [  105.612947]  zswap_frontswap_store+0x424/0x7c1
+> [  105.613494]  __frontswap_store+0xc4/0x162
+> --
+> [   15.103942] Call Trace:
+> [   15.104280]  z3fold_zpool_map+0x76/0x110
+> [   15.104824]  zswap_writeback_entry+0x50/0x410
+> [   15.105398]  z3fold_zpool_shrink+0x3c4/0x540
+> [   15.105960]  zswap_frontswap_store+0x424/0x7c1
+> --
+> [  632.066122] Call Trace:
+> [  632.066124]  z3fold_zpool_map+0x76/0x110
+> [  632.066128]  zswap_writeback_entry+0x50/0x410
+> [  632.069101]  do_user_addr_fault+0x1fe/0x480
+> [  632.069650]  z3fold_zpool_shrink+0x3c4/0x540
+> --
+> [  133.419601] Call Trace:
+> [  133.420199]  zswap_writeback_entry+0x50/0x410
+> [  133.421244]  z3fold_zpool_shrink+0x4a6/0x540
+> [  133.422266]  zswap_frontswap_store+0x424/0x7c1
+> [  133.423386]  __frontswap_store+0xc4/0x162
+> --
+> [  155.374773] Call Trace:
+> [  155.375122]  get_page_from_freelist+0x57d/0x1a40
+> [  155.375725]  __alloc_pages_nodemask+0x19d/0x400
+> [  155.376354]  alloc_pages_vma+0xcc/0x170
+> [  155.376854]  __read_swap_cache_async+0x1e9/0x3e0
+> --
+> [   23.849834] Call Trace:
+> [   23.851038]  get_page_from_freelist+0x57d/0x1a40
+> [   23.853300]  ? wake_all_kswapds+0x54/0xb0
+> [   23.855280]  __alloc_pages_slowpath+0x1ae/0x1000
+> [   23.857512]  ? __lock_acquire+0x247/0x1900
+> --
+> [  197.206331] Call Trace:
+> [  197.207923]  __release_z3fold_page.constprop.0+0x7e/0x130
+> [  197.211387]  do_compact_page+0x2c9/0x430
+> [  197.213830]  process_one_work+0x272/0x5a0
+> [  197.216392]  worker_thread+0x50/0x3b0
 
