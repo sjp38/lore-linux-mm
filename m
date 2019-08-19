@@ -2,189 +2,113 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BFF6C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 23:01:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD0C2C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 23:55:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 533F720644
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 23:01:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6E059206C1
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 23:55:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="kgLLTeqG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 533F720644
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="czLuMTr1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E059206C1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D8AE6B000C; Mon, 19 Aug 2019 19:01:06 -0400 (EDT)
+	id EAB6B6B0007; Mon, 19 Aug 2019 19:55:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5AF5A6B000D; Mon, 19 Aug 2019 19:01:06 -0400 (EDT)
+	id E34176B0008; Mon, 19 Aug 2019 19:55:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44D546B000E; Mon, 19 Aug 2019 19:01:06 -0400 (EDT)
+	id CFB496B000A; Mon, 19 Aug 2019 19:55:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0249.hostedemail.com [216.40.44.249])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CC406B000C
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 19:01:06 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id C85B36118
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 23:01:05 +0000 (UTC)
-X-FDA: 75840699690.21.year49_60cd73ca2a730
-X-HE-Tag: year49_60cd73ca2a730
-X-Filterd-Recvd-Size: 6233
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 23:01:05 +0000 (UTC)
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x7JMoes1022702
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:01:04 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=avRSMxYHWI2nN6k5SuD3FwUt2pWdBC75ub4aAGj+xPU=;
- b=kgLLTeqGFsJqQLACX3OVWt5ZxV99dCtUTBVcLUvvYeNqlAn2fMEbQnfMw9n9onQO1h6H
- 3Lo0eVUX857N7WIa5k1JDmOGVyZn0O9lQkVkVFIUBbUPDWtwwHy7uM76+ffhqwPsBNeA
- V0J2NaCw7BrTNWFDstkMoW/qlSvcnwtComg= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 2ug2v3gj7t-12
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:01:04 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Mon, 19 Aug 2019 16:00:58 -0700
-Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 6F235168C488B; Mon, 19 Aug 2019 16:00:56 -0700 (PDT)
-Smtp-Origin-Hostprefix: devvm
-From: Roman Gushchin <guro@fb.com>
-Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
-To: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>
-CC: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
-        <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
-        Roman Gushchin
-	<guro@fb.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>, <stable@vger.kernel.org>
-Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v3 1/3] mm: memcontrol: flush percpu vmstats before releasing memcg
-Date: Mon, 19 Aug 2019 16:00:52 -0700
-Message-ID: <20190819230054.779745-2-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190819230054.779745-1-guro@fb.com>
-References: <20190819230054.779745-1-guro@fb.com>
-X-FB-Internal: Safe
+Received: from forelay.hostedemail.com (smtprelay0169.hostedemail.com [216.40.44.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A74336B0007
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 19:55:02 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 47D42181AC9B4
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 23:55:02 +0000 (UTC)
+X-FDA: 75840835644.12.jewel65_831248250be32
+X-HE-Tag: jewel65_831248250be32
+X-Filterd-Recvd-Size: 3594
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 23:55:00 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Type:MIME-Version:Message-ID:
+	Subject:To:From:Date:Sender:Reply-To:Cc:Content-Transfer-Encoding:Content-ID:
+	Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc
+	:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=TbjkwkGLozMz+tjIqOBE4qbg59ZjOKNgp/t7IRDV4SM=; b=czLuMTr1x075BEUmHMGSTJUpRq
+	Y4VbjCScXoRffV01vRJEOff4m2zVZXvlgK31+VfSI46nA9rTvNzuZAz0YEsNtsU/Co2T+XpOhDdTF
+	CkC9iKgdBbQKnYNEtivnsnfwgGij4DKbW1jvgzMfxVo4Ppgg2tKAwYd9y9oLHDa6IJLF0P8XjBDb5
+	ZoqaPSfoWj6EMVvT1pwHvzeXuqh7V2TqCdzdhBDANi3vTkGntKsL+brQLACUnRHsRiYgkhhHHa+bU
+	qtsuI+vZ6FnWQ81urw2i8IMBfBjCrzCT3HfPzD23Ri9rp0jlB5+ihgF2MlaGvn01n1ZRwcQiSMvSo
+	x8y/pk3A==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hzrUG-00060Q-BA; Mon, 19 Aug 2019 23:54:56 +0000
+Date: Mon, 19 Aug 2019 16:54:56 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: linux-kernel-mentees@lists.linuxfoundation.org, linux-mm@kvack.org,
+	kernel-janitors@vger.kernel.org
+Subject: [PROJECT] clean up swapcache use of struct page
+Message-ID: <20190819235456.GA9657@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-19_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908190226
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Percpu caching of local vmstats with the conditional propagation by the
-cgroup tree leads to an accumulation of errors on non-leaf levels.
 
-Let's imagine two nested memory cgroups A and A/B.  Say, a process
-belonging to A/B allocates 100 pagecache pages on the CPU 0.  The percpu
-cache will spill 3 times, so that 32*3=96 pages will be accounted to A/B
-and A atomic vmstat counters, 4 pages will remain in the percpu cache.
+This would be a good project for someone with a little experience and
+a lot of attention to detail.
 
-Imagine A/B is nearby memory.max, so that every following allocation
-triggers a direct reclaim on the local CPU.  Say, each such attempt will
-free 16 pages on a new cpu.  That means every percpu cache will have -16
-pages, except the first one, which will have 4 - 16 = -12.  A/B and A
-atomic counters will not be touched at all.
+The struct page is probably the most abused data structure in the kernel,
+and for good reason.  But some of the abuse is unnecessary ... a mere
+historical accident that would be better fixed.
 
-Now a user removes A/B.  All percpu caches are freed and corresponding
-vmstat numbers are forgotten.  A has 96 pages more than expected.
+Page cache pages use page->mapping and page->index to indicate which file
+the page belongs to and where in that file it is.  page->private may be
+used by the filesystem for its own purposes (eg buffer heads).
 
-As memory cgroups are created and destroyed, errors do accumulate.  Even
-1-2 pages differences can accumulate into large numbers.
+Anonymous pages use page->mapping to point to the anon VMA they belong
+to and page->index to record the offset within the VMA.  Then, if they
+are also part of the swap cache, they use page->private to record both
+the offset within the swap device and the index of the page within the
+swap device.
 
-To fix this issue let's accumulate and propagate percpu vmstat values
-before releasing the memory cgroup.  At this point these numbers are
-stable and cannot be changed.
+Then we get abominations like:
 
-Since on cpu hotplug we do flush percpu vmstats anyway, we can iterate
-only over online cpus.
+static inline pgoff_t page_index(struct page *page)
+{
+        if (unlikely(PageSwapCache(page)))
+                return __page_file_index(page);
+        return page->index;
+}
 
-Fixes: 42a300353577 ("mm: memcontrol: fix recursive statistics correctness & scalabilty")
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: <stable@vger.kernel.org>
----
- mm/memcontrol.c | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+My modest proposal for deleting the first two lines of that function is
+to first switch the uses of page->private and page->index for anonymous
+pages.  Then move the swp_type() back from page->index to page->private
+again [1].
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3e821f34399f..818165d8de3f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3383,6 +3383,41 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
- 	}
- }
- 
-+static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg)
-+{
-+	unsigned long stat[MEMCG_NR_STAT];
-+	struct mem_cgroup *mi;
-+	int node, cpu, i;
-+
-+	for (i = 0; i < MEMCG_NR_STAT; i++)
-+		stat[i] = 0;
-+
-+	for_each_online_cpu(cpu)
-+		for (i = 0; i < MEMCG_NR_STAT; i++)
-+			stat[i] += raw_cpu_read(memcg->vmstats_percpu->stat[i]);
-+
-+	for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
-+		for (i = 0; i < MEMCG_NR_STAT; i++)
-+			atomic_long_add(stat[i], &mi->vmstats[i]);
-+
-+	for_each_node(node) {
-+		struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
-+		struct mem_cgroup_per_node *pi;
-+
-+		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+			stat[i] = 0;
-+
-+		for_each_online_cpu(cpu)
-+			for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+				stat[i] += raw_cpu_read(
-+					pn->lruvec_stat_cpu->count[i]);
-+
-+		for (pi = pn; pi; pi = parent_nodeinfo(pi, node))
-+			for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+				atomic_long_add(stat[i], &pi->lruvec_stat[i]);
-+	}
-+}
-+
- #ifdef CONFIG_MEMCG_KMEM
- static int memcg_online_kmem(struct mem_cgroup *memcg)
- {
-@@ -4805,6 +4840,11 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- {
- 	int node;
- 
-+	/*
-+	 * Flush percpu vmstats to guarantee the value correctness
-+	 * on parent's and all ancestor levels.
-+	 */
-+	memcg_flush_percpu_vmstats(memcg);
- 	for_each_node(node)
- 		free_mem_cgroup_per_node_info(memcg, node);
- 	free_percpu(memcg->vmstats_percpu);
--- 
-2.21.0
+I am willing to review patches and provide feedback.  I can go into more
+detail about how I think this should be tackled if there's interest.
+Also, if you know more than I do about the MM and think this is a bad
+idea, please do say ;-)
 
+This is going to be a tough project because there are a lot of
+rarely-tested paths which directly reference (eg) page->index, and they
+might be talking about a page cache page or a swap page.  This is not
+a simple Coccinelle script.
+
+[1] We have enough bits to do this; on a 32-bit machine, we can at most
+have a VMA which covers 4GB memory and with a 4kB page size, that's only
+20 bits needed to encode all possible offsets within a VMA).
 
