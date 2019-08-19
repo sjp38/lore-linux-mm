@@ -2,137 +2,129 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2807C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:38:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 490F1C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:48:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86AC62085A
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:38:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Kw5dYDPC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86AC62085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 0AAB820989
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 12:48:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AAB820989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13C346B0008; Mon, 19 Aug 2019 08:38:44 -0400 (EDT)
+	id 41C2E6B0008; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EDA36B000A; Mon, 19 Aug 2019 08:38:44 -0400 (EDT)
+	id 3CC6A6B000A; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F1DA56B000C; Mon, 19 Aug 2019 08:38:43 -0400 (EDT)
+	id 2E23F6B000C; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0014.hostedemail.com [216.40.44.14])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB286B0008
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:38:43 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 83FA721F0
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:38:43 +0000 (UTC)
-X-FDA: 75839131326.18.bulb71_2f03ddc866c63
-X-HE-Tag: bulb71_2f03ddc866c63
-X-Filterd-Recvd-Size: 5004
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:38:42 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id 125so1223196qkl.6
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:38:42 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=kcl2qjS+S92HqUsWy/tjB3qoqqgCsFoa4lNkLGm9eqU=;
-        b=Kw5dYDPC3RCMymknBRy1kIe+iDY+gtMlsFiGqHh0HRHDdkA1mVDMtLhKZZ0CG2KFv3
-         LVYv+T9FGmeylYTDi+kh5M9/Ntuhs1KUREG17679sHQhmPsIVOwRG2eQbHs3GIhuH2De
-         teqAib33hkHc6gnoEGXxQH7ITS22Bxbhltn46+fBqORa9Jb9jv/kTbwn4XmLd12IuyM5
-         /yPvmu7+YELsKojRcfZOMaNBoqJ1qtrNgLmHYKwBdl9/gdtpWh1vLo6xyTHwMVm7oA6I
-         7K86YItRgHihPHUhSIgXXcp4Bm7RF41NJgLrAPGgKKR410ENEsEKjr9s9uuDjUGnheP5
-         bsRw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=kcl2qjS+S92HqUsWy/tjB3qoqqgCsFoa4lNkLGm9eqU=;
-        b=sAvuKF+owembGNGt+KV1Fgu9vz/OB4EKjHEb3O0NJ0d29LKfddFgBgzfzYVZST5j2E
-         CO3N2kC5JHYR4tl/Tg3lrVmNX/HhWYWMqJV/K7o4xFzMCREFm1T9d+UksUrao4kusr1c
-         Z3PNym9a/HXHJollRW8OS81UB/eo+caJ/JpGV1hRBgoNhW73/vnYcFv45m/0cERkyEtn
-         RfV4nqiYiO29avp8jcCUlVmGjprsADw2k0m//4OvwlbKcXPOF9Pdhyl+BtPRkVp882Wk
-         DkGrww4rC6Qaot6miXaAjo8raeyCf3LN/A2fW3f6+5KGitPitPhKLgbLJA29Wc/eqaSy
-         qkQQ==
-X-Gm-Message-State: APjAAAW9Kj2iH7a206BR32k16h6it+lbEC8/TFCuCvpYlhzGay4CPhWJ
-	kTEOERoLo355Mheb8vo5NMCxTA==
-X-Google-Smtp-Source: APXvYqzbQNTYwMVTncdSqshKmZtcSi8KUDzyxSrbcJIuOywIrId5vXd75IqedVtc8bcWHqWRX6iGcQ==
-X-Received: by 2002:a37:a14a:: with SMTP id k71mr20104946qke.281.1566218322367;
-        Mon, 19 Aug 2019 05:38:42 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id r15sm6916339qtp.94.2019.08.19.05.38.41
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Aug 2019 05:38:41 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hzgvp-0001vJ-9J; Mon, 19 Aug 2019 09:38:41 -0300
-Date: Mon, 19 Aug 2019 09:38:41 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190819123841.GC5058@ziepe.ca>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190814101714.GA26273@quack2.suse.cz>
- <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
- <20190815130558.GF14313@quack2.suse.cz>
- <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
- <20190817022603.GW6129@dread.disaster.area>
- <20190819063412.GA20455@quack2.suse.cz>
- <20190819092409.GM7777@dread.disaster.area>
+Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CE186B0008
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:48:42 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id A51B72DF0
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:48:41 +0000 (UTC)
+X-FDA: 75839156442.13.birth19_8603f79581120
+X-HE-Tag: birth19_8603f79581120
+X-Filterd-Recvd-Size: 4553
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:48:40 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3B0E2C059758;
+	Mon, 19 Aug 2019 12:48:39 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (ovpn-204-244.brq.redhat.com [10.40.204.244])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 993C358C9C;
+	Mon, 19 Aug 2019 12:48:33 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Mon, 19 Aug 2019 14:48:38 +0200 (CEST)
+Date: Mon, 19 Aug 2019 14:48:33 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Kefeng Wang <wangkefeng.wang@huawei.com>
+Cc: Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
+Message-ID: <20190819124832.GA15044@redhat.com>
+References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+ <20190814135351.GY17933@dhcp22.suse.cz>
+ <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
+ <20190814151049.GD11595@redhat.com>
+ <20190814154101.GF11595@redhat.com>
+ <0cfded81-6668-905f-f2be-490bf7c750fb@huawei.com>
+ <20190815095409.GC32051@redhat.com>
+ <3b521a8c-586f-251e-f486-d71ff094b8e9@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190819092409.GM7777@dread.disaster.area>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <3b521a8c-586f-251e-f486-d71ff094b8e9@huawei.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Mon, 19 Aug 2019 12:48:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
+Kefeng, et al, sorry I am travelling till the next monday, can't even
+open my laptop too often.
 
-> So that leaves just the normal close() syscall exit case, where the
-> application has full control of the order in which resources are
-> released. We've already established that we can block in this
-> context.  Blocking in an interruptible state will allow fatal signal
-> delivery to wake us, and then we fall into the
-> fatal_signal_pending() case if we get a SIGKILL while blocking.
+On 08/16, Kefeng Wang wrote:
+>
+> The patch do fix the UAF and avoid panic, and it doesn't seem to cause new issue,
+> even if there are some another issue, it can be fixed later :)
 
-The major problem with RDMA is that it doesn't always wait on close() for the
-MR holding the page pins to be destoyed. This is done to avoid a
-deadlock of the form:
+Yes... but if we want a hot fix without any understanding why does it
+help in this particular case we can simply add mmget_still_valid() into
+handle_userfault(), I am almost sure this should equally "fix" (hide) the
+problem.
 
-   uverbs_destroy_ufile_hw()
-      mutex_lock()
-       [..]
-        mmput()
-         exit_mmap()
-          remove_vma()
-           fput();
-            file_operations->release()
-             ib_uverbs_close()
-              uverbs_destroy_ufile_hw()
-               mutex_lock()   <-- Deadlock
+But to clarify, let me repeat that I still think the patch I sent makes
+sense anyway; __handle_mm_fault() is possible even after do_coredump()
+sets mm->core_state and after userfaultfd_unregister().
 
-But, as I said to Ira earlier, I wonder if this is now impossible on
-modern kernels and we can switch to making the whole thing
-synchronous. That would resolve RDMA's main problem with this.
+> >> [   67.430243] RIP: 0010:copy_user_handle_tail+0x2/0x10
+> >> [   67.431586] Code: c3 0f 1f 80 00 00 00 00 66 66 90 83 fa 40 0f 82 70 ff ff ff 89 d1 f3 a4 31 c0 66 66 90 c3 66 2e 0f 1f 84 00 00 00 00 00 89 d1 <f3> a4 89 c8 66 66 90 c3 66 0f 1f 44 00 00 66 66 90 83 fa 08 0f 82
+> >> [   67.436978] RSP: 0018:ffff8883c4e8f908 EFLAGS: 00010246
+> >> [   67.438743] RAX: 0000000000000001 RBX: 0000000020ffd000 RCX: 0000000000001000
+> >> [   67.441101] RDX: 0000000000001000 RSI: 0000000020ffd000 RDI: ffff8883c0aa4000
+> >> [   67.442865] RBP: 0000000000001000 R08: ffffed1078154a00 R09: 0000000000000000
+> >> [   67.444534] R10: 0000000000000200 R11: ffffed10781549ff R12: ffff8883c0aa4000
+> >> [   67.446216] R13: ffff8883c6096000 R14: ffff88837721f838 R15: ffff8883c6096000
+> >> [   67.448388]  _copy_from_user+0xa1/0xd0
+> >> [   67.449655]  mcopy_atomic+0xb3d/0x1380
+> >> [   67.450991]  ? lock_downgrade+0x3a0/0x3a0
+> >> [   67.452337]  ? mm_alloc_pmd+0x130/0x130
+> >> [   67.453618]  ? __might_fault+0x7d/0xe0
+> >> [   67.454980]  userfaultfd_ioctl+0x14a2/0x1c30
+> >
+> > This must not be called after __fput(). So I think there is something else,
+> > may by just an unbalanced userfaultfd_ctx_put(). I dunno, I know nothing
+> > about usefaultfd.
+>
+> There are different processes, maybe some concurrency problems.
 
-Jason
+and this is what I think we need to understand...
+
+
+> > It would be nice to understand what this reproducer does...
+>
+> I tried strace -f the reproducer, but can't find any useful info.
+
+Could you send me the output of strace -f ? Not sure it will help and
+again, I am not sure I will have a chance to read it this week.
+
+Perhaps it is possible to translate this test-case to C somehow?
+
+Oleg.
+
 
