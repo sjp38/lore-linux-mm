@@ -2,126 +2,211 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B02AC3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:45:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67E71C3A59D
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 03:59:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2ECAB2184E
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 01:45:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0EF312087E
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 03:59:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lk9B74sU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2ECAB2184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="ZA6XLzRF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EF312087E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEF866B0006; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
+	id 88FE46B0008; Sun, 18 Aug 2019 23:59:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9FB66B0007; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
+	id 83F826B000A; Sun, 18 Aug 2019 23:59:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B51F6B000C; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
+	id 755A66B000C; Sun, 18 Aug 2019 23:59:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0218.hostedemail.com [216.40.44.218])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C676B0006
-	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 21:45:35 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 1C5AD37E7
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:45:35 +0000 (UTC)
-X-FDA: 75837485430.09.snow98_139d7047f9c0f
-X-HE-Tag: snow98_139d7047f9c0f
-X-Filterd-Recvd-Size: 3950
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 01:45:34 +0000 (UTC)
-Received: by mail-pg1-f193.google.com with SMTP id k3so183576pgb.10
-        for <linux-mm@kvack.org>; Sun, 18 Aug 2019 18:45:34 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
+	by kanga.kvack.org (Postfix) with ESMTP id 556466B0008
+	for <linux-mm@kvack.org>; Sun, 18 Aug 2019 23:59:03 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 040F33D05
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 03:59:03 +0000 (UTC)
+X-FDA: 75837821766.07.aunt00_14bd88e01d227
+X-HE-Tag: aunt00_14bd88e01d227
+X-Filterd-Recvd-Size: 8547
+Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 03:59:02 +0000 (UTC)
+Received: by mail-pg1-f196.google.com with SMTP id u17so368431pgi.6
+        for <linux-mm@kvack.org>; Sun, 18 Aug 2019 20:59:02 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:subject:date:message-id:in-reply-to:references;
-        bh=8ulvqLtIjt1EZTpvZlOcKq5+wnFD1h6zkmMfE2XMDMs=;
-        b=lk9B74sUPKdnznjzJvazsFGf5amGxQcibjlqaGnEJyrgRa1yrVBIYoiiLv6/n15Gzr
-         CfiTp8gC5/lBWIpK+kliQKnmLLV05RdtIzRtRTzeyMW446M0t5liiraWlz7Rg0CpmYBA
-         osyAaWTkhvczzTT2Huyrl9smQVOaIamZY+mv5xYJOQCGWJCc1Vbaskf2qj1xT0QChH1J
-         lR/0o2YrH2Oc+cMqjfiF6Qo4fbVs0cIyaklprx5n/LhIIrxIGK1W1M52HdSxgHovkNdx
-         asYaF96OU2XCimqFH/b2CLkppQkyqPfhu8Ggr1EHPCg/lNKexpER+Hl4Xjg2iMDQw5v3
-         Qzcw==
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:in-reply-to:references:date:message-id
+         :mime-version;
+        bh=qkepw2mcByNh/XDFWlSo/1pf2rJV4AneuZO+UsdnIoM=;
+        b=ZA6XLzRFd2ebKR/TJCR+ADB6Xh9XcGEECwjMBoMxa6uKoZf5G5Nhm/KuNzQIu8RvB4
+         nZM9n+RjmwM+ORVQozvjk1GcBBUAhyakdS8qsqDebJDeU1O0XVbiJ8v6t2dKoX0rlm5J
+         th7q4VdBjxXvwK1Sz1gcitgvYs3PzRiY1ZCwM=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:subject:date:message-id:in-reply-to
-         :references;
-        bh=8ulvqLtIjt1EZTpvZlOcKq5+wnFD1h6zkmMfE2XMDMs=;
-        b=dT9n7cS4/4aRiVSrXQCtLdO9GCr85Tbq5v1AsRywJpWM2gx36fzeNb4/OAp2D+K9FF
-         wm9+zu7ujQrgkGoQkOED7WhuE4bckmPPyaUhGzEBPN4MfLuthsUnN6eTTMayP18Q0X1T
-         qkPeVje+zktsKwyhCzHiJEqHEWljgYF5Ec7mqB203x6XjiBWyCP6hb8JLnex54j35Mzo
-         oOVMl7nFVksNkrU1uuDYjKwcMj70MMN4NmGEtl2Z+N6oeTP7MAgZZEqjfFSIxVDlfAj/
-         hqdiAyUV0K4kEeohRYc3moNk4CeDtFryhYvfUbYciTyIOnCN0JqpNxQAPbhJuX8V/T8Z
-         5kyQ==
-X-Gm-Message-State: APjAAAVN9CXvbSKwP/+1ygkciTp6IKqglvJS/X5yaxSMsiyjk16VgvBH
-	0AEGpDyf4ZonRvHxDni/5fA=
-X-Google-Smtp-Source: APXvYqxbfn6JAf2SZn6812vnEPToa4GjGn1SpXMPO49PKbkgenbO9egoQ9AbZaJDQPHs62M3EtUiBQ==
-X-Received: by 2002:aa7:9298:: with SMTP id j24mr21172221pfa.58.1566179133706;
-        Sun, 18 Aug 2019 18:45:33 -0700 (PDT)
-Received: from bj03382pcu.spreadtrum.com ([117.18.48.82])
-        by smtp.gmail.com with ESMTPSA id k5sm16293114pfg.167.2019.08.18.18.45.28
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 18 Aug 2019 18:45:33 -0700 (PDT)
-From: Zhaoyang Huang <huangzhaoyang@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
-	Russell King <linux@armlinux.org.uk>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Rob Herring <robh@kernel.org>,
-	Florian Fainelli <f.fainelli@gmail.com>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Doug Berger <opendmb@gmail.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH v2] arch : arm : add a criteria for pfn_valid
-Date: Mon, 19 Aug 2019 09:45:20 +0800
-Message-Id: <1566179120-5910-1-git-send-email-huangzhaoyang@gmail.com>
-X-Mailer: git-send-email 1.7.9.5
-In-Reply-To: <1566178569-5674-1-git-send-email-huangzhaoyang@gmail.com>
-References: <1566178569-5674-1-git-send-email-huangzhaoyang@gmail.com>
+        h=x-gm-message-state:from:to:cc:subject:in-reply-to:references:date
+         :message-id:mime-version;
+        bh=qkepw2mcByNh/XDFWlSo/1pf2rJV4AneuZO+UsdnIoM=;
+        b=ZXElEn5ySrqOXronc/MZpBuvRuiSax6Jt8YXWMq4v//5a86QJ2WhIa2xhNtfSw6A8C
+         2JHI6lx3cg7i3I2a/69i4/+lOWc0AALa/J6NDSRbtaXSDAVq+3oPUkyW1hEFnSgdZKXb
+         R74uYuIlVKqvvAEa1U8DlPF8QjMJIRIUq1gVjAvcCB4Lkj/tKnw5WMuhRK8VJjJY+g1l
+         zc1I+RKFkz1kP13whAKX/HdjUXYsbr0uj4rlsc0ENv8bqaNh/rmd1x9SENP4OOEsseNe
+         tBwQpAToewOfxU5+mJOG1cgt4skEXlX+OSYMM6lg5WvhnDXpctL0mUg572nufjUd9xWp
+         taNg==
+X-Gm-Message-State: APjAAAUKh0oF1zEuXECywsx4mUSx7GcewFPQBN/AHMcHstgeEHxHhRhT
+	ngqCKVzejmzMBOmBYqGMnTwkXw==
+X-Google-Smtp-Source: APXvYqyel1bRmaINRgt273aUt9VqMcblyqiDf6mM5vaVRn/c66GBKoPiiyt6RgkWa+sUPSwErio+sw==
+X-Received: by 2002:a63:c203:: with SMTP id b3mr18301448pgd.450.1566187141292;
+        Sun, 18 Aug 2019 20:59:01 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id t6sm12987903pgu.23.2019.08.18.20.58.59
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 18 Aug 2019 20:59:00 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: Mark Rutland <mark.rutland@arm.com>, Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org, aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org, linux-kernel@vger.kernel.org, dvyukov@google.com, linuxppc-dev@lists.ozlabs.org, gor@linux.ibm.com
+Subject: Re: [PATCH v4 1/3] kasan: support backing vmalloc space with real shadow memory
+In-Reply-To: <20190816170813.GA7417@lakrids.cambridge.arm.com>
+References: <20190815001636.12235-1-dja@axtens.net> <20190815001636.12235-2-dja@axtens.net> <15c6110a-9e6e-495c-122e-acbde6e698d9@c-s.fr> <20190816170813.GA7417@lakrids.cambridge.arm.com>
+Date: Mon, 19 Aug 2019 13:58:55 +1000
+Message-ID: <87imqtu7pc.fsf@dja-thinkpad.axtens.net>
+MIME-Version: 1.0
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 
-pfn_valid can be wrong when parsing a invalid pfn whose phys address
-exceeds BITS_PER_LONG as the MSB will be trimed when shifted.
+>> > Instead, share backing space across multiple mappings. Allocate
+>> > a backing page the first time a mapping in vmalloc space uses a
+>> > particular page of the shadow region. Keep this page around
+>> > regardless of whether the mapping is later freed - in the mean time
+>> > the page could have become shared by another vmalloc mapping.
+>> > 
+>> > This can in theory lead to unbounded memory growth, but the vmalloc
+>> > allocator is pretty good at reusing addresses, so the practical memory
+>> > usage grows at first but then stays fairly stable.
+>> 
+>> I guess people having gigabytes of memory don't mind, but I'm concerned
+>> about tiny targets with very little amount of memory. I have boards with as
+>> little as 32Mbytes of RAM. The shadow region for the linear space already
+>> takes one eighth of the RAM. I'd rather avoid keeping unused shadow pages
+>> busy.
+>
+> I think this depends on how much shadow would be in constant use vs what
+> would get left unused. If the amount in constant use is sufficiently
+> large (or the residue is sufficiently small), then it may not be
+> worthwhile to support KASAN_VMALLOC on such small systems.
 
-Signed-off-by: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
----
-v2: use __pfn_to_phys/__phys_to_pfn instead of max_pfn as the criteria
----
- arch/arm/mm/init.c | 5 +++++
- 1 file changed, 5 insertions(+)
+I'm not unsympathetic to the cause of small-memory systems, but this is
+useful as-is for x86, especially for VMAP_STACK. arm64 and s390 have
+already been able to make use of it as well. So unless the design is
+going to make it difficult to extend to small-memory systems - if it
+bakes in concepts or APIs that are going to make things harder - I think
+it might be worth merging as is. (pending the fixes for documentation
+nits etc that you point out.)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index c2daabb..cc769fa 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -177,6 +177,11 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
- #ifdef CONFIG_HAVE_ARCH_PFN_VALID
- int pfn_valid(unsigned long pfn)
- {
-+	phys_addr_t addr = __pfn_to_phys(pfn);
-+
-+	if (__phys_to_pfn(addr) != pfn)
-+		return 0;
-+
- 	return memblock_is_map_memory(__pfn_to_phys(pfn));
- }
- EXPORT_SYMBOL(pfn_valid);
--- 
-1.9.1
+>> Each page of shadow memory represent 8 pages of real memory. Could we use
+>> page_ref to count how many pieces of a shadow page are used so that we can
+>> free it when the ref count decreases to 0.
 
+I'm not sure how much of a difference it will make, but I'll have a look.
+
+>> > This requires architecture support to actually use: arches must stop
+>> > mapping the read-only zero page over portion of the shadow region that
+>> > covers the vmalloc space and instead leave it unmapped.
+>> 
+>> Why 'must' ? Couldn't we switch back and forth from the zero page to real
+>> page on demand ?
+
+This code as currently written will not work if the architecture maps
+the zero page over the portion of the shadow region that covers the
+vmalloc space. So it's an implementation 'must' rather than a laws of
+the universe 'must'.
+
+We could perhaps map the zero page, but:
+
+ - you have to be really careful to get it right. If you accidentally
+   map the zero page onto memory where you shouldn't, you may permit
+   memory accesses that you should catch.
+
+   We could ameliorate this by taking Mark's suggestion and mapping a
+   poision page over the vmalloc space instead.
+
+ - I'm not sure what benefit is provided by having something mapped vs
+   leaving a hole, other than making the fault addresses more obvious.
+
+ - This gets complex, especially to do swapping correctly with respect
+   to various architectures' quirks (see e.g. 56eecdb912b5 "mm: Use
+   ptep/pmdp_set_numa() for updating _PAGE_NUMA bit" - ppc64 at least
+   requires that set_pte_at is never called on a valid PTE).
+
+>> If the zero page is not mapped for unused vmalloc space, bad memory accesses
+>> will Oops on the shadow memory access instead of Oopsing on the real bad
+>> access, making it more difficult to locate and identify the issue.
+
+I suppose. It's pretty easy on at least x86 and my draft ppc64
+implementation to identify when an access falls into the shadow region
+and then to reverse engineer the memory access that was being checked
+based on the offset. As Andy points out, the fault handler could do this
+automatically.
+
+> I agree this isn't nice, though FWIW this can already happen today for
+> bad addresses that fall outside of the usual kernel address space. We
+> could make the !KASAN_INLINE checks resilient to this by using
+> probe_kernel_read() to check the shadow, and treating unmapped shadow as
+> poison.
+>
+> It's also worth noting that flipping back and forth isn't generally safe
+> unless going via an invalid table entry, so there'd still be windows
+> where a bad access might not have shadow mapped.
+>
+> We'd need to reuse the common p4d/pud/pmd/pte tables for unallocated
+> regions, or the tables alone would consume significant amounts of memory
+> (e..g ~32GiB for arm64 defconfig), and thus we'd need to be able to
+> switch all levels between pgd and pte, which is much more complicated.
+>
+> I strongly suspect that the additional complexity will outweigh the
+> benefit.
+>
+
+I'm not opposed to this in principle but I am also concerned about the
+complexity involved.
+
+Regards,
+Daniel
+
+> [...]
+>
+>> > +#ifdef CONFIG_KASAN_VMALLOC
+>> > +static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
+>> > +				      void *unused)
+>> > +{
+>> > +	unsigned long page;
+>> > +	pte_t pte;
+>> > +
+>> > +	if (likely(!pte_none(*ptep)))
+>> > +		return 0;
+>> 
+>> Prior to this, the zero shadow area should be mapped, and the test should
+>> be:
+>> 
+>> if (likely(pte_pfn(*ptep) != PHYS_PFN(__pa(kasan_early_shadow_page))))
+>> 	return 0;
+>
+> As above, this would need a more comprehensive redesign, so I don't
+> think it's worth going into that level of nit here. :)
+>
+> If we do try to use common shadow for unallocate VA ranges, it probably
+> makes sense to have a common poison page that we can use, so that we can
+> report vmalloc-out-of-bounfds.
+>
+> Thanks,
+> Mark.
 
