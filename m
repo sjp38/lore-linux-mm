@@ -2,233 +2,142 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10D95C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:58:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E03AC3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 16:05:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7CCE22CED
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:58:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7CCE22CED
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0520420651
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 16:05:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0520420651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 737B46B0272; Mon, 19 Aug 2019 11:58:31 -0400 (EDT)
+	id 66DFB6B0006; Mon, 19 Aug 2019 12:05:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E8A06B0275; Mon, 19 Aug 2019 11:58:31 -0400 (EDT)
+	id 61F256B0007; Mon, 19 Aug 2019 12:05:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D6FD6B0276; Mon, 19 Aug 2019 11:58:31 -0400 (EDT)
+	id 4E6376B0010; Mon, 19 Aug 2019 12:05:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0174.hostedemail.com [216.40.44.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2016B0272
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:58:31 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id EAF26181AC9B4
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:58:30 +0000 (UTC)
-X-FDA: 75839634780.27.story13_2d19a26978611
-X-HE-Tag: story13_2d19a26978611
-X-Filterd-Recvd-Size: 7018
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:58:29 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D4C5A344;
-	Mon, 19 Aug 2019 08:58:28 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D1D7B3F718;
-	Mon, 19 Aug 2019 08:58:26 -0700 (PDT)
-Date: Mon, 19 Aug 2019 16:58:24 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: jmorris@namei.org, sashal@kernel.org, ebiederm@xmission.com,
-	kexec@lists.infradead.org, linux-kernel@vger.kernel.org,
-	corbet@lwn.net, catalin.marinas@arm.com, will@kernel.org,
-	linux-arm-kernel@lists.infradead.org, marc.zyngier@arm.com,
-	james.morse@arm.com, vladimir.murzin@arm.com,
-	matthias.bgg@gmail.com, bhsharma@redhat.com, linux-mm@kvack.org
-Subject: Re: [PATCH v2 03/14] arm64, hibernate: add trans_table public
- functions
-Message-ID: <20190819155824.GE9927@lakrids.cambridge.arm.com>
-References: <20190817024629.26611-1-pasha.tatashin@soleen.com>
- <20190817024629.26611-4-pasha.tatashin@soleen.com>
+Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
+	by kanga.kvack.org (Postfix) with ESMTP id 2738D6B0006
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 12:05:29 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id CBB963D00
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:05:28 +0000 (UTC)
+X-FDA: 75839652336.11.trees70_69e869d640242
+X-HE-Tag: trees70_69e869d640242
+X-Filterd-Recvd-Size: 4351
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:05:27 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0B7FF3090FCB;
+	Mon, 19 Aug 2019 16:05:26 +0000 (UTC)
+Received: from mail (ovpn-120-35.rdu2.redhat.com [10.10.120.35])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3AC0860BE2;
+	Mon, 19 Aug 2019 16:05:19 +0000 (UTC)
+Date: Mon, 19 Aug 2019 12:05:17 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Kefeng Wang <wangkefeng.wang@huawei.com>,
+	Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>,
+	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
+Message-ID: <20190819160517.GG31518@redhat.com>
+References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+ <20190814135351.GY17933@dhcp22.suse.cz>
+ <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
+ <20190814151049.GD11595@redhat.com>
+ <20190814154101.GF11595@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190817024629.26611-4-pasha.tatashin@soleen.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <20190814154101.GF11595@redhat.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Mon, 19 Aug 2019 16:05:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 16, 2019 at 10:46:18PM -0400, Pavel Tatashin wrote:
-> trans_table_create_copy() and trans_table_map_page() are going to be
-> the basis for public interface of new subsystem that handles page
-> tables for cases which are between kernels: kexec, and hibernate.
-
-While the architecture uses the term 'translation table', in the kernel
-we generally use 'pgdir' or 'pgd' to refer to the tables, so please keep
-to that naming scheme.
-
-For example, in arch/arm64/mm/mmu.c we have a somewhat analagous
-function called create_pgd_mapping() -- could we use that here, to crate
-the mapping?
-
-Thanks,
-Mark.
-
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-> ---
->  arch/arm64/kernel/hibernate.c | 96 ++++++++++++++++++++++-------------
->  1 file changed, 61 insertions(+), 35 deletions(-)
-> 
-> diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-> index 96b6f8da7e49..449d69b5651c 100644
-> --- a/arch/arm64/kernel/hibernate.c
-> +++ b/arch/arm64/kernel/hibernate.c
-> @@ -182,39 +182,15 @@ int arch_hibernation_header_restore(void *addr)
->  }
->  EXPORT_SYMBOL(arch_hibernation_header_restore);
+On Wed, Aug 14, 2019 at 05:41:02PM +0200, Oleg Nesterov wrote:
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -880,6 +880,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+>  	/* len == 0 means wake all */
+>  	struct userfaultfd_wake_range range = { .len = 0, };
+>  	unsigned long new_flags;
+> +	bool xxx;
 >  
-> -/*
-> - * Copies length bytes, starting at src_start into an new page,
-> - * perform cache maintentance, then maps it at the specified address low
-> - * address as executable.
-> - *
-> - * This is used by hibernate to copy the code it needs to execute when
-> - * overwriting the kernel text. This function generates a new set of page
-> - * tables, which it loads into ttbr0.
-> - *
-> - * Length is provided as we probably only want 4K of data, even on a 64K
-> - * page system.
-> - */
-> -static int create_safe_exec_page(void *src_start, size_t length,
-> -				 unsigned long dst_addr,
-> -				 phys_addr_t *phys_dst_addr)
-> +int trans_table_map_page(pgd_t *trans_table, void *page,
-> +			 unsigned long dst_addr,
-> +			 pgprot_t pgprot)
->  {
-> -	void *page = (void *)get_safe_page(GFP_ATOMIC);
-> -	pgd_t *trans_table;
->  	pgd_t *pgdp;
->  	pud_t *pudp;
->  	pmd_t *pmdp;
->  	pte_t *ptep;
+>  	WRITE_ONCE(ctx->released, true);
 >  
-> -	if (!page)
-> -		return -ENOMEM;
-> -
-> -	memcpy((void *)page, src_start, length);
-> -	__flush_icache_range((unsigned long)page, (unsigned long)page + length);
-> -
-> -	trans_table = (void *)get_safe_page(GFP_ATOMIC);
-> -	if (!trans_table)
-> -		return -ENOMEM;
-> -
->  	pgdp = pgd_offset_raw(trans_table, dst_addr);
->  	if (pgd_none(READ_ONCE(*pgdp))) {
->  		pudp = (void *)get_safe_page(GFP_ATOMIC);
-> @@ -242,6 +218,44 @@ static int create_safe_exec_page(void *src_start, size_t length,
->  	ptep = pte_offset_kernel(pmdp, dst_addr);
->  	set_pte(ptep, pfn_pte(virt_to_pfn(page), PAGE_KERNEL_EXEC));
->  
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Copies length bytes, starting at src_start into an new page,
-> + * perform cache maintentance, then maps it at the specified address low
-> + * address as executable.
-> + *
-> + * This is used by hibernate to copy the code it needs to execute when
-> + * overwriting the kernel text. This function generates a new set of page
-> + * tables, which it loads into ttbr0.
-> + *
-> + * Length is provided as we probably only want 4K of data, even on a 64K
-> + * page system.
-> + */
-> +static int create_safe_exec_page(void *src_start, size_t length,
-> +				 unsigned long dst_addr,
-> +				 phys_addr_t *phys_dst_addr)
-> +{
-> +	void *page = (void *)get_safe_page(GFP_ATOMIC);
-> +	pgd_t *trans_table;
-> +	int rc;
-> +
-> +	if (!page)
-> +		return -ENOMEM;
-> +
-> +	memcpy(page, src_start, length);
-> +	__flush_icache_range((unsigned long)page, (unsigned long)page + length);
-> +
-> +	trans_table = (void *)get_safe_page(GFP_ATOMIC);
-> +	if (!trans_table)
-> +		return -ENOMEM;
-> +
-> +	rc = trans_table_map_page(trans_table, page, dst_addr,
-> +				  PAGE_KERNEL_EXEC);
-> +	if (rc)
-> +		return rc;
-> +
->  	/*
->  	 * Load our new page tables. A strict BBM approach requires that we
->  	 * ensure that TLBs are free of any entries that may overlap with the
-> @@ -259,7 +273,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
->  	write_sysreg(phys_to_ttbr(virt_to_phys(trans_table)), ttbr0_el1);
->  	isb();
->  
-> -	*phys_dst_addr = virt_to_phys((void *)page);
-> +	*phys_dst_addr = virt_to_phys(page);
->  
->  	return 0;
->  }
-> @@ -462,6 +476,24 @@ static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,
->  	return 0;
->  }
->  
-> +int trans_table_create_copy(pgd_t **dst_pgdp, unsigned long start,
-> +			    unsigned long end)
-> +{
-> +	int rc;
-> +	pgd_t *trans_table = (pgd_t *)get_safe_page(GFP_ATOMIC);
-> +
-> +	if (!trans_table) {
-> +		pr_err("Failed to allocate memory for temporary page tables.\n");
-> +		return -ENOMEM;
-> +	}
-> +
-> +	rc = copy_page_tables(trans_table, start, end);
-> +	if (!rc)
-> +		*dst_pgdp = trans_table;
-> +
-> +	return rc;
-> +}
-> +
->  /*
->   * Setup then Resume from the hibernate image using swsusp_arch_suspend_exit().
->   *
-> @@ -483,13 +515,7 @@ int swsusp_arch_resume(void)
->  	 * Create a second copy of just the linear map, and use this when
->  	 * restoring.
+> @@ -895,8 +896,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+>  	 * taking the mmap_sem for writing.
 >  	 */
-> -	tmp_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
-> -	if (!tmp_pg_dir) {
-> -		pr_err("Failed to allocate memory for temporary page tables.\n");
-> -		rc = -ENOMEM;
-> -		goto out;
-> -	}
-> -	rc = copy_page_tables(tmp_pg_dir, PAGE_OFFSET, 0);
-> +	rc = trans_table_create_copy(&tmp_pg_dir, PAGE_OFFSET, 0);
->  	if (rc)
->  		goto out;
->  
-> -- 
-> 2.22.1
-> 
+>  	down_write(&mm->mmap_sem);
+> -	if (!mmget_still_valid(mm))
+> -		goto skip_mm;
+> +	xxx = mmget_still_valid(mm);
+>  	prev = NULL;
+>  	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+>  		cond_resched();
+> @@ -907,19 +907,20 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+>  			continue;
+>  		}
+>  		new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
+> -		prev = vma_merge(mm, prev, vma->vm_start, vma->vm_end,
+> -				 new_flags, vma->anon_vma,
+> -				 vma->vm_file, vma->vm_pgoff,
+> -				 vma_policy(vma),
+> -				 NULL_VM_UFFD_CTX);
+> -		if (prev)
+> -			vma = prev;
+> -		else
+> -			prev = vma;
+> +		if (xxx) {
+> +			prev = vma_merge(mm, prev, vma->vm_start, vma->vm_end,
+> +					 new_flags, vma->anon_vma,
+> +					 vma->vm_file, vma->vm_pgoff,
+> +					 vma_policy(vma),
+> +					 NULL_VM_UFFD_CTX);
+> +			if (prev)
+> +				vma = prev;
+> +			else
+> +				prev = vma;
+> +		}
+>  		vma->vm_flags = new_flags;
+>  		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+>  	}
+> -skip_mm:
+>  	up_write(&mm->mmap_sem);
+>  	mmput(mm);
+>  wakeup:
+
+The proposed fix looks correct, can you resend in a way that can be merged?
+
+What happens is there are 4 threads, the uffdio copy with NULL source
+address is just to induce more thread creation, then one thread does
+UFFDIO_COPY with source in the uffd region so it blocks in
+handle_userfault inside UFFDIO_COPY. When one of the threads then does
+the illegal instruction the core dump starts. The core dump wakes the
+userfault and the copy-user in UFFDIO_COPY is being retried after
+userfaultfd_release already run because one of the other threads
+already went through do_exit. It's a bit strange that the file that
+was opened by the ioctl() syscall gets released and its
+file->private_data destroyed before the ioctl syscall has a chance to
+return to userland.
+
+Anyway the same race condition can still happen for a rogue page fault
+that is happening when the core dump start so the above fix is needed
+anyway.
 
