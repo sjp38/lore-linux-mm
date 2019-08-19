@@ -2,60 +2,60 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 866D8C3A5A2
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:23:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CBD9C3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:24:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C0E022CEB
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:23:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1FA5222CE8
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:24:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="iGIy1o5/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C0E022CEB
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Ti2BFYkF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FA5222CE8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFC176B000A; Mon, 19 Aug 2019 16:23:58 -0400 (EDT)
+	id C40006B000C; Mon, 19 Aug 2019 16:24:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EAF1D6B000C; Mon, 19 Aug 2019 16:23:58 -0400 (EDT)
+	id BEEDB6B000D; Mon, 19 Aug 2019 16:24:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DE9E06B000D; Mon, 19 Aug 2019 16:23:58 -0400 (EDT)
+	id ADD9C6B000E; Mon, 19 Aug 2019 16:24:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0140.hostedemail.com [216.40.44.140])
-	by kanga.kvack.org (Postfix) with ESMTP id BA92D6B000A
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:23:58 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 4AA541260
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:23:58 +0000 (UTC)
-X-FDA: 75840303756.06.girls91_229a7cfd0d90f
-X-HE-Tag: girls91_229a7cfd0d90f
-X-Filterd-Recvd-Size: 5137
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:23:57 +0000 (UTC)
-Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7JKN1gB020275
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:23:57 -0700
+Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6F96B000C
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:24:08 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 075FB180AD7C1
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:24:08 +0000 (UTC)
+X-FDA: 75840304176.24.boat82_23ff114fd732c
+X-HE-Tag: boat82_23ff114fd732c
+X-Filterd-Recvd-Size: 7584
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:24:07 +0000 (UTC)
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7JKNrTR024579
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:24:06 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=tvnASVxjihuxlIS06ZHfA8dvMyq/4mb2sd9rYV6pG1A=;
- b=iGIy1o5/x6h0kgXeHJefTTUVK+biVDhPQCmtTnsEXxLf2TUgvNgzjpeVxIfl2vGO91Aa
- HKOg2M24E4rECev3Xby9Lbi7SuXI03OBZAAf1jVFEbJQxD2MgLofNZIJtjErJvoYn0r8
- lQWop8XwrODgzgpvCEKH7A9U6n/2Vs60WZc= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ug1940dgu-6
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:23:57 -0700
-Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:83::5) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Mon, 19 Aug 2019 13:23:47 -0700
+ content-type; s=facebook; bh=PjbU1g0HSZbfWk9SY2i4q3vRzP7r29TcBmvS+zIkpVo=;
+ b=Ti2BFYkF/wEaZGo7sXypSi2BMPkAROZBaphdRnlSsJ47VnxHwY0+Re/C2P+cdQifOPh6
+ WDsKukj4pEERPDRhhBQVgPQPZHYxXRtBh03JEz5L1Cu23maWtVmdYJBzEeWZE2bQe2Zv
+ /TFGjO8kt4slwxwWh3VrFquwZqtVNZf6ZIU= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2ufxcp17je-6
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:24:05 -0700
+Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
+ mail.thefacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Mon, 19 Aug 2019 13:23:49 -0700
 Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 4DB83168A8AD6; Mon, 19 Aug 2019 13:23:47 -0700 (PDT)
+	id 4990C168A8AD1; Mon, 19 Aug 2019 13:23:47 -0700 (PDT)
 Smtp-Origin-Hostprefix: devvm
 From: Roman Gushchin <guro@fb.com>
 Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
@@ -64,11 +64,11 @@ CC: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
         <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
         Roman Gushchin
 	<guro@fb.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>, <stable@vger.kernel.org>
+        Vladimir Davydov <vdavydov.dev@gmail.com>
 Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v2 3/3] mm: memcontrol: flush percpu vmevents before releasing memcg
-Date: Mon, 19 Aug 2019 13:23:38 -0700
-Message-ID: <20190819202338.363363-4-guro@fb.com>
+Subject: [PATCH v2 2/3] mm: memcontrol: flush percpu slab vmstats on kmem offlining
+Date: Mon, 19 Aug 2019 13:23:37 -0700
+Message-ID: <20190819202338.363363-3-guro@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190819202338.363363-1-guro@fb.com>
 References: <20190819202338.363363-1-guro@fb.com>
@@ -80,7 +80,7 @@ X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
  malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=898 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=601 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1906280000 definitions=main-1908190207
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -89,69 +89,132 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Similar to vmstats, percpu caching of local vmevents leads to an
-accumulation of errors on non-leaf levels.  This happens because some
-leftovers may remain in percpu caches, so that they are never propagated
-up by the cgroup tree and just disappear into nonexistence with on
-releasing of the memory cgroup.
+I've noticed that the "slab" value in memory.stat is sometimes 0,
+even if some children memory cgroups have a non-zero "slab" value.
+The following investigation showed that this is the result
+of the kmem_cache reparenting in combination with the per-cpu
+batching of slab vmstats.
 
-To fix this issue let's accumulate and propagate percpu vmevents values
-before releasing the memory cgroup similar to what we're doing with
-vmstats.
+At the offlining some vmstat value may leave in the percpu cache,
+not being propagated upwards by the cgroup hierarchy. It means
+that stats on ancestor levels are lower than actual. Later when
+slab pages are released, the precise number of pages is substracted
+on the parent level, making the value negative. We don't show negative
+values, 0 is printed instead.
 
-Since on cpu hotplug we do flush percpu vmstats anyway, we can iterate
-only over online cpus.
+To fix this issue, let's flush percpu slab memcg and lruvec stats
+on memcg offlining. This guarantees that numbers on all ancestor
+levels are accurate and match the actual number of outstanding
+slab pages.
 
-Fixes: 42a300353577 ("mm: memcontrol: fix recursive statistics correctness & scalabilty")
+Fixes: fb2f2b0adb98 ("mm: memcg/slab: reparent memcg kmem_caches on cgroup removal")
 Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: <stable@vger.kernel.org>
 ---
- mm/memcontrol.c | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+ include/linux/mmzone.h |  5 +++--
+ mm/memcontrol.c        | 35 +++++++++++++++++++++++++++--------
+ 2 files changed, 30 insertions(+), 10 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 8b5f758942a2..bda20282746b 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -215,8 +215,9 @@ enum node_stat_item {
+ 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
+ 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
+ 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
+-	NR_SLAB_RECLAIMABLE,
+-	NR_SLAB_UNRECLAIMABLE,
++	NR_SLAB_RECLAIMABLE,	/* Please do not reorder this item */
++	NR_SLAB_UNRECLAIMABLE,	/* and this one without looking at
++				 * memcg_flush_percpu_vmstats() first. */
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+ 	WORKINGSET_NODES,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ebd72b80c90b..3137de6a46f0 100644
+index 818165d8de3f..ebd72b80c90b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3430,6 +3430,25 @@ static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg, bool slab_only)
+@@ -3383,37 +3383,49 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
  	}
  }
  
-+static void memcg_flush_percpu_vmevents(struct mem_cgroup *memcg)
-+{
-+	unsigned long events[NR_VM_EVENT_ITEMS];
-+	struct mem_cgroup *mi;
-+	int cpu, i;
-+
-+	for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+		events[i] = 0;
-+
-+	for_each_online_cpu(cpu)
-+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+			events[i] += raw_cpu_read(
-+				memcg->vmstats_percpu->events[i]);
-+
-+	for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
-+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+			atomic_long_add(events[i], &mi->vmevents[i]);
-+}
-+
- #ifdef CONFIG_MEMCG_KMEM
- static int memcg_online_kmem(struct mem_cgroup *memcg)
+-static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg)
++static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg, bool slab_only)
  {
-@@ -4860,10 +4879,11 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	int node;
+ 	unsigned long stat[MEMCG_NR_STAT];
+ 	struct mem_cgroup *mi;
+ 	int node, cpu, i;
++	int min_idx, max_idx;
  
- 	/*
--	 * Flush percpu vmstats to guarantee the value correctness
-+	 * Flush percpu vmstats and vmevents to guarantee the value correctness
+-	for (i = 0; i < MEMCG_NR_STAT; i++)
++	if (slab_only) {
++		min_idx = NR_SLAB_RECLAIMABLE;
++		max_idx = NR_SLAB_UNRECLAIMABLE;
++	} else {
++		min_idx = 0;
++		max_idx = MEMCG_NR_STAT;
++	}
++
++	for (i = min_idx; i < max_idx; i++)
+ 		stat[i] = 0;
+ 
+ 	for_each_online_cpu(cpu)
+-		for (i = 0; i < MEMCG_NR_STAT; i++)
++		for (i = min_idx; i < max_idx; i++)
+ 			stat[i] += raw_cpu_read(memcg->vmstats_percpu->stat[i]);
+ 
+ 	for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
+-		for (i = 0; i < MEMCG_NR_STAT; i++)
++		for (i = min_idx; i < max_idx; i++)
+ 			atomic_long_add(stat[i], &mi->vmstats[i]);
+ 
++	if (!slab_only)
++		max_idx = NR_VM_NODE_STAT_ITEMS;
++
+ 	for_each_node(node) {
+ 		struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
+ 		struct mem_cgroup_per_node *pi;
+ 
+-		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
++		for (i = min_idx; i < max_idx; i++)
+ 			stat[i] = 0;
+ 
+ 		for_each_online_cpu(cpu)
+-			for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
++			for (i = min_idx; i < max_idx; i++)
+ 				stat[i] += raw_cpu_read(
+ 					pn->lruvec_stat_cpu->count[i]);
+ 
+ 		for (pi = pn; pi; pi = parent_nodeinfo(pi, node))
+-			for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
++			for (i = min_idx; i < max_idx; i++)
+ 				atomic_long_add(stat[i], &pi->lruvec_stat[i]);
+ 	}
+ }
+@@ -3467,7 +3479,14 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 	if (!parent)
+ 		parent = root_mem_cgroup;
+ 
++	/*
++	 * Deactivate and reparent kmem_caches. Then flush percpu
++	 * slab statistics to have precise values at the parent and
++	 * all ancestor levels. It's required to keep slab stats
++	 * accurate after the reparenting of kmem_caches.
++	 */
+ 	memcg_deactivate_kmem_caches(memcg, parent);
++	memcg_flush_percpu_vmstats(memcg, true);
+ 
+ 	kmemcg_id = memcg->kmemcg_id;
+ 	BUG_ON(kmemcg_id < 0);
+@@ -4844,7 +4863,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	 * Flush percpu vmstats to guarantee the value correctness
  	 * on parent's and all ancestor levels.
  	 */
- 	memcg_flush_percpu_vmstats(memcg, false);
-+	memcg_flush_percpu_vmevents(memcg);
+-	memcg_flush_percpu_vmstats(memcg);
++	memcg_flush_percpu_vmstats(memcg, false);
  	for_each_node(node)
  		free_mem_cgroup_per_node_info(memcg, node);
  	free_percpu(memcg->vmstats_percpu);
