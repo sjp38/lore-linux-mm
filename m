@@ -2,168 +2,164 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02C34C3A59D
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:30:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C02DAC3A59D
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 10:15:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B59B52087E
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 09:30:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B59B52087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 72F0B218A6
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 10:15:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72F0B218A6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54E616B0006; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
+	id C58416B0006; Mon, 19 Aug 2019 06:15:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D6756B0007; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
+	id BE15F6B0007; Mon, 19 Aug 2019 06:15:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39DFF6B0008; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
+	id AA8796B000C; Mon, 19 Aug 2019 06:15:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
-	by kanga.kvack.org (Postfix) with ESMTP id 1521F6B0006
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:57 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id A73918248AB1
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:30:56 +0000 (UTC)
-X-FDA: 75838658112.19.mint37_82e950dbec3f
-X-HE-Tag: mint37_82e950dbec3f
-X-Filterd-Recvd-Size: 6455
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 09:30:56 +0000 (UTC)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7J9MAgM061656
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:55 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ufrf71pph-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 05:30:54 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 19 Aug 2019 10:30:53 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 19 Aug 2019 10:30:50 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7J9Un0d22151242
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 19 Aug 2019 09:30:49 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 850604C04A;
-	Mon, 19 Aug 2019 09:30:49 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A075A4C052;
-	Mon, 19 Aug 2019 09:30:48 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.124.35.64])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon, 19 Aug 2019 09:30:48 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>,
-        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
-Subject: Re: [PATCH v5 3/4] mm/nvdimm: Use correct #defines instead of open coding
-In-Reply-To: <87v9ut1vev.fsf@linux.ibm.com>
-References: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com> <20190809074520.27115-4-aneesh.kumar@linux.ibm.com> <CAPcyv4hc_-oGMp6jGVknnYs+rmj4W1A_gFCbmAX2LFw0hsfL5g@mail.gmail.com> <87v9ut1vev.fsf@linux.ibm.com>
-Date: Mon, 19 Aug 2019 15:00:47 +0530
+Received: from forelay.hostedemail.com (smtprelay0243.hostedemail.com [216.40.44.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 845186B0006
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 06:15:27 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 33EB22DFC
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 10:15:27 +0000 (UTC)
+X-FDA: 75838770294.30.dirt52_6993951e33320
+X-HE-Tag: dirt52_6993951e33320
+X-Filterd-Recvd-Size: 5337
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 10:15:25 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 52B92344;
+	Mon, 19 Aug 2019 03:15:24 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B14723F706;
+	Mon, 19 Aug 2019 03:15:22 -0700 (PDT)
+Date: Mon, 19 Aug 2019 11:15:18 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>,
+	Daniel Axtens <dja@axtens.net>,
+	kasan-dev <kasan-dev@googlegroups.com>,
+	Linux-MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Alexander Potapenko <glider@google.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	Vasily Gorbik <gor@linux.ibm.com>
+Subject: Re: [PATCH v4 1/3] kasan: support backing vmalloc space with real
+ shadow memory
+Message-ID: <20190819101517.GA7482@lakrids.cambridge.arm.com>
+References: <20190815001636.12235-1-dja@axtens.net>
+ <20190815001636.12235-2-dja@axtens.net>
+ <15c6110a-9e6e-495c-122e-acbde6e698d9@c-s.fr>
+ <20190816170813.GA7417@lakrids.cambridge.arm.com>
+ <CALCETrUn4FNjvRoJW77DNi5vdwO+EURUC_46tysjPQD0MM3THQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19081909-4275-0000-0000-0000035AAE53
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19081909-4276-0000-0000-0000386CCA5F
-Message-Id: <87mug5biyg.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-19_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908190107
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CALCETrUn4FNjvRoJW77DNi5vdwO+EURUC_46tysjPQD0MM3THQ@mail.gmail.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
+On Fri, Aug 16, 2019 at 10:41:00AM -0700, Andy Lutomirski wrote:
+> On Fri, Aug 16, 2019 at 10:08 AM Mark Rutland <mark.rutland@arm.com> wr=
+ote:
+> >
+> > Hi Christophe,
+> >
+> > On Fri, Aug 16, 2019 at 09:47:00AM +0200, Christophe Leroy wrote:
+> > > Le 15/08/2019 =C3=A0 02:16, Daniel Axtens a =C3=A9crit :
+> > > > Hook into vmalloc and vmap, and dynamically allocate real shadow
+> > > > memory to back the mappings.
+> > > >
+> > > > Most mappings in vmalloc space are small, requiring less than a f=
+ull
+> > > > page of shadow space. Allocating a full shadow page per mapping w=
+ould
+> > > > therefore be wasteful. Furthermore, to ensure that different mapp=
+ings
+> > > > use different shadow pages, mappings would have to be aligned to
+> > > > KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
+> > > >
+> > > > Instead, share backing space across multiple mappings. Allocate
+> > > > a backing page the first time a mapping in vmalloc space uses a
+> > > > particular page of the shadow region. Keep this page around
+> > > > regardless of whether the mapping is later freed - in the mean ti=
+me
+> > > > the page could have become shared by another vmalloc mapping.
+> > > >
+> > > > This can in theory lead to unbounded memory growth, but the vmall=
+oc
+> > > > allocator is pretty good at reusing addresses, so the practical m=
+emory
+> > > > usage grows at first but then stays fairly stable.
+> > >
+> > > I guess people having gigabytes of memory don't mind, but I'm conce=
+rned
+> > > about tiny targets with very little amount of memory. I have boards=
+ with as
+> > > little as 32Mbytes of RAM. The shadow region for the linear space a=
+lready
+> > > takes one eighth of the RAM. I'd rather avoid keeping unused shadow=
+ pages
+> > > busy.
+> >
+> > I think this depends on how much shadow would be in constant use vs w=
+hat
+> > would get left unused. If the amount in constant use is sufficiently
+> > large (or the residue is sufficiently small), then it may not be
+> > worthwhile to support KASAN_VMALLOC on such small systems.
+> >
+> > > Each page of shadow memory represent 8 pages of real memory. Could =
+we use
+> > > page_ref to count how many pieces of a shadow page are used so that=
+ we can
+> > > free it when the ref count decreases to 0.
+> > >
+> > > > This requires architecture support to actually use: arches must s=
+top
+> > > > mapping the read-only zero page over portion of the shadow region=
+ that
+> > > > covers the vmalloc space and instead leave it unmapped.
+> > >
+> > > Why 'must' ? Couldn't we switch back and forth from the zero page t=
+o real
+> > > page on demand ?
+> > >
+> > > If the zero page is not mapped for unused vmalloc space, bad memory=
+ accesses
+> > > will Oops on the shadow memory access instead of Oopsing on the rea=
+l bad
+> > > access, making it more difficult to locate and identify the issue.
+> >
+> > I agree this isn't nice, though FWIW this can already happen today fo=
+r
+> > bad addresses that fall outside of the usual kernel address space. We
+> > could make the !KASAN_INLINE checks resilient to this by using
+> > probe_kernel_read() to check the shadow, and treating unmapped shadow=
+ as
+> > poison.
+>=20
+> Could we instead modify the page fault handlers to detect this case
+> and print a useful message?
 
-> Dan Williams <dan.j.williams@intel.com> writes:
->
->> On Fri, Aug 9, 2019 at 12:45 AM Aneesh Kumar K.V
->> <aneesh.kumar@linux.ibm.com> wrote:
->>>
->>
+In general we can't know if a bad access was a KASAN shadow lookup (e.g.
+since the shadow of NULL falls outside of the shadow region), but we
+could always print a message using kasan_shadow_to_mem() for any
+unhandled fault to suggeest what the "real" address might have been.
 
-...
-
->>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
->>> index 37e96811c2fc..c1d9be609322 100644
->>> --- a/drivers/nvdimm/pfn_devs.c
->>> +++ b/drivers/nvdimm/pfn_devs.c
->>> @@ -725,7 +725,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->>>                  * when populating the vmemmap. This *should* be equal to
->>>                  * PMD_SIZE for most architectures.
->>>                  */
->>> -               offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
->>> +               offset = ALIGN(start + SZ_8K + sizeof(struct page) * npfns,
->>
->> I'd prefer if this was not dynamic and was instead set to the maximum
->> size of 'struct page' across all archs just to enhance cross-arch
->> compatibility. I think that answer is '64'.
->
->
-> That still doesn't take care of the case where we add new elements to
-> struct page later. If we have struct page size changing across
-> architectures, we should still be ok as long as new size is less than what is
-> stored in pfn superblock? I understand the desire to keep it
-> non-dynamic. But we also need to make sure we don't reserve less space
-> when creating a new namespace on a config that got struct page size >
-> 64? 
-
-
-How about
-
-libnvdimm/pfn_dev: Add a build check to make sure we notice when struct page size change
-
-When namespace is created with map device as pmem device, struct page is stored in the
-reserve block area. We need to make sure we account for the right struct page
-size while doing this. Instead of directly depending on sizeof(struct page)
-which can change based on different kernel config option, use the max struct
-page size (64) while calculating the reserve block area. This makes sure pmem
-device can be used across kernels built with different configs.
-
-If the above assumption of max struct page size change, we need to update the
-reserve block allocation space for new namespaces created.
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-
-1 file changed, 7 insertions(+)
-drivers/nvdimm/pfn_devs.c | 7 +++++++
-
-modified   drivers/nvdimm/pfn_devs.c
-@@ -722,7 +722,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 		 * The altmap should be padded out to the block size used
- 		 * when populating the vmemmap. This *should* be equal to
- 		 * PMD_SIZE for most architectures.
-+		 *
-+		 * Also make sure size of struct page is less than 64. We
-+		 * want to make sure we use large enough size here so that
-+		 * we don't have a dynamic reserve space depending on
-+		 * struct page size. But we also want to make sure we notice
-+		 * if we end up adding new elements to struct page.
- 		 */
-+		BUILD_BUG_ON(64 < sizeof(struct page));
- 		offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
- 	} else if (nd_pfn->mode == PFN_MODE_RAM)
- 		offset = ALIGN(start + SZ_8K, align) - start;
-
-
--aneesh
-
+Thanks,
+Mark.
 
