@@ -2,163 +2,149 @@ Return-Path: <SRS0=U3FQ=WP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C709C3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:33:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D6DC6C3A5A2
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:01:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CC0522CE8
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 20:33:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9AE0E22CEC
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 21:01:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="psHWRrKd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CC0522CE8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="mM94Vwga"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AE0E22CEC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C35D26B0007; Mon, 19 Aug 2019 16:33:39 -0400 (EDT)
+	id 397066B0006; Mon, 19 Aug 2019 17:01:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE62D6B0008; Mon, 19 Aug 2019 16:33:39 -0400 (EDT)
+	id 31FAF6B000A; Mon, 19 Aug 2019 17:01:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AFCB36B000A; Mon, 19 Aug 2019 16:33:39 -0400 (EDT)
+	id 1E6EE6B000C; Mon, 19 Aug 2019 17:01:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0016.hostedemail.com [216.40.44.16])
-	by kanga.kvack.org (Postfix) with ESMTP id 900B26B0007
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 16:33:39 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 3F87A181AC9B4
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:33:39 +0000 (UTC)
-X-FDA: 75840328158.26.range67_771ec514b2805
-X-HE-Tag: range67_771ec514b2805
-X-Filterd-Recvd-Size: 6427
-Received: from mail-ot1-f66.google.com (mail-ot1-f66.google.com [209.85.210.66])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 20:33:38 +0000 (UTC)
-Received: by mail-ot1-f66.google.com with SMTP id m24so2916141otp.12
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 13:33:38 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=B0w/srl7CvMR3sGmFMfU5XCGV1/r89NViS9qVVWCBSI=;
-        b=psHWRrKd3x75XaBq4Qa+LS1cLPahMqjrX1Wn9mxcApv8yxQqSht7/8v5RuDSONcTl0
-         ehqF6W3K8BdBMNPmHEpQENl+LP9kj1ttVSPpJsNMgb4CFrSpSHeTXJfrbNIlcP/4P2ax
-         v/WYGq8gB4lM4fAbHXnXRH5vG+D6KqARROwqYsqvxa0BEXVHuSqlzyvY4cBCrpe0qGoz
-         SPOArGDUJmF04uROBncNRtZ5jVqMijWggZ1TrKwCut/1onZ9d8tQoJx1S9Oj2RYVRSO9
-         UDY9LRaj95qDLjn1TjoKhMj94FU49Cs6G2ne+/7PDV66Ps0ReP7phOU9Vmk0BhC4KDNz
-         5niQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=B0w/srl7CvMR3sGmFMfU5XCGV1/r89NViS9qVVWCBSI=;
-        b=VTOznkY1TeUkAJZslfkv3lnYpFm1qwe3QTa17v/VYvQU+03YNvTAF8/OmaLkgvYkv6
-         8BMIjAoPVXSz6Pwiu/UDM+jAl1Z1sX04O+u4O3EUgnAT5DdzEHe9PoUPEj5rvgK2pkOP
-         vxprkMD810/oRT2UKrXK0cvo9QMjNaycJwVF7gik1al7Y0v/lFtBYkvjDZ/Xc4Jz4/3G
-         hVN6ByKvZDjTe22xO5RHCAlN4XpLtpiV7zxEm6sGwk05GKbF0IWWqwXw8TItHrGeYafo
-         BsueZiRZ+ZEYja0ZdiVzD4xS3QG/DHwzfNGnDyYfWDKh/4KRV80mfV/gw3aXVx9Lpa7T
-         7ktg==
-X-Gm-Message-State: APjAAAWSBxico1J4JvnleMYgEY8PCY/Xsrh1nWau7fUvAMRCKIvCZYds
-	HTxnAIDibEABfPv4ir9uUoJkGZEbFjf5SuNBBrun2w==
-X-Google-Smtp-Source: APXvYqy9tHBQADa1qvVeSsghOJr6TWr+3Lup/KNrD2wljjZJ0t87Se7fCmBqBKSv6ZJkJN9H9FM27wQ23v9EoryQYPc=
-X-Received: by 2002:a05:6830:458:: with SMTP id d24mr19105752otc.126.1566246817595;
- Mon, 19 Aug 2019 13:33:37 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
+	by kanga.kvack.org (Postfix) with ESMTP id EA41B6B0006
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 17:01:12 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 89F5A62D1
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:01:12 +0000 (UTC)
+X-FDA: 75840397584.25.crook98_44ab9753f841c
+X-HE-Tag: crook98_44ab9753f841c
+X-Filterd-Recvd-Size: 5203
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:01:11 +0000 (UTC)
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5b0e150001>; Mon, 19 Aug 2019 14:01:10 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Mon, 19 Aug 2019 14:01:10 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Mon, 19 Aug 2019 14:01:10 -0700
+Received: from DRHQMAIL107.nvidia.com (10.27.9.16) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 19 Aug
+ 2019 21:01:09 +0000
+Received: from [10.2.161.11] (10.124.1.5) by DRHQMAIL107.nvidia.com
+ (10.27.9.16) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 19 Aug
+ 2019 21:01:09 +0000
+Subject: Re: [RFC PATCH v2 2/3] mm/gup: introduce FOLL_PIN flag for
+ get_user_pages()
+From: John Hubbard <jhubbard@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
+	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, "Bharath
+ Vedartham" <linux.bhar@gmail.com>
+References: <20190817022419.23304-1-jhubbard@nvidia.com>
+ <20190817022419.23304-3-jhubbard@nvidia.com>
+ <5a95d15b-f54c-e663-7031-c2bf9b19899e@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <252677d2-9e98-d4c8-7fe4-26635c05334d@nvidia.com>
+Date: Mon, 19 Aug 2019 13:59:16 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com>
- <20190809074520.27115-4-aneesh.kumar@linux.ibm.com> <CAPcyv4hc_-oGMp6jGVknnYs+rmj4W1A_gFCbmAX2LFw0hsfL5g@mail.gmail.com>
- <87v9ut1vev.fsf@linux.ibm.com> <87mug5biyg.fsf@linux.ibm.com>
-In-Reply-To: <87mug5biyg.fsf@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 19 Aug 2019 13:33:26 -0700
-Message-ID: <CAPcyv4hTQ8iVPbOmQNHEeT9-Z6-52k4dxexq5mTr-A4cru0OkQ@mail.gmail.com>
-Subject: Re: [PATCH v5 3/4] mm/nvdimm: Use correct #defines instead of open coding
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <5a95d15b-f54c-e663-7031-c2bf9b19899e@nvidia.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ DRHQMAIL107.nvidia.com (10.27.9.16)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1566248470; bh=vl1GVCNIrilyALRxb5n0ufm74IES1+XneLPl9dgh6lA=;
+	h=X-PGP-Universal:Subject:From:To:CC:References:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=mM94VwganRCZrt6v6UGZSTEpO6uOcs8kAY0ekNDgsUXL4dZeWkSB7CsGeCRWy6/fR
+	 OjEVn4ebUUA62eLB0+2XQSPDLNIAhoNem9MsNvJiq5usLc+e6nHIdIPhtYnw7qJZ03
+	 Q4hQ57f4C30ediziBOifrI3wUN9gFsQUtPvY0WdBgYZgo9kYMEq1C1/eHqyOKVL8CW
+	 FEg85YzjBn9AdL3FJPxeRBYUQP6RSPnALAT5yduufUXwM9pLEM6p8BT67OxwF8XGjh
+	 /6w4lBWLddHMgwcuNVgG6yjU/kLluTlsWO4f+BmWSa6KkgPUVr2rLEq/QdzzK/Ac4z
+	 5bg+buL4eKhfQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 2:32 AM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
->
-> Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
->
-> > Dan Williams <dan.j.williams@intel.com> writes:
-> >
-> >> On Fri, Aug 9, 2019 at 12:45 AM Aneesh Kumar K.V
-> >> <aneesh.kumar@linux.ibm.com> wrote:
-> >>>
-> >>
->
-> ...
->
-> >>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-> >>> index 37e96811c2fc..c1d9be609322 100644
-> >>> --- a/drivers/nvdimm/pfn_devs.c
-> >>> +++ b/drivers/nvdimm/pfn_devs.c
-> >>> @@ -725,7 +725,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
-> >>>                  * when populating the vmemmap. This *should* be equal to
-> >>>                  * PMD_SIZE for most architectures.
-> >>>                  */
-> >>> -               offset = ALIGN(start + SZ_8K + 64 * npfns, align) - start;
-> >>> +               offset = ALIGN(start + SZ_8K + sizeof(struct page) * npfns,
-> >>
-> >> I'd prefer if this was not dynamic and was instead set to the maximum
-> >> size of 'struct page' across all archs just to enhance cross-arch
-> >> compatibility. I think that answer is '64'.
-> >
-> >
-> > That still doesn't take care of the case where we add new elements to
-> > struct page later. If we have struct page size changing across
-> > architectures, we should still be ok as long as new size is less than what is
-> > stored in pfn superblock? I understand the desire to keep it
-> > non-dynamic. But we also need to make sure we don't reserve less space
-> > when creating a new namespace on a config that got struct page size >
-> > 64?
->
->
-> How about
->
-> libnvdimm/pfn_dev: Add a build check to make sure we notice when struct page size change
->
-> When namespace is created with map device as pmem device, struct page is stored in the
-> reserve block area. We need to make sure we account for the right struct page
-> size while doing this. Instead of directly depending on sizeof(struct page)
-> which can change based on different kernel config option, use the max struct
-> page size (64) while calculating the reserve block area. This makes sure pmem
-> device can be used across kernels built with different configs.
->
-> If the above assumption of max struct page size change, we need to update the
-> reserve block allocation space for new namespaces created.
->
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
->
-> 1 file changed, 7 insertions(+)
-> drivers/nvdimm/pfn_devs.c | 7 +++++++
->
-> modified   drivers/nvdimm/pfn_devs.c
-> @@ -722,7 +722,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->                  * The altmap should be padded out to the block size used
->                  * when populating the vmemmap. This *should* be equal to
->                  * PMD_SIZE for most architectures.
-> +                *
-> +                * Also make sure size of struct page is less than 64. We
-> +                * want to make sure we use large enough size here so that
-> +                * we don't have a dynamic reserve space depending on
-> +                * struct page size. But we also want to make sure we notice
-> +                * if we end up adding new elements to struct page.
->                  */
-> +               BUILD_BUG_ON(64 < sizeof(struct page));
+On 8/16/19 7:36 PM, John Hubbard wrote:
+> On 8/16/19 7:24 PM, jhubbard@nvidia.com wrote:
+>> From: John Hubbard <jhubbard@nvidia.com>
+>> DKIM-Signature: v=01 a a-sha256; c=0Elaxed/relaxed; d idia.com; s=01;
+>> 	t=1566008674; bh=05Mai0va6k/z2enpQJ4Nfvbj5WByFxGAO1JwdIBbXio	h PGP-Univ=
+ersal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+>> 	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
+>> 	 Content-Transfer-Encoding:Content-Type;
+>> 	b=C3=96UDSde9XF/IsNteBaYOBWeKiHhWmeU9ekUJNvCviHssBDCtw0T+M/2TlEPEzomIT
+>> 	 fGXzIQNlGN6MXFbaBoyBmF/zjCu02TmTNExbVJ3/5N6PTyOuJFCx9ZN1/5gXsB11m1
+>> 	 xAHIWE+VOZs4qqDeHDBqKZq+FaxQHNvGz0j6lyVBA70TfseNoZqZZrSil8uvaKJwKd
+>> 	 TQ1ht+AGWbw9p610JmaPb4u6o/eV6Ns8Sl3EVnjWWu94T6ISNIaWCiC6wQQF6L1YCH
+>> 	 G5Pjn+0rEjhk6XG4TyLudi5lWp3IVBHd8+WlWlnl+bvLCC55RUAjPJLn7LaVyVdh0F
+>> 	 nLHwm3bN2Jotg
+>=20
+> I cannot readily explain the above email glitch, but I did just now switc=
+h
+> back to mailgw.nvidia.com for this patchset, in order to get the nice beh=
+avior
+> of having "From:" really be my native NVIDIA email address. That's very n=
+ice,
+> but if the glitches happen again, I'll switch back to using gmail for
+> git-send-email.
+>=20
+> Sorry about the weirdness. It does still let you apply the patch, I
+> just now checked on that.
+>=20
 
-Looks ok to me. There are ongoing heroic efforts to make sure 'struct
-page' does not grown beyond the size of cacheline. The fact that
-'struct page_ext' is allocated out of line makes it safe to assume
-that 'struct page' will not be growing larger in the foreseeable
-future.
+Hi Ira, could you please let me know if you'd like me to repost this patch,=
+ or
+the entire patchset, or if you're able to deal with it as-is? As it stands,=
+ the
+DKIM-Signature cruft above needs to be manually removed, either from the pa=
+tch, or
+from the commit log after applying the patch.
+
+Also, as noted in the email thread involving Bharath and sgi-gru [1], I'm
+currently planning on branching from your tree, and continuing the misc
+call site conversions from there. And then just adapting to whatever API
+changes are made to vaddr_*() functions. And the biovec call site conversio=
+ns should
+be based on that as well.
+
+[1] https://lore.kernel.org/r/0c2ad29b-934c-ec30-66c3-b153baf1fba5@nvidia.c=
+om
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
+
 
