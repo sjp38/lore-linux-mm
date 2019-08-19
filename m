@@ -7,73 +7,73 @@ X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
 	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECDBCC3A5A0
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:46:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B119FC3A5A0
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:47:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B115522CE2
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:46:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 73C1D2070B
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 15:47:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="g1nXlHoC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B115522CE2
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="hb156RXe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73C1D2070B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4CF3C6B026E; Mon, 19 Aug 2019 11:46:26 -0400 (EDT)
+	id 173366B026F; Mon, 19 Aug 2019 11:47:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 459216B026F; Mon, 19 Aug 2019 11:46:26 -0400 (EDT)
+	id 0FD0A6B0270; Mon, 19 Aug 2019 11:47:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3212F6B0270; Mon, 19 Aug 2019 11:46:26 -0400 (EDT)
+	id EDF866B0271; Mon, 19 Aug 2019 11:47:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0128.hostedemail.com [216.40.44.128])
-	by kanga.kvack.org (Postfix) with ESMTP id 0910E6B026E
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:46:26 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id A06D1181AC9AE
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:46:25 +0000 (UTC)
-X-FDA: 75839604330.27.jewel19_5525edba7845b
-X-HE-Tag: jewel19_5525edba7845b
-X-Filterd-Recvd-Size: 4295
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
+Received: from forelay.hostedemail.com (smtprelay0098.hostedemail.com [216.40.44.98])
+	by kanga.kvack.org (Postfix) with ESMTP id C639A6B026F
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 11:47:27 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 69508181AC9AE
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:47:27 +0000 (UTC)
+X-FDA: 75839606934.14.food08_5e2154fd23c32
+X-HE-Tag: food08_5e2154fd23c32
+X-Filterd-Recvd-Size: 5644
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
 	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:46:24 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id f17so1386607pfn.6
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:46:24 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 15:47:26 +0000 (UTC)
+Received: by mail-pf1-f195.google.com with SMTP id d85so1400393pfd.2
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 08:47:26 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=yBo5l6Hb3i4HlgUMt0iRUlNpHTn17B/raGae53BLtlo=;
-        b=g1nXlHoCW7Y2bR1cRffuS4BNOtNrOe4CRBULxbwa13Z2T1F/a5TXCs/ygYuh3oJpQ6
-         iP9w/DB2iE5KseeaCoduO9chHspnlj7HeAyriaYqmf10ipcW7mCi/0Eo8NM8dvhRD/Hx
-         Os8in9EMk2OfaRBYl2cEpm5IXC3V7vGcD33PouZWEjieE1Pj+je2Nn7CaFF5BZvonZEg
-         u/VzJS+Hh/sdPpYsAqxeVCaiJsfiwPNG/PICBeFKxv0wfCAXdG6WShSIhktx1rp96BE0
-         +xWyt40ufdMRvdwQUi3opN+XtIpHJ8cXudqQeN1u2+KGLLvmxDa1RGlF7itwhCQRAOWu
-         FM6g==
+        bh=GVKhbnPbpjWbhz5xDYatb5Jf0xezOaFTSU5iPuDRTeo=;
+        b=hb156RXeMFMq/ZFBxV79hUwsJ33TBPwNChB7tz9IM49HqYq3bFTECBQ0jWs93GlT2G
+         SEOQohdK8Qpvg992CDM37AZOCtspic82CV7MxeJ16y4n+GAIARuDtkAqM0Vpcs5ugO59
+         3sRkxC82ZNpPiJFiSjHCE8xFRcNyFvlrnKXcUERASk/OU7gh9oUuKntlcF8+9VOgRdQO
+         XwzHDLp8GeaF9DmG79eL+xmRZIDuOI163umv7VF+AUJ3CNUJ8QSO3555UzdSqQRzm98/
+         M6E4uyzHKgmn+l3ROAiDQuvOoBKPpaBx3AvAN7T4WwNWZXw8eHWQZ7MH/qOuEtyRVpnD
+         8p+A==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=yBo5l6Hb3i4HlgUMt0iRUlNpHTn17B/raGae53BLtlo=;
-        b=p4j130l6Vv2zGbAnyjLOf5+SBH9nevEjMsViP6sZ/ONEFjCeB3xeoVsFWoxpTIjTJ+
-         A+Yz+CzlJ1+shhHQTtc/7HhL2d5Yel+MQj5r6omfTL54HDBQY8KD4GSNuFxnSVpzhmB5
-         sT0ppj1HyhqYra6YxaF9KDM42reiEkGT41JIb7UprOouzmZeE2/wiSYztphD45Wo42ku
-         rW6J0xVPtpVY26dpzI512n/EyGPGS6lIbXR3IWRt3opVogFwSHZzzHpgQ+vIUMN9ouNN
-         VfX+Wr1C7c8hbFzvW/Try2qQSCgP9qr/MANUnsbOcnPrlUaQMje6Y5PwYWSiJi0rYnXv
-         IlPQ==
-X-Gm-Message-State: APjAAAU9NTIt7Fk7fg/t6bRK5rdC0SqQEot7ibEAqWdQ2fWEabBp4LVY
-	0rTPPFbRyotQZcB+J1OXi/1My6TCo+NmK0aWwq6oBw==
-X-Google-Smtp-Source: APXvYqwspcK95c1b7EzpNDYbzikjHPsqF9/mQX2RFrao6OHlpeBL0OGlH5Hg7JHZ2diW7v8MOGMj1LGIgGpYj/VFqkM=
-X-Received: by 2002:a63:c442:: with SMTP id m2mr62735pgg.286.1566229583644;
- Mon, 19 Aug 2019 08:46:23 -0700 (PDT)
+        bh=GVKhbnPbpjWbhz5xDYatb5Jf0xezOaFTSU5iPuDRTeo=;
+        b=byo1P3E+lRQ/vUkUqAA5g1VX3NmmGln/n4mC7I5D3L+fBQhiycnYgDc2B8p2bvpDY7
+         Q+yhu0yq6mpuneUQDSwi1kIvbXiOMT5QQd7qHZS3F0fLDniuOsqSg5i8MTaZHwvmH2sF
+         7kubEKJ1kJZNygUeC+4mwr3Vxm53c25NkgEvEupEwjJ8UIby0mf2wHcSZcVlB1T6Qz5Z
+         H/QKOIJCzQmlfGpbaFkfdpIqpr5OdJRZKOgy++N+1VfZM99MZNeELrXUHHncG4kHYeya
+         S+qTB6EAEq61A8+tAhZ7wIcRiVCca8DpIGgaqluFHKnyb8gkof2gqxH/H6x3L+t1etKK
+         6Sqg==
+X-Gm-Message-State: APjAAAWnqpDE+dtKCHqfrWb59xIuaemQujzSR2vChTwZowCVchuCOxkr
+	SoJ2TDOLTwZ3wh4BuEnIK5VYgU5FSnapV63QtVFMqg==
+X-Google-Smtp-Source: APXvYqxLTHM5LEFPfn7KCCEc2GvHDBYCQbwS1b0CfA10FVE2b1wMY/bojyivxbvU4UFTnmGkD/DFGafc0BRQouvpbVg=
+X-Received: by 2002:a17:90a:858c:: with SMTP id m12mr21540803pjn.129.1566229645488;
+ Mon, 19 Aug 2019 08:47:25 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190815154403.16473-1-catalin.marinas@arm.com> <20190815154403.16473-3-catalin.marinas@arm.com>
-In-Reply-To: <20190815154403.16473-3-catalin.marinas@arm.com>
+References: <20190815154403.16473-1-catalin.marinas@arm.com> <20190815154403.16473-4-catalin.marinas@arm.com>
+In-Reply-To: <20190815154403.16473-4-catalin.marinas@arm.com>
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 19 Aug 2019 17:46:12 +0200
-Message-ID: <CAAeHK+w7Y=UgwTyjyVt6bBSi=DZROkMaz1B6-0BefK3AjSPpYw@mail.gmail.com>
-Subject: Re: [PATCH v8 2/5] arm64: Tighten the PR_{SET,GET}_TAGGED_ADDR_CTRL
- prctl() unused arguments
+Date: Mon, 19 Aug 2019 17:47:14 +0200
+Message-ID: <CAAeHK+wSw6x8EpPc5-7tBnxEjKfYGfH6mUEh013YjKBCy40AZA@mail.gmail.com>
+Subject: Re: [PATCH v8 3/5] arm64: Change the tagged_addr sysctl control
+ semantics to only prevent the opt-in
 To: Catalin Marinas <catalin.marinas@arm.com>
 Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
 	Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
@@ -90,34 +90,68 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, Aug 15, 2019 at 5:44 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
 >
-> Require that arg{3,4,5} of the PR_{SET,GET}_TAGGED_ADDR_CTRL prctl and
-> arg2 of the PR_GET_TAGGED_ADDR_CTRL prctl() are zero rather than ignored
-> for future extensions.
+> First rename the sysctl control to abi.tagged_addr_disabled and make it
+> default off (zero). When abi.tagged_addr_disabled == 1, only block the
+> enabling of the TBI ABI via prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE).
+> Getting the status of the ABI or disabling it is still allowed.
 >
 > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 
 Acked-by: Andrey Konovalov <andreyknvl@google.com>
 
 > ---
->  kernel/sys.c | 4 ++++
->  1 file changed, 4 insertions(+)
+>  arch/arm64/kernel/process.c | 17 ++++++++++-------
+>  1 file changed, 10 insertions(+), 7 deletions(-)
 >
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index c6c4d5358bd3..ec48396b4943 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -2499,9 +2499,13 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
->                 error = PAC_RESET_KEYS(me, arg2);
->                 break;
->         case PR_SET_TAGGED_ADDR_CTRL:
-> +               if (arg3 || arg4 || arg5)
-> +                       return -EINVAL;
->                 error = SET_TAGGED_ADDR_CTRL(arg2);
->                 break;
->         case PR_GET_TAGGED_ADDR_CTRL:
-> +               if (arg2 || arg3 || arg4 || arg5)
-> +                       return -EINVAL;
->                 error = GET_TAGGED_ADDR_CTRL();
->                 break;
->         default:
+> diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+> index 76b7c55026aa..03689c0beb34 100644
+> --- a/arch/arm64/kernel/process.c
+> +++ b/arch/arm64/kernel/process.c
+> @@ -579,17 +579,22 @@ void arch_setup_new_exec(void)
+>  /*
+>   * Control the relaxed ABI allowing tagged user addresses into the kernel.
+>   */
+> -static unsigned int tagged_addr_prctl_allowed = 1;
+> +static unsigned int tagged_addr_disabled;
+>
+>  long set_tagged_addr_ctrl(unsigned long arg)
+>  {
+> -       if (!tagged_addr_prctl_allowed)
+> -               return -EINVAL;
+>         if (is_compat_task())
+>                 return -EINVAL;
+>         if (arg & ~PR_TAGGED_ADDR_ENABLE)
+>                 return -EINVAL;
+>
+> +       /*
+> +        * Do not allow the enabling of the tagged address ABI if globally
+> +        * disabled via sysctl abi.tagged_addr_disabled.
+> +        */
+> +       if (arg & PR_TAGGED_ADDR_ENABLE && tagged_addr_disabled)
+> +               return -EINVAL;
+> +
+>         update_thread_flag(TIF_TAGGED_ADDR, arg & PR_TAGGED_ADDR_ENABLE);
+>
+>         return 0;
+> @@ -597,8 +602,6 @@ long set_tagged_addr_ctrl(unsigned long arg)
+>
+>  long get_tagged_addr_ctrl(void)
+>  {
+> -       if (!tagged_addr_prctl_allowed)
+> -               return -EINVAL;
+>         if (is_compat_task())
+>                 return -EINVAL;
+>
+> @@ -618,9 +621,9 @@ static int one = 1;
+>
+>  static struct ctl_table tagged_addr_sysctl_table[] = {
+>         {
+> -               .procname       = "tagged_addr",
+> +               .procname       = "tagged_addr_disabled",
+>                 .mode           = 0644,
+> -               .data           = &tagged_addr_prctl_allowed,
+> +               .data           = &tagged_addr_disabled,
+>                 .maxlen         = sizeof(int),
+>                 .proc_handler   = proc_dointvec_minmax,
+>                 .extra1         = &zero,
 
