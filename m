@@ -6,74 +6,148 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 094DAC3A59D
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 06:30:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71F07C3A59D
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 06:34:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC64520851
-	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 06:30:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC64520851
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 23C1F20851
+	for <linux-mm@archiver.kernel.org>; Mon, 19 Aug 2019 06:34:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23C1F20851
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C7166B0008; Mon, 19 Aug 2019 02:30:22 -0400 (EDT)
+	id C61C86B0008; Mon, 19 Aug 2019 02:34:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2771D6B000A; Mon, 19 Aug 2019 02:30:22 -0400 (EDT)
+	id C119A6B000A; Mon, 19 Aug 2019 02:34:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 18E1F6B000C; Mon, 19 Aug 2019 02:30:22 -0400 (EDT)
+	id B00E76B000C; Mon, 19 Aug 2019 02:34:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0105.hostedemail.com [216.40.44.105])
-	by kanga.kvack.org (Postfix) with ESMTP id E61FF6B0008
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 02:30:21 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 80FF7612B
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 06:30:21 +0000 (UTC)
-X-FDA: 75838203042.13.sink54_202ad663d502d
-X-HE-Tag: sink54_202ad663d502d
-X-Filterd-Recvd-Size: 1892
-Received: from verein.lst.de (verein.lst.de [213.95.11.211])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 06:30:20 +0000 (UTC)
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 0548B68B20; Mon, 19 Aug 2019 08:30:16 +0200 (CEST)
-Date: Mon, 19 Aug 2019 08:30:15 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Bharata B Rao <bharata@linux.ibm.com>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
-Subject: Re: add a not device managed memremap_pages v3
-Message-ID: <20190819063015.GA20248@lst.de>
-References: <20190818090557.17853-1-hch@lst.de> <20190819052752.GD8784@in.ibm.com>
+Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F5546B0008
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 02:34:16 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 3677D181AC9AE
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 06:34:16 +0000 (UTC)
+X-FDA: 75838212912.09.patch48_424b40d3a4957
+X-HE-Tag: patch48_424b40d3a4957
+X-Filterd-Recvd-Size: 5398
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 06:34:15 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id ED46FAC26;
+	Mon, 19 Aug 2019 06:34:12 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 4D0DC1E155E; Mon, 19 Aug 2019 08:34:12 +0200 (CEST)
+Date: Mon, 19 Aug 2019 08:34:12 +0200
+From: Jan Kara <jack@suse.cz>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190819063412.GA20455@quack2.suse.cz>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190814101714.GA26273@quack2.suse.cz>
+ <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+ <20190815130558.GF14313@quack2.suse.cz>
+ <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190819052752.GD8784@in.ibm.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190817022603.GW6129@dread.disaster.area>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 10:57:52AM +0530, Bharata B Rao wrote:
-> On Sun, Aug 18, 2019 at 11:05:53AM +0200, Christoph Hellwig wrote:
-> > Hi Dan and Jason,
-> > 
-> > Bharata has been working on secure page management for kvmppc guests,
-> > and one I thing I noticed is that he had to fake up a struct device
-> > just so that it could be passed to the devm_memremap_pages
-> > instrastructure for device private memory.
-> > 
-> > This series adds non-device managed versions of the
-> > devm_request_free_mem_region and devm_memremap_pages functions for
-> > his use case.
-> 
-> Tested kvmppc ultravisor patchset with migrate_vma changes and this
-> patchset. (Had to manually patch mm/memremap.c instead of kernel/memremap.c
-> though)
+On Sat 17-08-19 12:26:03, Dave Chinner wrote:
+> On Fri, Aug 16, 2019 at 12:05:28PM -0700, Ira Weiny wrote:
+> > On Thu, Aug 15, 2019 at 03:05:58PM +0200, Jan Kara wrote:
+> > > On Wed 14-08-19 11:08:49, Ira Weiny wrote:
+> > > > On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
+> > 2) Second reason is that I thought I did not have a good way to tell =
+if the
+> >    lease was actually in use.  What I mean is that letting the lease =
+go should
+> >    be ok IFF we don't have any pins...  I was thinking that without J=
+ohn's code
+> >    we don't have a way to know if there are any pins...  But that is =
+wrong...
+> >    All we have to do is check
+> >=20
+> > 	!list_empty(file->file_pins)
+> >=20
+> > So now with this detail I think you are right, we should be able to h=
+old the
+> > lease through the struct file even if the process no longer has any
+> > "references" to it (ie closes and munmaps the file).
+>=20
+> I really, really dislike the idea of zombie layout leases. It's a
+> nasty hack for poor application behaviour. This is a "we allow use
+> after layout lease release" API, and I think encoding largely
+> untraceable zombie objects into an API is very poor design.
+>=20
+> From the fcntl man page:
+>=20
+> LEASES
+> 	Leases are associated with an open file description (see
+> 	open(2)).  This means that duplicate file descriptors
+> 	(created by, for example, fork(2) or dup(2))  re=E2=80=90 fer  to
+> 	the  same  lease,  and this lease may be modified or
+> 	released using any of these descriptors.  Furthermore, the
+> 	lease is released by either an explicit F_UNLCK operation on
+> 	any of these duplicate file descriptors, or when all such
+> 	file descriptors have been closed.
+>=20
+> Leases are associated with *open* file descriptors, not the
+> lifetime of the struct file in the kernel. If the application closes
+> the open fds that refer to the lease, then the kernel does not
+> guarantee, and the application has no right to expect, that the
+> lease remains active in any way once the application closes all
+> direct references to the lease.
+>=20
+> IOWs, applications using layout leases need to hold the lease fd
+> open for as long as the want access to the physical file layout. It
+> is a also a requirement of the layout lease that the holder releases
+> the resources it holds on the layout before it releases the layout
+> lease, exclusive lease or not. Closing the fd indicates they do not
+> need access to the file any more, and so the lease should be
+> reclaimed at that point.
+>=20
+> I'm of a mind to make the last close() on a file block if there's an
+> active layout lease to prevent processes from zombie-ing layout
+> leases like this. i.e. you can't close the fd until resources that
+> pin the lease have been released.
 
-Oh.  I rebased to the hmm tree, and that didn't have the rename yet.
-And I didn't even notice that as git handled it transparently.
+Yeah, so this was my initial though as well [1]. But as the discussion in
+that thread revealed, the problem with blocking last close is that kernel
+does not really expect close to block. You could easily deadlock e.g. if
+the process gets SIGKILL, file with lease has fd 10, and the RDMA context
+holding pages pinned has fd 15. Or you could wait for another process to
+release page pins and blocking SIGKILL on that is also bad. So in the end
+the least bad solution we've come up with were these "zombie" leases as y=
+ou
+call them and tracking them in /proc so that userspace at least has a way
+of seeing them. But if you can come up with a different solution, I'm
+certainly not attached to the current one...
+
+								Honza
+
+[1] https://lore.kernel.org/lkml/20190606104203.GF7433@quack2.suse.cz
+--=20
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
