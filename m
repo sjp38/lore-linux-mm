@@ -2,197 +2,219 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 848BBC3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B8EC3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:19:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5089022DA9
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5089022DA9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 19197214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:19:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="hHhcOFSN";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="QH+Jcg4d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19197214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 813936B000A; Tue, 20 Aug 2019 09:18:42 -0400 (EDT)
+	id B8D3F6B026B; Tue, 20 Aug 2019 09:19:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28C546B000E; Tue, 20 Aug 2019 09:18:42 -0400 (EDT)
+	id B15FE6B026D; Tue, 20 Aug 2019 09:19:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDFEA6B026B; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
+	id 98F626B026E; Tue, 20 Aug 2019 09:19:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0108.hostedemail.com [216.40.44.108])
-	by kanga.kvack.org (Postfix) with ESMTP id A982F6B0010
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 287EC181AC9C9
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:18:41 +0000 (UTC)
-X-FDA: 75842860842.24.taste05_1190a18866945
-X-HE-Tag: taste05_1190a18866945
-X-Filterd-Recvd-Size: 5618
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:18:40 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E9EB9AD54;
-	Tue, 20 Aug 2019 13:18:38 +0000 (UTC)
-From: Vlastimil Babka <vbabka@suse.cz>
-To: linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Matthew Wilcox <willy@infradead.org>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/4] mm, page_owner: keep owner info when freeing the page
-Date: Tue, 20 Aug 2019 15:18:27 +0200
-Message-Id: <20190820131828.22684-4-vbabka@suse.cz>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190820131828.22684-1-vbabka@suse.cz>
-References: <20190820131828.22684-1-vbabka@suse.cz>
-MIME-Version: 1.0
+Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
+	by kanga.kvack.org (Postfix) with ESMTP id 716C76B026B
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:19:20 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 2B89881C6
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:19:20 +0000 (UTC)
+X-FDA: 75842862480.26.rate31_173213ea02e48
+X-HE-Tag: rate31_173213ea02e48
+X-Filterd-Recvd-Size: 10071
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:19:19 +0000 (UTC)
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7KDHVF8023693;
+	Tue, 20 Aug 2019 06:19:12 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=QSJMSUOkYU2F1gINAGrBbRT6okZp4LOcrVQ0wVrR6s4=;
+ b=hHhcOFSNDEGWB0GgRSGiRrzFoN+kzM2HZLcfG6+NebNm7e7KntFWVbZtN7FB2T/+CJXs
+ PPKO3Sqh1ZzZkHv10dgv2FgV5gYWWslu38/oeE46bIybnQNaNZ4U7oWhPFbthHtdy5Lv
+ HZSbulp0UXQi2pL7t+cSDzrwh0815Khhwvg= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2ugc4xs9d4-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Tue, 20 Aug 2019 06:19:12 -0700
+Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
+ prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Tue, 20 Aug 2019 06:19:10 -0700
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Tue, 20 Aug 2019 06:19:10 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=i4mttKsolIUA7YSKPmSTzR3DOut9AneLrH6PS/LvMoSUfkY+qCWQNCyGoKAwROJZLBKEnmXcBVrI8wSZVvi7RayGMZ8fmQQyogNzKPI910z2nqqDzJOqTbngf1208Ek3Y9qvbLJHDj0V7vqihlg3jnzLBH55yBLTE5AQffdXMOECyp2y7zV0+rTmbfcxmnALOX5PAg3M8i/RlFAtfdZj4qAKcJkZwwOkV3km+VGVMOlmThHWQZwx4h+L5dZ1wDyZDpXRoQ5+Hr3Lx5RSb0ETWdqlm0b3eOdcf/uLAFDja53U1Ol9JHju9PH1JDXTaBdwypwzDpzugxro1UIoPctsLw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=QSJMSUOkYU2F1gINAGrBbRT6okZp4LOcrVQ0wVrR6s4=;
+ b=DZwDeOHq4e86zTCd0M4HG/sppfwXkHBjEtegCElSpvsOkc+XBgmSoGS5qLnNXw/DGNLViNbyQHHoXY43jZ1Yi3khsjNVIpwRuobnlFxJPOn+D1rrjgu0SnBjbRhpb1+3XAfvoWn8ienv7t9mLc5OcsPd9fqQ6m0PkKcz2VtfWrZbKhXtSgrVx2KOaXJv387492bIZHgqdCjf+IJukN5Do4MZJ9bpqyyGIh2zvkF3Yg5m+6GuKXyLqr9D23+WgfaDQ/NawjFyYtfsS4s9SLx9rumTdtXoPXrkNvVFZ2pBPLkBIrMZgzZ2rg3ybIF96rv/Dwy1WsFK8WVvnPUqTGKiMA==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
+ header.d=fb.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=QSJMSUOkYU2F1gINAGrBbRT6okZp4LOcrVQ0wVrR6s4=;
+ b=QH+Jcg4dYfnkNerFjRUXsnIvtswpt0R02GU2AE5u8ZqX90GSaJL9c0Dv6nmA5l3pY9syL4ESVCQM2rkQOtYd6jqxAe5sg6/3mix2fK9iUDDxQET77IOK61BKDqVV3Y5SjBaImATwfU700OZeooBtH4jUR5Iu6u3/8vEuls7ekA0=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1486.namprd15.prod.outlook.com (10.173.228.145) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2178.16; Tue, 20 Aug 2019 13:19:08 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::45ee:bc50:acfa:60a5]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::45ee:bc50:acfa:60a5%3]) with mapi id 15.20.2178.018; Tue, 20 Aug 2019
+ 13:19:08 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Peter Zijlstra <peterz@infradead.org>
+CC: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Kernel Team <Kernel-team@fb.com>,
+        "stable@vger.kernel.org" <stable@vger.kernel.org>,
+        Joerg Roedel
+	<jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>,
+        Dave Hansen
+	<dave.hansen@linux.intel.com>,
+        Andy Lutomirski <luto@kernel.org>
+Subject: Re: [PATCH] x86/mm/pti: in pti_clone_pgtable() don't increase addr by
+ PUD_SIZE
+Thread-Topic: [PATCH] x86/mm/pti: in pti_clone_pgtable() don't increase addr
+ by PUD_SIZE
+Thread-Index: AQHVVywgQMe0L9XqWkSJYmnWEvsfracDzfeAgAA3YYA=
+Date: Tue, 20 Aug 2019 13:19:08 +0000
+Message-ID: <8483292E-DAD0-4B75-8EB0-8EBEE3D067BB@fb.com>
+References: <20190820075128.2912224-1-songliubraving@fb.com>
+ <20190820100055.GI2332@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190820100055.GI2332@hirez.programming.kicks-ass.net>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::f412]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 74027684-304b-466c-3799-08d72570fb84
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:MWHPR15MB1486;
+x-ms-traffictypediagnostic: MWHPR15MB1486:
+x-ms-exchange-transport-forked: True
+x-microsoft-antispam-prvs: <MWHPR15MB1486959440BA0CF0B1BE7371B3AB0@MWHPR15MB1486.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:6108;
+x-forefront-prvs: 013568035E
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(366004)(39860400002)(136003)(346002)(376002)(189003)(199004)(5660300002)(486006)(36756003)(6436002)(8936002)(71200400001)(54906003)(14454004)(71190400001)(2906002)(86362001)(316002)(57306001)(53546011)(6506007)(2616005)(102836004)(53936002)(229853002)(33656002)(99286004)(478600001)(6512007)(8676002)(6116002)(256004)(66946007)(186003)(50226002)(76116006)(81166006)(81156014)(7736002)(25786009)(305945005)(66476007)(66556008)(64756008)(66446008)(4326008)(6916009)(46003)(6246003)(76176011)(476003)(446003)(11346002)(6486002);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1486;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: Nk3s1Mdfd80CqYKy0M7TKhejj55+ILcnFSBIraCI7NX+e/EIfD4yIWhrtpfcKwP+O1NfYlAPXapKJRrjRNy9OBK4Ndw2jRMhPhOIojQZt+BDgNDq89R+AQvK0u/qwbXnCjKfj3QdN1DxNIVjHtHPEAkRRCE6Oye8TD5i5rQXnaHc+R7wyDajpIDnzTx89ToSsft5iLStAC3P6SXmcxGnA5Eeqy87vLGC/QrLyBjMoMsf9oDKsfQ5AtlSekRWaYEfCG0hXbhxMLQ2/BKGD88YKT2wfFlDhtvnXU9CP/i6Lh8Nb1au0sH43tzLQQggN+tDHsAeYb9joTrxA4PkXNuMYg7ETOrHr+QYciNTJJgvfm2LM2YeiNFkZxTQYE2q5eTQgZpRqytguFg1Az5dqndtZyGX11gvdmuwxxOCsVkuq1w=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <91099288E73293498CB2F2611ECDD1A3@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: 74027684-304b-466c-3799-08d72570fb84
+X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Aug 2019 13:19:08.1341
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: a7SAfubnQCl7/79+PglLPurMUUE0dq1ptZIE6yItatEBaXz9pveH57bDZI+KdIlYysUIfZUphlgpYOSoGCysGw==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1486
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-20_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=868 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908200140
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For debugging purposes it might be useful to keep the owner info even aft=
-er
-page has been freed, and include it in e.g. dump_page() when detecting a =
-bad
-page state. For that, change the PAGE_EXT_OWNER flag meaning to "page own=
-er
-info has been set at least once" and add new PAGE_EXT_OWNER_ACTIVE for tr=
-acking
-whether page is supposed to be currently tracked allocated or free. Adjus=
-t
-dump_page() accordingly, distinguishing free and allocated pages. In the
-page_owner debugfs file, keep printing only allocated pages so that exist=
-ing
-scripts are not confused, and also because free pages are irrelevant for =
-the
-memory statistics or leak detection that's the typical use case of the fi=
-le,
-anyway.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/page_ext.h |  1 +
- mm/page_owner.c          | 34 ++++++++++++++++++++++++----------
- 2 files changed, 25 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 09592951725c..682fd465df06 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -18,6 +18,7 @@ struct page_ext_operations {
-=20
- enum page_ext_flags {
- 	PAGE_EXT_OWNER,
-+	PAGE_EXT_OWNER_ACTIVE,
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
- 	PAGE_EXT_YOUNG,
- 	PAGE_EXT_IDLE,
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 813fcb70547b..4a48e018dbdf 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -111,7 +111,7 @@ void __reset_page_owner(struct page *page, unsigned i=
-nt order)
- 		page_ext =3D lookup_page_ext(page + i);
- 		if (unlikely(!page_ext))
- 			continue;
--		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
-+		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
- 	}
- }
-=20
-@@ -168,6 +168,7 @@ static inline void __set_page_owner_handle(struct pag=
-e *page,
- 		page_owner->gfp_mask =3D gfp_mask;
- 		page_owner->last_migrate_reason =3D -1;
- 		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
-+		__set_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
-=20
- 		page_ext =3D lookup_page_ext(page + i);
- 	}
-@@ -243,6 +244,7 @@ void __copy_page_owner(struct page *oldpage, struct p=
-age *newpage)
- 	 * the new page, which will be freed.
- 	 */
- 	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
-+	__set_bit(PAGE_EXT_OWNER_ACTIVE, &new_ext->flags);
- }
-=20
- void pagetypeinfo_showmixedcount_print(struct seq_file *m,
-@@ -302,7 +304,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_fil=
-e *m,
- 			if (unlikely(!page_ext))
- 				continue;
-=20
--			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-+			if (!test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags))
- 				continue;
-=20
- 			page_owner =3D get_page_owner(page_ext);
-@@ -413,21 +415,26 @@ void __dump_page_owner(struct page *page)
- 	mt =3D gfpflags_to_migratetype(gfp_mask);
-=20
- 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
--		pr_alert("page_owner info is not active (free page?)\n");
-+		pr_alert("page_owner info is not present (never set?)\n");
- 		return;
- 	}
-=20
-+	if (test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags))
-+		pr_alert("page_owner tracks the page as allocated\n");
-+	else
-+		pr_alert("page_owner tracks the page as freed\n");
-+
-+	pr_alert("page last allocated via order %u, migratetype %s, gfp_mask %#=
-x(%pGg)\n",
-+		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
-+
- 	handle =3D READ_ONCE(page_owner->handle);
- 	if (!handle) {
--		pr_alert("page_owner info is not active (free page?)\n");
--		return;
-+		pr_alert("page_owner allocation stack trace missing\n");
-+	} else {
-+		nr_entries =3D stack_depot_fetch(handle, &entries);
-+		stack_trace_print(entries, nr_entries, 0);
- 	}
-=20
--	nr_entries =3D stack_depot_fetch(handle, &entries);
--	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pG=
-g)\n",
--		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
--	stack_trace_print(entries, nr_entries, 0);
--
- 	if (page_owner->last_migrate_reason !=3D -1)
- 		pr_alert("page has been migrated, last migrate reason: %s\n",
- 			migrate_reason_names[page_owner->last_migrate_reason]);
-@@ -489,6 +496,13 @@ read_page_owner(struct file *file, char __user *buf,=
- size_t count, loff_t *ppos)
- 		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
- 			continue;
-=20
-+		/*
-+		 * Although we do have the info about past allocation of free
-+		 * pages, it's not relevant for current memory usage.
-+		 */
-+		if (!test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags))
-+			continue;
-+
- 		page_owner =3D get_page_owner(page_ext);
-=20
- 		/*
---=20
-2.22.0
+> On Aug 20, 2019, at 3:00 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+>=20
+> On Tue, Aug 20, 2019 at 12:51:28AM -0700, Song Liu wrote:
+>> pti_clone_pgtable() increases addr by PUD_SIZE for pud_none(*pud) case.
+>> This is not accurate because addr may not be PUD_SIZE aligned.
+>>=20
+>> In our x86_64 kernel, pti_clone_pgtable() fails to clone 7 PMDs because
+>> of this issuse, including PMD for the irq entry table. For a memcache
+>> like workload, this introduces about 4.5x more iTLB-load and about 2.5x
+>> more iTLB-load-misses on a Skylake CPU.
+>>=20
+>> This patch fixes this issue by adding PMD_SIZE to addr for pud_none()
+>> case.
+>=20
+>> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+>> index b196524759ec..5a67c3015f59 100644
+>> --- a/arch/x86/mm/pti.c
+>> +++ b/arch/x86/mm/pti.c
+>> @@ -330,7 +330,7 @@ pti_clone_pgtable(unsigned long start, unsigned long=
+ end,
+>>=20
+>> 		pud =3D pud_offset(p4d, addr);
+>> 		if (pud_none(*pud)) {
+>> -			addr +=3D PUD_SIZE;
+>> +			addr +=3D PMD_SIZE;
+>> 			continue;
+>> 		}
+>=20
+> I'm thinking you're right in that there's a bug here, but I'm also
+> thinking your patch is both incomplete and broken.
+>=20
+> What that code wants to do is skip to the end of the pud, a pmd_size
+> increase will not do that. And right below this, there's a second
+> instance of this exact pattern.
+>=20
+> Did I get the below right?
+
+Yes, your are right.=20
+
+Thanks,
+Song
+
+>=20
+> ---
+> diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+> index b196524759ec..32b20b3cb227 100644
+> --- a/arch/x86/mm/pti.c
+> +++ b/arch/x86/mm/pti.c
+> @@ -330,12 +330,14 @@ pti_clone_pgtable(unsigned long start, unsigned lon=
+g end,
+>=20
+> 		pud =3D pud_offset(p4d, addr);
+> 		if (pud_none(*pud)) {
+> +			addr &=3D PUD_MASK;
+> 			addr +=3D PUD_SIZE;
+> 			continue;
+> 		}
+>=20
+> 		pmd =3D pmd_offset(pud, addr);
+> 		if (pmd_none(*pmd)) {
+> +			addr &=3D PMD_MASK;
+> 			addr +=3D PMD_SIZE;
+> 			continue;
+> 		}
 
 
