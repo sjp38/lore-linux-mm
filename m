@@ -2,166 +2,104 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A01C0C3A59D
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:24:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F59BC3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:37:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F3E5230F2
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:24:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="H9A7VyZ+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F3E5230F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id D6587214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:37:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6587214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A3FDB6B0008; Tue, 20 Aug 2019 12:24:44 -0400 (EDT)
+	id A5DEC6B0006; Tue, 20 Aug 2019 12:37:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D30C6B0270; Tue, 20 Aug 2019 12:24:44 -0400 (EDT)
+	id A0DD96B0007; Tue, 20 Aug 2019 12:37:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B69E6B0272; Tue, 20 Aug 2019 12:24:44 -0400 (EDT)
+	id 9251C6B0008; Tue, 20 Aug 2019 12:37:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
-	by kanga.kvack.org (Postfix) with ESMTP id 645FC6B0008
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:24:44 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 1359575A4
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:24:44 +0000 (UTC)
-X-FDA: 75843329688.24.shelf04_29421acad651e
-X-HE-Tag: shelf04_29421acad651e
-X-Filterd-Recvd-Size: 5741
-Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:24:43 +0000 (UTC)
-Received: by mail-pg1-f196.google.com with SMTP id x15so3525416pgg.8
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:24:43 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=rtMtxwDFxfWyDwI2VJqXw7UwN79Bf7nonGtI8wZ/AV8=;
-        b=H9A7VyZ+AkTGb6fh3lCfYFGef3H3WPjC2RH9jX+XiptcELpZO/IVJTMVyT/Sf+dan4
-         weppXZXhDW1iXlZiUi9HyLv0TBydmXbI3zPIZVbjCAoURMxwCDt8a2NtMYgypF1CQVn2
-         GlCPw+7OQLfLpiS8IbIi31vp55DWdGaBbCrQVXg/73mzxpSao9JWB1WzD/IhP3260bX5
-         5mpugFVHPCO5zvNjd7SrMXBvGliNdJOHt8A2c6JGgk4vMq6RFMvShQZ7QfFAHUxKGKo8
-         ER9tanSNhKNj9azM984ZKZlcnPL8HHkvpGy8wxMfgD5b3vJGcLrzzls2YVUElDPhKvB9
-         zONg==
+Received: from forelay.hostedemail.com (smtprelay0084.hostedemail.com [216.40.44.84])
+	by kanga.kvack.org (Postfix) with ESMTP id 721226B0006
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:37:34 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 0C6CF181AC9BF
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:37:34 +0000 (UTC)
+X-FDA: 75843362028.15.kiss46_7c012ea9372f
+X-HE-Tag: kiss46_7c012ea9372f
+X-Filterd-Recvd-Size: 3114
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com [209.85.128.66])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:37:33 +0000 (UTC)
+Received: by mail-wm1-f66.google.com with SMTP id p74so3191004wme.4
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:37:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=rtMtxwDFxfWyDwI2VJqXw7UwN79Bf7nonGtI8wZ/AV8=;
-        b=YYP1nLR64rS9jg5bCtA9YgbdVVRj4mmyqT8b5BEHnWkwC7S1eLuD/kkv//rpx4h1KQ
-         G5fjtCRA8vw3U+FfhHiMmE6aFHRJGhCT20khHpxusy7N0Wf9+/3VoOayGb8BFPTZHbmz
-         lcyDhgA+o4zCWKHA8q/ty9CXqnnLhV0ZGdX7jVGFre0ha3BpDhK66kRnRlWN63l54ZJV
-         s4LPQ6r31Wv/1dLIBjLzQA6oS+Xn67GwkkMDBTaF+sm1yJw+QH2Ofj7RGlPfgmtgJfqo
-         zrP1d5yQh1mKcLlU9DZIWVrWR59NtqA1JMd7Ydw3Mm9HQb8+mjYIkxhlOTScrH52jJ54
-         0OKQ==
-X-Gm-Message-State: APjAAAV/smBHT6tEKTfaYGKYZ2T1qoMeR+FxTTcg8pcFUUtSC0T4EV0X
-	GZYmgvuLswHkh1qjuSYtL5w=
-X-Google-Smtp-Source: APXvYqye5R5yNp/QaiKoJoPnfGJSyMAFG3pnY1LWDO29qhAN2U+W/GyrfTDuBR3N7CFkLUvF8H4MWQ==
-X-Received: by 2002:a63:9e43:: with SMTP id r3mr25940504pgo.148.1566318282238;
-        Tue, 20 Aug 2019 09:24:42 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.36])
-        by smtp.gmail.com with ESMTPSA id 203sm31373737pfz.107.2019.08.20.09.24.35
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Aug 2019 09:24:41 -0700 (PDT)
-Date: Tue, 20 Aug 2019 21:54:32 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Dimitri Sivanich <sivanich@hpe.com>,
-	Andrew Morton <akpm@linux-foundation.org>, jglisse@redhat.com,
-	ira.weiny@intel.com, gregkh@linuxfoundation.org, arnd@arndb.de,
-	william.kucharski@oracle.com, hch@lst.de,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel-mentees@lists.linuxfoundation.org,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Linux-kernel-mentees][PATCH v6 1/2] sgi-gru: Convert put_page()
- to put_user_page*()
-Message-ID: <20190820162432.GB5153@bharath12345-Inspiron-5559>
-References: <1566157135-9423-1-git-send-email-linux.bhar@gmail.com>
- <1566157135-9423-2-git-send-email-linux.bhar@gmail.com>
- <20190819125611.GA5808@hpe.com>
- <20190819190647.GA6261@bharath12345-Inspiron-5559>
- <0c2ad29b-934c-ec30-66c3-b153baf1fba5@nvidia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0c2ad29b-934c-ec30-66c3-b153baf1fba5@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id;
+        bh=E4X7QCNLqGFBsy/7pYjpRVoBo5sZi0bTAtJeoQQ6ohc=;
+        b=ay7MBqohICF7ItaQAcLQEXAbxLkD3GLbtKK8+RvK3zyrLt57kIbG3TKGy/hl/D9aAI
+         VRuEgKn8EjSwiNNw+OdDXjazEyUKuQreyuZjJdpYsGEDJxOAcn+Kynp7k07P8OpvT7vR
+         5y+J4d3S9A2H2i07NierdkVGHwYc2N2PFKLxDSwqlcruFmqOEkZqjj9Tnldwi6BdwfJE
+         wGpe7OLhhxuHY1dCB1MUlIyOmJoLe+PPwGKRO4SwzYUhFtl6KFW3d35gmZDCbqgPjBGg
+         aG/x6dmIKbojkIMKO/TWcME/s7jVrAW7zqIAfR+y4PoimNp10eoR6cCTeF+7pEimmY0d
+         WXvQ==
+X-Gm-Message-State: APjAAAVIQ4jASTbe1LcQZF8YzoxAL6ER4LQPfRMCgy73EylJA8XRrZuW
+	KcJvLvOIn/PXUG/9uDNwT9E=
+X-Google-Smtp-Source: APXvYqyWdL5QMRDrlWABWdxtx+qi5mJSVMhKc+4wusrmLOkgTE8w+/nuZlj5Jc1f8al4Vo4HPQPOEQ==
+X-Received: by 2002:a1c:2dcf:: with SMTP id t198mr858820wmt.147.1566319051721;
+        Tue, 20 Aug 2019 09:37:31 -0700 (PDT)
+Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id n14sm58485385wra.75.2019.08.20.09.37.29
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 20 Aug 2019 09:37:31 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>,
+	virtualization@lists.linux-foundation.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Nadav Amit <namit@vmware.com>
+Subject: [PATCH] mm/balloon_compaction: suppress allocation warnings
+Date: Tue, 20 Aug 2019 02:16:46 -0700
+Message-Id: <20190820091646.29642-1-namit@vmware.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 12:30:18PM -0700, John Hubbard wrote:
-> On 8/19/19 12:06 PM, Bharath Vedartham wrote:
-> >On Mon, Aug 19, 2019 at 07:56:11AM -0500, Dimitri Sivanich wrote:
-> >>Reviewed-by: Dimitri Sivanich <sivanich@hpe.com>
-> >Thanks!
-> >
-> >John, would you like to take this patch into your miscellaneous
-> >conversions patch set?
-> >
-> 
-> (+Andrew and Michal, so they know where all this is going.)
-> 
-> Sure, although that conversion series [1] is on a brief hold, because
-> there are additional conversions desired, and the API is still under
-> discussion. Also, reading between the lines of Michal's response [2]
-> about it, I think people would prefer that the next revision include
-> the following, for each conversion site:
-> 
-> Conversion of gup/put_page sites:
-> 
-> Before:
-> 
-> 	get_user_pages(...);
-> 	...
-> 	for each page:
-> 		put_page();
-> 
-> After:
-> 	
-> 	gup_flags |= FOLL_PIN; (maybe FOLL_LONGTERM in some cases)
-> 	vaddr_pin_user_pages(...gup_flags...)
-> 	...
-> 	vaddr_unpin_user_pages(); /* which invokes put_user_page() */
-> 
-> Fortunately, it's not harmful for the simpler conversion from put_page()
-> to put_user_page() to happen first, and in fact those have usually led
-> to simplifications, paving the way to make it easier to call
-> vaddr_unpin_user_pages(), once it's ready. (And showing exactly what
-> to convert, too.)
-> 
-> So for now, I'm going to just build on top of Ira's tree, and once the
-> vaddr*() API settles down, I'll send out an updated series that attempts
-> to include the reviews and ACKs so far (I'll have to review them, but
-> make a note that review or ACK was done for part of the conversion),
-> and adds the additional gup(FOLL_PIN), and uses vaddr*() wrappers instead of
-> gup/pup.
-> 
-> [1] https://lore.kernel.org/r/20190807013340.9706-1-jhubbard@nvidia.com
-> 
-> [2] https://lore.kernel.org/r/20190809175210.GR18351@dhcp22.suse.cz
-> 
-Cc' lkml(I missed out the 'l' in this series). 
+There is no reason to print warnings when balloon page allocation fails,
+as they are expected and can be handled gracefully.  Since VMware
+balloon now uses balloon-compaction infrastructure, and suppressed these
+warnings before, it is also beneficial to suppress these warnings to
+keep the same behavior that the balloon had before.
 
-sounds good. It makes sense to keep the entire gup in the kernel rather
-than to expose it outside. 
+Cc: Jason Wang <jasowang@redhat.com>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+---
+ mm/balloon_compaction.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-I ll make sure to checkout the emails on vaddr*() API and pace my work
-on it accordingly.
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 798275a51887..26de020aae7b 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -124,7 +124,8 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+ struct page *balloon_page_alloc(void)
+ {
+ 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				       __GFP_NOMEMALLOC | __GFP_NORETRY);
++				       __GFP_NOMEMALLOC | __GFP_NORETRY |
++				       __GFP_NOWARN);
+ 	return page;
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_alloc);
+-- 
+2.19.1
 
-Thank you
-Bharath
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
 
