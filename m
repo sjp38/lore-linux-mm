@@ -2,43 +2,43 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	UNPARSEABLE_RELAY,UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDA38C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 09:49:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDDDAC3A59E
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 09:49:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DDBE22CF7
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 09:49:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DDBE22CF7
+	by mail.kernel.org (Postfix) with ESMTP id 8228222CF7
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 09:49:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8228222CF7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E3756B026E; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
+	id C80A36B026D; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 945946B0271; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
+	id B70076B0272; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7218A6B026F; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
+	id 9DF746B026D; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0191.hostedemail.com [216.40.44.191])
-	by kanga.kvack.org (Postfix) with ESMTP id 397426B026C
+Received: from forelay.hostedemail.com (smtprelay0078.hostedemail.com [216.40.44.78])
+	by kanga.kvack.org (Postfix) with ESMTP id 63CA26B026E
 	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 05:49:45 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id DB0598248AB7
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D784F180AD806
 	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:49:44 +0000 (UTC)
-X-FDA: 75842334288.17.hose08_54fe073c9203e
-X-HE-Tag: hose08_54fe073c9203e
-X-Filterd-Recvd-Size: 3082
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com [115.124.30.130])
-	by imf09.hostedemail.com (Postfix) with ESMTP
+X-FDA: 75842334288.26.lift28_550091b34cf40
+X-HE-Tag: lift28_550091b34cf40
+X-Filterd-Recvd-Size: 6995
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com [47.88.44.36])
+	by imf02.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:49:43 +0000 (UTC)
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R751e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=alex.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TZznPmz_1566294577;
-Received: from localhost(mailfrom:alex.shi@linux.alibaba.com fp:SMTPD_---0TZznPmz_1566294577)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R551e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=alex.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0Ta-AHGG_1566294576;
+Received: from localhost(mailfrom:alex.shi@linux.alibaba.com fp:SMTPD_---0Ta-AHGG_1566294576)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 20 Aug 2019 17:49:38 +0800
+          Tue, 20 Aug 2019 17:49:37 +0800
 From: Alex Shi <alex.shi@linux.alibaba.com>
 To: cgroups@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
@@ -53,9 +53,9 @@ Cc: Alex Shi <alex.shi@linux.alibaba.com>,
 	Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Yafang Shao <laoar.shao@gmail.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [PATCH 13/14] lru/vmscan: using per lruvec lru_lock in get_scan_count
-Date: Tue, 20 Aug 2019 17:48:36 +0800
-Message-Id: <1566294517-86418-14-git-send-email-alex.shi@linux.alibaba.com>
+Subject: [PATCH 11/14] lru/vmscan: using per lruvec lock in lists shrinking.
+Date: Tue, 20 Aug 2019 17:48:34 +0800
+Message-Id: <1566294517-86418-12-git-send-email-alex.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
 References: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
@@ -65,7 +65,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The lruvec is passed as parameter, so no lruvec->pgdat syncing needed.
+The involoving functions includes isolate_lru_page, move_pages_to_lru
+and shrink_in/active_list. also remove unnecessary pgdat.
+
+And remove unnecessary pgdat accordingly.
 
 Signed-off-by: Alex Shi <alex.shi@linux.alibaba.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -80,31 +83,141 @@ Cc: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
- mm/vmscan.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/vmscan.c | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 123447b9beda..ea5c2f3f2567 100644
+index c7a228525df0..defc2c4778eb 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2372,7 +2372,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES) +
- 		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES);
+@@ -1805,8 +1805,9 @@ int isolate_lru_page(struct page *page)
+ 		pg_data_t *pgdat = page_pgdat(page);
+ 		struct lruvec *lruvec;
+ 
+-		spin_lock_irq(&pgdat->lruvec.lru_lock);
+ 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
++		spin_lock_irq(&lruvec->lru_lock);
++		sync_lruvec_pgdat(lruvec, pgdat);
+ 		if (PageLRU(page)) {
+ 			int lru = page_lru(page);
+ 			get_page(page);
+@@ -1814,7 +1815,7 @@ int isolate_lru_page(struct page *page)
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 			ret = 0;
+ 		}
+-		spin_unlock_irq(&pgdat->lruvec.lru_lock);
++		spin_unlock_irq(&lruvec->lru_lock);
+ 	}
+ 	return ret;
+ }
+@@ -1879,7 +1880,6 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
+ 						     struct list_head *list)
+ {
+-	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+ 	int nr_pages, nr_moved = 0;
+ 	LIST_HEAD(pages_to_free);
+ 	struct page *page;
+@@ -1890,12 +1890,11 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
+ 		VM_BUG_ON_PAGE(PageLRU(page), page);
+ 		if (unlikely(!page_evictable(page))) {
+ 			list_del(&page->lru);
+-			spin_unlock_irq(&pgdat->lruvec.lru_lock);
++			spin_unlock_irq(&lruvec->lru_lock);
+ 			putback_lru_page(page);
+-			spin_lock_irq(&pgdat->lruvec.lru_lock);
++			spin_lock_irq(&lruvec->lru_lock);
+ 			continue;
+ 		}
+-		lruvec = mem_cgroup_page_lruvec(page, pgdat);
+ 
+ 		SetPageLRU(page);
+ 		lru = page_lru(page);
+@@ -1910,10 +1909,10 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+-				spin_unlock_irq(&pgdat->lruvec.lru_lock);
++				spin_unlock_irq(&lruvec->lru_lock);
+ 				mem_cgroup_uncharge(page);
+ 				(*get_compound_page_dtor(page))(page);
+-				spin_lock_irq(&pgdat->lruvec.lru_lock);
++				spin_lock_irq(&lruvec->lru_lock);
+ 			} else
+ 				list_add(&page->lru, &pages_to_free);
+ 		} else {
+@@ -1976,7 +1975,7 @@ static int current_may_throttle(void)
+ 
+ 	lru_add_drain();
  
 -	spin_lock_irq(&pgdat->lruvec.lru_lock);
 +	spin_lock_irq(&lruvec->lru_lock);
- 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
- 		reclaim_stat->recent_scanned[0] /= 2;
- 		reclaim_stat->recent_rotated[0] /= 2;
-@@ -2393,7 +2393,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
  
- 	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
- 	fp /= reclaim_stat->recent_rotated[1] + 1;
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
+ 				     &nr_scanned, sc, lru);
+@@ -1988,7 +1987,7 @@ static int current_may_throttle(void)
+ 	if (global_reclaim(sc))
+ 		__count_vm_events(item, nr_scanned);
+ 	__count_memcg_events(lruvec_memcg(lruvec), item, nr_scanned);
 -	spin_unlock_irq(&pgdat->lruvec.lru_lock);
 +	spin_unlock_irq(&lruvec->lru_lock);
  
- 	fraction[0] = ap;
- 	fraction[1] = fp;
+ 	if (nr_taken == 0)
+ 		return 0;
+@@ -1996,7 +1995,7 @@ static int current_may_throttle(void)
+ 	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, 0,
+ 				&stat, false);
+ 
+-	spin_lock_irq(&pgdat->lruvec.lru_lock);
++	spin_lock_irq(&lruvec->lru_lock);
+ 
+ 	item = current_is_kswapd() ? PGSTEAL_KSWAPD : PGSTEAL_DIRECT;
+ 	if (global_reclaim(sc))
+@@ -2009,7 +2008,7 @@ static int current_may_throttle(void)
+ 
+ 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
+ 
+-	spin_unlock_irq(&pgdat->lruvec.lru_lock);
++	spin_unlock_irq(&lruvec->lru_lock);
+ 
+ 	mem_cgroup_uncharge_list(&page_list);
+ 	free_unref_page_list(&page_list);
+@@ -2062,7 +2061,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 
+ 	lru_add_drain();
+ 
+-	spin_lock_irq(&pgdat->lruvec.lru_lock);
++	spin_lock_irq(&lruvec->lru_lock);
+ 
+ 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &l_hold,
+ 				     &nr_scanned, sc, lru);
+@@ -2073,7 +2072,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	__count_vm_events(PGREFILL, nr_scanned);
+ 	__count_memcg_events(lruvec_memcg(lruvec), PGREFILL, nr_scanned);
+ 
+-	spin_unlock_irq(&pgdat->lruvec.lru_lock);
++	spin_unlock_irq(&lruvec->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+@@ -2119,7 +2118,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	/*
+ 	 * Move pages back to the lru list.
+ 	 */
+-	spin_lock_irq(&pgdat->lruvec.lru_lock);
++	spin_lock_irq(&lruvec->lru_lock);
+ 	/*
+ 	 * Count referenced pages from currently used mappings as rotated,
+ 	 * even though only some of them are actually re-activated.  This
+@@ -2137,7 +2136,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	__count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE, nr_deactivate);
+ 
+ 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
+-	spin_unlock_irq(&pgdat->lruvec.lru_lock);
++	spin_unlock_irq(&lruvec->lru_lock);
+ 
+ 	mem_cgroup_uncharge_list(&l_active);
+ 	free_unref_page_list(&l_active);
 -- 
 1.8.3.1
 
