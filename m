@@ -2,131 +2,152 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03888C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:56:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD2A5C3A59D
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 17:14:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C2D9B2087E
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:56:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2D9B2087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id 91657214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 17:14:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1yXHm0Cw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91657214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BB0C6B0005; Tue, 20 Aug 2019 12:56:33 -0400 (EDT)
+	id 11B016B0005; Tue, 20 Aug 2019 13:14:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 544236B0006; Tue, 20 Aug 2019 12:56:33 -0400 (EDT)
+	id 0A4A16B0006; Tue, 20 Aug 2019 13:14:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4330E6B0007; Tue, 20 Aug 2019 12:56:33 -0400 (EDT)
+	id EAD696B0007; Tue, 20 Aug 2019 13:14:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0109.hostedemail.com [216.40.44.109])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE6B6B0005
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:56:33 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id BC28445BB
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:56:32 +0000 (UTC)
-X-FDA: 75843409824.07.wave20_1bf89a05b1f1e
-X-HE-Tag: wave20_1bf89a05b1f1e
-X-Filterd-Recvd-Size: 3854
-Received: from shelob.surriel.com (shelob.surriel.com [96.67.55.147])
-	by imf11.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:56:32 +0000 (UTC)
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.92)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1i07Qi-0004hb-Uw; Tue, 20 Aug 2019 12:56:21 -0400
-Message-ID: <5a765e1bda8ec399a29dbdb195d15faa79c44273.camel@surriel.com>
-Subject: Re: [PATCH v2] x86/mm/pti: in pti_clone_pgtable() don't increase
- addr by PUD_SIZE
-From: Rik van Riel <riel@surriel.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra
- <peterz@infradead.org>,  "linux-kernel@vger.kernel.org"
- <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
- Kernel Team <Kernel-team@fb.com>, "stable@vger.kernel.org"
- <stable@vger.kernel.org>, Joerg Roedel <jroedel@suse.de>, Dave Hansen
- <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>
-Date: Tue, 20 Aug 2019 12:56:20 -0400
-In-Reply-To: <9A7CA4D3-76FB-479B-AC7A-FC3FD03B24DF@fb.com>
-References: <20190820075128.2912224-1-songliubraving@fb.com>
-	 <20190820100055.GI2332@hirez.programming.kicks-ass.net>
-	 <alpine.DEB.2.21.1908201315450.2223@nanos.tec.linutronix.de>
-	 <44EA504D-2388-49EF-A807-B9712903B146@fb.com>
-	 <d887e9e228440097b666bcd316aabc9827a4b01e.camel@fb.com>
-	 <9A7CA4D3-76FB-479B-AC7A-FC3FD03B24DF@fb.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-pEXkl0lR3wnHbNuZx5FO"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+Received: from forelay.hostedemail.com (smtprelay0031.hostedemail.com [216.40.44.31])
+	by kanga.kvack.org (Postfix) with ESMTP id C3FB36B0005
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:14:31 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 37FA3181AC9BA
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 17:14:31 +0000 (UTC)
+X-FDA: 75843455142.20.ring20_275ffd1af5b10
+X-HE-Tag: ring20_275ffd1af5b10
+X-Filterd-Recvd-Size: 4890
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 17:14:30 +0000 (UTC)
+Received: from mail-qt1-f171.google.com (mail-qt1-f171.google.com [209.85.160.171])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2BE22230F2
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 17:14:29 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1566321269;
+	bh=WGX3Gxv4dvM3DO7D4Aw57VijAg2RzIOgDn+ZtwXtLuA=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=1yXHm0Cw2txK8FKtm1lYL+ceKrY7DkUGFh280BlxT1m8fd1yJvGoIVx0XuwOhxQFl
+	 3vnSgFW8lKZ5tU+8Sczz4E2yLgkfj7rC+uZiW9anhIz5JhqNZ2QuOhbB3Db0e6C+Ey
+	 r3/UkDEl7xBODkwZSZVqMzmvS/NH9009SEaBt8yY=
+Received: by mail-qt1-f171.google.com with SMTP id t12so6892193qtp.9
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 10:14:29 -0700 (PDT)
+X-Gm-Message-State: APjAAAUNW2Xx0sLsyAZ4C57dLQjetZfN1r6GmRbyz6rLr38WqAb+VIUv
+	uosl2ewm5QMuVGNSlzQxGjutyNNCriwqZLgMvw==
+X-Google-Smtp-Source: APXvYqyY9ZsBecGQ3Xs5y7LG3j9BHwHgJiDVJDcbMsgosFCxqVWpdQe5Z5wA8XSvdYEItWSHAFvEDYIGvIF5NjfBNsQ=
+X-Received: by 2002:ac8:44c4:: with SMTP id b4mr26942067qto.224.1566321268306;
+ Tue, 20 Aug 2019 10:14:28 -0700 (PDT)
 MIME-Version: 1.0
+References: <20190820145821.27214-1-nsaenzjulienne@suse.de> <20190820145821.27214-5-nsaenzjulienne@suse.de>
+In-Reply-To: <20190820145821.27214-5-nsaenzjulienne@suse.de>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Tue, 20 Aug 2019 12:14:16 -0500
+X-Gmail-Original-Message-ID: <CAL_Jsq+Nr88Nvd_ZA8eJGm4xLwssv7CnDJLsnZyFqiM=EQWYxg@mail.gmail.com>
+Message-ID: <CAL_Jsq+Nr88Nvd_ZA8eJGm4xLwssv7CnDJLsnZyFqiM=EQWYxg@mail.gmail.com>
+Subject: Re: [PATCH v2 04/11] of/fdt: add early_init_dt_get_dma_zone_size()
+To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, 
+	Stefan Wahren <wahrenst@gmx.net>, Marc Zyngier <marc.zyngier@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, 
+	"moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, devicetree@vger.kernel.org, 
+	"open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, Linux IOMMU <iommu@lists.linux-foundation.org>, 
+	linux-mm@kvack.org, linux-riscv@lists.infradead.org, 
+	Frank Rowand <frowand.list@gmail.com>, phill@raspberryi.org, 
+	Florian Fainelli <f.fainelli@gmail.com>, Will Deacon <will@kernel.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Anholt <eric@anholt.net>, 
+	Matthias Brugger <mbrugger@suse.com>, 
+	"moderated list:BROADCOM BCM2835 ARM ARCHITECTURE" <linux-rpi-kernel@lists.infradead.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Aug 20, 2019 at 9:58 AM Nicolas Saenz Julienne
+<nsaenzjulienne@suse.de> wrote:
+>
+> Some devices might have weird DMA addressing limitations that only apply
+> to a subset of the available peripherals. For example the Raspberry Pi 4
+> has two interconnects, one able to address the whole lower 4G memory
+> area and another one limited to the lower 1G.
+>
+> Being an uncommon situation we simply hardcode the device wide DMA
+> addressable memory size conditionally to the machine compatible name and
+> set 'dma_zone_size' accordingly.
+>
+> Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+>
+> ---
+>
+> Changes in v2:
+> - New approach to getting dma_zone_size, instead of parsing the dts we
+>   hardcode it conditionally to the machine compatible name.
+>
+>  drivers/of/fdt.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+>
+> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+> index 06ffbd39d9af..f756e8c05a77 100644
+> --- a/drivers/of/fdt.c
+> +++ b/drivers/of/fdt.c
+> @@ -27,6 +27,7 @@
+>
+>  #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
+>  #include <asm/page.h>
+> +#include <asm/dma.h>   /* for dma_zone_size */
+>
+>  #include "of_private.h"
+>
+> @@ -1195,6 +1196,12 @@ void __init early_init_dt_scan_nodes(void)
+>         of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+>  }
+>
+> +void __init early_init_dt_get_dma_zone_size(void)
 
---=-pEXkl0lR3wnHbNuZx5FO
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+static
 
-On Tue, 2019-08-20 at 10:00 -0400, Song Liu wrote:
->=20
-> From 9ae74cff4faf4710a11cb8da4c4a3f3404bd9fdd Mon Sep 17 00:00:00
-> 2001
-> From: Song Liu <songliubraving@fb.com>
-> Date: Mon, 19 Aug 2019 23:59:47 -0700
-> Subject: [PATCH] x86/mm/pti: in pti_clone_pgtable(), increase addr
-> properly
->=20
-> Before 32-bit support, pti_clone_pmds() always adds PMD_SIZE to addr.
-> This behavior changes after the 32-bit support:  pti_clone_pgtable()
-> increases addr by PUD_SIZE for pud_none(*pud) case, and increases
-> addr by
-> PMD_SIZE for pmd_none(*pmd) case. However, this is not accurate
-> because
-> addr may not be PUD_SIZE/PMD_SIZE aligned.
->=20
-> Fix this issue by properly rounding up addr to next PUD_SIZE/PMD_SIZE
-> in these two cases.
->=20
-> Cc: stable@vger.kernel.org # v4.19+
-> Fixes: 16a3fe634f6a ("x86/mm/pti: Clone kernel-image on PTE level for
-> 32 bit")
-> Signed-off-by: Song Liu <songliubraving@fb.com>
-> Cc: Joerg Roedel <jroedel@suse.de>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
+With that,
 
-This looks like it should do the trick!
+Reviewed-by: Rob Herring <robh@kernel.org>
 
-Reviewed-by: Rik van Riel <riel@surriel.com>
-
---=20
-All Rights Reversed.
-
---=-pEXkl0lR3wnHbNuZx5FO
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl1cJjQACgkQznnekoTE
-3oP2CQf5AbKPnlETNpt54qUIOxEF1nXrAYDVtGeSK8Kss4VQHeyuezQYzNd2Yb64
-ESHIJFxoeBzfElljfEsvT3BvYYcFtlyS87iND3pr9WWnQ5nFM/kASzp0fGmBzoTB
-diU5pD5yg8fBWbXMAwSzDA57CCogWInsgI6UVjli37Y20F+LDS/duzlslae/sxWB
-+hvpy43ewEgbQj/3hRrO7S56ssea8wMkwQrVVRpXzT6bbVGMmt8vRfluDn/hG8Cu
-Prrk9i+Y2OuCpBiZ//0WAHLhyG74wh6i4iLzt3bqO9vWlB3LkD+C8MCnZBC22Ovw
-9umcCc9SszqbVBoDM4zCCAmQ9Ru0ig==
-=Wneu
------END PGP SIGNATURE-----
-
---=-pEXkl0lR3wnHbNuZx5FO--
-
+> +{
+> +       if (of_fdt_machine_is_compatible("brcm,bcm2711"))
+> +               dma_zone_size = 0x3c000000;
+> +}
+> +
+>  bool __init early_init_dt_scan(void *params)
+>  {
+>         bool status;
+> @@ -1204,6 +1211,7 @@ bool __init early_init_dt_scan(void *params)
+>                 return false;
+>
+>         early_init_dt_scan_nodes();
+> +       early_init_dt_get_dma_zone_size();
+>         return true;
+>  }
+>
+> --
+> 2.22.0
+>
 
