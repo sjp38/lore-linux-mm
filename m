@@ -2,160 +2,141 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CF2EC3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 08:34:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D3A1C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 08:44:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C6BC9239BA
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 08:34:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6BC9239BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 1A3F623777
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 08:44:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=bitdefender.onmicrosoft.com header.i=@bitdefender.onmicrosoft.com header.b="BdOmKrN6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A3F623777
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 670A96B0007; Tue, 20 Aug 2019 04:34:16 -0400 (EDT)
+	id AD5916B0007; Tue, 20 Aug 2019 04:44:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 621B86B0008; Tue, 20 Aug 2019 04:34:16 -0400 (EDT)
+	id A88AE6B0008; Tue, 20 Aug 2019 04:44:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 537F56B000A; Tue, 20 Aug 2019 04:34:16 -0400 (EDT)
+	id 975386B000A; Tue, 20 Aug 2019 04:44:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E8366B0007
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 04:34:16 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D786D8248AB3
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 08:34:15 +0000 (UTC)
-X-FDA: 75842144070.05.horn64_7ef5f8ee3213
-X-HE-Tag: horn64_7ef5f8ee3213
-X-Filterd-Recvd-Size: 5657
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 08:34:14 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1CFA1ABBE;
-	Tue, 20 Aug 2019 08:34:13 +0000 (UTC)
-Date: Tue, 20 Aug 2019 10:34:12 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Yafang Shao <shaoyafang@didiglobal.com>,
-	Roman Gushchin <guro@fb.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm, memcg: skip killing processes under memcg
- protection at first scan
-Message-ID: <20190820083412.GK3111@dhcp22.suse.cz>
-References: <1566177486-2649-1-git-send-email-laoar.shao@gmail.com>
- <20190819211200.GA24956@tower.dhcp.thefacebook.com>
- <CALOAHbBXoP9aypU+BzAX8cLAdYKrZ27X5JQxXBTO_oF7A4EAuA@mail.gmail.com>
- <20190820064018.GE3111@dhcp22.suse.cz>
- <CALOAHbA_ouCeX2HacHHpNwTY59+3tc9rOHFsz7ZgCkjXF-U72A@mail.gmail.com>
- <20190820072703.GF3111@dhcp22.suse.cz>
- <CALOAHbC+ByFV6tPOnkmCM9FjxP3wWnQNCWUDO6e6RaeS=Mx8_Q@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0239.hostedemail.com [216.40.44.239])
+	by kanga.kvack.org (Postfix) with ESMTP id 771B36B0007
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 04:44:27 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 21E03180AD806
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 08:44:27 +0000 (UTC)
+X-FDA: 75842169774.30.seat92_60f482634f224
+X-HE-Tag: seat92_60f482634f224
+X-Filterd-Recvd-Size: 7161
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40093.outbound.protection.outlook.com [40.107.4.93])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 08:44:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=bitdefender.onmicrosoft.com; s=selector1-bitdefender-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=nhgN+rjcQa5MO/IoHd4eCTIThqXq60SxS3NabMHoj2o=;
+ b=BdOmKrN6ffq5XMtc6eP8IEhxmYm5tzXHtWnTBVlV+kVgulHsfp94N4ggtwrkrtu5vJMYVObaAdgUViz2an7zAkD3RNTNJQclkCaTW02x4W2INP829efIyKieK8uB9Q5PbVOfidd1a2wwFd7d4nkBgw/WGmAZF+SshWOqB8xFks0=
+Received: from HE1PR0201MB2060.eurprd02.prod.outlook.com (10.168.30.152) by
+ HE1PR0201MB2043.eurprd02.prod.outlook.com (10.167.187.149) with Microsoft
+ SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1813.11; Tue, 20 Aug 2019 08:44:22 +0000
+Received: from HE1PR0201MB2060.eurprd02.prod.outlook.com
+ ([fe80::11ea:ba34:6441:c332]) by HE1PR0201MB2060.eurprd02.prod.outlook.com
+ ([fe80::11ea:ba34:6441:c332%8]) with mapi id 15.20.2178.018; Tue, 20 Aug 2019
+ 08:44:22 +0000
+From: Nicusor CITU <ncitu@bitdefender.com>
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+CC: =?utf-8?B?QWRhbGJlcnQgTGF6xINy?= <alazar@bitdefender.com>,
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, Paolo Bonzini
+	<pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Tamas K Lengyel
+	<tamas@tklengyel.com>, Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	=?utf-8?B?U2FtdWVsIExhdXLDqW4=?= <samuel.lauren@iki.fi>, Patrick Colp
+	<patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>, Stefan
+ Hajnoczi <stefanha@redhat.com>, Weijiang Yang <weijiang.yang@intel.com>,
+	"Zhang@vger.kernel.org" <Zhang@vger.kernel.org>, Yu C <yu.c.zhang@intel.com>,
+	=?utf-8?B?TWloYWkgRG9uyJt1?= <mdontu@bitdefender.com>
+Subject: Re: [RFC PATCH v6 55/92] kvm: introspection: add KVMI_CONTROL_MSR and
+ KVMI_EVENT_MSR
+Thread-Topic: [RFC PATCH v6 55/92] kvm: introspection: add KVMI_CONTROL_MSR
+ and KVMI_EVENT_MSR
+Thread-Index: AQHVTs3TkKC1NudCY0uglRHlOs1VpKb4BZqAgAPEYICABxKDAIAA7M6A
+Date: Tue, 20 Aug 2019 08:44:21 +0000
+Message-ID: <6854bfcc2bff3ffdaadad8708bd186a071ad682c.camel@bitdefender.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+	 <20190809160047.8319-56-alazar@bitdefender.com>
+	 <20190812210501.GD1437@linux.intel.com>
+	 <f9e94e9649f072911cc20129c2b633747d5c1df5.camel@bitdefender.com>
+	 <20190819183643.GB1916@linux.intel.com>
+In-Reply-To: <20190819183643.GB1916@linux.intel.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: LO2P265CA0089.GBRP265.PROD.OUTLOOK.COM
+ (2603:10a6:600:8::29) To HE1PR0201MB2060.eurprd02.prod.outlook.com
+ (2603:10a6:3:20::24)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=ncitu@bitdefender.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-mailer: Evolution 3.28.5-0ubuntu0.18.04.1 
+x-originating-ip: [91.199.104.6]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 4d8428be-f367-4406-6265-08d7254a98aa
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:HE1PR0201MB2043;
+x-ms-traffictypediagnostic: HE1PR0201MB2043:|HE1PR0201MB2043:
+x-microsoft-antispam-prvs:
+ <HE1PR0201MB20435DE714A989DBDF83E33DB0AB0@HE1PR0201MB2043.eurprd02.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 013568035E
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(366004)(136003)(376002)(396003)(346002)(39860400002)(189003)(199004)(6512007)(14454004)(6486002)(446003)(66446008)(36756003)(229853002)(186003)(4326008)(76176011)(66476007)(316002)(86362001)(11346002)(50226002)(305945005)(64756008)(2616005)(3846002)(6116002)(6246003)(52116002)(81166006)(6436002)(66556008)(256004)(2906002)(66946007)(102836004)(66066001)(7416002)(26005)(71200400001)(508600001)(7736002)(6916009)(4744005)(81156014)(71190400001)(8676002)(486006)(107886003)(54906003)(5660300002)(25786009)(99286004)(476003)(386003)(8936002)(53936002)(118296001)(6506007)(99106002);DIR:OUT;SFP:1102;SCL:1;SRVR:HE1PR0201MB2043;H:HE1PR0201MB2060.eurprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: bitdefender.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ j4CP5WwcNtaYfY68GULVLPDYwy1mv/cD8SqrPvRAfUy7uEXZg/QQfYLlfGfUeUbdWzBh8u++J++SEUO1dwC629JxQ4E3pnEbpxgEAqxsY9xWXSlz/QM4QliF/zjm47lRywD8Kakq4pz/QaODRaHmPhtqH43VTN9zpiNI5BoQT6oTr1hOG+ARZOObjTyw0ugzrR0ik5xO21DhYcJxVHRgZ4gF9Vmcy4slvAWlm042HaaffPX+IpR/BSsghv7h4OMRFgN0ef/Yfg9CRLq9C6zkeEhjMwykA8wpbwL9d8i35XbX3woYTh8J5nZZnEpr2fZdUShbNOkVaYtIU7vSYa1Kv8xg97/BtJIGzEyW2lpu0Q7zCx+Y/nlffYzsPSK691kxHi0DgbIKmyzzI7UTx9/2QMhJfXxNrZmm3Y+0vW0DKgg=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <216151A4C95C78438386E0E552F17071@eurprd02.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALOAHbC+ByFV6tPOnkmCM9FjxP3wWnQNCWUDO6e6RaeS=Mx8_Q@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: bitdefender.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 4d8428be-f367-4406-6265-08d7254a98aa
+X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Aug 2019 08:44:22.0153
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 487baf29-f1da-469a-9221-243f830c36f3
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: HE1PR0201MB2043
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 20-08-19 15:49:20, Yafang Shao wrote:
-> On Tue, Aug 20, 2019 at 3:27 PM Michal Hocko <mhocko@suse.com> wrote:
-> >
-> > On Tue 20-08-19 15:15:54, Yafang Shao wrote:
-> > > On Tue, Aug 20, 2019 at 2:40 PM Michal Hocko <mhocko@suse.com> wrote:
-> > > >
-> > > > On Tue 20-08-19 09:16:01, Yafang Shao wrote:
-> > > > > On Tue, Aug 20, 2019 at 5:12 AM Roman Gushchin <guro@fb.com> wrote:
-> > > > > >
-> > > > > > On Sun, Aug 18, 2019 at 09:18:06PM -0400, Yafang Shao wrote:
-> > > > > > > In the current memory.min design, the system is going to do OOM instead
-> > > > > > > of reclaiming the reclaimable pages protected by memory.min if the
-> > > > > > > system is lack of free memory. While under this condition, the OOM
-> > > > > > > killer may kill the processes in the memcg protected by memory.min.
-> > > > > > > This behavior is very weird.
-> > > > > > > In order to make it more reasonable, I make some changes in the OOM
-> > > > > > > killer. In this patch, the OOM killer will do two-round scan. It will
-> > > > > > > skip the processes under memcg protection at the first scan, and if it
-> > > > > > > can't kill any processes it will rescan all the processes.
-> > > > > > >
-> > > > > > > Regarding the overhead this change may takes, I don't think it will be a
-> > > > > > > problem because this only happens under system  memory pressure and
-> > > > > > > the OOM killer can't find any proper victims which are not under memcg
-> > > > > > > protection.
-> > > > > >
-> > > > > > Hi Yafang!
-> > > > > >
-> > > > > > The idea makes sense at the first glance, but actually I'm worried
-> > > > > > about mixing per-memcg and per-process characteristics.
-> > > > > > Actually, it raises many questions:
-> > > > > > 1) if we do respect memory.min, why not memory.low too?
-> > > > >
-> > > > > memroy.low is different with memory.min, as the OOM killer will not be
-> > > > > invoked when it is reached.
-> > > >
-> > > > Responded in other email thread (please do not post two versions of the
-> > > > patch on the same day because it makes conversation too scattered and
-> > > > confusing).
-> > > >
-> > > (This is an issue about time zone :-) )
-> >
-> > Normally we wait few days until feedback on the particular patch is
-> > settled before a new version is posted.
-> >
-> > > > Think of min limit protection as some sort of a more inteligent mlock.
-> > >
-> > > Per my perspective, it is a less inteligent mlock, because what it
-> > > protected may be a garbage memory.
-> > > As I said before, what it protected is the memroy usage, rather than a
-> > > specified file memory or anon memory or somethin else.
-> > >
-> > > The advantage of it is easy to use.
-> > >
-> > > > It protects from the regular memory reclaim and it can lead to the OOM
-> > > > situation (be it global or memcg) but by no means it doesn't prevent
-> > > > from the system to kill the workload if there is a need. Those two
-> > > > decisions are simply orthogonal IMHO. The later is a an emergency action
-> > > > while the former is to help guanratee a runtime behavior of the workload.
-> > > >
-> > >
-> > > If it can handle OOM memory reclaim, it will be more inteligent.
-> >
-> > Can we get back to an actual usecase please?
-> >
-> 
-> No real usecase.
-> What we concerned is if it can lead to more OOMs but can't protect
-> itself in OOM then this behavior seems a little wierd.
-
-This is a natural side effect of protecting memory from the reclaim.
-Read mlock kind of protection. Weird? I dunno. Unexpected, no!
-
-> Setting oom_score_adj is another choice,  but there's no memcg-level
-> oom_score_adj.
-> memory.min is memcg-level, while oom_score_adj is process-level, that
-> is wierd as well.
-
-OOM, is per process operation. Sure we have that group kill option but
-then still the selection is per-process.
-
-Without any clear usecase in sight I do not think it makes sense to
-pursue this further.
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+PiA+ID4gPiArc3RhdGljIHZvaWQgdm14X21zcl9pbnRlcmNlcHQoc3RydWN0IGt2bV92Y3B1ICp2
+Y3B1LCB1bnNpZ25lZA0KPiA+ID4gPiBpbnQNCj4gPiA+ID4gbXNyLA0KPiA+ID4gPiArCQkJICAg
+ICAgYm9vbCBlbmFibGUpDQo+ID4gPiA+ICt7DQo+ID4gPiA+ICsJc3RydWN0IHZjcHVfdm14ICp2
+bXggPSB0b192bXgodmNwdSk7DQo+ID4gPiA+ICsJdW5zaWduZWQgbG9uZyAqbXNyX2JpdG1hcCA9
+IHZteC0+dm1jczAxLm1zcl9iaXRtYXA7DQo+IA0KPiBJcyBLVk1JIGludGVuZGVkIHRvIHBsYXkg
+bmljZSB3aXRoIG5lc3RlZA0KPiB2aXJ0dWFsaXphdGlvbj8gIFVuY29uZGl0aW9uYWxseQ0KPiB1
+cGRhdGluZyB2bWNzMDEubXNyX2JpdG1hcCBpcyBjb3JyZWN0IHJlZ2FyZGxlc3Mgb2Ygd2hldGhl
+ciB0aGUgdkNQVQ0KPiBpcyBpbg0KPiBMMSBvciBMMiwgYnV0IGlmIHRoZSB2Q1BVIGlzIGN1cnJl
+bnRseSBpbiBMMiB0aGVuIHRoZSBlZmZlY3RpdmUNCj4gYml0bWFwLA0KPiBpLmUuIHZtY3MwMi5t
+c3JfYml0bWFwLCB3b24ndCBiZSB1cGRhdGVkIHVudGlsIHRoZSBuZXh0IG5lc3RlZCBWTS0NCj4g
+RW50ZXIuDQoNCk91ciBpbml0aWFsIHByb29mIG9mIGNvbmNlcHQgd2FzIHJ1bm5pbmcgd2l0aCBz
+dWNjZXNzIGluIG5lc3RlZA0KdmlydHVhbGl6YXRpb24uIEJ1dCBtb3N0IG9mIG91ciB0ZXN0cyB3
+ZXJlIGRvbmUgb24gYmFyZS1tZXRhbC4NCldlIGRvIGhvd2V2ZXIgaW50ZW5kIHRvIG1ha2UgaXQg
+ZnVsbHkgZnVuY3Rpb25pbmcgb24gbmVzdGVkIHN5c3RlbXMNCnRvby4NCg0KRXZlbiB0aG91Z2h0
+LCBmcm9tIEtWTUkgcG9pbnQgb2YgdmlldywgdGhlIE1TUiBpbnRlcmNlcHRpb24NCmNvbmZpZ3Vy
+YXRpb24gd291bGQgYmUganVzdCBmaW5lIGlmIGl0IGdldHMgdXBkYXRlZCBiZWZvcmUgdGhlIHZj
+cHUgaXMNCmFjdHVhbGx5IGVudGVyaW5nIHRvIG5lc3RlZCBWTS4NCg0K
 
