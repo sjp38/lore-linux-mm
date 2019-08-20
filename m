@@ -2,161 +2,184 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A77EC3A5A0
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:21:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B68BC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:28:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 451D12342E
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:21:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 451D12342E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B25E233A2
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:28:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="lZbsZt+/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B25E233A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E69DC6B0007; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
+	id 9F8B96B0007; Mon, 19 Aug 2019 21:28:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1B2C6B0008; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
+	id 9A8596B0008; Mon, 19 Aug 2019 21:28:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D303E6B000A; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
+	id 8E6016B000A; Mon, 19 Aug 2019 21:28:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0173.hostedemail.com [216.40.44.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B16536B0007
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 50759181AC9B6
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:21:34 +0000 (UTC)
-X-FDA: 75841053708.08.crack37_d9d286730a63
-X-HE-Tag: crack37_d9d286730a63
-X-Filterd-Recvd-Size: 5256
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au [211.29.132.249])
-	by imf24.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:21:33 +0000 (UTC)
-Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 484EE362204;
-	Tue, 20 Aug 2019 11:21:31 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hzsov-0001Ym-Er; Tue, 20 Aug 2019 11:20:21 +1000
-Date: Tue, 20 Aug 2019 11:20:21 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
-	linux-ext4@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190820012021.GQ7777@dread.disaster.area>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190814101714.GA26273@quack2.suse.cz>
- <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
- <20190815130558.GF14313@quack2.suse.cz>
- <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
- <20190817022603.GW6129@dread.disaster.area>
- <20190819063412.GA20455@quack2.suse.cz>
- <20190819092409.GM7777@dread.disaster.area>
- <ae64491b-85f8-eeca-14e8-2f09caf8abd2@nvidia.com>
+Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EB3C6B0007
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:28:43 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 0A38C181AC9B4
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:28:43 +0000 (UTC)
+X-FDA: 75841071726.03.slope19_4bff1444c4e3b
+X-HE-Tag: slope19_4bff1444c4e3b
+X-Filterd-Recvd-Size: 6836
+Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:28:42 +0000 (UTC)
+Received: by mail-ot1-f65.google.com with SMTP id o101so3524448ota.8
+        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 18:28:41 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=bpCrccGQA8l7BTcc8eWw96H6pS6MQIOOzUEqeqPrzKU=;
+        b=lZbsZt+/6d5yJAVD8m/RWxrbst/pw6mXm9sXy042kGJEQR9cu7lYZjLiBf6dwe8kdd
+         x073MY1NIze1gOonl8UPKw/Tk5EF1OpFoPQGBl5XHSPHM3FU1oVNtDcJqg89FstWApDZ
+         fcibc6V2UzCg8TM7EzkiczR5EkpxjjjuQLLKPRPQJq02SSicgxK0jB80zPnLkyusZNYE
+         Slg72DBH/UYm3UkD6+qsNs8SVJRkNhZMpJr+9jeb1ioXRRn/PjlKF0yV+Nm9dfMO3FUR
+         eIYBUiC3kTdhj84CPutziyMUYtE+g4LnP3j8x3sgoJ+m+Ui16TzkRosrQJJTFUJX8F4e
+         dqxQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=bpCrccGQA8l7BTcc8eWw96H6pS6MQIOOzUEqeqPrzKU=;
+        b=sleDPoRu6wyrB0LDFgYD9z0YUg3nSYGRVl9d5A+FsxRBxz5imA+JYAmFNpxnhIHGAY
+         FWqdTdoWa0RWfRHUAZfBwnukuPX/kMHi+7l2ZK0MNWNLmsF4UIrzjdTFa6+88VVYeqgA
+         Kn8zr6mwX7fcNmij5rCnE5IUPVceHQ4cqMkmQo6bxLY3u4ANSHrxcXdqtHZN+G2fV4Ay
+         imNe3AVzo3aTZpyM2d2ZsX9RYKvU2fuhIkhyDjeSMe0rhVlap0SpJWq1D993juag+O0k
+         Nbznmdqq9TsYoiAIiQic5C3WFpAS1xVCmHb7/4/SBzX7czbMnO0piHRWZAVilPbt8UlI
+         0qDQ==
+X-Gm-Message-State: APjAAAV/0gr2onZqyaMRb6QZEMXuNxjsF+G8EUFkM902omm4KeMZMKjj
+	hLcehjmqp+qilOwYErBSfmFSVVR5wIpUchgjcKlwFg==
+X-Google-Smtp-Source: APXvYqzHphAQuA/iOiJkSZOef8tOpXSCYjbbUJRyOK3xnSM7rIdYobKMnaOjdx9wCeE+nGliVWangEXZTLwnNbJUfas=
+X-Received: by 2002:a05:6830:458:: with SMTP id d24mr19871635otc.126.1566264521208;
+ Mon, 19 Aug 2019 18:28:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ae64491b-85f8-eeca-14e8-2f09caf8abd2@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
-	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=rV-TrcAmjTgZ-WCYr6sA:9 a=T_cMid2Q6N9PW1nF:21
-	a=ZVtkOv0JeXpnhdDN:21 a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
+References: <20190818090557.17853-1-hch@lst.de> <20190818090557.17853-2-hch@lst.de>
+In-Reply-To: <20190818090557.17853-2-hch@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 19 Aug 2019 18:28:30 -0700
+Message-ID: <CAPcyv4iaNtmvU5e8_8SV9XsmVCfnv8e7_YfMi46LfOF4W155zg@mail.gmail.com>
+Subject: Re: [PATCH 1/4] resource: add a not device managed
+ request_free_mem_region variant
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Bharata B Rao <bharata@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Ira Weiny <ira.weiny@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 05:05:53PM -0700, John Hubbard wrote:
-> On 8/19/19 2:24 AM, Dave Chinner wrote:
-> > On Mon, Aug 19, 2019 at 08:34:12AM +0200, Jan Kara wrote:
-> > > On Sat 17-08-19 12:26:03, Dave Chinner wrote:
-> > > > On Fri, Aug 16, 2019 at 12:05:28PM -0700, Ira Weiny wrote:
-> > > > > On Thu, Aug 15, 2019 at 03:05:58PM +0200, Jan Kara wrote:
-> > > > > > On Wed 14-08-19 11:08:49, Ira Weiny wrote:
-> > > > > > > On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
-> ...
-> > The last close is an interesting case because the __fput() call
-> > actually runs from task_work() context, not where the last reference
-> > is actually dropped. So it already has certain specific interactions
-> > with signals and task exit processing via task_add_work() and
-> > task_work_run().
-> > 
-> > task_add_work() calls set_notify_resume(task), so if nothing else
-> > triggers when returning to userspace we run this path:
-> > 
-> > exit_to_usermode_loop()
-> >    tracehook_notify_resume()
-> >      task_work_run()
-> >        __fput()
-> > 	locks_remove_file()
-> > 	  locks_remove_lease()
-> > 	    ....
-> > 
-> > It's worth noting that locks_remove_lease() does a
-> > percpu_down_read() which means we can already block in this context
-> > removing leases....
-> > 
-> > If there is a signal pending, the task work is run this way (before
-> > the above notify path):
-> > 
-> > exit_to_usermode_loop()
-> >    do_signal()
-> >      get_signal()
-> >        task_work_run()
-> >          __fput()
-> > 
-> > We can detect this case via signal_pending() and even SIGKILL via
-> > fatal_signal_pending(), and so we can decide not to block based on
-> > the fact the process is about to be reaped and so the lease largely
-> > doesn't matter anymore. I'd argue that it is close and we can't
-> > easily back out, so we'd only break the block on a fatal signal....
-> > 
-> > And then, of course, is the call path through do_exit(), which has
-> > the PF_EXITING task flag set:
-> > 
-> > do_exit()
-> >    exit_task_work()
-> >      task_work_run()
-> >        __fput()
-> > 
-> > and so it's easy to avoid blocking in this case, too.
-> 
-> Any thoughts about sockets? I'm looking at net/xdp/xdp_umem.c which pins
-> memory with FOLL_LONGTERM, and wondering how to make that work here.
+On Sun, Aug 18, 2019 at 2:10 AM Christoph Hellwig <hch@lst.de> wrote:
+>
+> Factor out the guts of devm_request_free_mem_region so that we can
+> implement both a device managed and a manually release version as
+> tiny wrappers around it.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> ---
+>  include/linux/ioport.h |  2 ++
+>  kernel/resource.c      | 45 +++++++++++++++++++++++++++++-------------
+>  2 files changed, 33 insertions(+), 14 deletions(-)
+>
+> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> index 5b6a7121c9f0..7bddddfc76d6 100644
+> --- a/include/linux/ioport.h
+> +++ b/include/linux/ioport.h
+> @@ -297,6 +297,8 @@ static inline bool resource_overlaps(struct resource *r1, struct resource *r2)
+>
+>  struct resource *devm_request_free_mem_region(struct device *dev,
+>                 struct resource *base, unsigned long size);
+> +struct resource *request_free_mem_region(struct resource *base,
+> +               unsigned long size, const char *name);
+>
+>  #endif /* __ASSEMBLY__ */
+>  #endif /* _LINUX_IOPORT_H */
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index 7ea4306503c5..74877e9d90ca 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -1644,19 +1644,8 @@ void resource_list_free(struct list_head *head)
+>  EXPORT_SYMBOL(resource_list_free);
+>
+>  #ifdef CONFIG_DEVICE_PRIVATE
+> -/**
+> - * devm_request_free_mem_region - find free region for device private memory
+> - *
+> - * @dev: device struct to bind the resource to
+> - * @size: size in bytes of the device memory to add
+> - * @base: resource tree to look in
+> - *
+> - * This function tries to find an empty range of physical address big enough to
+> - * contain the new resource, so that it can later be hotplugged as ZONE_DEVICE
+> - * memory, which in turn allocates struct pages.
+> - */
+> -struct resource *devm_request_free_mem_region(struct device *dev,
+> -               struct resource *base, unsigned long size)
+> +static struct resource *__request_free_mem_region(struct device *dev,
+> +               struct resource *base, unsigned long size, const char *name)
+>  {
+>         resource_size_t end, addr;
+>         struct resource *res;
+> @@ -1670,7 +1659,10 @@ struct resource *devm_request_free_mem_region(struct device *dev,
+>                                 REGION_DISJOINT)
+>                         continue;
+>
+> -               res = devm_request_mem_region(dev, addr, size, dev_name(dev));
+> +               if (dev)
+> +                       res = devm_request_mem_region(dev, addr, size, name);
+> +               else
+> +                       res = request_mem_region(addr, size, name);
+>                 if (!res)
+>                         return ERR_PTR(-ENOMEM);
+>                 res->desc = IORES_DESC_DEVICE_PRIVATE_MEMORY;
+> @@ -1679,7 +1671,32 @@ struct resource *devm_request_free_mem_region(struct device *dev,
+>
+>         return ERR_PTR(-ERANGE);
+>  }
+> +
+> +/**
+> + * devm_request_free_mem_region - find free region for device private memory
+> + *
+> + * @dev: device struct to bind the resource to
+> + * @size: size in bytes of the device memory to add
+> + * @base: resource tree to look in
+> + *
+> + * This function tries to find an empty range of physical address big enough to
+> + * contain the new resource, so that it can later be hotplugged as ZONE_DEVICE
+> + * memory, which in turn allocates struct pages.
+> + */
+> +struct resource *devm_request_free_mem_region(struct device *dev,
+> +               struct resource *base, unsigned long size)
+> +{
 
-I'm not sure how this interacts with file mappings? I mean, this
-is just pinning anonymous pages for direct data placement into
-userspace, right?
+Previously we would loudly crash if someone passed NULL to
+devm_request_free_mem_region(), but now it will silently work and the
+result will leak. Perhaps this wants a:
 
-Are you asking "what if this pinned memory was a file mapping?",
-or something else?
+if (!dev)
+    return NULL;
 
-> These are close to files, in how they're handled, but just different
-> enough that it's not clear to me how to make work with this system.
+...to head off those mistakes?
 
-I'm guessing that if they are pinning a file backed mapping, they
-are trying to dma direct to the file (zero copy into page cache?)
-and so they'll need to either play by ODP rules or take layout
-leases, too....
+No major heartburn if you keep it as is, you can add:
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
