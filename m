@@ -2,174 +2,149 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FE93C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:22:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B92BBC3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:26:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 002E622CF7
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:22:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 70416214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:26:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Ek37MDAd";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="H4g29hZh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 002E622CF7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="D1ie3cVo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70416214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8567F6B026E; Tue, 20 Aug 2019 09:22:10 -0400 (EDT)
+	id 1EA7C6B026E; Tue, 20 Aug 2019 09:26:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 805FF6B0270; Tue, 20 Aug 2019 09:22:10 -0400 (EDT)
+	id 173A36B026F; Tue, 20 Aug 2019 09:26:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B3F66B026E; Tue, 20 Aug 2019 09:22:10 -0400 (EDT)
+	id 013A06B0270; Tue, 20 Aug 2019 09:26:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0029.hostedemail.com [216.40.44.29])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E946B026E
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:22:10 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id F129B8780
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:22:09 +0000 (UTC)
-X-FDA: 75842869578.30.need54_2fefad5222d01
-X-HE-Tag: need54_2fefad5222d01
-X-Filterd-Recvd-Size: 9494
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:22:09 +0000 (UTC)
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7KDETb0013265;
-	Tue, 20 Aug 2019 06:22:01 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=6jfewJXOsb6CVa6VAgwTaur0quLGoyfct0cD22RgsGI=;
- b=Ek37MDAdLOb2vDRIWUL8SzpRp/1hq44fafaCzGAl+dEoDDPcTTL9h5eDCtQcoqERv6Da
- cw9jajEddgScJRfIl/eHUx7wpiagKfTF/umlgtx883I71juFRIrvB/V+JKhkTnYNT4rR
- QmH1G0xtvf3WRS5N9JC5/Z/W/T0oOoRRgvM= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ugemngqh3-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Tue, 20 Aug 2019 06:22:00 -0700
-Received: from ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) by
- ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 20 Aug 2019 06:21:58 -0700
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.101) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Tue, 20 Aug 2019 06:21:57 -0700
+Received: from forelay.hostedemail.com (smtprelay0186.hostedemail.com [216.40.44.186])
+	by kanga.kvack.org (Postfix) with ESMTP id CCCED6B026E
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:26:33 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7B3C78248AB1
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:26:33 +0000 (UTC)
+X-FDA: 75842880666.22.knee58_56356d612353e
+X-HE-Tag: knee58_56356d612353e
+X-Filterd-Recvd-Size: 7116
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00076.outbound.protection.outlook.com [40.107.0.76])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:26:32 +0000 (UTC)
 ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=dALkxzG1LB6J63EqeoCfygsCyqEtxnIt2rUrAYTJ7cnryoakhHVLPtOrF484ovszZJimUZbWG3pkNcP30gOMdJye/41FtqCev/itxs2sdXo3A28N1xsR4b9LwuujHKnJHzijDG9QKVAHRgArEDyDMKGXPoK+V8HHU7nCWIV5WUeLHznbKK+LFvh/Gl+Chdqmh8U5mefqDlwVIy/DZ/PFRWlQrbMh0gwiUuF/WAfJle1zbH/FmvjLxPBf4fXplxLrNO5lCGRYxHmjpagUTQPllAMYgq+oSCRv8Em3GVrWrdTbo6kuVcStp51Iovp+Ls5H04KHtZJmDe1k9EApqNQedg==
+ b=CAsnVhtmw+MBIxeMXra9Ty1DoNAfr4GJWNBPlUc70Zuau6mPGh+SRp9MYEjapsniysHnxXDLa6BnSZtxtYxaUUk0FWOZB8dJqUhGQW/NrgPQfzeiddbLjFJ3hvlnVjZGgP5Qgei/ClzHcL8H4XraZVEMS9UssfwQK9L9Tgn2yuykVtIhF3iHp/GMxBicprceB6ErMMBsIlxa/O63Lwwr1v+9d4D8ohdaFGG4j6wFLO4CySOBsVFXq8A2MtpnY7/j7oQIG3TzqUn9n3y+zZQr5pfXrONvAk85hr9RIRMDSU0L7D++XgRNZynlYJX7W/KfkilbtTg/v6WYQm5K0yXPZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
  s=arcselector9901;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=6jfewJXOsb6CVa6VAgwTaur0quLGoyfct0cD22RgsGI=;
- b=eUhG2+ymuVT3VTXQUhV4Rt03gBS0UGPQWOG3yf3u2Lv134aegFOYF/KboBiccLGadVrD/AZg8IUcTrrQ5RHzDlxxy24Yr9Vr83I2v2tJrgt0ojJYxcn6/LeurU6wkQ5qo9fUvPyDWhKgd9W217a2Hhlq42zNAX42BBGRtQg0i9vAufGxn4vWl3a3BILBaqhdQFrJSPyi1IMhd1tm2Y+O8/ENxSswuW69Dr1+dxX+Uzks64USE+tWW1SrShAFMEKXMJQOOfSAUCa+YoCtDcTwrWqj9f7ySI9+jWkzIDgOvqegHMaMFAg+/7tEPnzN4yX01RWNOfmi64Ew7fxlStBI9g==
+ bh=yM/yg4H+CNyOZASWU61u/O47Fjy0hAn2A/Rl+Bhb2VI=;
+ b=Sn4Bd/gl+z6aje9jYakqkz6OPsf8RVeWVLHf7Jtpeqm4W7dfdobNrGnXqXhEFx0GeEtJk/9AVmLubfW1YINECAAQZPrSCpDzcnD8wOIRq4xWptrpA81H4Eo68WshjBMdxWTX3JQ4cAwtDo2ByCp5q2xp2b212M2g3LGLf/KFRdhS0kVniCfpHNhI8aAJci6qfXfz0l404kOdlcmk4MEwOL9sRcctZ70evJg24+M37W9tyWwiBVCXvb8rP2kLNTxtyMSEaXuI+WtWFVtdbQHmIHJLcudC54RQtn/TkdyNFEzkXIM8R3C5xD56Hw1JNad1LqiWVTKTdYGvjneTJHjBQA==
 ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
+ smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
+ dkim=pass header.d=mellanox.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=6jfewJXOsb6CVa6VAgwTaur0quLGoyfct0cD22RgsGI=;
- b=H4g29hZho/bzETsbd+VOkP8AfCDvRUYpHwWSvZ+eLUCQ+WPY4TQFbvpOVUE2lTO2iNfG7u3ZzwwSuYF6OVV3ObNZCexAprsh0fEY6gSbRXjvSTSbwWIUfiPlDLgWOZBBoFtrHiV3Rsn0xPAglhVMqC1munDRn7YWUo8XtLWoeyY=
-Received: from BYAPR15MB3479.namprd15.prod.outlook.com (20.179.60.19) by
- BYAPR15MB3494.namprd15.prod.outlook.com (20.179.60.22) with Microsoft SMTP
+ bh=yM/yg4H+CNyOZASWU61u/O47Fjy0hAn2A/Rl+Bhb2VI=;
+ b=D1ie3cVooZY7Xlk16/Y1cI275q0Rm2AzThZv6yZIobLSrX6hxarUkKcscCS5DnfWWuFvfffTiJ8qHt6lBI5QyzQqofB6ul8dVcS0svtwmYAhpXE2JG6+qsxvb9X2B4JVweq2SOHYqTNlEukn0CIvzbOQnwcs/f+hqaYPd5IDLMM=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB4832.eurprd05.prod.outlook.com (20.177.50.217) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Tue, 20 Aug 2019 13:21:54 +0000
-Received: from BYAPR15MB3479.namprd15.prod.outlook.com
- ([fe80::cd53:3e19:5b34:c385]) by BYAPR15MB3479.namprd15.prod.outlook.com
- ([fe80::cd53:3e19:5b34:c385%3]) with mapi id 15.20.2178.018; Tue, 20 Aug 2019
- 13:21:53 +0000
-From: Rik van Riel <riel@fb.com>
-To: Thomas Gleixner <tglx@linutronix.de>,
-        Peter Zijlstra
-	<peterz@infradead.org>
-CC: Song Liu <songliubraving@fb.com>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "stable@vger.kernel.org"
-	<stable@vger.kernel.org>,
-        Joerg Roedel <jroedel@suse.de>,
-        Dave Hansen
-	<dave.hansen@linux.intel.com>,
-        Andy Lutomirski <luto@kernel.org>
-Subject: Re: [PATCH] x86/mm/pti: in pti_clone_pgtable() don't increase addr by
- PUD_SIZE
-Thread-Topic: [PATCH] x86/mm/pti: in pti_clone_pgtable() don't increase addr
- by PUD_SIZE
-Thread-Index: AQHVVywhQLSFzdLXp0en14V4x7p7pacDzfeAgAAVLICAACL1AA==
-Date: Tue, 20 Aug 2019 13:21:53 +0000
-Message-ID: <e9b314d03804024d1de09e1ad83eda9f54964828.camel@fb.com>
-References: <20190820075128.2912224-1-songliubraving@fb.com>
-	 <20190820100055.GI2332@hirez.programming.kicks-ass.net>
-	 <alpine.DEB.2.21.1908201315450.2223@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1908201315450.2223@nanos.tec.linutronix.de>
+ 15.20.2178.16; Tue, 20 Aug 2019 13:26:29 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2178.018; Tue, 20 Aug 2019
+ 13:26:29 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>, Bharata B Rao
+	<bharata@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org"
+	<linux-nvdimm@lists.01.org>
+Subject: Re: add a not device managed memremap_pages v3
+Thread-Topic: add a not device managed memremap_pages v3
+Thread-Index: AQHVVaR5OJ5/f8ILRkKWPl6fjF7s4qcECm4A
+Date: Tue, 20 Aug 2019 13:26:29 +0000
+Message-ID: <20190820132622.GC29225@mellanox.com>
+References: <20190818090557.17853-1-hch@lst.de>
+In-Reply-To: <20190818090557.17853-1-hch@lst.de>
 Accept-Language: en-US
 Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MN2PR01CA0021.prod.exchangelabs.com (2603:10b6:208:10c::34)
- To BYAPR15MB3479.namprd15.prod.outlook.com (2603:10b6:a03:112::19)
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YQXPR01CA0104.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00:41::33) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
 x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c091:480::751a]
+x-originating-ip: [156.34.55.100]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 47b791a3-ef78-49a2-7f47-08d725715e0d
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR15MB3494;
-x-ms-traffictypediagnostic: BYAPR15MB3494:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <BYAPR15MB349473827FA6FA835ADA8550A3AB0@BYAPR15MB3494.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
+x-ms-office365-filtering-correlation-id: 62df5a3f-d7ac-420e-79e5-08d725720241
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:VI1PR05MB4832;
+x-ms-traffictypediagnostic: VI1PR05MB4832:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB4832CDDEDBE44DBFF0962BA4CFAB0@VI1PR05MB4832.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:4941;
 x-forefront-prvs: 013568035E
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(396003)(376002)(136003)(346002)(39860400002)(199004)(189003)(6116002)(71190400001)(86362001)(305945005)(7736002)(446003)(8676002)(71200400001)(6436002)(6486002)(6512007)(256004)(229853002)(66946007)(14454004)(5660300002)(4744005)(66446008)(64756008)(66556008)(66476007)(118296001)(76176011)(25786009)(36756003)(99286004)(8936002)(46003)(2906002)(478600001)(52116002)(476003)(316002)(6506007)(54906003)(11346002)(386003)(81166006)(2616005)(102836004)(81156014)(6246003)(4326008)(53936002)(186003)(110136005)(486006);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3494;H:BYAPR15MB3479.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(366004)(39860400002)(346002)(396003)(136003)(376002)(54534003)(199004)(189003)(86362001)(99286004)(478600001)(25786009)(66066001)(11346002)(102836004)(71200400001)(6506007)(386003)(446003)(476003)(33656002)(4326008)(2616005)(186003)(256004)(6246003)(14454004)(71190400001)(76176011)(14444005)(305945005)(53936002)(486006)(7736002)(1076003)(66946007)(66446008)(66476007)(64756008)(4744005)(26005)(2906002)(52116002)(229853002)(8676002)(6486002)(81166006)(81156014)(66556008)(8936002)(54906003)(36756003)(6916009)(316002)(6436002)(5660300002)(6116002)(3846002)(6512007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4832;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: ffLk1ME0kZvzp/05hdHmDPXAD5igxtGxI1XXuYw1fqXgql8jxZw6A7FlNjoxBfJaeksY46r0ysHM5CgaGi1YhsQB2bg0MbqBVta1mW+Th+ivtnO4P42NadgKlIz1ZIKsha1L3tljLiiN8Y2L0AhSHbwYRcC8nOUT7h+tMKKo2iLBfmo5eKxL9TjhZJeICyNnY4jVw9O/XXVteajXtnoQnzVcDb25ULT67thmvUjpeVMwwbc8ij9qyfEivPmKGrp4Zg2deFND5loifW+7NkwrwAdGR1fKYiEbTJ3J2g6dA+ew1xlIsgtlzhm4Y460X0+cpiHNMyrCzl3mXFbTYuO8XL8DayWopg5qAC/EbYPztlTxS8selUMgZonX10JaVuSTVRA2NfcmXktGQn18bLKzGwveOTld+hxZ9I828DfFpts=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <81246B1FA3B7F041B5E42D4BA46D481E@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: base64
+x-microsoft-antispam-message-info:
+ PLxb9jzB+NrrG3NcZNztvgSRAFSmyWycpiI4wHlMAtqFgCMUD1OS+HAzDc4+jgg3CIkjOutw2wUJWrpv8rRgJ4rmfhH02V/8WnK+XEXB0t3LJNTCvBTVvV28pdRaXXtIG99qLFvzELwyCPWwCiHoCaVRZkCorF80AfG+k2jc62OWrmisIxNn1QR9xMatUZ8E0OWWW/DSkUzSAsHn+DzK8VvtCQ7T/GA4pn7T+2+iNXJBthQtMHNqgDbCHMzsYhg1dMAqHrgRTNbGPt9Sh+pw73Sc2lX/RFyVbUPWglBkUXtUWLkUKOakBQQQJJykE4xDIyfHSdmHj4LRPuLOJtH780Cl0Luk+LXkVm8uZVqm8118Vk8/ZbnM1crzjKqsk4sHuMg4m4Mb93CoihXBqb+3u157BZfrfG/PalgazVAZHew=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <76D56E88DFAB2E4AA34C7F681118F0D2@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 47b791a3-ef78-49a2-7f47-08d725715e0d
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Aug 2019 13:21:53.8467
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 62df5a3f-d7ac-420e-79e5-08d725720241
+X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Aug 2019 13:26:29.2368
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: RMBYQz6HvEyUQri3m9igQKeZot6FBmGiu7RRvd0NvBOGp2KUyt1cM9TCBaGiffet
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3494
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-20_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=780 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908200140
-X-FB-Internal: deliver
+X-MS-Exchange-CrossTenant-userprincipalname: CTIRnFwaRThv874lgZ2tPWFiZjUYNtgSFTy/ezzGVU/Xe4U8k/K8gLoQTLD7AiMzooug1siugFUFIkv7lidfgw==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4832
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVHVlLCAyMDE5LTA4LTIwIGF0IDEzOjE2ICswMjAwLCBUaG9tYXMgR2xlaXhuZXIgd3JvdGU6
-DQo+IE9uIFR1ZSwgMjAgQXVnIDIwMTksIFBldGVyIFppamxzdHJhIHdyb3RlOg0KPiA+IFdoYXQg
-dGhhdCBjb2RlIHdhbnRzIHRvIGRvIGlzIHNraXAgdG8gdGhlIGVuZCBvZiB0aGUgcHVkLCBhDQo+
-ID4gcG1kX3NpemUNCj4gPiBpbmNyZWFzZSB3aWxsIG5vdCBkbyB0aGF0LiBBbmQgcmlnaHQgYmVs
-b3cgdGhpcywgdGhlcmUncyBhIHNlY29uZA0KPiA+IGluc3RhbmNlIG9mIHRoaXMgZXhhY3QgcGF0
-dGVybi4NCj4gPiANCj4gPiBEaWQgSSBnZXQgdGhlIGJlbG93IHJpZ2h0Pw0KPiA+IA0KPiA+IC0t
-LQ0KPiA+IGRpZmYgLS1naXQgYS9hcmNoL3g4Ni9tbS9wdGkuYyBiL2FyY2gveDg2L21tL3B0aS5j
-DQo+ID4gaW5kZXggYjE5NjUyNDc1OWVjLi4zMmIyMGIzY2IyMjcgMTAwNjQ0DQo+ID4gLS0tIGEv
-YXJjaC94ODYvbW0vcHRpLmMNCj4gPiArKysgYi9hcmNoL3g4Ni9tbS9wdGkuYw0KPiA+IEBAIC0z
-MzAsMTIgKzMzMCwxNCBAQCBwdGlfY2xvbmVfcGd0YWJsZSh1bnNpZ25lZCBsb25nIHN0YXJ0LA0K
-PiA+IHVuc2lnbmVkIGxvbmcgZW5kLA0KPiA+ICANCj4gPiAgCQlwdWQgPSBwdWRfb2Zmc2V0KHA0
-ZCwgYWRkcik7DQo+ID4gIAkJaWYgKHB1ZF9ub25lKCpwdWQpKSB7DQo+ID4gKwkJCWFkZHIgJj0g
-UFVEX01BU0s7DQo+ID4gIAkJCWFkZHIgKz0gUFVEX1NJWkU7DQo+IA0KPiAJCQlyb3VuZF91cChh
-ZGRyLCBQVURfU0laRSk7DQo+IA0KPiBwZXJoYXBzPw0KDQpXb24ndCB0aGF0IGtlZXAgcmV0dXJu
-aW5nIHRoZSBzYW1lIGFkZHJlc3MgZm9yZXZlcg0KaWYgYWRkciAmIFBVRF9NQVNLID09IDA/DQoN
-Cg==
+On Sun, Aug 18, 2019 at 11:05:53AM +0200, Christoph Hellwig wrote:
+> Hi Dan and Jason,
+>=20
+> Bharata has been working on secure page management for kvmppc guests,
+> and one I thing I noticed is that he had to fake up a struct device
+> just so that it could be passed to the devm_memremap_pages
+> instrastructure for device private memory.
+>=20
+> This series adds non-device managed versions of the
+> devm_request_free_mem_region and devm_memremap_pages functions for
+> his use case.
+>=20
+> Changes since v2:
+>  - improved changelogs that the the v2 changes into account
+>=20
+> Changes since v1:
+>  - don't overload devm_request_free_mem_region
+>  - export the memremap_pages and munmap_pages as kvmppc can be a module
+
+Looks good, I fixed up the patch with Dan's note and reviewed them as
+well.
+
+Applied to hmm.git as requested
+
+Thanks,
+Jason
 
