@@ -2,183 +2,159 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3FA2C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 06:44:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8457C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:02:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86A972082F
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 06:44:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86A972082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8A39E20C01
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:02:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vz4ljGDC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A39E20C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33F9D6B0007; Tue, 20 Aug 2019 02:44:52 -0400 (EDT)
+	id 1F8FF6B0007; Tue, 20 Aug 2019 03:02:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2EFF06B0008; Tue, 20 Aug 2019 02:44:52 -0400 (EDT)
+	id 183A46B0008; Tue, 20 Aug 2019 03:02:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22D356B000A; Tue, 20 Aug 2019 02:44:52 -0400 (EDT)
+	id 024466B000A; Tue, 20 Aug 2019 03:02:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0186.hostedemail.com [216.40.44.186])
-	by kanga.kvack.org (Postfix) with ESMTP id 032D16B0007
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 02:44:51 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 76D23181AC9AE
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 06:44:51 +0000 (UTC)
-X-FDA: 75841868382.19.sleep17_476d89befad58
-X-HE-Tag: sleep17_476d89befad58
-X-Filterd-Recvd-Size: 6355
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 06:44:50 +0000 (UTC)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7K6gSWQ023524
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 02:44:49 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ug9xb44m0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 02:44:49 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Tue, 20 Aug 2019 07:44:45 +0100
-Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 20 Aug 2019 07:44:41 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7K6iJ0B24052144
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 20 Aug 2019 06:44:20 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 43A364C046;
-	Tue, 20 Aug 2019 06:44:40 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 687304C040;
-	Tue, 20 Aug 2019 06:44:38 +0000 (GMT)
-Received: from in.ibm.com (unknown [9.124.35.129])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 20 Aug 2019 06:44:38 +0000 (GMT)
-Date: Tue, 20 Aug 2019 12:14:36 +0530
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
-        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
-        jglisse@redhat.com, linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
-        cclaudio@linux.ibm.com, hch@lst.de
-Subject: Re: [PATCH v6 1/7] kvmppc: Driver to manage pages of secure guest
-Reply-To: bharata@linux.ibm.com
-References: <20190809084108.30343-1-bharata@linux.ibm.com>
- <20190809084108.30343-2-bharata@linux.ibm.com>
- <1566282135.2166.6.camel@gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0229.hostedemail.com [216.40.44.229])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A846B0007
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 03:02:50 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 6B409181AC9AE
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:02:50 +0000 (UTC)
+X-FDA: 75841913700.15.linen19_52f37fdeb8241
+X-HE-Tag: linen19_52f37fdeb8241
+X-Filterd-Recvd-Size: 5564
+Received: from mail-io1-f68.google.com (mail-io1-f68.google.com [209.85.166.68])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:02:49 +0000 (UTC)
+Received: by mail-io1-f68.google.com with SMTP id p12so7563465iog.5
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 00:02:49 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=pLAKaINj6tTKQE7T3UElIj0dhAaNdogazL5oMORpg6M=;
+        b=Vz4ljGDCnmRTf7TiGKbbVBWe9EvMl9QWd4IqSQfUWXLfzjF2BFqVLiBI2ZiGsG/4MJ
+         Pqve1xoA336LZKOJTy6464+W88uxHdlYWdQZDlzg0mJ6bbDGw+ROEO8Sd/VhlhMeTiFo
+         L7x7RlwQnvQIjcIe9ki6O21cz5SpfOJci3dDQ1+X0PjXQ+/L1r/HhEpv/nzCcwdo14mt
+         dBVVn6+aHq6QzMUFSN0refd6O+frZkt5+Ppoljh5HTtTmDJhXvDjrkCRYkl7p4qarvIx
+         0yh2SniSDtEcCN2lzgJSUWMy33E1fpvhuc4C1f2i5doipDCih/y3eqodiI6TYv7Z+4MI
+         vRGQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=pLAKaINj6tTKQE7T3UElIj0dhAaNdogazL5oMORpg6M=;
+        b=kDsHx/ZGOK5MyluvFGb6CHN90f3Ajq/I1XWbC+/WtDa4sbB/J4TIGevfmMAYFq7kRB
+         x+zuJJQcOaHBzy3rNh78UTxyANKwymlKzfsOdZB3T3kLEagFBDKIC+602X1Vyv0uJAQO
+         ZPeCfLLzltRx8B7uGpb0IgrwLFITjjqUmIoLAW0Z4LEDfFKjT4FM/Q8pojS8EbD951lQ
+         LrCj9ldq6x1XY4OSMiIYa6b9S6Zx9lu+JipqAJCAxHy8zUZodsxltWHsmWM5468XJiRL
+         V7inO0D8twQgWM0+kdXQv5/ir3WmRhEz7NwfF4ymEf7DNHMIND7tHyZtowBmqe+abzqx
+         U6Gg==
+X-Gm-Message-State: APjAAAXgRdRSC++uxhnV1+bcYdwJ/AhCPlWLL/FxuKOnBzDJVfB9t2mL
+	TbsOpJ/lKjkUA9J0CaWIuuQGgdhfuup2VQfmkL8=
+X-Google-Smtp-Source: APXvYqzSQzdkr6B2OjlSUz7mi3rtuhrV5Yz0PhBe0T2TqzX5Ltl8PeLFuDk2r25qViTCJOq4rwyGTNPi9g853jNR2Bg=
+X-Received: by 2002:a02:4047:: with SMTP id n68mr2228411jaa.10.1566284569235;
+ Tue, 20 Aug 2019 00:02:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1566282135.2166.6.camel@gmail.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-TM-AS-GCONF: 00
-x-cbid: 19082006-4275-0000-0000-0000035AFA9A
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19082006-4276-0000-0000-0000386D1951
-Message-Id: <20190820064436.GE8784@in.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-20_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=963 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908200070
+References: <1566102294-14803-1-git-send-email-laoar.shao@gmail.com>
+ <20190819073128.GB3111@dhcp22.suse.cz> <CALOAHbAo2MLkavFZz_5f5hvXE8BzYW8R-yjw5acnwT315TxoMQ@mail.gmail.com>
+ <20190820063120.GD3111@dhcp22.suse.cz>
+In-Reply-To: <20190820063120.GD3111@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 20 Aug 2019 15:02:13 +0800
+Message-ID: <CALOAHbCwqWeZ4JdXpOMm-y2UdZafrU6-efbuE4iiPEC8-7ncUg@mail.gmail.com>
+Subject: Re: [PATCH] mm, memcg: skip killing processes under memcg protection
+ at first scan
+To: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Roman Gushchin <guro@fb.com>, Randy Dunlap <rdunlap@infradead.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 04:22:15PM +1000, Suraj Jitindar Singh wrote:
-> On Fri, 2019-08-09 at 14:11 +0530, Bharata B Rao wrote:
-> > KVMPPC driver to manage page transitions of secure guest
-> > via H_SVM_PAGE_IN and H_SVM_PAGE_OUT hcalls.
-> > 
-> > H_SVM_PAGE_IN: Move the content of a normal page to secure page
-> > H_SVM_PAGE_OUT: Move the content of a secure page to normal page
-> > 
-> > Private ZONE_DEVICE memory equal to the amount of secure memory
-> > available in the platform for running secure guests is created
-> > via a char device. Whenever a page belonging to the guest becomes
-> > secure, a page from this private device memory is used to
-> > represent and track that secure page on the HV side. The movement
-> > of pages between normal and secure memory is done via
-> > migrate_vma_pages() using UV_PAGE_IN and UV_PAGE_OUT ucalls.
-> 
-> Hi Bharata,
-> 
-> please see my patch where I define the bits which define the type of
-> the rmap entry:
-> https://patchwork.ozlabs.org/patch/1149791/
-> 
-> Please add an entry for the devm pfn type like:
-> #define KVMPPC_RMAP_PFN_DEVM 0x0200000000000000 /* secure guest devm
-> pfn */
-> 
-> And the following in the appropriate header file
-> 
-> static inline bool kvmppc_rmap_is_pfn_demv(unsigned long *rmapp)
-> {
-> 	return !!((*rmapp & KVMPPC_RMAP_TYPE_MASK) ==
-> KVMPPC_RMAP_PFN_DEVM));
-> }
-> 
+On Tue, Aug 20, 2019 at 2:31 PM Michal Hocko <mhocko@suse.com> wrote:
+>
+> [hmm the email got stuck on my send queue - sending again]
+>
+> On Mon 19-08-19 16:15:08, Yafang Shao wrote:
+> > On Mon, Aug 19, 2019 at 3:31 PM Michal Hocko <mhocko@suse.com> wrote:
+> > >
+> > > On Sun 18-08-19 00:24:54, Yafang Shao wrote:
+> > > > In the current memory.min design, the system is going to do OOM instead
+> > > > of reclaiming the reclaimable pages protected by memory.min if the
+> > > > system is lack of free memory. While under this condition, the OOM
+> > > > killer may kill the processes in the memcg protected by memory.min.
+> > >
+> > > Could you be more specific about the configuration that leads to this
+> > > situation?
+> >
+> > When I did memory pressure test to verify memory.min I found that issue.
+> > This issue can be produced as bellow,
+> >     memcg setting,
+> >         memory.max: 1G
+> >         memory.min: 512M
+> >         some processes are running is this memcg, with both serveral
+> > hundreds MB  file mapping and serveral hundreds MB anon mapping.
+> >     system setting,
+> >          swap: off.
+> >          some memory pressure test are running on the system.
+> >
+> > When the memory usage of this memcg is bellow the memory.min, the
+> > global reclaimers stop reclaiming pages in this memcg, and when
+> > there's no available memory, the OOM killer will be invoked.
+> > Unfortunately the OOM killer can chose the process running in the
+> > protected memcg.
+>
+> Well, the memcg protection was designed to prevent from regular
+> memory reclaim.  It was not aimed at acting as a group wide oom
+> protection. The global oom killer (but memcg as well) simply cares only
+> about oom_score_adj when selecting a victim.
+>
 
-Sure, I have the equivalents defined locally, will move to appropriate
-headers.
+OOM is a kind of memory reclaim, isn't it ?
 
-> Also see comment below.
-> 
-> > +static struct page *kvmppc_devm_get_page(unsigned long *rmap,
-> > +					unsigned long gpa, unsigned
-> > int lpid)
-> > +{
-> > +	struct page *dpage = NULL;
-> > +	unsigned long bit, devm_pfn;
-> > +	unsigned long nr_pfns = kvmppc_devm.pfn_last -
-> > +				kvmppc_devm.pfn_first;
-> > +	unsigned long flags;
-> > +	struct kvmppc_devm_page_pvt *pvt;
-> > +
-> > +	if (kvmppc_is_devm_pfn(*rmap))
-> > +		return NULL;
-> > +
-> > +	spin_lock_irqsave(&kvmppc_devm_lock, flags);
-> > +	bit = find_first_zero_bit(kvmppc_devm.pfn_bitmap, nr_pfns);
-> > +	if (bit >= nr_pfns)
-> > +		goto out;
-> > +
-> > +	bitmap_set(kvmppc_devm.pfn_bitmap, bit, 1);
-> > +	devm_pfn = bit + kvmppc_devm.pfn_first;
-> > +	dpage = pfn_to_page(devm_pfn);
-> > +
-> > +	if (!trylock_page(dpage))
-> > +		goto out_clear;
-> > +
-> > +	*rmap = devm_pfn | KVMPPC_PFN_DEVM;
-> > +	pvt = kzalloc(sizeof(*pvt), GFP_ATOMIC);
-> > +	if (!pvt)
-> > +		goto out_unlock;
-> > +	pvt->rmap = rmap;
-> 
-> Am I missing something, why does the rmap need to be stored in pvt?
-> Given the gpa is already stored and this is enough to get back to the
-> rmap entry, right?
+> Adding yet another oom protection is likely to complicate the oom
+> selection logic and make it more surprising. E.g. why should workload
+> fitting inside the min limit be so special? Do you have any real world
+> example?
+>
 
-I use rmap entry to note that this guest page is secure and is being
-represented by device memory page on the HV side. When the page becomes
-normal again, I need to undo that from dev_pagemap_ops.page_free()
-where I don't have gpa.
+The problem here is we want to use it ini the real world, but the
+issuses we found  prevent us from using it in the real world.
 
-Regards,
-Bharata.
 
+> > In order to produce it easy, you can incease the memroy.min and set
+> > -1000 to the oom_socre_adj of the processes outside of the protected
+> > memcg.
+>
+> This sounds like a very dubious configuration to me. There is no other
+> option than chosing from the protected group.
+>
+
+This is only an easy example to produce it.
+
+> > Is this setting proper ?
+> >
+> > Thanks
+> > Yafang
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
