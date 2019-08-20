@@ -6,37 +6,37 @@ X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13C0EC3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4881AC3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D193C22DBF
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D193C22DBF
+	by mail.kernel.org (Postfix) with ESMTP id 17F3D22DD3
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:18:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17F3D22DD3
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 812856B000C; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
+	id C53FF6B026A; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 794CD6B0010; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
+	id B3E056B026B; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 664FA6B000E; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
+	id 807EE6B000D; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0199.hostedemail.com [216.40.44.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4215A6B000A
+Received: from forelay.hostedemail.com (smtprelay0221.hostedemail.com [216.40.44.221])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3296B000C
 	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:18:41 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id E996D8248AB1
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:18:40 +0000 (UTC)
-X-FDA: 75842860800.09.wash16_118cff25a3222
-X-HE-Tag: wash16_118cff25a3222
-X-Filterd-Recvd-Size: 2484
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 0410C181AC9C4
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:18:41 +0000 (UTC)
+X-FDA: 75842860842.01.river76_118b2b1800c39
+X-HE-Tag: river76_118b2b1800c39
+X-Filterd-Recvd-Size: 4873
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf13.hostedemail.com (Postfix) with ESMTP
+	by imf01.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:18:40 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D0C75ABD0;
+	by mx1.suse.de (Postfix) with ESMTP id DA972AC8E;
 	Tue, 20 Aug 2019 13:18:38 +0000 (UTC)
 From: Vlastimil Babka <vbabka@suse.cz>
 To: linux-mm@kvack.org,
@@ -46,12 +46,10 @@ Cc: linux-kernel@vger.kernel.org,
 	Michal Hocko <mhocko@kernel.org>,
 	Mel Gorman <mgorman@techsingularity.net>,
 	Matthew Wilcox <willy@infradead.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	stable@vger.kernel.org
-Subject: [PATCH v2 1/4] mm, page_owner: handle THP splits correctly
-Date: Tue, 20 Aug 2019 15:18:25 +0200
-Message-Id: <20190820131828.22684-2-vbabka@suse.cz>
+	Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 2/4] mm, page_owner: record page owner for each subpage
+Date: Tue, 20 Aug 2019 15:18:26 +0200
+Message-Id: <20190820131828.22684-3-vbabka@suse.cz>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190820131828.22684-1-vbabka@suse.cz>
 References: <20190820131828.22684-1-vbabka@suse.cz>
@@ -63,49 +61,120 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-THP splitting path is missing the split_page_owner() call that split_page=
-()
-has. As a result, split THP pages are wrongly reported in the page_owner =
-file
-as order-9 pages. Furthermore when the former head page is freed, the rem=
-aining
-former tail pages are not listed in the page_owner file at all. This patc=
-h
-fixes that by adding the split_page_owner() call into __split_huge_page()=
-.
+Currently, page owner info is only recorded for the first page of a high-=
+order
+allocation, and copied to tail pages in the event of a split page. With t=
+he
+plan to keep previous owner info after freeing the page, it would be bene=
+fical
+to record page owner for each subpage upon allocation. This increases the
+overhead for high orders, but that should be acceptable for a debugging o=
+ption.
 
-Fixes: a9627bc5e34e ("mm/page_owner: introduce split_page_owner and repla=
-ce manual handling")
-Reported-by: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: stable@vger.kernel.org
+The order stored for each subpage is the order of the whole allocation. T=
+his
+makes it possible to calculate the "head" pfn and to recognize "tail" pag=
+es
+(quoted because not all high-order allocations are compound pages with tr=
+ue
+head and tail pages). When reading the page_owner debugfs file, keep skip=
+ping
+the "tail" pages so that stats gathered by existing scripts don't get inf=
+lated.
+
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/huge_memory.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ mm/page_owner.c | 40 ++++++++++++++++++++++++++++------------
+ 1 file changed, 28 insertions(+), 12 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 738065f765ab..de1f15969e27 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -32,6 +32,7 @@
- #include <linux/shmem_fs.h>
- #include <linux/oom.h>
- #include <linux/numa.h>
-+#include <linux/page_owner.h>
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index addcbb2ae4e4..813fcb70547b 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -154,18 +154,23 @@ static noinline depot_stack_handle_t save_stack(gfp=
+_t flags)
+ 	return handle;
+ }
 =20
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -2516,6 +2517,9 @@ static void __split_huge_page(struct page *page, st=
-ruct list_head *list,
- 	}
+-static inline void __set_page_owner_handle(struct page_ext *page_ext,
+-	depot_stack_handle_t handle, unsigned int order, gfp_t gfp_mask)
++static inline void __set_page_owner_handle(struct page *page,
++	struct page_ext *page_ext, depot_stack_handle_t handle,
++	unsigned int order, gfp_t gfp_mask)
+ {
+ 	struct page_owner *page_owner;
++	int i;
 =20
- 	ClearPageCompound(head);
+-	page_owner =3D get_page_owner(page_ext);
+-	page_owner->handle =3D handle;
+-	page_owner->order =3D order;
+-	page_owner->gfp_mask =3D gfp_mask;
+-	page_owner->last_migrate_reason =3D -1;
++	for (i =3D 0; i < (1 << order); i++) {
++		page_owner =3D get_page_owner(page_ext);
++		page_owner->handle =3D handle;
++		page_owner->order =3D order;
++		page_owner->gfp_mask =3D gfp_mask;
++		page_owner->last_migrate_reason =3D -1;
++		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+=20
+-	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
++		page_ext =3D lookup_page_ext(page + i);
++	}
+ }
+=20
+ noinline void __set_page_owner(struct page *page, unsigned int order,
+@@ -178,7 +183,7 @@ noinline void __set_page_owner(struct page *page, uns=
+igned int order,
+ 		return;
+=20
+ 	handle =3D save_stack(gfp_mask);
+-	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
++	__set_page_owner_handle(page, page_ext, handle, order, gfp_mask);
+ }
+=20
+ void __set_page_owner_migrate_reason(struct page *page, int reason)
+@@ -204,8 +209,11 @@ void __split_page_owner(struct page *page, unsigned =
+int order)
+=20
+ 	page_owner =3D get_page_owner(page_ext);
+ 	page_owner->order =3D 0;
+-	for (i =3D 1; i < (1 << order); i++)
+-		__copy_page_owner(page, page + i);
++	for (i =3D 1; i < (1 << order); i++) {
++		page_ext =3D lookup_page_ext(page + i);
++		page_owner =3D get_page_owner(page_ext);
++		page_owner->order =3D 0;
++	}
+ }
+=20
+ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+@@ -483,6 +491,13 @@ read_page_owner(struct file *file, char __user *buf,=
+ size_t count, loff_t *ppos)
+=20
+ 		page_owner =3D get_page_owner(page_ext);
+=20
++		/*
++		 * Don't print "tail" pages of high-order allocations as that
++		 * would inflate the stats.
++		 */
++		if (!IS_ALIGNED(pfn, 1 << page_owner->order))
++			continue;
 +
-+	split_page_owner(head, HPAGE_PMD_ORDER);
-+
- 	/* See comment in __split_huge_page_tail() */
- 	if (PageAnon(head)) {
- 		/* Additional pin to swap cache */
+ 		/*
+ 		 * Access to page_ext->handle isn't synchronous so we should
+ 		 * be careful to access it.
+@@ -562,7 +577,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, stru=
+ct zone *zone)
+ 				continue;
+=20
+ 			/* Found early allocated page */
+-			__set_page_owner_handle(page_ext, early_handle, 0, 0);
++			__set_page_owner_handle(page, page_ext, early_handle,
++						0, 0);
+ 			count++;
+ 		}
+ 		cond_resched();
 --=20
 2.22.0
 
