@@ -2,153 +2,164 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40C07C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:26:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BDB2C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:31:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8BFE214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:26:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5459122CF7
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 13:31:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="aMslOdLO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8BFE214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kyQ9OWt0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5459122CF7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EDD26B026F; Tue, 20 Aug 2019 09:26:57 -0400 (EDT)
+	id 038F16B026E; Tue, 20 Aug 2019 09:31:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8784A6B0270; Tue, 20 Aug 2019 09:26:57 -0400 (EDT)
+	id F2B816B026F; Tue, 20 Aug 2019 09:31:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 718356B0271; Tue, 20 Aug 2019 09:26:57 -0400 (EDT)
+	id E19C66B0270; Tue, 20 Aug 2019 09:31:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7556B026F
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:26:57 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D530E8248AB1
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:26:56 +0000 (UTC)
-X-FDA: 75842881632.10.scarf57_5997fb42c1f1f
-X-HE-Tag: scarf57_5997fb42c1f1f
-X-Filterd-Recvd-Size: 7445
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80082.outbound.protection.outlook.com [40.107.8.82])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:26:55 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=OclklD1EXCvXwZ3rJG/JVC6Pm/lhKI1V5oyOHm3/sHTOGoKfkUMpe4lbd1HjP1mYMZ0TEuSViF/6EW6s+b291tp0+gY0Ze1J2Y60BgPXoIZPMlu586o0pRpcYNqD4ZBtkojEdMyuZAybG6hkv+NyqkE04RjL72+ITpIvDF6TbTLX4KSdDaeD519eZrH9Piis5QgL5vASbiSuUVgl9uHqUpp4ll+bU7LB/QAcuWRfTP4PyBWxYG64LuVfjuCfjeC9yeX3PWmxd6UDfVcvsvQhW9NPCFBaUb4oTGt9ntF+yCy3a5EFEC1PLlRIWousJs09H5aasRdj0ygCs02/FUHszQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Qk0Zfis+FYA5R200PWCSUF5HtU1meX3JvrdZSBKuRvY=;
- b=HBmE7fhFpGbDAllay+KJOLMj0cUTlj5EzV2YaVDALT2ic3N7zW7lFkLj5Eav+ZDH84DIc2rlbjl+YV0qOAd5+hqMZT1kxdflNo4C81h0bIqiTU5jT378UWYryR3j8Im4oO+7R/pvv4DYDGvSYhY8JCpYaZ6rhI+vezuBnmqN6MVHNauWyMuEkvhmWe1piJv5Nj8kVsK+GAP7bLJFXoTzfbqc11tWdQVuZp/Y2vSzDoXMpguddME8ZH3n/FplnA7LAtqVougT/wzrxVPXMKzIJkUembXYH9vkl3sLYuxaamtodFAxJ2I0ehmuxg8fbGe0YL2Gxs6KGra+YdSD0+cPCw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Qk0Zfis+FYA5R200PWCSUF5HtU1meX3JvrdZSBKuRvY=;
- b=aMslOdLOfrIzJghLQwoRqBBiOhjCCgpZupK9mJMt4v4B6KwEIQclX8aAeQMpKy0LbnWbDfzRVKcrLbIKsKsiufI2VVWLaqzKPR4PRrUBGqeU5bwZj7Ko/jg+W8jukfjJEb/ZVoRydNi0oX9ckKyO1fx0mHu15K7bWOmErY+fxKk=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5231.eurprd05.prod.outlook.com (20.178.12.144) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.15; Tue, 20 Aug 2019 13:26:53 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2178.018; Tue, 20 Aug 2019
- 13:26:53 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Dan Williams <dan.j.williams@intel.com>
-CC: Christoph Hellwig <hch@lst.de>, Bharata B Rao <bharata@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm
-	<linux-nvdimm@lists.01.org>, Ira Weiny <ira.weiny@intel.com>
-Subject: Re: [PATCH 2/4] memremap: remove the dev field in struct dev_pagemap
-Thread-Topic: [PATCH 2/4] memremap: remove the dev field in struct dev_pagemap
-Thread-Index: AQHVVaUUhGk4jDl8B02XMFt421bWy6cDRjIAgADEW4A=
-Date: Tue, 20 Aug 2019 13:26:53 +0000
-Message-ID: <20190820132649.GD29225@mellanox.com>
-References: <20190818090557.17853-1-hch@lst.de>
- <20190818090557.17853-3-hch@lst.de>
- <CAPcyv4iYytOoX3QMRmvNLbroxD0szrVLauXFjnQMvtQOH3as_w@mail.gmail.com>
-In-Reply-To:
- <CAPcyv4iYytOoX3QMRmvNLbroxD0szrVLauXFjnQMvtQOH3as_w@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YTOPR0101CA0006.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:15::19) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: e7be4bf2-af4f-4394-0f67-08d7257210c4
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5231;
-x-ms-traffictypediagnostic: VI1PR05MB5231:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs:
- <VI1PR05MB5231C3FCE9C7BA2C30813F6CCFAB0@VI1PR05MB5231.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4714;
-x-forefront-prvs: 013568035E
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(396003)(346002)(366004)(136003)(376002)(39860400002)(189003)(199004)(76176011)(476003)(66946007)(36756003)(256004)(54906003)(1076003)(186003)(2616005)(66066001)(33656002)(486006)(99286004)(86362001)(305945005)(6246003)(66446008)(64756008)(14454004)(6436002)(6486002)(66476007)(6916009)(8936002)(71190400001)(966005)(5660300002)(11346002)(316002)(478600001)(81166006)(6512007)(6306002)(8676002)(2906002)(66556008)(386003)(6506007)(229853002)(446003)(7736002)(102836004)(52116002)(71200400001)(53936002)(3846002)(4744005)(26005)(25786009)(6116002)(53546011)(4326008)(81156014);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5231;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- ej07UNTvYo6qJo7IwweEpHdeZhz1cLgR1KPl+AhKCm/kKflLvbJ2he30XTS2vUJhtvQ4XRyCFjCOgyPxqkugWtJ90vZD96AEfN58YHydx5xDnzGMkSl/OviY5LZvhCXR/hfC0dJkjn9Q5j/gRIJ9aGSW1XTIKcSeVB3xhJLLOG3AKILcxFcXTH9WSFm2dZfiWDvc5Oc9NfwOoTmtZ4IqaQEoGzP6n66TLtQEh1nH8E5CEL3OGL0fpYfAi0BGFvsjnWd6yu8giv72iv6+4CA+U9t/OjMoMiwNeNhdWXpMO08owL1T/NarOLPKKB+nw5QZZjJfRc2XM7kiKyMxtPuq/T1x+97baqWE4Y3yph1PMsmKnsBn3Mm6cjCW9qSjqAOJB8wV4oIg6AAZ7jwk+jjIz9s89uGn7bD0GilCZrQ68BM=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <2A4A25E80EC9994BB15BAC6FDC6901E0@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0167.hostedemail.com [216.40.44.167])
+	by kanga.kvack.org (Postfix) with ESMTP id BEF566B026E
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:31:08 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 705EA8248AB3
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:31:08 +0000 (UTC)
+X-FDA: 75842892216.05.land90_7e4d25982ca4d
+X-HE-Tag: land90_7e4d25982ca4d
+X-Filterd-Recvd-Size: 6320
+Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 13:31:07 +0000 (UTC)
+Received: by mail-qt1-f195.google.com with SMTP id y26so5982690qto.4
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 06:31:07 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=aYpPZYtqod+fTEVMSorWhJ9m+fKXe1m4+frfAcmvGyw=;
+        b=kyQ9OWt0i7+BfpuIcyUPTFQLZeuohCEC5hlVUNQiEKpacPgte/tVYaXCcoWS0iNX46
+         LbDElheqaJ2KHddRS3Bu1aFYUKIF2VpbD9EaDtyp4ulfo2y9LapY2j2xgHMY5n6AgQGw
+         h4SFdWkbBCEN0DxcCvSoBBbBbofopvxvLfyOOYwAaZFocYVAJnpeBoqzpNLDQWNPUm6p
+         i5owmJsN0JKV6XnsgkHqBSTsTXrlH7ufNqL47j8nTzIRKN8roxX/xH2mNEAvLkFk1b2T
+         eLX65YwAZeD6TPycNJswzneMyzYbv45HIRhTCNU/IO+ns1pewbMV0/JRx5RbGFzoVUz2
+         E1NA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:content-transfer-encoding
+         :in-reply-to:user-agent;
+        bh=aYpPZYtqod+fTEVMSorWhJ9m+fKXe1m4+frfAcmvGyw=;
+        b=LzDw4PMg4Rae9ct9upbMcvC8sX3FWeEqzJv4fz3ZWnys2kzUAunRVJMOrQ3qaeiVbw
+         fUjZxNHMH7NNNXV6i/8cCvVSL4K+InJRTcy4W2mGemHeJWjCv4jPs6LXXXb+I0NYP9DR
+         HBmSa/RsV2gND5GzuzyBee98R823P/ByxpK5ZmeS71jtPl1fsyqjGe/ZRQNy7WdHiPDm
+         O3AOAEUgeakZANh1OuEtSp7LZLsZ51EbPwEATZzBx/yoA00wMH44mpqAPiMArdRoTT4B
+         eISpN+nXPHZVDxDjWep1a6yux1HfUTrr6oVIv1I1hFEwjDM/zguoq6A29U2cxRHwcK84
+         AkAg==
+X-Gm-Message-State: APjAAAVWWvo7uSTFCHlySkB4VhdSo5D/D/cRnVTPKS7kGOFhSdkHDrYV
+	nh/aLF+h8BVOT1yion+gbbmN7w==
+X-Google-Smtp-Source: APXvYqxB6NZLC2rrQAg7I6KgD70/5Hu6l4Z9mEKxIX68NL5/RT6fP/bDpg9I56nVuVJ5jZ37fvu3SA==
+X-Received: by 2002:a0c:ab49:: with SMTP id i9mr14487677qvb.142.1566307867024;
+        Tue, 20 Aug 2019 06:31:07 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id u23sm8481051qkj.98.2019.08.20.06.31.06
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 20 Aug 2019 06:31:06 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1i04E6-0000Y2-5B; Tue, 20 Aug 2019 10:31:06 -0300
+Date: Tue, 20 Aug 2019 10:31:06 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Chris Wilson <chris@chris-wilson.co.uk>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 1/4] mm, notifier: Add a lockdep map for
+ invalidate_range_start/end
+Message-ID: <20190820133106.GE29246@ziepe.ca>
+References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
+ <20190820081902.24815-2-daniel.vetter@ffwll.ch>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e7be4bf2-af4f-4394-0f67-08d7257210c4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Aug 2019 13:26:53.5547
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: MIU6EkXPDMI64Rd3TV6BYTRCmqHoYoHKqhpZQskQmMueokI/8O7ysL7iER5BsCwV6Q//XcnDyB1u4CsTWI9krQ==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5231
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190820081902.24815-2-daniel.vetter@ffwll.ch>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 06:44:02PM -0700, Dan Williams wrote:
-> On Sun, Aug 18, 2019 at 2:12 AM Christoph Hellwig <hch@lst.de> wrote:
-> >
-> > The dev field in struct dev_pagemap is only used to print dev_name in
-> > two places, which are at best nice to have.  Just remove the field
-> > and thus the name in those two messages.
-> >
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+On Tue, Aug 20, 2019 at 10:18:59AM +0200, Daniel Vetter wrote:
+> This is a similar idea to the fs_reclaim fake lockdep lock. It's
+> fairly easy to provoke a specific notifier to be run on a specific
+> range: Just prep it, and then munmap() it.
 >=20
-> Needs the below as well.
+> A bit harder, but still doable, is to provoke the mmu notifiers for
+> all the various callchains that might lead to them. But both at the
+> same time is really hard to reliable hit, especially when you want to
+> exercise paths like direct reclaim or compaction, where it's not
+> easy to control what exactly will be unmapped.
 >=20
-> /me goes to check if he ever merged the fix to make the unit test
-> stuff get built by default with COMPILE_TEST [1]. Argh! Nope, didn't
-> submit it for 5.3-rc1, sorry for the thrash.
+> By introducing a lockdep map to tie them all together we allow lockdep
+> to see a lot more dependencies, without having to actually hit them
+> in a single challchain while testing.
 >=20
-> You can otherwise add:
+> On Jason's suggestion this is is rolled out for both
+> invalidate_range_start and invalidate_range_end. They both have the
+> same calling context, hence we can share the same lockdep map. Note
+> that the annotation for invalidate_ranage_start is outside of the
+> mm_has_notifiers(), to make sure lockdep is informed about all paths
+> leading to this context irrespective of whether mmu notifiers are
+> present for a given context. We don't do that on the
+> invalidate_range_end side to avoid paying the overhead twice, there
+> the lockdep annotation is pushed down behind the mm_has_notifiers()
+> check.
 >=20
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> v2: Use lock_map_acquire/release() like fs_reclaim, to avoid confusion
+> with this being a real mutex (Chris Wilson).
 >=20
-> [1]: https://lore.kernel.org/lkml/156097224232.1086847.946386192468337274=
-1.stgit@dwillia2-desk3.amr.corp.intel.com/
+> v3: Rebase on top of Glisse's arg rework.
+>=20
+> v4: Also annotate invalidate_range_end (Jason Gunthorpe)
+> Also annotate invalidate_range_start_nonblock, I somehow missed that
+> one in the first version.
+>=20
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Christian K=C3=B6nig" <christian.koenig@amd.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+> ---
+>  include/linux/mmu_notifier.h | 8 ++++++++
+>  mm/mmu_notifier.c            | 9 +++++++++
+>  2 files changed, 17 insertions(+)
 
-Can you get this merged? Do you want it to go with this series?
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
 Jason
 
