@@ -2,99 +2,130 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3A24C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:15:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19AA1C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:17:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA7A922DD6
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:15:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA7A922DD6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D86672332B
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:17:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D86672332B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53C6A6B0271; Tue, 20 Aug 2019 12:15:36 -0400 (EDT)
+	id A43E36B0271; Tue, 20 Aug 2019 12:17:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4EC946B0272; Tue, 20 Aug 2019 12:15:36 -0400 (EDT)
+	id 9F5186B0272; Tue, 20 Aug 2019 12:17:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 403466B0273; Tue, 20 Aug 2019 12:15:36 -0400 (EDT)
+	id 8E3AC6B0273; Tue, 20 Aug 2019 12:17:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1D66B0271
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:15:36 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id B9F8EAC0E
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:15:35 +0000 (UTC)
-X-FDA: 75843306630.03.smash60_6b03e13b76b04
-X-HE-Tag: smash60_6b03e13b76b04
-X-Filterd-Recvd-Size: 2722
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf40.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:15:35 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 23832308339B;
-	Tue, 20 Aug 2019 16:15:34 +0000 (UTC)
-Received: from mail (ovpn-120-35.rdu2.redhat.com [10.10.120.35])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id EEDC91001281;
-	Tue, 20 Aug 2019 16:15:25 +0000 (UTC)
-Date: Tue, 20 Aug 2019 12:15:24 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Kefeng Wang <wangkefeng.wang@huawei.com>,
-	Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
-Message-ID: <20190820161524.GP31518@redhat.com>
-References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
- <20190814135351.GY17933@dhcp22.suse.cz>
- <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
- <20190814151049.GD11595@redhat.com>
- <20190814154101.GF11595@redhat.com>
- <20190819160517.GG31518@redhat.com>
- <20190820155948.GA4983@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190820155948.GA4983@redhat.com>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Tue, 20 Aug 2019 16:15:34 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0219.hostedemail.com [216.40.44.219])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FB476B0271
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:17:45 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 1DCCB181AC9D3
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:17:45 +0000 (UTC)
+X-FDA: 75843312090.26.key14_7da17f9c3c945
+X-HE-Tag: key14_7da17f9c3c945
+X-Filterd-Recvd-Size: 4106
+Received: from mga07.intel.com (mga07.intel.com [134.134.136.100])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:17:43 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Aug 2019 09:17:40 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,408,1559545200"; 
+   d="scan'208";a="169130943"
+Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
+  by orsmga007.jf.intel.com with ESMTP; 20 Aug 2019 09:17:39 -0700
+Message-ID: <fb058c3d56bb070706aa5f8502b4d8f0da265b74.camel@intel.com>
+Subject: Re: [PATCH v8 18/27] mm: Introduce do_mmap_locked()
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+ linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
+ <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
+ Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann
+ Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook
+ <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>, Nadav
+ Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,  Pavel Machek
+ <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap
+ <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
+ <Dave.Martin@arm.com>
+Date: Tue, 20 Aug 2019 09:08:34 -0700
+In-Reply-To: <20190820010200.GI1916@linux.intel.com>
+References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
+	 <20190813205225.12032-19-yu-cheng.yu@intel.com>
+	 <20190820010200.GI1916@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 05:59:49PM +0200, Oleg Nesterov wrote:
-> On 08/19, Andrea Arcangeli wrote:
-> >
-> > The proposed fix looks correct, can you resend in a way that can be merged?
+On Mon, 2019-08-19 at 18:02 -0700, Sean Christopherson wrote:
+> On Tue, Aug 13, 2019 at 01:52:16PM -0700, Yu-cheng Yu wrote:
+> > There are a few places that need do_mmap() with mm->mmap_sem held.
+> > Create an in-line function for that.
+> > 
+> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > ---
+> >  include/linux/mm.h | 18 ++++++++++++++++++
+> >  1 file changed, 18 insertions(+)
+> > 
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index bc58585014c9..275c385f53c6 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -2394,6 +2394,24 @@ static inline void mm_populate(unsigned long addr,
+> > unsigned long len)
+> >  static inline void mm_populate(unsigned long addr, unsigned long len) {}
+> >  #endif
+> >  
+> > +static inline unsigned long do_mmap_locked(struct file *file,
+> > +	unsigned long addr, unsigned long len, unsigned long prot,
+> > +	unsigned long flags, vm_flags_t vm_flags, struct list_head *uf)
+> > +{
+> > +	struct mm_struct *mm = current->mm;
+> > +	unsigned long populate;
+> > +
+> > +	down_write(&mm->mmap_sem);
+> > +	addr = do_mmap(file, addr, len, prot, flags, vm_flags, 0,
+> > +		       &populate, uf);
+> > +	up_write(&mm->mmap_sem);
+> > +
+> > +	if (populate)
+> > +		mm_populate(addr, populate);
+> > +
+> > +	return addr;
+> > +}
 > 
-> OK, I'll send the same patch to lkml, the only change is s/xxx/still_valid/.
-
-Thanks! Actually I wasn't sure if I should send it myself to avoid
-delaying it to next week, but I see you already sent it so problem
-solved.
-
-> > It's a bit strange that the file that
-> > was opened by the ioctl() syscall gets released
+> Any reason not to put this in cet.c, as suggested by PeterZ?  All of the
+> calls from CET have identical params except for @len, e.g. you can add
+> 'static unsigned long cet_mmap(unsigned long len)' and bury most of the
+> copy-paste code in there.
 > 
-> and this look like another bug we need to investigate,
+> https://lkml.kernel.org/r/20190607074707.GD3463@hirez.programming.kicks-ass.ne
+> t
 
-I did some more debugging in the meanwhile. The current theory is
-there are multiple uffd in the same mm and the uffd ctx of the page
-fault is not the same uffd ctx of the ioctl that triggers the copy
-user.
+Yes, I will do that.  I thought this would be useful in other places, but
+currently only in mpx.c.
 
-I'll need to add some more bpftrace code to be sure.
-
-Thanks,
-Andrea
+Yu-cheng
 
