@@ -2,3627 +2,2656 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58982C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 18:07:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0185C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 18:25:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BCB620C01
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 18:07:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 275582070B
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 18:25:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=android.com header.i=@android.com header.b="dwLGtO2F"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BCB620C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="dbUIawRO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 275582070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33CF16B0006; Tue, 20 Aug 2019 14:07:31 -0400 (EDT)
+	id BBB496B0006; Tue, 20 Aug 2019 14:25:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C4006B0007; Tue, 20 Aug 2019 14:07:31 -0400 (EDT)
+	id B42E36B0007; Tue, 20 Aug 2019 14:25:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 054156B0008; Tue, 20 Aug 2019 14:07:31 -0400 (EDT)
+	id 96E796B0008; Tue, 20 Aug 2019 14:25:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0033.hostedemail.com [216.40.44.33])
-	by kanga.kvack.org (Postfix) with ESMTP id AF2226B0006
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 14:07:30 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 482EB181AC9C9
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 18:07:30 +0000 (UTC)
-X-FDA: 75843588660.26.toes34_41435fab3ea3f
-X-HE-Tag: toes34_41435fab3ea3f
-X-Filterd-Recvd-Size: 121325
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
-	by imf39.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 18:07:28 +0000 (UTC)
-Received: by mail-pg1-f193.google.com with SMTP id w10so3673568pgj.7
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 11:07:28 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0209.hostedemail.com [216.40.44.209])
+	by kanga.kvack.org (Postfix) with ESMTP id 487396B0006
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 14:25:10 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id E0FCA877D
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 18:25:09 +0000 (UTC)
+X-FDA: 75843633138.29.swing17_4a042ae815c57
+X-HE-Tag: swing17_4a042ae815c57
+X-Filterd-Recvd-Size: 161265
+Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 18:25:08 +0000 (UTC)
+Received: by mail-pl1-f194.google.com with SMTP id f19so2752107plr.3
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 11:25:08 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=android.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=bvM0w7UjO8Bqu73Xmd/KMFVXDLDlqX9PdKio/01MBGQ=;
-        b=dwLGtO2FCg2baLygGkOqvlOkXRRi5qQG/okWJqr+CcTTIoIgX8+h1JkRCazOYQ5XUi
-         4BykxFIke+b4hjFehk9QwUs23WQZQF8Jt8PPwN8NsleEJmYFSnK4DSsH6KaW94Mf4DW/
-         zRKDSaHriUAOPoAY4GwHs61IGS/7VmZoSdxX6C0kNezXxCDOJQ09LWQczb6HYFDqanMB
-         YficLh+da8tOHL/gSF6Ky4aCOJeh+ZQI8u8dPRZ4SzhNoZk3tSSt1nsdNU/SoxUWzZ3s
-         ikWXnc0IxgYl+GxuQVgYYjD7zWDKcbGKXl+7FSjapns22POjq61a/7M6n1qYTn+I4al4
-         omlw==
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=tLap4h7TpAcpFMgJcHEU/argI1y75oNmvSUz7MYkEt4=;
+        b=dbUIawROtkpx/Y8LgFGyTcOABoEDUJpaShrad8RIDX97n5zHXQRnz6c6NCXQUi6CQA
+         vHM1NqlwaSxqP8G0sMadcy2T5g4am+j00ArDbU6fgOiBHv2drlUenNdycUKfD/K4hY6y
+         jvINnTOni9hsSa9NCUQgfAubHRlUrBSnQfF8nOY+mQSejek/8f2oinWXoJHt0Sdlr8ox
+         k2h+rUYY+4m0f50RCkNd/CJaQ2lgBLB5aiX4eJK8oQq0JCNsAIqlF9GNoitxFhyeNYMX
+         23yaZS9AOqAtUctSvygI59X352wxyemgGhTKySedcftFs9FihDfV8L82qJdFNbF6X0OM
+         bjGA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=bvM0w7UjO8Bqu73Xmd/KMFVXDLDlqX9PdKio/01MBGQ=;
-        b=DkaCCc/uEge6ICz6yXZnvlQow3Wr8teiU0MU2eHyfgEQb6S2811Q9oKpNoZ3hNBS9k
-         5Toeu5UOyi00U0mwgsU+fw2q5ymQqUqCpjg3gITJMBzsGUiU2AfkBwj73Pn7nmInRIkp
-         iCt7zokM5uBj0D+YmbiIjKpD2h/XkvgrO34badU3lajSE81uxqRYH0hmKxTs4ByPgvi+
-         5KxZ9a/XrEZgRx+VvSfSgRHplv5qii7TeSrKWCoa03KGnhpTJ/KDDBzRwL+gMhxGoqw9
-         /eSeipKTQIBb2YvVfbYHIfAbbGwsUNYWPI1HmwZkWHDVUjZux8AkGmBzy58t+xCzQC4q
-         mUng==
-X-Gm-Message-State: APjAAAV6cZgoJIvV65QwoJpwtKGW8oyb5z6T10LxWlCiekd1BTFjAgGS
-	cQ1918xXStpELPBUQpb2rIPfeQ==
-X-Google-Smtp-Source: APXvYqxmF5hMQzOLdDhUl4JAUeGKOz+za0EJJXH35Dwqc4As2lqH13ERcRuXbfGUSvI060/SksKoWw==
-X-Received: by 2002:a17:90a:8403:: with SMTP id j3mr1184532pjn.3.1566324446468;
-        Tue, 20 Aug 2019 11:07:26 -0700 (PDT)
-Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
-        by smtp.gmail.com with ESMTPSA id u24sm18470132pgk.31.2019.08.20.11.07.23
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 20 Aug 2019 11:07:25 -0700 (PDT)
-From: Mark Salyzyn <salyzyn@android.com>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com,
-	Mark Salyzyn <salyzyn@android.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	linux-security-module@vger.kernel.org,
-	stable@vger.kernel.org,
-	Jonathan Corbet <corbet@lwn.net>,
-	Gao Xiang <gaoxiang25@huawei.com>,
-	Chao Yu <yuchao0@huawei.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	David Howells <dhowells@redhat.com>,
-	Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>,
-	David Sterba <dsterba@suse.com>,
-	Jeff Layton <jlayton@kernel.org>,
-	Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>,
-	Steve French <sfrench@samba.org>,
-	Tyler Hicks <tyhicks@canonical.com>,
-	Jan Kara <jack@suse.com>,
-	"Theodore Ts'o" <tytso@mit.edu>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Bob Peterson <rpeterso@redhat.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Richard Weinberger <richard@nod.at>,
-	Dave Kleikamp <shaggy@kernel.org>,
-	Tejun Heo <tj@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Mark Fasheh <mark@fasheh.com>,
-	Joel Becker <jlbec@evilplan.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	Artem Bityutskiy <dedekind1@gmail.com>,
-	Adrian Hunter <adrian.hunter@intel.com>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org,
-	Hugh Dickins <hughd@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Serge Hallyn <serge@hallyn.com>,
-	James Morris <jmorris@namei.org>,
-	Mimi Zohar <zohar@linux.ibm.com>,
-	Paul Moore <paul@paul-moore.com>,
-	Eric Paris <eparis@parisplace.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	"J. Bruce Fields" <bfields@redhat.com>,
-	Benjamin Coddington <bcodding@redhat.com>,
-	Eric Biggers <ebiggers@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mathieu Malaterre <malat@debian.org>,
-	Vyacheslav Dubeyko <slava@dubeyko.com>,
-	=?UTF-8?q?Ernesto=20A=2E=20Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Jann Horn <jannh@google.com>,
-	Jeff Mahoney <jeffm@suse.com>,
-	Bharath Vedartham <linux.bhar@gmail.com>,
-	Dave Chinner <dchinner@redhat.com>,
-	Allison Henderson <allison.henderson@oracle.com>,
-	Brian Foster <bfoster@redhat.com>,
-	Eric Sandeen <sandeen@sandeen.net>,
-	linux-doc@vger.kernel.org,
-	linux-erofs@lists.ozlabs.org,
-	devel@driverdev.osuosl.org,
-	v9fs-developer@lists.sourceforge.net,
-	linux-afs@lists.infradead.org,
-	linux-btrfs@vger.kernel.org,
-	ceph-devel@vger.kernel.org,
-	linux-cifs@vger.kernel.org,
-	samba-technical@lists.samba.org,
-	ecryptfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org,
-	cluster-devel@redhat.com,
-	linux-mtd@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net,
-	linux-nfs@vger.kernel.org,
-	ocfs2-devel@oss.oracle.com,
-	devel@lists.orangefs.org,
-	linux-unionfs@vger.kernel.org,
-	reiserfs-devel@vger.kernel.org,
-	linux-mm@kvack.org,
-	netdev@vger.kernel.org,
-	linux-integrity@vger.kernel.org,
-	selinux@vger.kernel.org
-Subject: [PATCH v7] Add flags option to get xattr method paired to __vfs_getxattr
-Date: Tue, 20 Aug 2019 11:06:48 -0700
-Message-Id: <20190820180716.129882-1-salyzyn@android.com>
-X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
+        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+         :references:user-agent:mime-version;
+        bh=tLap4h7TpAcpFMgJcHEU/argI1y75oNmvSUz7MYkEt4=;
+        b=BIF7yH6ICl+iwFsnjNVXLohPVPa603+TiNkh9Jo6aZcI2XFTYN89byKuN8CAVTZpZR
+         TmDcBxC1P/ETkQYRzFS0Y8WbRCTC2iR9rxyL+NTDwzDAwRUFdQq5/HiKHQBFhA006hXu
+         ouvVt9i4AZ/DqEURjXZ9u+9ImQJ48zjJrw8KnMxvW2h1v4MgqLh0i9jX91TvUQ5iS2SO
+         LVZsKbwLzPQvSozwZRaIy7zcDRW4bGWZtcNB3sPc305/EzlI/R7qMNDIQ75/womDi2zh
+         9c4Wb35oVu4AS6uQG+qroHuxTME9ApkPJgP90Unin5u1KrC5NkAT/h7tbIpoGWb0kYU8
+         cx8Q==
+X-Gm-Message-State: APjAAAVqFUSAo7GxnQpDlf9hdHxztvD7C01wPliiEw5m1E7z0js7DjUG
+	oPL5rK5d4lY5SFJBKPJTTNbnCQ==
+X-Google-Smtp-Source: APXvYqx3kKnDRk4PzRte4FgLJWQnhyWSBDEch0W7MyZVBjRgSdvMrFEKyviachDS9DmdAN/2k19jaw==
+X-Received: by 2002:a17:902:6b06:: with SMTP id o6mr29166781plk.33.1566325506219;
+        Tue, 20 Aug 2019 11:25:06 -0700 (PDT)
+Received: from [100.112.91.228] ([104.133.8.100])
+        by smtp.gmail.com with ESMTPSA id j5sm17501941pgp.59.2019.08.20.11.25.04
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 20 Aug 2019 11:25:04 -0700 (PDT)
+Date: Tue, 20 Aug 2019 11:24:44 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Michal Hocko <mhocko@kernel.org>
+cc: Alex Shi <alex.shi@linux.alibaba.com>, Cgroups <cgroups@vger.kernel.org>, 
+    LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, 
+    Hugh Dickins <hughd@google.com>, Shakeel Butt <shakeelb@google.com>, 
+    Yu Zhao <yuzhao@google.com>, Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH 00/14] per memcg lru_lock
+In-Reply-To: <CALvZod7-dL90jwd2pywpaD8NfUByVU9Y809+RfvJABGdRASYUg@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1908201038260.1286@eggly.anvils>
+References: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com> <20190820104532.GP3111@dhcp22.suse.cz> <CALvZod7-dL90jwd2pywpaD8NfUByVU9Y809+RfvJABGdRASYUg@mail.gmail.com>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: MULTIPART/MIXED; BOUNDARY="0-1540104598-1566325504=:1286"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Replace arguments for get and set xattr methods, and __vfs_getxattr
-and __vfs_setaxtr functions with a reference to the following now
-common argument structure:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-struct xattr_gs_args {
-	struct dentry *dentry;
-	struct inode *inode;
-	const char *name;
-	union {
-		void *buffer;
-		const void *value;
-	};
-	size_t size;
-	int flags;
-};
+--0-1540104598-1566325504=:1286
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 
-Which in effect adds a flags option to the get method and
-__vfs_getxattr function.
+On Tue, 20 Aug 2019, Shakeel Butt wrote:
+> On Tue, Aug 20, 2019 at 3:45 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > On Tue 20-08-19 17:48:23, Alex Shi wrote:
+> > > This patchset move lru_lock into lruvec, give a lru_lock for each of
+> > > lruvec, thus bring a lru_lock for each of memcg.
+> > >
+> > > Per memcg lru_lock would ease the lru_lock contention a lot in
+> > > this patch series.
+> > >
+> > > In some data center, containers are used widely to deploy different kind
+> > > of services, then multiple memcgs share per node pgdat->lru_lock which
+> > > cause heavy lock contentions when doing lru operation.
+> >
+> > Having some real world workloads numbers would be more than useful
+> > for a non trivial change like this. I believe googlers have tried
+> > something like this in the past but then didn't have really a good
+> > example of workloads that benefit. I might misremember though. Cc Hugh.
+> >
+> 
+> We, at Google, have been using per-memcg lru locks for more than 7
+> years. Per-memcg lru locks are really beneficial for providing
+> performance isolation if there are multiple distinct jobs/memcgs
+> running on large machines. We are planning to upstream our internal
+> implementation. I will let Hugh comment on that.
 
-Add a flag option to get xattr method that has bit flag of
-XATTR_NOSECURITY passed to it.  XATTR_NOSECURITY is generally then
-set in the __vfs_getxattr path when called by security
-infrastructure.
+Thanks for the Cc Michal.  As Shakeel says, Google prodkernel has been
+using our per-memcg lru locks for 7 years or so.  Yes, we did not come
+up with supporting performance data at the time of posting, nor since:
+I see Alex has done much better on that (though I haven't even glanced
+to see if +s are persuasive).
 
-This handles the case of a union filesystem driver that is being
-requested by the security layer to report back the xattr data.
+https://lkml.org/lkml/2012/2/20/434
+was how ours was back then; some parts of that went in, then attached
+lrulock417.tar is how it was the last time I rebased, to v4.17.
 
-For the use case where access is to be blocked by the security layer.
+I'll set aside what I'm doing, and switch to rebasing ours to v5.3-rc
+and/or mmotm.  Then compare with what Alex has, to see if there's any
+good reason to prefer one to the other: if no good reason to prefer ours,
+I doubt we shall bother to repost, but just use it as basis for helping
+to review or improve Alex's.
 
-The path then could be security(dentry) ->
-__vfs_getxattr({dentry...XATTR_NOSECURITY}) ->
-handler->get({dentry...XATTR_NOSECURITY}) ->
-__vfs_getxattr({lower_dentry...XATTR_NOSECURITY}) ->
-lower_handler->get({lower_dentry...XATTR_NOSECURITY})
-which would report back through the chain data and success as
-expected, the logging security layer at the top would have the
-data to determine the access permissions and report back the target
-context that was blocked.
+Hugh
+--0-1540104598-1566325504=:1286
+Content-Type: APPLICATION/x-tar; name=lrulock417.tar
+Content-Transfer-Encoding: BASE64
+Content-ID: <alpine.LSU.2.11.1908201124440.1286@eggly.anvils>
+Content-Description: per-memcg lru_lock on v4.17
+Content-Disposition: attachment; filename=lrulock417.tar
 
-Without the get handler flag, the path on a union filesystem would be
-the errant security(dentry) -> __vfs_getxattr(dentry) ->
-handler->get(dentry) -> vfs_getxattr(lower_dentry) -> nested ->
-security(lower_dentry, log off) -> lower_handler->get(lower_dentry)
-which would report back through the chain no data, and -EACCES.
+MDAwMS1tbS1wYWdlX2lkbGVfZ2V0X3BhZ2UtZG9lcy1ub3QtbmVlZC1scnVf
+bG9jay5wYXRjaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAADAwMDA2NDQAMDMxNTA2NgAwMjU3NTIzADAwMDAwMDAyMTQw
+ADEzMzA1MzcyMTI0ADAyMzU0MAAgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB1c3RhciAgAGh1Z2hk
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcHJpbWFyeWdyb3VwAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAABGcm9tIGQyYzk5Nzg4MzU4ZDA5MGVkMDczNDA0
+ZmQ5OTkzYTNmYjFkZDViOWIgTW9uIFNlcCAxNyAwMDowMDowMCAyMDAxCkZy
+b206IEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNvbT4KRGF0ZTogTW9u
+LCAxMyBKdW4gMjAxNiAxOTo0MzozNCAtMDcwMApTdWJqZWN0OiBbUEFUQ0gg
+MS85XSBtbTogcGFnZV9pZGxlX2dldF9wYWdlKCkgZG9lcyBub3QgbmVlZCBs
+cnVfbG9jawoKUmVjaGVja2luZyBQYWdlTFJVKCkgYWZ0ZXIgZ2V0X3BhZ2Vf
+dW5sZXNzX3plcm8oKSBtYXkgaGF2ZSB2YWx1ZSwgYnV0CmhvbGRpbmcgem9u
+ZV9scnVfbG9jayBhcm91bmQgdGhhdCBzZXJ2ZXMgbm8gdXNlZnVsIHB1cnBv
+c2U6IGRlbGV0ZSBpdC4KClNpZ25lZC1vZmYtYnk6IEh1Z2ggRGlja2lucyA8
+aHVnaGRAZ29vZ2xlLmNvbT4KLS0tCiBtbS9wYWdlX2lkbGUuYyB8IDQgLS0t
+LQogMSBmaWxlIGNoYW5nZWQsIDQgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0
+IGEvbW0vcGFnZV9pZGxlLmMgYi9tbS9wYWdlX2lkbGUuYwppbmRleCBlNDEy
+YTYzYjJiNzQuLmY2OWY4ZmQ2YzdmZCAxMDA2NDQKLS0tIGEvbW0vcGFnZV9p
+ZGxlLmMKKysrIGIvbW0vcGFnZV9pZGxlLmMKQEAgLTMxLDcgKzMxLDYgQEAK
+IHN0YXRpYyBzdHJ1Y3QgcGFnZSAqcGFnZV9pZGxlX2dldF9wYWdlKHVuc2ln
+bmVkIGxvbmcgcGZuKQogewogCXN0cnVjdCBwYWdlICpwYWdlOwotCXN0cnVj
+dCB6b25lICp6b25lOwogCiAJaWYgKCFwZm5fdmFsaWQocGZuKSkKIAkJcmV0
+dXJuIE5VTEw7CkBAIC00MSwxMyArNDAsMTAgQEAgc3RhdGljIHN0cnVjdCBw
+YWdlICpwYWdlX2lkbGVfZ2V0X3BhZ2UodW5zaWduZWQgbG9uZyBwZm4pCiAJ
+ICAgICFnZXRfcGFnZV91bmxlc3NfemVybyhwYWdlKSkKIAkJcmV0dXJuIE5V
+TEw7CiAKLQl6b25lID0gcGFnZV96b25lKHBhZ2UpOwotCXNwaW5fbG9ja19p
+cnEoem9uZV9scnVfbG9jayh6b25lKSk7CiAJaWYgKHVubGlrZWx5KCFQYWdl
+TFJVKHBhZ2UpKSkgewogCQlwdXRfcGFnZShwYWdlKTsKIAkJcGFnZSA9IE5V
+TEw7CiAJfQotCXNwaW5fdW5sb2NrX2lycSh6b25lX2xydV9sb2NrKHpvbmUp
+KTsKIAlyZXR1cm4gcGFnZTsKIH0KIAotLSAKMi4xNy4xLjExODUuZzU1YmU5
+NDc4MzItZ29vZwoKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwMDAyLW1tLWNvbXBhY3Rpb24ta2ls
+bC1jb21wYWN0X3VubG9ja19zaG91bGRfYWJvcnQucGF0Y2gAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwMDY0NAAwMzE1
+MDY2ADAyNTc1MjMAMDAwMDAwMTAwMjEAMTMzMDUzNzIxMjQAMDI0MzU0ACAw
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAHVzdGFyICAAaHVnaGQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAABwcmltYXJ5Z3JvdXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZyb20g
+NTdjYzVkZDViMWNlZGZkNTM4ZTFiMTkyOTAyZTYzZjYwM2E4YWMzOCBNb24g
+U2VwIDE3IDAwOjAwOjAwIDIwMDEKRnJvbTogSHVnaCBEaWNraW5zIDxodWdo
+ZEBnb29nbGUuY29tPgpEYXRlOiBTYXQsIDExIEp1biAyMDE2IDE2OjA0OjU3
+IC0wNzAwClN1YmplY3Q6IFtQQVRDSCAyLzldIG1tLCBjb21wYWN0aW9uOiBr
+aWxsIGNvbXBhY3RfdW5sb2NrX3Nob3VsZF9hYm9ydCgpCgpjb21wYWN0X3Vu
+bG9ja19zaG91bGRfYWJvcnQoKSBpcyBub3QgYSB1c2VmdWwgYWJzdHJhY3Rp
+b24sIGl0J3MgYW4KdW5oZWxwZnVsIGFnZ2xvbWVyYXRpb24gb2Ygc3BpbiB1
+bmxvY2tpbmcgd2l0aCBjb21wYWN0X3Nob3VsZF9hYm9ydCgpLApwbHVzIGEg
+ZmF0YWxfc2lnbmFsX3BlbmRpbmcoKSBjaGVjayBtaXNzZWQgZnJvbSBjb21w
+YWN0X3Nob3VsZF9hYm9ydCgpOgpkZWxldGUgY29tcGFjdF91bmxvY2tfc2hv
+dWxkX2Fib3J0KCkuCgpTaWduZWQtb2ZmLWJ5OiBIdWdoIERpY2tpbnMgPGh1
+Z2hkQGdvb2dsZS5jb20+Ci0tLQogbW0vY29tcGFjdGlvbi5jIHwgNjAgKysr
+KysrKysrKysrKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LQogMSBmaWxlIGNoYW5nZWQsIDE5IGluc2VydGlvbnMoKyksIDQxIGRlbGV0
+aW9ucygtKQoKZGlmZiAtLWdpdCBhL21tL2NvbXBhY3Rpb24uYyBiL21tL2Nv
+bXBhY3Rpb24uYwppbmRleCAyOWJkMWRmMThiOTguLjc1NmUwODIzNjUyYSAx
+MDA2NDQKLS0tIGEvbW0vY29tcGFjdGlvbi5jCisrKyBiL21tL2NvbXBhY3Rp
+b24uYwpAQCAtMzY4LDIzICszNjgsMTYgQEAgc3RhdGljIGJvb2wgY29tcGFj
+dF90cnlsb2NrX2lycXNhdmUoc3BpbmxvY2tfdCAqbG9jaywgdW5zaWduZWQg
+bG9uZyAqZmxhZ3MsCiAgKiBoYXZpbmcgZGlzYWJsZWQgSVJRcyBmb3IgYSBs
+b25nIHRpbWUsIGV2ZW4gd2hlbiB0aGVyZSBpcyBub2JvZHkgd2FpdGluZyBv
+bgogICogdGhlIGxvY2suIEl0IG1pZ2h0IGFsc28gYmUgdGhhdCBhbGxvd2lu
+ZyB0aGUgSVJRcyB3aWxsIHJlc3VsdCBpbgogICogbmVlZF9yZXNjaGVkKCkg
+YmVjb21pbmcgdHJ1ZS4gSWYgc2NoZWR1bGluZyBpcyBuZWVkZWQsIGFzeW5j
+IGNvbXBhY3Rpb24KLSAqIGFib3J0cy4gU3luYyBjb21wYWN0aW9uIHNjaGVk
+dWxlcy4KKyAqIGFib3J0cy4gU3luYyBjb21wYWN0aW9uIHNjaGVkdWxlcywg
+c28gbG9jayBtdXN0IGJlIGRyb3BwZWQgYmVmb3JlIGNhbGxpbmcuCiAgKiBF
+aXRoZXIgY29tcGFjdGlvbiB0eXBlIHdpbGwgYWxzbyBhYm9ydCBpZiBhIGZh
+dGFsIHNpZ25hbCBpcyBwZW5kaW5nLgotICogSW4gZWl0aGVyIGNhc2UgaWYg
+dGhlIGxvY2sgd2FzIGxvY2tlZCwgaXQgaXMgZHJvcHBlZCBhbmQgbm90IHJl
+Z2FpbmVkLgogICoKICAqIFJldHVybnMgdHJ1ZSBpZiBjb21wYWN0aW9uIHNo
+b3VsZCBhYm9ydCBkdWUgdG8gZmF0YWwgc2lnbmFsIHBlbmRpbmcsIG9yCiAg
+KgkJYXN5bmMgY29tcGFjdGlvbiBkdWUgdG8gbmVlZF9yZXNjaGVkKCkKICAq
+IFJldHVybnMgZmFsc2Ugd2hlbiBjb21wYWN0aW9uIGNhbiBjb250aW51ZSAo
+c3luYyBjb21wYWN0aW9uIG1pZ2h0IGhhdmUKICAqCQlzY2hlZHVsZWQpCiAg
+Ki8KLXN0YXRpYyBib29sIGNvbXBhY3RfdW5sb2NrX3Nob3VsZF9hYm9ydChz
+cGlubG9ja190ICpsb2NrLAotCQl1bnNpZ25lZCBsb25nIGZsYWdzLCBib29s
+ICpsb2NrZWQsIHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNjKQorc3RhdGlj
+IGJvb2wgY29tcGFjdF9zaG91bGRfYWJvcnQoc3RydWN0IGNvbXBhY3RfY29u
+dHJvbCAqY2MpCiB7Ci0JaWYgKCpsb2NrZWQpIHsKLQkJc3Bpbl91bmxvY2tf
+aXJxcmVzdG9yZShsb2NrLCBmbGFncyk7Ci0JCSpsb2NrZWQgPSBmYWxzZTsK
+LQl9Ci0KIAlpZiAoZmF0YWxfc2lnbmFsX3BlbmRpbmcoY3VycmVudCkpIHsK
+IAkJY2MtPmNvbnRlbmRlZCA9IHRydWU7CiAJCXJldHVybiB0cnVlOwpAQCAt
+NDAxLDMwICszOTQsNiBAQCBzdGF0aWMgYm9vbCBjb21wYWN0X3VubG9ja19z
+aG91bGRfYWJvcnQoc3BpbmxvY2tfdCAqbG9jaywKIAlyZXR1cm4gZmFsc2U7
+CiB9CiAKLS8qCi0gKiBBc2lkZSBmcm9tIGF2b2lkaW5nIGxvY2sgY29udGVu
+dGlvbiwgY29tcGFjdGlvbiBhbHNvIHBlcmlvZGljYWxseSBjaGVja3MKLSAq
+IG5lZWRfcmVzY2hlZCgpIGFuZCBlaXRoZXIgc2NoZWR1bGVzIGluIHN5bmMg
+Y29tcGFjdGlvbiBvciBhYm9ydHMgYXN5bmMKLSAqIGNvbXBhY3Rpb24uIFRo
+aXMgaXMgc2ltaWxhciB0byB3aGF0IGNvbXBhY3RfdW5sb2NrX3Nob3VsZF9h
+Ym9ydCgpIGRvZXMsIGJ1dAotICogaXMgdXNlZCB3aGVyZSBubyBsb2NrIGlz
+IGNvbmNlcm5lZC4KLSAqCi0gKiBSZXR1cm5zIGZhbHNlIHdoZW4gbm8gc2No
+ZWR1bGluZyB3YXMgbmVlZGVkLCBvciBzeW5jIGNvbXBhY3Rpb24gc2NoZWR1
+bGVkLgotICogUmV0dXJucyB0cnVlIHdoZW4gYXN5bmMgY29tcGFjdGlvbiBz
+aG91bGQgYWJvcnQuCi0gKi8KLXN0YXRpYyBpbmxpbmUgYm9vbCBjb21wYWN0
+X3Nob3VsZF9hYm9ydChzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYykKLXsK
+LQkvKiBhc3luYyBjb21wYWN0aW9uIGFib3J0cyBpZiBjb250ZW5kZWQgKi8K
+LQlpZiAobmVlZF9yZXNjaGVkKCkpIHsKLQkJaWYgKGNjLT5tb2RlID09IE1J
+R1JBVEVfQVNZTkMpIHsKLQkJCWNjLT5jb250ZW5kZWQgPSB0cnVlOwotCQkJ
+cmV0dXJuIHRydWU7Ci0JCX0KLQotCQljb25kX3Jlc2NoZWQoKTsKLQl9Ci0K
+LQlyZXR1cm4gZmFsc2U7Ci19Ci0KIC8qCiAgKiBJc29sYXRlIGZyZWUgcGFn
+ZXMgb250byBhIHByaXZhdGUgZnJlZWxpc3QuIElmIEBzdHJpY3QgaXMgdHJ1
+ZSwgd2lsbCBhYm9ydAogICogcmV0dXJuaW5nIDAgb24gYW55IGludmFsaWQg
+UEZOcyBvciBub24tZnJlZSBwYWdlcyBpbnNpZGUgb2YgdGhlIHBhZ2VibG9j
+awpAQCAtNDU1LDEwICs0MjQsMTQgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcg
+aXNvbGF0ZV9mcmVlcGFnZXNfYmxvY2soc3RydWN0IGNvbXBhY3RfY29udHJv
+bCAqY2MsCiAJCSAqIGNvbnRlbnRpb24sIHRvIGdpdmUgY2hhbmNlIHRvIElS
+UXMuIEFib3J0IGlmIGZhdGFsIHNpZ25hbAogCQkgKiBwZW5kaW5nIG9yIGFz
+eW5jIGNvbXBhY3Rpb24gZGV0ZWN0cyBuZWVkX3Jlc2NoZWQoKQogCQkgKi8K
+LQkJaWYgKCEoYmxvY2twZm4gJSBTV0FQX0NMVVNURVJfTUFYKQotCQkgICAg
+JiYgY29tcGFjdF91bmxvY2tfc2hvdWxkX2Fib3J0KCZjYy0+em9uZS0+bG9j
+aywgZmxhZ3MsCi0JCQkJCQkJCSZsb2NrZWQsIGNjKSkKLQkJCWJyZWFrOwor
+CQlpZiAoIShibG9ja3BmbiAlIFNXQVBfQ0xVU1RFUl9NQVgpKSB7CisJCQlp
+ZiAobG9ja2VkKSB7CisJCQkJc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSgmY2Mt
+PnpvbmUtPmxvY2ssIGZsYWdzKTsKKwkJCQlsb2NrZWQgPSBmYWxzZTsKKwkJ
+CX0KKwkJCWlmIChjb21wYWN0X3Nob3VsZF9hYm9ydChjYykpCisJCQkJYnJl
+YWs7CisJCX0KIAogCQlucl9zY2FubmVkKys7CiAJCWlmICghcGZuX3ZhbGlk
+X3dpdGhpbihibG9ja3BmbikpCkBAIC03NTYsMTAgKzcyOSwxNSBAQCBpc29s
+YXRlX21pZ3JhdGVwYWdlc19ibG9jayhzdHJ1Y3QgY29tcGFjdF9jb250cm9s
+ICpjYywgdW5zaWduZWQgbG9uZyBsb3dfcGZuLAogCQkgKiBjb250ZW50aW9u
+LCB0byBnaXZlIGNoYW5jZSB0byBJUlFzLiBBYm9ydCBhc3luYyBjb21wYWN0
+aW9uCiAJCSAqIGlmIGNvbnRlbmRlZC4KIAkJICovCi0JCWlmICghKGxvd19w
+Zm4gJSBTV0FQX0NMVVNURVJfTUFYKQotCQkgICAgJiYgY29tcGFjdF91bmxv
+Y2tfc2hvdWxkX2Fib3J0KHpvbmVfbHJ1X2xvY2soem9uZSksIGZsYWdzLAot
+CQkJCQkJCQkmbG9ja2VkLCBjYykpCi0JCQlicmVhazsKKwkJaWYgKCEobG93
+X3BmbiAlIFNXQVBfQ0xVU1RFUl9NQVgpKSB7CisJCQlpZiAobG9ja2VkKSB7
+CisJCQkJc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSh6b25lX2xydV9sb2NrKHpv
+bmUpLAorCQkJCQkJCWZsYWdzKTsKKwkJCQlsb2NrZWQgPSBmYWxzZTsKKwkJ
+CX0KKwkJCWlmIChjb21wYWN0X3Nob3VsZF9hYm9ydChjYykpCisJCQkJYnJl
+YWs7CisJCX0KIAogCQlpZiAoIXBmbl92YWxpZF93aXRoaW4obG93X3Bmbikp
+CiAJCQlnb3RvIGlzb2xhdGVfZmFpbDsKLS0gCjIuMTcuMS4xMTg1Lmc1NWJl
+OTQ3ODMyLWdvb2cKCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAADAwMDMtbW0tbWVtY2ctaXNvbGF0aW9uLXBpbi10aGVu
+LWxvY2stdGhlbi1DbGVhclBhZ2VMUlUucGF0Y2gAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwMDAwNjQ0ADAzMTUwNjYAMDI1NzUy
+MwAwMDAwMDAyNDQxNQAxMzMwNTM3MjEyNAAwMjQ0MzUAIDAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+dXN0YXIgIABodWdoZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHByaW1h
+cnlncm91cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARnJvbSBkNjYwMTRiYzNi
+MDgwZjBhZTA5OTU3NzRiY2ZlNTUzMzJlNjAwNWE1IE1vbiBTZXAgMTcgMDA6
+MDA6MDAgMjAwMQpGcm9tOiBIdWdoIERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5j
+b20+CkRhdGU6IFR1ZSwgMTIgSnVuIDIwMTIgMTU6NDY6NTYgLTA3MDAKU3Vi
+amVjdDogW1BBVENIIDMvOV0gbW0vbWVtY2c6IGlzb2xhdGlvbiBwaW4gdGhl
+biBsb2NrIHRoZW4gQ2xlYXJQYWdlTFJVCgpTaW5jZSB6b25lIGlzIGtub3du
+LCBjb21wYWN0aW9uJ3MgaXNvbGF0ZV9taWdyYXRlcGFnZXNfYmxvY2soKSB0
+ZW5kZWQgdG8KaG9sZCB6b25lX2xydV9sb2NrIHRocm91Z2hvdXQsIGp1c3Qg
+dGVtcG9yYXJpbHkgZHJvcHBpbmcgYWZ0ZXIgMzIgcGFnZXMuCkJ1dCB0aGF0
+IHdpbGwgbm90IHdvcmsgb25jZSB3ZSBtb3ZlIHRvIHBlci1tZW1jZy1wZXIt
+em9uZSBsb2NraW5nOiB0aGUKYXBwcm9wcmlhdGUgbHJ1dmVjIHdpbGwgY2hh
+bmdlLCBhbmQgbm8gbG9uZ2VyIGJlIGtub3duIGluIGFkdmFuY2UuCgpQcmVw
+YXJlIGZvciB0aGF0IGJ5IHJlYXJyYW5naW5nIGxvY2tpbmcgYXJvdW5kIGl0
+cyBfX2lzb2xhdGVfbHJ1X3BhZ2UoKSwKd2hlcmUgbm93IHdlIG11c3QgdGFr
+ZSB0aGUgbG9jayBhZnRlciB0aGUgcGFnZSBpcyBwaW5uZWQuICBJZiB0aGUg
+bG9jayBpcwp0byBkZXBlbmQgdXBvbiB0aGUgdXNlIG9mIHRoZSBwYWdlLCB3
+ZSBjYW5ub3QgbGV0IHBhZ2UgYmUgcmV1c2VkIHdoaWxlCmFjcXVpcmluZyBs
+b2NrOiB0aGlzIGlzIHRyaWNraWVyIGZvciBjb21wYWN0aW9uIHRoYW4gZWxz
+ZXdoZXJlLCBiZWNhdXNlCml0IHNlbGVjdHMgdGhlIHBhZ2UgYnkgcGh5c2lj
+YWwgbG9jYXRpb24sIG5vdCBsb2dpY2FsbHkgYnkgdXNhZ2Ugb3IgbHJ1LgoK
+QnJpbmcgX19pc29sYXRlX2xydV9wYWdlKCkncyBjb2RlIGludG8gaXNvbGF0
+ZV9taWdyYXRlcGFnZXNfYmxvY2soKSwKd2hlcmUgbHJ1X2xvY2sgY2FuIGJl
+IHNhZmVseSBkcm9wcGVkIGJlZm9yZSBwdXRfcGFnZSgpIHdoZW4gdW53aW5k
+aW5nLgpDdXQgbW0vdm1zY2FuLmMncyB2ZXJzaW9uIGJhY2sgZG93biB0byB3
+aGF0IGlzIG5lZWRlZCB0aGVyZTogaXQncwphbXVzaW5nIHRvIGRpc2NvdmVy
+IGhvdyBsaXR0bGUgdGhlIHR3byB1c2FnZXMgYWN0dWFsbHkgc2hhcmVkIChi
+dXQKcHJvYmFibHkgaGFkIG1vcmUgaW4gY29tbW9uIGluIHRoZSBkYXlzIG9m
+IGx1bXB5IHJlY2xhaW0pLgoKT25jZSBwYWdlX21hcHBpbmcoKSBpcyBjYWxs
+ZWQgd2l0aCBwYWdlIHBpbm5lZCwgdGhlIHJpZ2h0IGxydV9sb2NrLAphbmQg
+UGFnZUxSVSByZWNoZWNrZWQsIElTT0xBVEVfTUlHUkFURV9BU1lOQyBjYW4g
+dXNlIHJjdV9yZWFkX2xvY2soKQppbnN0ZWFkIG9mIHRyeWxvY2tfcGFnZSgp
+OiA2OWQ3NjNmYzZkM2EgcHJlZmVycmVkIG5vdCwgc2F5aW5nCiJpdCdzIGFu
+IHVuY29udmVudGlvbmFsIG1lYW5zIG9mIHByZXNlcnZpbmcgYSBtYXBwaW5n
+IjsgYnV0IDIuNi4zOApjb21taXQgZmEwZDdlM2RlNmQ2ICgiZnM6IGljYWNo
+ZSBSQ1UgZnJlZSBpbm9kZXMiKSBpbnRyb2R1Y2VkIFJDVSB0bwppbm9kZXMs
+IDRiM2VmOWRhYTRmYyAoIm1tL3N3YXA6IHNwbGl0IHN3YXAgY2FjaGUgaW50
+byA2NE1CIHRydW5rcyIpCmV4dGVuZGVkIHVzZSBvZiBSQ1UgdG8gZnJlZWlu
+ZyBzd2FwcGVyX3NwYWNlcywgYW5kIDQuMTcgZTkyYmI0ZGQ5NjczCigibW06
+IGZpeCByYWNlcyBiZXR3ZWVuIGFkZHJlc3Nfc3BhY2UgZGVyZWZlcmVuY2Ug
+YW5kIGZyZWUgaW4KcGFnZV9ldmljYXRhYmxlIikgaGFzIG5vdyBlc3RhYmxp
+c2hlZCBpdCBhcyBhIGNvbnZlbnRpb25hbCBtZWFucy4KVGhvdWdoLCB1c2Vk
+IGluIHRoaXMgc3Bpbl9sb2NrX2lycSgpZWQgc2VjdGlvbiwgdGhhdCByY3Vf
+cmVhZF9sb2NrKCkKaXMgcmF0aGVyIGZvciBkb2N1bWVudGF0aW9uIHRoYW4g
+bmVjZXNzYXJ5LgoKKFRoYXQgaGlzdG9yeSBkb2VzIG5vdCBxdWl0ZSBjb3Zl
+ciB0aGlzIG5ldyBjYXNlOiBoZXJlIHdlIGFsc28KZGVyZWZlcmVuY2UgbWFw
+cGluZy0+YV9vcHMuICBCdXQgSSd2ZSBub3QgZm91bmQgYW55IGNhc2Ugd2hl
+cmUKbWFwcGluZy0+YV9vcHMgZ2V0cyB6ZXJvZWQsIGFuZCBldmVuIGlmIGl0
+IHBvaW50cyB0byBtb2R1bGUgZGF0YSwKdGhlcmUgaGFzIHRvIGJlIGEgZ3Jh
+Y2UgcGVyaW9kIGJlZm9yZSB0aGF0IG1vZHVsZSBnZXRzIHVubG9hZGVkLgpJ
+dCdzIG5vdCBpZGVhbCB0byByZWx5IG9uIHRoYXQsIGJ1dCBjb25zaWRlcmlu
+ZyB0aGF0IHdlIHN1cnZpdmVkCmZvciBzaXggeWVhcnMgYmVmb3JlIDY5ZDc2
+M2ZjNmQzYSBmaXhlZCBhIHRoZW9yZXRpY2FsIHByb2JsZW0sCkkgd291bGQg
+cmF0aGVyIHJlbHkgb24gUkNVIGhlcmUgdGhhbiB1c2UgdHJ5bG9ja19wYWdl
+KCk6IHRob3VnaAp3aWxsIHByb2JhYmx5IGhhdmUgdG8gYXJndWUgdGhhdCBp
+biBhIHNlcGFyYXRlIHBhdGNoIHVwc3RyZWFtLikKClNpZ25lZC1vZmYtYnk6
+IEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNvbT4KLS0tCiBpbmNsdWRl
+L2xpbnV4L3N3YXAuaCB8ICAxIC0KIG1tL2NvbXBhY3Rpb24uYyAgICAgIHwg
+NzcgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKystLS0tLS0tLS0t
+LS0KIG1tL3Ztc2Nhbi5jICAgICAgICAgIHwgNzIgKysrKystLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIDMgZmlsZXMgY2hhbmdlZCwg
+NjQgaW5zZXJ0aW9ucygrKSwgODYgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0
+IGEvaW5jbHVkZS9saW51eC9zd2FwLmggYi9pbmNsdWRlL2xpbnV4L3N3YXAu
+aAppbmRleCAyNDE3ZDI4OGUwMTYuLmRkOWRlMTc1MmViYSAxMDA2NDQKLS0t
+IGEvaW5jbHVkZS9saW51eC9zd2FwLmgKKysrIGIvaW5jbHVkZS9saW51eC9z
+d2FwLmgKQEAgLTM0NCw3ICszNDQsNiBAQCBleHRlcm4gdm9pZCBscnVfY2Fj
+aGVfYWRkX2FjdGl2ZV9vcl91bmV2aWN0YWJsZShzdHJ1Y3QgcGFnZSAqcGFn
+ZSwKIGV4dGVybiB1bnNpZ25lZCBsb25nIHpvbmVfcmVjbGFpbWFibGVfcGFn
+ZXMoc3RydWN0IHpvbmUgKnpvbmUpOwogZXh0ZXJuIHVuc2lnbmVkIGxvbmcg
+dHJ5X3RvX2ZyZWVfcGFnZXMoc3RydWN0IHpvbmVsaXN0ICp6b25lbGlzdCwg
+aW50IG9yZGVyLAogCQkJCQlnZnBfdCBnZnBfbWFzaywgbm9kZW1hc2tfdCAq
+bWFzayk7Ci1leHRlcm4gaW50IF9faXNvbGF0ZV9scnVfcGFnZShzdHJ1Y3Qg
+cGFnZSAqcGFnZSwgaXNvbGF0ZV9tb2RlX3QgbW9kZSk7CiBleHRlcm4gdW5z
+aWduZWQgbG9uZyB0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZ2VzKHN0cnVj
+dCBtZW1fY2dyb3VwICptZW1jZywKIAkJCQkJCSAgdW5zaWduZWQgbG9uZyBu
+cl9wYWdlcywKIAkJCQkJCSAgZ2ZwX3QgZ2ZwX21hc2ssCmRpZmYgLS1naXQg
+YS9tbS9jb21wYWN0aW9uLmMgYi9tbS9jb21wYWN0aW9uLmMKaW5kZXggNzU2
+ZTA4MjM2NTJhLi5jMDIxNTU2NjA5OGQgMTAwNjQ0Ci0tLSBhL21tL2NvbXBh
+Y3Rpb24uYworKysgYi9tbS9jb21wYWN0aW9uLmMKQEAgLTY2Myw3ICs2NjMs
+NyBAQCBzdGF0aWMgYm9vbCB0b29fbWFueV9pc29sYXRlZChzdHJ1Y3Qgem9u
+ZSAqem9uZSkKICAqLwogc3RhdGljIHVuc2lnbmVkIGxvbmcKIGlzb2xhdGVf
+bWlncmF0ZXBhZ2VzX2Jsb2NrKHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNj
+LCB1bnNpZ25lZCBsb25nIGxvd19wZm4sCi0JCQl1bnNpZ25lZCBsb25nIGVu
+ZF9wZm4sIGlzb2xhdGVfbW9kZV90IGlzb2xhdGVfbW9kZSkKKwkJCXVuc2ln
+bmVkIGxvbmcgZW5kX3BmbiwgaXNvbGF0ZV9tb2RlX3QgaXNvbF9tb2RlKQog
+ewogCXN0cnVjdCB6b25lICp6b25lID0gY2MtPnpvbmU7CiAJdW5zaWduZWQg
+bG9uZyBucl9zY2FubmVkID0gMCwgbnJfaXNvbGF0ZWQgPSAwOwpAQCAtODAw
+LDcgKzgwMCw3IEBAIGlzb2xhdGVfbWlncmF0ZXBhZ2VzX2Jsb2NrKHN0cnVj
+dCBjb21wYWN0X2NvbnRyb2wgKmNjLCB1bnNpZ25lZCBsb25nIGxvd19wZm4s
+CiAJCQkJCWxvY2tlZCA9IGZhbHNlOwogCQkJCX0KIAotCQkJCWlmICghaXNv
+bGF0ZV9tb3ZhYmxlX3BhZ2UocGFnZSwgaXNvbGF0ZV9tb2RlKSkKKwkJCQlp
+ZiAoIWlzb2xhdGVfbW92YWJsZV9wYWdlKHBhZ2UsIGlzb2xfbW9kZSkpCiAJ
+CQkJCWdvdG8gaXNvbGF0ZV9zdWNjZXNzOwogCQkJfQogCkBAIC04MjMsMzcg
+KzgyMyw2NSBAQCBpc29sYXRlX21pZ3JhdGVwYWdlc19ibG9jayhzdHJ1Y3Qg
+Y29tcGFjdF9jb250cm9sICpjYywgdW5zaWduZWQgbG9uZyBsb3dfcGZuLAog
+CQlpZiAoIShjYy0+Z2ZwX21hc2sgJiBfX0dGUF9GUykgJiYgcGFnZV9tYXBw
+aW5nKHBhZ2UpKQogCQkJZ290byBpc29sYXRlX2ZhaWw7CiAKKwkJLyogQ29t
+cGFjdGlvbiBtb3ZlcyB1bmV2aWN0YWJsZXMgaWYgc3lzY3RsIGFsbG93czsg
+Q01BIGFsd2F5cyAqLworCQlpZiAoIShpc29sX21vZGUgJiBJU09MQVRFX1VO
+RVZJQ1RBQkxFKSAmJiBQYWdlVW5ldmljdGFibGUocGFnZSkpCisJCQlnb3Rv
+IGlzb2xhdGVfZmFpbDsKKworCQkvKgorCQkgKiBJU09MQVRFX0FTWU5DX01J
+R1JBVEUgaXMgdXNlZCB0byBpbmRpY2F0ZSB0aGF0IGl0IG9ubHkKKwkJICog
+d2FudHMgcGFnZXMgdGhhdCBjYW4gYmUgbWlncmF0ZWQgd2l0aG91dCBibG9j
+a2luZzoKKwkJICogYnV0IGFsbCB0aGUgY2FsbGVyIGNhbiBkbyBvbiBQYWdl
+V3JpdGViYWNrIGlzIGJsb2NrLgorCQkgKi8KKwkJaWYgKChpc29sX21vZGUg
+JiBJU09MQVRFX0FTWU5DX01JR1JBVEUpICYmIFBhZ2VXcml0ZWJhY2socGFn
+ZSkpCisJCQlnb3RvIGlzb2xhdGVfZmFpbDsKKworCQkvKiBHZXQgcmVmZXJl
+bmNlIG9uIHBhZ2UgYmVmb3JlIGlzb2xhdGluZyBpdCAqLworCQlpZiAoIWdl
+dF9wYWdlX3VubGVzc196ZXJvKHBhZ2UpKQorCQkJZ290byBpc29sYXRlX2Zh
+aWw7CisKIAkJLyogSWYgd2UgYWxyZWFkeSBob2xkIHRoZSBsb2NrLCB3ZSBj
+YW4gc2tpcCBzb21lIHJlY2hlY2tpbmcgKi8KIAkJaWYgKCFsb2NrZWQpIHsK
+IAkJCWxvY2tlZCA9IGNvbXBhY3RfdHJ5bG9ja19pcnFzYXZlKHpvbmVfbHJ1
+X2xvY2soem9uZSksCiAJCQkJCQkJCSZmbGFncywgY2MpOwotCQkJaWYgKCFs
+b2NrZWQpCisJCQlpZiAoIWxvY2tlZCkgeworCQkJCXB1dF9wYWdlKHBhZ2Up
+OwogCQkJCWJyZWFrOworCQkJfQorCQl9CiAKLQkJCS8qIFJlY2hlY2sgUGFn
+ZUxSVSBhbmQgUGFnZUNvbXBvdW5kIHVuZGVyIGxvY2sgKi8KLQkJCWlmICgh
+UGFnZUxSVShwYWdlKSkKLQkJCQlnb3RvIGlzb2xhdGVfZmFpbDsKLQorCQkv
+KiBSZWNoZWNrIFBhZ2VMUlUgYW5kIFBhZ2VDb21wb3VuZCB1bmRlciBsb2Nr
+ICovCisJCWlmICh1bmxpa2VseSghUGFnZUxSVShwYWdlKSB8fCBQYWdlQ29t
+cG91bmQocGFnZSkpKSB7CiAJCQkvKgotCQkJICogUGFnZSBiZWNvbWUgY29t
+cG91bmQgc2luY2UgdGhlIG5vbi1sb2NrZWQgY2hlY2ssCi0JCQkgKiBhbmQg
+aXQncyBvbiBMUlUuIEl0IGNhbiBvbmx5IGJlIGEgVEhQIHNvIHRoZSBvcmRl
+cgotCQkJICogaXMgc2FmZSB0byByZWFkIGFuZCBpdCdzIDAgZm9yIHRhaWwg
+cGFnZXMuCisJCQkgKiBscnVfbG9jayBleGNsdWRlcyBzcGxpdHRpbmcgYSBo
+dWdlIHBhZ2UsCisJCQkgKiBidXQgd2UgY2Fubm90IGhvbGQgbHJ1X2xvY2sg
+d2hpbGUgZnJlZWluZyBwYWdlLgogCQkJICovCi0JCQlpZiAodW5saWtlbHko
+UGFnZUNvbXBvdW5kKHBhZ2UpKSkgewotCQkJCWxvd19wZm4gKz0gKDFVTCA8
+PCBjb21wb3VuZF9vcmRlcihwYWdlKSkgLSAxOwotCQkJCWdvdG8gaXNvbGF0
+ZV9mYWlsOwotCQkJfQorCQkJbG93X3BmbiArPSAoMVVMIDw8IGNvbXBvdW5k
+X29yZGVyKHBhZ2UpKSAtIDE7CisJCQlnb3RvIHVubG9ja19hbmRfcHV0Owog
+CQl9CiAKLQkJbHJ1dmVjID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhwYWdl
+LCB6b25lLT56b25lX3BnZGF0KTsKLQotCQkvKiBUcnkgaXNvbGF0ZSB0aGUg
+cGFnZSAqLwotCQlpZiAoX19pc29sYXRlX2xydV9wYWdlKHBhZ2UsIGlzb2xh
+dGVfbW9kZSkgIT0gMCkKLQkJCWdvdG8gaXNvbGF0ZV9mYWlsOworCQlpZiAo
+KGlzb2xfbW9kZSAmIElTT0xBVEVfQVNZTkNfTUlHUkFURSkgJiYgUGFnZURp
+cnR5KHBhZ2UpKSB7CisJCQlzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGlu
+ZzsKKwkJCWJvb2wgbWlncmF0ZV9kaXJ0eTsKIAotCQlWTV9CVUdfT05fUEFH
+RShQYWdlQ29tcG91bmQocGFnZSksIHBhZ2UpOworCQkJLyoKKwkJCSAqIE9u
+bHkgcGFnZXMgd2l0aG91dCBtYXBwaW5ncyBvciB0aGF0IGhhdmUgYQorCQkJ
+ICogLT5taWdyYXRlcGFnZSBjYWxsYmFjayBhcmUgcG9zc2libGUgdG8gbWln
+cmF0ZQorCQkJICogd2l0aG91dCBibG9ja2luZy4gSG93ZXZlciwgd2UgY2Fu
+IGJlIHJhY2luZyB3aXRoCisJCQkgKiB0cnVuY2F0aW9uIHNvIGl0J3MgbmVj
+ZXNzYXJ5IHRvIGRlbGF5IHRoZSBtYXBwaW5nCisJCQkgKiAoYW5kIGl0cyBh
+X29wcykgZnJvbSBiZWluZyBmcmVlZCBjb25jdXJyZW50bHk6CisJCQkgKiBp
+bm9kZXMgYW5kIHN3YXAgYWRkcmVzc19zcGFjZXMgYXJlIGZyZWVkIGJ5IFJD
+VS4KKwkJCSAqLworCQkJcmN1X3JlYWRfbG9jaygpOworCQkJbWFwcGluZyA9
+IHBhZ2VfbWFwcGluZyhwYWdlKTsKKwkJCW1pZ3JhdGVfZGlydHkgPSAhbWFw
+cGluZyB8fCBtYXBwaW5nLT5hX29wcy0+bWlncmF0ZXBhZ2U7CisJCQlyY3Vf
+cmVhZF91bmxvY2soKTsKKwkJCWlmICghbWlncmF0ZV9kaXJ0eSkKKwkJCQln
+b3RvIHVubG9ja19hbmRfcHV0OworCQl9CiAKLQkJLyogU3VjY2Vzc2Z1bGx5
+IGlzb2xhdGVkICovCisJCS8qIFBhZ2UgY2FuIG5vdyBiZSBzYWZlbHkgaXNv
+bGF0ZWQgKi8KKwkJbHJ1dmVjID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhw
+YWdlLCB6b25lLT56b25lX3BnZGF0KTsKKwkJQ2xlYXJQYWdlTFJVKHBhZ2Up
+OwogCQlkZWxfcGFnZV9mcm9tX2xydV9saXN0KHBhZ2UsIGxydXZlYywgcGFn
+ZV9scnUocGFnZSkpOwogCQlpbmNfbm9kZV9wYWdlX3N0YXRlKHBhZ2UsCiAJ
+CQkJTlJfSVNPTEFURURfQU5PTiArIHBhZ2VfaXNfZmlsZV9jYWNoZShwYWdl
+KSk7CkBAIC04NzksNiArOTA3LDEzIEBAIGlzb2xhdGVfbWlncmF0ZXBhZ2Vz
+X2Jsb2NrKHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNjLCB1bnNpZ25lZCBs
+b25nIGxvd19wZm4sCiAJCX0KIAogCQljb250aW51ZTsKKwordW5sb2NrX2Fu
+ZF9wdXQ6CisJCS8qIEF2b2lkIHBvdGVudGlhbCBkZWFkbG9jayBpbiBmcmVl
+aW5nIHBhZ2UgdW5kZXIgbHJ1X2xvY2sgKi8KKwkJc3Bpbl91bmxvY2tfaXJx
+cmVzdG9yZSh6b25lX2xydV9sb2NrKHpvbmUpLCBmbGFncyk7CisJCWxvY2tl
+ZCA9IGZhbHNlOworCQlwdXRfcGFnZShwYWdlKTsKKwogaXNvbGF0ZV9mYWls
+OgogCQlpZiAoIXNraXBfb25fZmFpbHVyZSkKIAkJCWNvbnRpbnVlOwpkaWZm
+IC0tZ2l0IGEvbW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYwppbmRleCA5Mjcw
+YTQzNzBkNTQuLjIyOTlkZjI1NzkyMyAxMDA2NDQKLS0tIGEvbW0vdm1zY2Fu
+LmMKKysrIGIvbW0vdm1zY2FuLmMKQEAgLTEzNjUsNjUgKzEzNjUsMTcgQEAg
+dW5zaWduZWQgbG9uZyByZWNsYWltX2NsZWFuX3BhZ2VzX2Zyb21fbGlzdChz
+dHJ1Y3Qgem9uZSAqem9uZSwKIH0KIAogLyoKLSAqIEF0dGVtcHQgdG8gcmVt
+b3ZlIHRoZSBzcGVjaWZpZWQgcGFnZSBmcm9tIGl0cyBMUlUuICBPbmx5IHRh
+a2UgdGhpcyBwYWdlCi0gKiBpZiBpdCBpcyBvZiB0aGUgYXBwcm9wcmlhdGUg
+UGFnZUFjdGl2ZSBzdGF0dXMuICBQYWdlcyB3aGljaCBhcmUgYmVpbmcKLSAq
+IGZyZWVkIGVsc2V3aGVyZSBhcmUgYWxzbyBpZ25vcmVkLgorICogQXR0ZW1w
+dCB0byByZW1vdmUgdGhlIHNwZWNpZmllZCBwYWdlIGZyb20gaXRzIExSVS4K
+KyAqIFBhZ2VzIHdoaWNoIGFyZSBiZWluZyBmcmVlZCBlbHNld2hlcmUgYXJl
+IGlnbm9yZWQuCiAgKgogICogcGFnZToJcGFnZSB0byBjb25zaWRlcgotICog
+bW9kZToJb25lIG9mIHRoZSBMUlUgaXNvbGF0aW9uIG1vZGVzIGRlZmluZWQg
+YWJvdmUKKyAqIG1vZGU6CTAgb3IgSVNPTEFURV9VTk1BUFBFRAogICoKLSAq
+IHJldHVybnMgMCBvbiBzdWNjZXNzLCAtdmUgZXJybm8gb24gZmFpbHVyZS4K
+KyAqIHJldHVybnMgMCBvbiBzdWNjZXNzLCAtRUJVU1kgb24gZmFpbHVyZS4K
+ICAqLwotaW50IF9faXNvbGF0ZV9scnVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFn
+ZSwgaXNvbGF0ZV9tb2RlX3QgbW9kZSkKK3N0YXRpYyBpbnQgX19pc29sYXRl
+X2xydV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlLCBpc29sYXRlX21vZGVfdCBt
+b2RlKQogewotCWludCByZXQgPSAtRUlOVkFMOwotCi0JLyogT25seSB0YWtl
+IHBhZ2VzIG9uIHRoZSBMUlUuICovCi0JaWYgKCFQYWdlTFJVKHBhZ2UpKQot
+CQlyZXR1cm4gcmV0OwotCi0JLyogQ29tcGFjdGlvbiBzaG91bGQgbm90IGhh
+bmRsZSB1bmV2aWN0YWJsZSBwYWdlcyBidXQgQ01BIGNhbiBkbyBzbyAqLwot
+CWlmIChQYWdlVW5ldmljdGFibGUocGFnZSkgJiYgIShtb2RlICYgSVNPTEFU
+RV9VTkVWSUNUQUJMRSkpCi0JCXJldHVybiByZXQ7Ci0KLQlyZXQgPSAtRUJV
+U1k7Ci0KLQkvKgotCSAqIFRvIG1pbmltaXNlIExSVSBkaXNydXB0aW9uLCB0
+aGUgY2FsbGVyIGNhbiBpbmRpY2F0ZSB0aGF0IGl0IG9ubHkKLQkgKiB3YW50
+cyB0byBpc29sYXRlIHBhZ2VzIGl0IHdpbGwgYmUgYWJsZSB0byBvcGVyYXRl
+IG9uIHdpdGhvdXQKLQkgKiBibG9ja2luZyAtIGNsZWFuIHBhZ2VzIGZvciB0
+aGUgbW9zdCBwYXJ0LgotCSAqCi0JICogSVNPTEFURV9BU1lOQ19NSUdSQVRF
+IGlzIHVzZWQgdG8gaW5kaWNhdGUgdGhhdCBpdCBvbmx5IHdhbnRzIHRvIHBh
+Z2VzCi0JICogdGhhdCBpdCBpcyBwb3NzaWJsZSB0byBtaWdyYXRlIHdpdGhv
+dXQgYmxvY2tpbmcKLQkgKi8KLQlpZiAobW9kZSAmIElTT0xBVEVfQVNZTkNf
+TUlHUkFURSkgewotCQkvKiBBbGwgdGhlIGNhbGxlciBjYW4gZG8gb24gUGFn
+ZVdyaXRlYmFjayBpcyBibG9jayAqLwotCQlpZiAoUGFnZVdyaXRlYmFjayhw
+YWdlKSkKLQkJCXJldHVybiByZXQ7Ci0KLQkJaWYgKFBhZ2VEaXJ0eShwYWdl
+KSkgewotCQkJc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmc7Ci0JCQli
+b29sIG1pZ3JhdGVfZGlydHk7Ci0KLQkJCS8qCi0JCQkgKiBPbmx5IHBhZ2Vz
+IHdpdGhvdXQgbWFwcGluZ3Mgb3IgdGhhdCBoYXZlIGEKLQkJCSAqIC0+bWln
+cmF0ZXBhZ2UgY2FsbGJhY2sgYXJlIHBvc3NpYmxlIHRvIG1pZ3JhdGUKLQkJ
+CSAqIHdpdGhvdXQgYmxvY2tpbmcuIEhvd2V2ZXIsIHdlIGNhbiBiZSByYWNp
+bmcgd2l0aAotCQkJICogdHJ1bmNhdGlvbiBzbyBpdCdzIG5lY2Vzc2FyeSB0
+byBsb2NrIHRoZSBwYWdlCi0JCQkgKiB0byBzdGFiaWxpc2UgdGhlIG1hcHBp
+bmcgYXMgdHJ1bmNhdGlvbiBob2xkcwotCQkJICogdGhlIHBhZ2UgbG9jayB1
+bnRpbCBhZnRlciB0aGUgcGFnZSBpcyByZW1vdmVkCi0JCQkgKiBmcm9tIHRo
+ZSBwYWdlIGNhY2hlLgotCQkJICovCi0JCQlpZiAoIXRyeWxvY2tfcGFnZShw
+YWdlKSkKLQkJCQlyZXR1cm4gcmV0OwotCi0JCQltYXBwaW5nID0gcGFnZV9t
+YXBwaW5nKHBhZ2UpOwotCQkJbWlncmF0ZV9kaXJ0eSA9ICFtYXBwaW5nIHx8
+IG1hcHBpbmctPmFfb3BzLT5taWdyYXRlcGFnZTsKLQkJCXVubG9ja19wYWdl
+KHBhZ2UpOwotCQkJaWYgKCFtaWdyYXRlX2RpcnR5KQotCQkJCXJldHVybiBy
+ZXQ7Ci0JCX0KLQl9CisJaW50IHJldCA9IC1FQlVTWTsKIAogCWlmICgobW9k
+ZSAmIElTT0xBVEVfVU5NQVBQRUQpICYmIHBhZ2VfbWFwcGVkKHBhZ2UpKQog
+CQlyZXR1cm4gcmV0OwpAQCAtMTQ0MSw3ICsxMzkzLDYgQEAgaW50IF9faXNv
+bGF0ZV9scnVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgaXNvbGF0ZV9tb2Rl
+X3QgbW9kZSkKIAlyZXR1cm4gcmV0OwogfQogCi0KIC8qCiAgKiBVcGRhdGUg
+TFJVIHNpemVzIGFmdGVyIGlzb2xhdGluZyBwYWdlcy4gVGhlIExSVSBzaXpl
+IHVwZGF0ZXMgbXVzdAogICogYmUgY29tcGxldGUgYmVmb3JlIG1lbV9jZ3Jv
+dXBfdXBkYXRlX2xydV9zaXplIGR1ZSB0byBhIHNhbnRpdHkgY2hlY2suCkBA
+IC0xNTIwLDIxICsxNDcxLDE0IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIGlz
+b2xhdGVfbHJ1X3BhZ2VzKHVuc2lnbmVkIGxvbmcgbnJfdG9fc2NhbiwKIAkJ
+ICogcGFnZXMsIHRyaWdnZXJpbmcgYSBwcmVtYXR1cmUgT09NLgogCQkgKi8K
+IAkJc2NhbisrOwotCQlzd2l0Y2ggKF9faXNvbGF0ZV9scnVfcGFnZShwYWdl
+LCBtb2RlKSkgewotCQljYXNlIDA6CisJCWlmIChfX2lzb2xhdGVfbHJ1X3Bh
+Z2UocGFnZSwgbW9kZSkgPT0gMCkgewogCQkJbnJfcGFnZXMgPSBocGFnZV9u
+cl9wYWdlcyhwYWdlKTsKIAkJCW5yX3Rha2VuICs9IG5yX3BhZ2VzOwogCQkJ
+bnJfem9uZV90YWtlbltwYWdlX3pvbmVudW0ocGFnZSldICs9IG5yX3BhZ2Vz
+OwogCQkJbGlzdF9tb3ZlKCZwYWdlLT5scnUsIGRzdCk7Ci0JCQlicmVhazsK
+LQotCQljYXNlIC1FQlVTWToKKwkJfSBlbHNlIHsKIAkJCS8qIGVsc2UgaXQg
+aXMgYmVpbmcgZnJlZWQgZWxzZXdoZXJlICovCiAJCQlsaXN0X21vdmUoJnBh
+Z2UtPmxydSwgc3JjKTsKLQkJCWNvbnRpbnVlOwotCi0JCWRlZmF1bHQ6Ci0J
+CQlCVUcoKTsKIAkJfQogCX0KIAotLSAKMi4xNy4xLjExODUuZzU1YmU5NDc4
+MzItZ29vZwoKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwNC1tbS1tZW1jZy1taXNj
+LWNsZWFudXBzLXRvLXNpbXBsaWZ5LXRoZS1uZXh0LWNvbW1pdC5wYXRjaAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDA2NDQA
+MDMxNTA2NgAwMjU3NTIzADAwMDAwMDIzMjU2ADEzMzA1MzcyMTI0ADAyNDY2
+NgAgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAB1c3RhciAgAGh1Z2hkAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAcHJpbWFyeWdyb3VwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABG
+cm9tIDBiOTI5NjU1YTA2Yzc0YWEzOGNlNDc4MDY0ZGM5YTM1ZDE4MTZlMmEg
+TW9uIFNlcCAxNyAwMDowMDowMCAyMDAxCkZyb206IEh1Z2ggRGlja2lucyA8
+aHVnaGRAZ29vZ2xlLmNvbT4KRGF0ZTogVGh1LCAxNyBNYXkgMjAxOCAxNjow
+OToyMSAtMDcwMApTdWJqZWN0OiBbUEFUQ0ggNC85XSBtbS9tZW1jZzogbWlz
+YyBjbGVhbnVwcyB0byBzaW1wbGlmeSB0aGUgbmV4dCBjb21taXQKCkluIHRo
+ZSBjb3Vyc2Ugb2YgdXBkYXRpbmcgdGhlIG1ham9yIGNvbW1pdCB0byA0LjE3
+LCBJIG1hZGUgc2V2ZXJhbAptaW5vciBjbGVhbnVwczogc2VwYXJhdGluZyB0
+aGVzZSBvdXQgbWFrZXMgaXQgYSBsaXR0bGUgZWFzaWVyIGZvcgp0aGUgcmV2
+aWV3ZXIgdG8gZm9jdXMgb24gdGhlIG1haW4gYnVzaW5lc3Mgb2YgdGhhdCBu
+ZXh0IGNvbW1pdC4KVGhlc2UgY2FuIGJlIGZ1cnRoZXIgc3ViZGl2aWRlZCwg
+YnV0IG1heSBub3QgYmUgd29ydGggdGhlIGVmZm9ydC4KCjEuIFRoZSBub2Rl
+X2xydXZlYygpIHdyYXBwZXIgZG9lcyBub3RoaW5nIGhlbHBmdWw6IGRlbGV0
+ZSBpdC4KMi4gbG9ja19wYWdlX2xydSgpIGFuZCB1bmxvY2tfcGFnZV9scnUo
+KSBhcmUgbm93IGJhY2sgdG8gYmVpbmcgdXNlZCBieQogICBjb21taXRfY2hh
+cmdlKCkgYWxvbmU6IGl0J3MgbW9yZSBjb252ZW5pZW50IHRvIHB1dCB0aGVt
+IGlubGluZSB0aGVyZQogICBhZ2FpbiwgYW5kIHJlZHVjZXMgY29uZnVzaW9u
+IGJldHdlZW4gZGlmZmVyZW50IG1lbWNnIGxvY2tpbmcgZnVuY3Rpb25zCjMu
+IG1lbV9jZ3JvdXBfcGFnZV9scnV2ZWMoKSB3aWxsIGJlIHN1cGVyc2VkZWQg
+YnkgbHJ1dmVjIGxvY2tpbmcgaW4gdGhlCiAgIG5leHQgY29tbWl0LCBidXQg
+dGVzdF9jbGVhcl9wYWdlX3dyaXRlYmFjaygpIG11c3QgYXZvaWQgdGhhdCAo
+YmVpbmcKICAgY2FsbGVkIGZyb20gYSBsb3dlciBsZXZlbCwgdXNpbmcgbG9j
+a19wYWdlX21lbWNnKCkgdG8gcHJvdGVjdCBmcm9tCiAgIG1lbWNnIG1vdmUp
+OiBpdCBjYW4ganVzdCBhcyB3ZWxsIHVzZSBtZW1fY2dyb3VwX2xydXZlYygp
+IGluc3RlYWQsCiAgIHNvIGxvbmcgYXMgbG9ja19wYWdlX21lbWNnKCkgcmV0
+dXJucyByb290X21lbV9jZ3JvdXAgZm9yIE5VTEwKICAgcGFnZS0+bWVtX2Nn
+cm91cCAod2hpY2ggc2hvdWxkIGJlIHJlYWQgd2l0aCBSRUFEX09OQ0UoKSwg
+YnkgdGhlIHdheSkuCjQuIE1ha2Ugdm1zY2FuJ3MgcHV0YmFja19pbmFjdGl2
+ZV9wYWdlcygpIGFuZCBtb3ZlX2FjdGl2ZV9wYWdlc190b19scnUoKQogICBt
+b3JlIGFsaWtlOiBlYWNoIHJldHVybmluZyBudW1iZXIgb2YgcGFnZXMgZm9y
+IGNhbGxlciB0byB1cGRhdGUgc3RhdHMuCgpTaWduZWQtb2ZmLWJ5OiBIdWdo
+IERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+Ci0tLQogaW5jbHVkZS9saW51
+eC9tZW1jb250cm9sLmggfCAgNCArLS0KIGluY2x1ZGUvbGludXgvbW16b25l
+LmggICAgIHwgIDUgLS0tCiBtbS9tZW1jb250cm9sLmMgICAgICAgICAgICB8
+IDY4ICsrKysrKysrKysrKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiBt
+bS9wYWdlLXdyaXRlYmFjay5jICAgICAgICB8ICAyICstCiBtbS9wYWdlX2Fs
+bG9jLmMgICAgICAgICAgICB8ICAyICstCiBtbS92bXNjYW4uYyAgICAgICAg
+ICAgICAgICB8IDI5ICsrKysrKysrLS0tLS0tLS0KIDYgZmlsZXMgY2hhbmdl
+ZCwgNDUgaW5zZXJ0aW9ucygrKSwgNjUgZGVsZXRpb25zKC0pCgpkaWZmIC0t
+Z2l0IGEvaW5jbHVkZS9saW51eC9tZW1jb250cm9sLmggYi9pbmNsdWRlL2xp
+bnV4L21lbWNvbnRyb2wuaAppbmRleCBkOTliNzFiYzJjNjYuLjBmMTM1OWY0
+YTVkYSAxMDA2NDQKLS0tIGEvaW5jbHVkZS9saW51eC9tZW1jb250cm9sLmgK
+KysrIGIvaW5jbHVkZS9saW51eC9tZW1jb250cm9sLmgKQEAgLTMyMSw3ICsz
+MjEsNyBAQCBzdGF0aWMgaW5saW5lIHN0cnVjdCBscnV2ZWMgKm1lbV9jZ3Jv
+dXBfbHJ1dmVjKHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQsCiAJc3RydWN0
+IGxydXZlYyAqbHJ1dmVjOwogCiAJaWYgKG1lbV9jZ3JvdXBfZGlzYWJsZWQo
+KSkgewotCQlscnV2ZWMgPSBub2RlX2xydXZlYyhwZ2RhdCk7CisJCWxydXZl
+YyA9ICZwZ2RhdC0+bHJ1dmVjOwogCQlnb3RvIG91dDsKIAl9CiAKQEAgLTc3
+Miw3ICs3NzIsNyBAQCBzdGF0aWMgaW5saW5lIHZvaWQgbWVtX2Nncm91cF9t
+aWdyYXRlKHN0cnVjdCBwYWdlICpvbGQsIHN0cnVjdCBwYWdlICpuZXcpCiBz
+dGF0aWMgaW5saW5lIHN0cnVjdCBscnV2ZWMgKm1lbV9jZ3JvdXBfbHJ1dmVj
+KHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQsCiAJCQkJc3RydWN0IG1lbV9j
+Z3JvdXAgKm1lbWNnKQogewotCXJldHVybiBub2RlX2xydXZlYyhwZ2RhdCk7
+CisJcmV0dXJuICZwZ2RhdC0+bHJ1dmVjOwogfQogCiBzdGF0aWMgaW5saW5l
+IHN0cnVjdCBscnV2ZWMgKm1lbV9jZ3JvdXBfcGFnZV9scnV2ZWMoc3RydWN0
+IHBhZ2UgKnBhZ2UsCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21tem9u
+ZS5oIGIvaW5jbHVkZS9saW51eC9tbXpvbmUuaAppbmRleCAzMjY5OWIyZGM1
+MmEuLjliYzE3ZGEwZTY2OCAxMDA2NDQKLS0tIGEvaW5jbHVkZS9saW51eC9t
+bXpvbmUuaAorKysgYi9pbmNsdWRlL2xpbnV4L21tem9uZS5oCkBAIC03NDAs
+MTEgKzc0MCw2IEBAIHN0YXRpYyBpbmxpbmUgc3BpbmxvY2tfdCAqem9uZV9s
+cnVfbG9jayhzdHJ1Y3Qgem9uZSAqem9uZSkKIAlyZXR1cm4gJnpvbmUtPnpv
+bmVfcGdkYXQtPmxydV9sb2NrOwogfQogCi1zdGF0aWMgaW5saW5lIHN0cnVj
+dCBscnV2ZWMgKm5vZGVfbHJ1dmVjKHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdk
+YXQpCi17Ci0JcmV0dXJuICZwZ2RhdC0+bHJ1dmVjOwotfQotCiBzdGF0aWMg
+aW5saW5lIHVuc2lnbmVkIGxvbmcgcGdkYXRfZW5kX3BmbihwZ19kYXRhX3Qg
+KnBnZGF0KQogewogCXJldHVybiBwZ2RhdC0+bm9kZV9zdGFydF9wZm4gKyBw
+Z2RhdC0+bm9kZV9zcGFubmVkX3BhZ2VzOwpkaWZmIC0tZ2l0IGEvbW0vbWVt
+Y29udHJvbC5jIGIvbW0vbWVtY29udHJvbC5jCmluZGV4IDJiZDNkZjNkMTAx
+YS4uOWYwOTk3ODM1Yzg2IDEwMDY0NAotLS0gYS9tbS9tZW1jb250cm9sLmMK
+KysrIGIvbW0vbWVtY29udHJvbC5jCkBAIC05MjUsOSArOTI1LDkgQEAgaW50
+IG1lbV9jZ3JvdXBfc2Nhbl90YXNrcyhzdHJ1Y3QgbWVtX2Nncm91cCAqbWVt
+Y2csCiAgKi8KIHN0cnVjdCBscnV2ZWMgKm1lbV9jZ3JvdXBfcGFnZV9scnV2
+ZWMoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdk
+YXQpCiB7Ci0Jc3RydWN0IG1lbV9jZ3JvdXBfcGVyX25vZGUgKm16OwogCXN0
+cnVjdCBtZW1fY2dyb3VwICptZW1jZzsKIAlzdHJ1Y3QgbHJ1dmVjICpscnV2
+ZWM7CisJaW50IG5pZDsKIAogCWlmIChtZW1fY2dyb3VwX2Rpc2FibGVkKCkp
+IHsKIAkJbHJ1dmVjID0gJnBnZGF0LT5scnV2ZWM7CkBAIC05NDIsOCArOTQy
+LDggQEAgc3RydWN0IGxydXZlYyAqbWVtX2Nncm91cF9wYWdlX2xydXZlYyhz
+dHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IHBnbGlzdF9kYXRhICpwZ2QKIAlp
+ZiAoIW1lbWNnKQogCQltZW1jZyA9IHJvb3RfbWVtX2Nncm91cDsKIAotCW16
+ID0gbWVtX2Nncm91cF9wYWdlX25vZGVpbmZvKG1lbWNnLCBwYWdlKTsKLQls
+cnV2ZWMgPSAmbXotPmxydXZlYzsKKwluaWQgPSBwYWdlX3RvX25pZChwYWdl
+KTsKKwlscnV2ZWMgPSAmbWVtY2ctPm5vZGVpbmZvW25pZF0tPmxydXZlYzsK
+IG91dDoKIAkvKgogCSAqIFNpbmNlIGEgbm9kZSBjYW4gYmUgb25saW5lZCBh
+ZnRlciB0aGUgbWVtX2Nncm91cCB3YXMgY3JlYXRlZCwKQEAgLTE2MDksOSAr
+MTYwOSw5IEBAIHN0cnVjdCBtZW1fY2dyb3VwICpsb2NrX3BhZ2VfbWVtY2co
+c3RydWN0IHBhZ2UgKnBhZ2UpCiAJaWYgKG1lbV9jZ3JvdXBfZGlzYWJsZWQo
+KSkKIAkJcmV0dXJuIE5VTEw7CiBhZ2FpbjoKLQltZW1jZyA9IHBhZ2UtPm1l
+bV9jZ3JvdXA7CisJbWVtY2cgPSBSRUFEX09OQ0UocGFnZS0+bWVtX2Nncm91
+cCk7CiAJaWYgKHVubGlrZWx5KCFtZW1jZykpCi0JCXJldHVybiBOVUxMOwor
+CQlyZXR1cm4gcm9vdF9tZW1fY2dyb3VwOwogCiAJaWYgKGF0b21pY19yZWFk
+KCZtZW1jZy0+bW92aW5nX2FjY291bnQpIDw9IDApCiAJCXJldHVybiBtZW1j
+ZzsKQEAgLTIwNTQsNDEgKzIwNTQsMTIgQEAgc3RhdGljIHZvaWQgY2FuY2Vs
+X2NoYXJnZShzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csIHVuc2lnbmVkIGlu
+dCBucl9wYWdlcykKIAljc3NfcHV0X21hbnkoJm1lbWNnLT5jc3MsIG5yX3Bh
+Z2VzKTsKIH0KIAotc3RhdGljIHZvaWQgbG9ja19wYWdlX2xydShzdHJ1Y3Qg
+cGFnZSAqcGFnZSwgaW50ICppc29sYXRlZCkKLXsKLQlzdHJ1Y3Qgem9uZSAq
+em9uZSA9IHBhZ2Vfem9uZShwYWdlKTsKLQotCXNwaW5fbG9ja19pcnEoem9u
+ZV9scnVfbG9jayh6b25lKSk7Ci0JaWYgKFBhZ2VMUlUocGFnZSkpIHsKLQkJ
+c3RydWN0IGxydXZlYyAqbHJ1dmVjOwotCi0JCWxydXZlYyA9IG1lbV9jZ3Jv
+dXBfcGFnZV9scnV2ZWMocGFnZSwgem9uZS0+em9uZV9wZ2RhdCk7Ci0JCUNs
+ZWFyUGFnZUxSVShwYWdlKTsKLQkJZGVsX3BhZ2VfZnJvbV9scnVfbGlzdChw
+YWdlLCBscnV2ZWMsIHBhZ2VfbHJ1KHBhZ2UpKTsKLQkJKmlzb2xhdGVkID0g
+MTsKLQl9IGVsc2UKLQkJKmlzb2xhdGVkID0gMDsKLX0KLQotc3RhdGljIHZv
+aWQgdW5sb2NrX3BhZ2VfbHJ1KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgaXNv
+bGF0ZWQpCi17Ci0Jc3RydWN0IHpvbmUgKnpvbmUgPSBwYWdlX3pvbmUocGFn
+ZSk7Ci0KLQlpZiAoaXNvbGF0ZWQpIHsKLQkJc3RydWN0IGxydXZlYyAqbHJ1
+dmVjOwotCi0JCWxydXZlYyA9IG1lbV9jZ3JvdXBfcGFnZV9scnV2ZWMocGFn
+ZSwgem9uZS0+em9uZV9wZ2RhdCk7Ci0JCVZNX0JVR19PTl9QQUdFKFBhZ2VM
+UlUocGFnZSksIHBhZ2UpOwotCQlTZXRQYWdlTFJVKHBhZ2UpOwotCQlhZGRf
+cGFnZV90b19scnVfbGlzdChwYWdlLCBscnV2ZWMsIHBhZ2VfbHJ1KHBhZ2Up
+KTsKLQl9Ci0Jc3Bpbl91bmxvY2tfaXJxKHpvbmVfbHJ1X2xvY2soem9uZSkp
+OwotfQotCiBzdGF0aWMgdm9pZCBjb21taXRfY2hhcmdlKHN0cnVjdCBwYWdl
+ICpwYWdlLCBzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csCiAJCQkgIGJvb2wg
+bHJ1Y2FyZSkKIHsKLQlpbnQgaXNvbGF0ZWQ7CisJc3RydWN0IHpvbmUgKnpv
+bmU7CisJc3RydWN0IGxydXZlYyAqbHJ1dmVjOworCWJvb2wgaXNvbGF0ZWQg
+PSBmYWxzZTsKIAogCVZNX0JVR19PTl9QQUdFKHBhZ2UtPm1lbV9jZ3JvdXAs
+IHBhZ2UpOwogCkBAIC0yMDk2LDggKzIwNjcsMTYgQEAgc3RhdGljIHZvaWQg
+Y29tbWl0X2NoYXJnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IG1lbV9j
+Z3JvdXAgKm1lbWNnLAogCSAqIEluIHNvbWUgY2FzZXMsIFN3YXBDYWNoZSBh
+bmQgRlVTRShzcGxpY2VfYnVmLT5yYWRpeHRyZWUpLCB0aGUgcGFnZQogCSAq
+IG1heSBhbHJlYWR5IGJlIG9uIHNvbWUgb3RoZXIgbWVtX2Nncm91cCdzIExS
+VS4gIFRha2UgY2FyZSBvZiBpdC4KIAkgKi8KLQlpZiAobHJ1Y2FyZSkKLQkJ
+bG9ja19wYWdlX2xydShwYWdlLCAmaXNvbGF0ZWQpOworCWlmIChscnVjYXJl
+KSB7CisJCXpvbmUgPSBwYWdlX3pvbmUocGFnZSk7CisJCXNwaW5fbG9ja19p
+cnEoem9uZV9scnVfbG9jayh6b25lKSk7CisJCWlmIChQYWdlTFJVKHBhZ2Up
+KSB7CisJCQlscnV2ZWMgPSBtZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHBhZ2Us
+IHpvbmUtPnpvbmVfcGdkYXQpOworCQkJQ2xlYXJQYWdlTFJVKHBhZ2UpOwor
+CQkJZGVsX3BhZ2VfZnJvbV9scnVfbGlzdChwYWdlLCBscnV2ZWMsIHBhZ2Vf
+bHJ1KHBhZ2UpKTsKKwkJCWlzb2xhdGVkID0gdHJ1ZTsKKwkJfQorCX0KIAog
+CS8qCiAJICogTm9ib2R5IHNob3VsZCBiZSBjaGFuZ2luZyBvciBzZXJpb3Vz
+bHkgbG9va2luZyBhdApAQCAtMjExNSw4ICsyMDk0LDE1IEBAIHN0YXRpYyB2
+b2lkIGNvbW1pdF9jaGFyZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBt
+ZW1fY2dyb3VwICptZW1jZywKIAkgKi8KIAlwYWdlLT5tZW1fY2dyb3VwID0g
+bWVtY2c7CiAKLQlpZiAobHJ1Y2FyZSkKLQkJdW5sb2NrX3BhZ2VfbHJ1KHBh
+Z2UsIGlzb2xhdGVkKTsKKwlpZiAobHJ1Y2FyZSkgeworCQlpZiAoaXNvbGF0
+ZWQpIHsKKwkJCWxydXZlYyA9IG1lbV9jZ3JvdXBfcGFnZV9scnV2ZWMocGFn
+ZSwgem9uZS0+em9uZV9wZ2RhdCk7CisJCQlWTV9CVUdfT05fUEFHRShQYWdl
+TFJVKHBhZ2UpLCBwYWdlKTsKKwkJCVNldFBhZ2VMUlUocGFnZSk7CisJCQlh
+ZGRfcGFnZV90b19scnVfbGlzdChwYWdlLCBscnV2ZWMsIHBhZ2VfbHJ1KHBh
+Z2UpKTsKKwkJfQorCQlzcGluX3VubG9ja19pcnEoem9uZV9scnVfbG9jayh6
+b25lKSk7CisJfQogfQogCiAjaWZuZGVmIENPTkZJR19TTE9CCmRpZmYgLS1n
+aXQgYS9tbS9wYWdlLXdyaXRlYmFjay5jIGIvbW0vcGFnZS13cml0ZWJhY2su
+YwppbmRleCAzMzdjNmFmYjMzNDUuLmYwZTkzYjkzMzc5NiAxMDA2NDQKLS0t
+IGEvbW0vcGFnZS13cml0ZWJhY2suYworKysgYi9tbS9wYWdlLXdyaXRlYmFj
+ay5jCkBAIC0yNzEzLDcgKzI3MTMsNyBAQCBpbnQgdGVzdF9jbGVhcl9wYWdl
+X3dyaXRlYmFjayhzdHJ1Y3QgcGFnZSAqcGFnZSkKIAlpbnQgcmV0OwogCiAJ
+bWVtY2cgPSBsb2NrX3BhZ2VfbWVtY2cocGFnZSk7Ci0JbHJ1dmVjID0gbWVt
+X2Nncm91cF9wYWdlX2xydXZlYyhwYWdlLCBwYWdlX3BnZGF0KHBhZ2UpKTsK
+KwlscnV2ZWMgPSBtZW1fY2dyb3VwX2xydXZlYyhwYWdlX3BnZGF0KHBhZ2Up
+LCBtZW1jZyk7CiAJaWYgKG1hcHBpbmcgJiYgbWFwcGluZ191c2Vfd3JpdGVi
+YWNrX3RhZ3MobWFwcGluZykpIHsKIAkJc3RydWN0IGlub2RlICppbm9kZSA9
+IG1hcHBpbmctPmhvc3Q7CiAJCXN0cnVjdCBiYWNraW5nX2Rldl9pbmZvICpi
+ZGkgPSBpbm9kZV90b19iZGkoaW5vZGUpOwpkaWZmIC0tZ2l0IGEvbW0vcGFn
+ZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jCmluZGV4IDIyMzIwZWEyNzQ4
+OS4uMmE2ZDY5ZjM3MGU0IDEwMDY0NAotLS0gYS9tbS9wYWdlX2FsbG9jLmMK
+KysrIGIvbW0vcGFnZV9hbGxvYy5jCkBAIC02MjIzLDcgKzYyMjMsNyBAQCBz
+dGF0aWMgdm9pZCBfX3BhZ2luZ2luaXQgZnJlZV9hcmVhX2luaXRfY29yZShz
+dHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0KQogI2VuZGlmCiAJcGdkYXRfcGFn
+ZV9leHRfaW5pdChwZ2RhdCk7CiAJc3Bpbl9sb2NrX2luaXQoJnBnZGF0LT5s
+cnVfbG9jayk7Ci0JbHJ1dmVjX2luaXQobm9kZV9scnV2ZWMocGdkYXQpKTsK
+KwlscnV2ZWNfaW5pdCgmcGdkYXQtPmxydXZlYyk7CiAKIAlwZ2RhdC0+cGVy
+X2NwdV9ub2Rlc3RhdHMgPSAmYm9vdF9ub2Rlc3RhdHM7CiAKZGlmZiAtLWdp
+dCBhL21tL3Ztc2Nhbi5jIGIvbW0vdm1zY2FuLmMKaW5kZXggMjI5OWRmMjU3
+OTIzLi5mNWEzMTZjYTAzN2MgMTAwNjQ0Ci0tLSBhL21tL3Ztc2Nhbi5jCisr
+KyBiL21tL3Ztc2Nhbi5jCkBAIC0xNTk2LDExICsxNTk2LDExIEBAIHN0YXRp
+YyBpbnQgdG9vX21hbnlfaXNvbGF0ZWQoc3RydWN0IHBnbGlzdF9kYXRhICpw
+Z2RhdCwgaW50IGZpbGUsCiAJcmV0dXJuIGlzb2xhdGVkID4gaW5hY3RpdmU7
+CiB9CiAKLXN0YXRpYyBub2lubGluZV9mb3Jfc3RhY2sgdm9pZAorc3RhdGlj
+IG5vaW5saW5lX2Zvcl9zdGFjayB1bnNpZ25lZCBpbnQKIHB1dGJhY2tfaW5h
+Y3RpdmVfcGFnZXMoc3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1Y3QgbGlz
+dF9oZWFkICpwYWdlX2xpc3QpCiB7Ci0Jc3RydWN0IHpvbmVfcmVjbGFpbV9z
+dGF0ICpyZWNsYWltX3N0YXQgPSAmbHJ1dmVjLT5yZWNsYWltX3N0YXQ7CiAJ
+c3RydWN0IHBnbGlzdF9kYXRhICpwZ2RhdCA9IGxydXZlY19wZ2RhdChscnV2
+ZWMpOworCXVuc2lnbmVkIGludCBucl9yb3RhdGVkID0gMDsKIAlMSVNUX0hF
+QUQocGFnZXNfdG9fZnJlZSk7CiAKIAkvKgpAQCAtMTYyNSwxMSArMTYyNSw5
+IEBAIHB1dGJhY2tfaW5hY3RpdmVfcGFnZXMoc3RydWN0IGxydXZlYyAqbHJ1
+dmVjLCBzdHJ1Y3QgbGlzdF9oZWFkICpwYWdlX2xpc3QpCiAJCWxydSA9IHBh
+Z2VfbHJ1KHBhZ2UpOwogCQlhZGRfcGFnZV90b19scnVfbGlzdChwYWdlLCBs
+cnV2ZWMsIGxydSk7CiAKLQkJaWYgKGlzX2FjdGl2ZV9scnUobHJ1KSkgewot
+CQkJaW50IGZpbGUgPSBpc19maWxlX2xydShscnUpOwotCQkJaW50IG51bXBh
+Z2VzID0gaHBhZ2VfbnJfcGFnZXMocGFnZSk7Ci0JCQlyZWNsYWltX3N0YXQt
+PnJlY2VudF9yb3RhdGVkW2ZpbGVdICs9IG51bXBhZ2VzOwotCQl9CisJCWlm
+IChpc19hY3RpdmVfbHJ1KGxydSkpCisJCQlucl9yb3RhdGVkICs9IGhwYWdl
+X25yX3BhZ2VzKHBhZ2UpOworCiAJCWlmIChwdXRfcGFnZV90ZXN0emVybyhw
+YWdlKSkgewogCQkJX19DbGVhclBhZ2VMUlUocGFnZSk7CiAJCQlfX0NsZWFy
+UGFnZUFjdGl2ZShwYWdlKTsKQEAgLTE2NDksNiArMTY0Nyw4IEBAIHB1dGJh
+Y2tfaW5hY3RpdmVfcGFnZXMoc3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1
+Y3QgbGlzdF9oZWFkICpwYWdlX2xpc3QpCiAJICogVG8gc2F2ZSBvdXIgY2Fs
+bGVyJ3Mgc3RhY2ssIG5vdyB1c2UgaW5wdXQgbGlzdCBmb3IgcGFnZXMgdG8g
+ZnJlZS4KIAkgKi8KIAlsaXN0X3NwbGljZSgmcGFnZXNfdG9fZnJlZSwgcGFn
+ZV9saXN0KTsKKworCXJldHVybiBucl9yb3RhdGVkOwogfQogCiAvKgpAQCAt
+MTc0Miw3ICsxNzQyLDggQEAgc2hyaW5rX2luYWN0aXZlX2xpc3QodW5zaWdu
+ZWQgbG9uZyBucl90b19zY2FuLCBzdHJ1Y3QgbHJ1dmVjICpscnV2ZWMsCiAJ
+CQkJICAgbnJfcmVjbGFpbWVkKTsKIAl9CiAKLQlwdXRiYWNrX2luYWN0aXZl
+X3BhZ2VzKGxydXZlYywgJnBhZ2VfbGlzdCk7CisJcmVjbGFpbV9zdGF0LT5y
+ZWNlbnRfcm90YXRlZFtmaWxlXSArPQorCQlwdXRiYWNrX2luYWN0aXZlX3Bh
+Z2VzKGxydXZlYywgJnBhZ2VfbGlzdCk7CiAKIAlfX21vZF9ub2RlX3BhZ2Vf
+c3RhdGUocGdkYXQsIE5SX0lTT0xBVEVEX0FOT04gKyBmaWxlLCAtbnJfdGFr
+ZW4pOwogCkBAIC0xODM3LDEyICsxODM4LDYgQEAgc3RhdGljIHVuc2lnbmVk
+IG1vdmVfYWN0aXZlX3BhZ2VzX3RvX2xydShzdHJ1Y3QgbHJ1dmVjICpscnV2
+ZWMsCiAJCX0KIAl9CiAKLQlpZiAoIWlzX2FjdGl2ZV9scnUobHJ1KSkgewot
+CQlfX2NvdW50X3ZtX2V2ZW50cyhQR0RFQUNUSVZBVEUsIG5yX21vdmVkKTsK
+LQkJY291bnRfbWVtY2dfZXZlbnRzKGxydXZlY19tZW1jZyhscnV2ZWMpLCBQ
+R0RFQUNUSVZBVEUsCi0JCQkJICAgbnJfbW92ZWQpOwotCX0KLQogCXJldHVy
+biBucl9tb3ZlZDsKIH0KIApAQCAtMTkzNiw4ICsxOTMxLDEyIEBAIHN0YXRp
+YyB2b2lkIHNocmlua19hY3RpdmVfbGlzdCh1bnNpZ25lZCBsb25nIG5yX3Rv
+X3NjYW4sCiAJcmVjbGFpbV9zdGF0LT5yZWNlbnRfcm90YXRlZFtmaWxlXSAr
+PSBucl9yb3RhdGVkOwogCiAJbnJfYWN0aXZhdGUgPSBtb3ZlX2FjdGl2ZV9w
+YWdlc190b19scnUobHJ1dmVjLCAmbF9hY3RpdmUsICZsX2hvbGQsIGxydSk7
+Ci0JbnJfZGVhY3RpdmF0ZSA9IG1vdmVfYWN0aXZlX3BhZ2VzX3RvX2xydShs
+cnV2ZWMsICZsX2luYWN0aXZlLCAmbF9ob2xkLCBscnUgLSBMUlVfQUNUSVZF
+KTsKKwlucl9kZWFjdGl2YXRlID0gbW92ZV9hY3RpdmVfcGFnZXNfdG9fbHJ1
+KGxydXZlYywgJmxfaW5hY3RpdmUsICZsX2hvbGQsCisJCQkJCQkJbHJ1IC0g
+TFJVX0FDVElWRSk7CisJX19jb3VudF92bV9ldmVudHMoUEdERUFDVElWQVRF
+LCBucl9kZWFjdGl2YXRlKTsKKwljb3VudF9tZW1jZ19ldmVudHMobHJ1dmVj
+X21lbWNnKGxydXZlYyksIFBHREVBQ1RJVkFURSwgbnJfZGVhY3RpdmF0ZSk7
+CiAJX19tb2Rfbm9kZV9wYWdlX3N0YXRlKHBnZGF0LCBOUl9JU09MQVRFRF9B
+Tk9OICsgZmlsZSwgLW5yX3Rha2VuKTsKKwogCXNwaW5fdW5sb2NrX2lycSgm
+cGdkYXQtPmxydV9sb2NrKTsKIAogCW1lbV9jZ3JvdXBfdW5jaGFyZ2VfbGlz
+dCgmbF9ob2xkKTsKLS0gCjIuMTcuMS4xMTg1Lmc1NWJlOTQ3ODMyLWdvb2cK
+CgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwNS1tbS1tZW1jZy1pbnRyb2R1
+Y2UtcmVsb2NrX3BhZ2VfbHJ1dmVjLnBhdGNoAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDA2NDQAMDMx
+NTA2NgAwMjU3NTIzADAwMDAwMTAwNjE3ADEzMzA1MzcyMTI0ADAyMjQ1NAAg
+MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAB1c3RhciAgAGh1Z2hkAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAcHJpbWFyeWdyb3VwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGcm9t
+IDc4MDFkNDA0NDQxODJjNWMwOWFjZDZmYzk3OGM5YTE0ZWM0ODNhNjcgTW9u
+IFNlcCAxNyAwMDowMDowMCAyMDAxCkZyb206IEh1Z2ggRGlja2lucyA8aHVn
+aGRAZ29vZ2xlLmNvbT4KRGF0ZTogVHVlLCAxMiBKdW4gMjAxMiAxNTo0Njo1
+OCAtMDcwMApTdWJqZWN0OiBbUEFUQ0ggNS85XSBtbS9tZW1jZzogaW50cm9k
+dWNlIHJlbG9ja19wYWdlX2xydXZlYwoKUmVwbGFjZSBtZW1fY2dyb3VwX3Bh
+Z2VfbHJ1dmVjKCkKYW5kIG5lYXJieSBzcGluX2xvY2tfaXJxIG9yIHNwaW5f
+bG9ja19pcnFzYXZlIG9mIHBnZGF0LT5scnVfbG9jazoKaW4gbW9zdCBwbGFj
+ZXMgYnkgbG9ja19wYWdlX2xydXZlYygpIG9yIHJlbG9ja19wYWdlX2xydXZl
+YygpICh0aGUKZm9ybWVyIGJlaW5nIGEgc2ltcGxlIGNhc2Ugb2YgdGhlIGxh
+dHRlcikgb3IganVzdCBieSBsb2NrX2xydXZlYygpLgp1bmxvY2tfbHJ1dmVj
+KCkgZG9lcyB0aGUgc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSBmb3IgdGhlbSBh
+bGwuCgpyZWxvY2tfcGFnZV9scnV2ZWMoKSBpcyBib3JuIGZyb20gdGhhdCAi
+cGFnZXBnZGF0IiBwYXR0ZXJuIGluIHN3YXAuYwphbmQgdm1zY2FuLmMsIHdo
+ZXJlIHdlIGxvb3Agb3ZlciBhbiBhcnJheSBvZiBwYWdlcywgc3dpdGNoaW5n
+IGxvY2sKd2hlbmV2ZXIgdGhlIHBnZGF0IGNoYW5nZXM6IGJlYXJpbmcgaW4g
+bWluZCB0aGF0IGlmIHdlIHdlcmUgdG8gcmVmaW5lCnRoYXQgbG9jayB0byBw
+ZXItbWVtY2cgcGVyLW5vZGUsIHRoZW4gd2Ugd291bGQgaGF2ZSB0byBzd2l0
+Y2ggd2hlbmV2ZXIKdGhlIG1lbWNnIGNoYW5nZXMgdG9vLgoKcmVsb2NrX3Bh
+Z2VfbHJ1dmVjKHBhZ2UsICZscnV2ZWMpIGxvY2F0ZXMgdGhlIHJpZ2h0IGxy
+dXZlYyBmb3IgcGFnZSwKdW5sb2NrcyB0aGUgb2xkIGxydXZlYyBpZiBkaWZm
+ZXJlbnQgKGFuZCBub3QgTlVMTCksIGxvY2tzIHRoZSBuZXcsCmFuZCB1cGRh
+dGVzIGxydXZlYyBvbiByZXR1cm46IHNvIHRoYXQgd2Ugc2hhbGwgaGF2ZSBq
+dXN0IG9uZSByb3V0aW5lCnRvIGxvY2F0ZSBhbmQgbG9jayB0aGUgbHJ1dmVj
+LCB3aGVyZSBvcmlnaW5hbGx5IGl0IHdhcyByZS1ldmFsdWF0ZWQKYXQgZGlm
+ZmVyZW50IHN0YWdlcy4gIChCdXQgSSBkb24ndCB5ZXQga25vdyBob3cgdG8g
+c2F0aXNmeSBzcGFyc2UoMSkuKQoKQnV0IHBhZ2UtPm1lbV9jZ3JvdXAgKGFu
+ZCBoZW5jZSBscnV2ZWMpIG1heSBvbmx5IGJlIHN0YWJsZSBvbmNlIHdlIGhh
+dmUKdGhlIGxvY2s6IHNvLCBoYXZpbmcgZ290IGl0LCBjaGVjayBpZiBpdCdz
+IHN0aWxsIHRoZSBvbmUgd2Ugd2FudCwgYW5kCnJldHJ5IGlmIG5vdC4gIEl0
+IGlzIGZvciB0aGlzIHJldHJ5ICh3aGljaCBiZWNvbWVzIG1vcmUgY3J1Y2lh
+bCBvbmNlCmxydV9sb2NrIG1vdmVzIGZyb20gcGdkYXQgaW50byBscnV2ZWMp
+IHRoYXQgd2Ugcm91dGUgYWxsIHBhZ2UgbHJ1dmVjCmxvY2tpbmcgdGhyb3Vn
+aCB0aGlzIG9uZSBmdW5jdGlvbi4KCnJlbG9ja19wYWdlX2xydXZlYygpIChh
+bmQgaXRzIHdyYXBwZXJzKSBpcyBhY3R1YWxseSBhbiBfaXJxc2F2ZSBvcGVy
+YXRpb246CnRoZXJlIGFyZSBhIGZldyBjYXNlcyBpbiBzd2FwLmMgd2hlcmUg
+aXQgbWF5IGJlIG5lZWRlZCBhdCBpbnRlcnJ1cHQgdGltZQoodG8gZnJlZSBv
+ciB0byByb3RhdGUgYSBwYWdlIG9uIEkvTyBjb21wbGV0aW9uKS4gIElkZWFs
+bHkoPykgd2Ugd291bGQgdXNlCnN0cmFpZ2h0Zm9yd2FyZCBfaXJxIGRpc2Fi
+bGluZyBlbHNld2hlcmUsIGJ1dCB0aGUgdmFyaWFudHMgZ2V0IGNvbmZ1c2lu
+ZzoKa2VlcCBpdCBzaW1wbGUgZm9yIG5vdyB3aXRoIGp1c3QgdGhlIG9uZSBp
+cnFzYXZlciBldmVyeXdoZXJlLgoKUGFzc2luZyBhbiBpcnFmbGFncyBhcmd1
+bWVudC9wb2ludGVyIGRvd24gc2V2ZXJhbCBsZXZlbHMgbG9va3MgbWVzc3kK
+dG9vLCBhbmQgSSdtIHJlbHVjdGFudCB0byBhZGQgYW55IG1vcmUgdG8gdGhl
+IHBhZ2UgcmVjbGFpbSBzdGFjazogc28Kc2F2ZSB0aGUgaXJxZmxhZ3MgYWxv
+bmdzaWRlIHRoZSBscnVfbG9jayBhbmQgcmVzdG9yZSB0aGVtIGZyb20gdGhl
+cmUuCgpJdCdzIGEgbGl0dGxlIHNhZCBub3cgdG8gYmUgaW5jbHVkaW5nIG1t
+LmggaW4gc3dhcC5oIHRvIGdldCBwYWdlX3BnZGF0KCk7CmJ1dCBJIHRoaW5r
+IHRoYXQgc3dhcC5oIChkZXNwaXRlIGl0cyBuYW1lOyBvciBtbXpvbmUuaD8p
+IGlzIHRoZSByaWdodApwbGFjZSBmb3IgdGhlc2UgbHJ1IGZ1bmN0aW9ucywg
+YW5kIHdpdGhvdXQgdGhvc2UgaW5saW5lZCwgdGhlIG9wdGltaXplcgpjYW5u
+b3QgZG8gYXMgd2VsbCBpbiB0aGUgIUNPTkZJR19NRU1DRyBjYXNlLgoKU2ln
+bmVkLW9mZi1ieTogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUuY29tPgot
+LS0KIGluY2x1ZGUvbGludXgvbWVtY29udHJvbC5oIHwgIDggLS0tLQogaW5j
+bHVkZS9saW51eC9tbXpvbmUuaCAgICAgfCAgNSArLS0KIGluY2x1ZGUvbGlu
+dXgvc3dhcC5oICAgICAgIHwgNTEgKysrKysrKysrKysrKysrKysrKysrKysr
+CiBtbS9jb21wYWN0aW9uLmMgICAgICAgICAgICB8IDQ0ICsrKysrKysrLS0t
+LS0tLS0tLS0tLQogbW0vaHVnZV9tZW1vcnkuYyAgICAgICAgICAgfCAxOCAr
+KysrLS0tLS0KIG1tL21lbWNvbnRyb2wuYyAgICAgICAgICAgIHwgNzcgKysr
+KysrKysrKysrKysrKysrKysrKy0tLS0tLS0tLS0tLS0tCiBtbS9tbG9jay5j
+ICAgICAgICAgICAgICAgICB8IDMxICsrKysrKysrLS0tLS0tLQogbW0vc3dh
+cC5jICAgICAgICAgICAgICAgICAgfCA3NyArKysrKysrKysrKysrLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0KIG1tL3Ztc2Nhbi5jICAgICAgICAgICAgICAg
+IHwgODEgKysrKysrKysrKysrKysrKysrKysrLS0tLS0tLS0tLS0tLS0tLS0K
+IDkgZmlsZXMgY2hhbmdlZCwgMjA5IGluc2VydGlvbnMoKyksIDE4MyBkZWxl
+dGlvbnMoLSkKCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21lbWNvbnRy
+b2wuaCBiL2luY2x1ZGUvbGludXgvbWVtY29udHJvbC5oCmluZGV4IDBmMTM1
+OWY0YTVkYS4uNTRlNzFjZGI2NjBkIDEwMDY0NAotLS0gYS9pbmNsdWRlL2xp
+bnV4L21lbWNvbnRyb2wuaAorKysgYi9pbmNsdWRlL2xpbnV4L21lbWNvbnRy
+b2wuaApAQCAtMzM4LDggKzMzOCw2IEBAIHN0YXRpYyBpbmxpbmUgc3RydWN0
+IGxydXZlYyAqbWVtX2Nncm91cF9scnV2ZWMoc3RydWN0IHBnbGlzdF9kYXRh
+ICpwZ2RhdCwKIAlyZXR1cm4gbHJ1dmVjOwogfQogCi1zdHJ1Y3QgbHJ1dmVj
+ICptZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHN0cnVjdCBwYWdlICosIHN0cnVj
+dCBwZ2xpc3RfZGF0YSAqKTsKLQogYm9vbCB0YXNrX2luX21lbV9jZ3JvdXAo
+c3RydWN0IHRhc2tfc3RydWN0ICp0YXNrLCBzdHJ1Y3QgbWVtX2Nncm91cCAq
+bWVtY2cpOwogc3RydWN0IG1lbV9jZ3JvdXAgKm1lbV9jZ3JvdXBfZnJvbV90
+YXNrKHN0cnVjdCB0YXNrX3N0cnVjdCAqcCk7CiAKQEAgLTc3NSwxMiArNzcz
+LDYgQEAgc3RhdGljIGlubGluZSBzdHJ1Y3QgbHJ1dmVjICptZW1fY2dyb3Vw
+X2xydXZlYyhzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0LAogCXJldHVybiAm
+cGdkYXQtPmxydXZlYzsKIH0KIAotc3RhdGljIGlubGluZSBzdHJ1Y3QgbHJ1
+dmVjICptZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdl
+LAotCQkJCQkJICAgIHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQpCi17Ci0J
+cmV0dXJuICZwZ2RhdC0+bHJ1dmVjOwotfQotCiBzdGF0aWMgaW5saW5lIGJv
+b2wgbW1fbWF0Y2hfY2dyb3VwKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLAogCQlz
+dHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2cpCiB7CmRpZmYgLS1naXQgYS9pbmNs
+dWRlL2xpbnV4L21tem9uZS5oIGIvaW5jbHVkZS9saW51eC9tbXpvbmUuaApp
+bmRleCA5YmMxN2RhMGU2NjguLjFmNWIxNTA0MGIwNiAxMDA2NDQKLS0tIGEv
+aW5jbHVkZS9saW51eC9tbXpvbmUuaAorKysgYi9pbmNsdWRlL2xpbnV4L21t
+em9uZS5oCkBAIC02OTUsNiArNjk1LDcgQEAgdHlwZWRlZiBzdHJ1Y3QgcGds
+aXN0X2RhdGEgewogCS8qIFdyaXRlLWludGVuc2l2ZSBmaWVsZHMgdXNlZCBi
+eSBwYWdlIHJlY2xhaW0gKi8KIAlaT05FX1BBRERJTkcoX3BhZDFfKQogCXNw
+aW5sb2NrX3QJCWxydV9sb2NrOworCXVuc2lnbmVkIGxvbmcJCWlycWZsYWdz
+OwogCiAjaWZkZWYgQ09ORklHX0RFRkVSUkVEX1NUUlVDVF9QQUdFX0lOSVQK
+IAkvKgpAQCAtNzM1LDEwICs3MzYsNiBAQCB0eXBlZGVmIHN0cnVjdCBwZ2xp
+c3RfZGF0YSB7CiAKICNkZWZpbmUgbm9kZV9zdGFydF9wZm4obmlkKQkoTk9E
+RV9EQVRBKG5pZCktPm5vZGVfc3RhcnRfcGZuKQogI2RlZmluZSBub2RlX2Vu
+ZF9wZm4obmlkKSBwZ2RhdF9lbmRfcGZuKE5PREVfREFUQShuaWQpKQotc3Rh
+dGljIGlubGluZSBzcGlubG9ja190ICp6b25lX2xydV9sb2NrKHN0cnVjdCB6
+b25lICp6b25lKQotewotCXJldHVybiAmem9uZS0+em9uZV9wZ2RhdC0+bHJ1
+X2xvY2s7Ci19CiAKIHN0YXRpYyBpbmxpbmUgdW5zaWduZWQgbG9uZyBwZ2Rh
+dF9lbmRfcGZuKHBnX2RhdGFfdCAqcGdkYXQpCiB7CmRpZmYgLS1naXQgYS9p
+bmNsdWRlL2xpbnV4L3N3YXAuaCBiL2luY2x1ZGUvbGludXgvc3dhcC5oCmlu
+ZGV4IGRkOWRlMTc1MmViYS4uMmZmNDI1Y2U4ODdlIDEwMDY0NAotLS0gYS9p
+bmNsdWRlL2xpbnV4L3N3YXAuaAorKysgYi9pbmNsdWRlL2xpbnV4L3N3YXAu
+aApAQCAtMTAsNiArMTAsNyBAQAogI2luY2x1ZGUgPGxpbnV4L3NjaGVkLmg+
+CiAjaW5jbHVkZSA8bGludXgvbm9kZS5oPgogI2luY2x1ZGUgPGxpbnV4L2Zz
+Lmg+CisjaW5jbHVkZSA8bGludXgvbW0uaD4JCQkvKiBmb3IgcGFnZV9wZ2Rh
+dChwYWdlKSAqLwogI2luY2x1ZGUgPGxpbnV4L2F0b21pYy5oPgogI2luY2x1
+ZGUgPGxpbnV4L3BhZ2UtZmxhZ3MuaD4KICNpbmNsdWRlIDxhc20vcGFnZS5o
+PgpAQCAtMzQwLDYgKzM0MSw1NiBAQCBleHRlcm4gdm9pZCBzd2FwX3NldHVw
+KHZvaWQpOwogZXh0ZXJuIHZvaWQgbHJ1X2NhY2hlX2FkZF9hY3RpdmVfb3Jf
+dW5ldmljdGFibGUoc3RydWN0IHBhZ2UgKnBhZ2UsCiAJCQkJCQlzdHJ1Y3Qg
+dm1fYXJlYV9zdHJ1Y3QgKnZtYSk7CiAKK3N0YXRpYyBpbmxpbmUgc3Bpbmxv
+Y2tfdCAqbHJ1X2xvY2twdHIoc3RydWN0IGxydXZlYyAqbHJ1dmVjKQorewor
+CXJldHVybiAmbHJ1dmVjX3BnZGF0KGxydXZlYyktPmxydV9sb2NrOworfQor
+CitzdGF0aWMgaW5saW5lIHZvaWQgbG9ja19scnV2ZWMoc3RydWN0IGxydXZl
+YyAqbHJ1dmVjKQoreworCXN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQgPSBs
+cnV2ZWNfcGdkYXQobHJ1dmVjKTsKKwl1bnNpZ25lZCBsb25nIGlycWZsYWdz
+OworCisJc3Bpbl9sb2NrX2lycXNhdmUoJnBnZGF0LT5scnVfbG9jaywgaXJx
+ZmxhZ3MpOworCXBnZGF0LT5pcnFmbGFncyA9IGlycWZsYWdzOworfQorCitz
+dGF0aWMgaW5saW5lIHZvaWQgdW5sb2NrX2xydXZlYyhzdHJ1Y3QgbHJ1dmVj
+ICpscnV2ZWMpCit7CisJc3RydWN0IHBnbGlzdF9kYXRhICpwZ2RhdCA9IGxy
+dXZlY19wZ2RhdChscnV2ZWMpOworCXVuc2lnbmVkIGxvbmcgaXJxZmxhZ3M7
+CisKKwlpcnFmbGFncyA9IHBnZGF0LT5pcnFmbGFnczsKKwlzcGluX3VubG9j
+a19pcnFyZXN0b3JlKCZwZ2RhdC0+bHJ1X2xvY2ssIGlycWZsYWdzKTsKK30K
+KworI2lmZGVmIENPTkZJR19NRU1DRworLyogbGludXgvbW0vbWVtY29udHJv
+bC5jICovCitleHRlcm4gdm9pZCByZWxvY2tfcGFnZV9scnV2ZWMoc3RydWN0
+IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMgKipscnV2cCk7CisjZWxzZQor
+c3RhdGljIGlubGluZSB2b2lkIHJlbG9ja19wYWdlX2xydXZlYyhzdHJ1Y3Qg
+cGFnZSAqcGFnZSwgc3RydWN0IGxydXZlYyAqKmxydXZwKQoreworCXN0cnVj
+dCBscnV2ZWMgKmxydXZlYyA9ICZwYWdlX3BnZGF0KHBhZ2UpLT5scnV2ZWM7
+CisKKwlpZiAoKmxydXZwICYmICpscnV2cCAhPSBscnV2ZWMpIHsKKwkJdW5s
+b2NrX2xydXZlYygqbHJ1dnApOworCQkqbHJ1dnAgPSBOVUxMOworCX0KKwlp
+ZiAoISpscnV2cCkgeworCQkqbHJ1dnAgPSBscnV2ZWM7CisJCWxvY2tfbHJ1
+dmVjKGxydXZlYyk7CisJfQorfQorI2VuZGlmIC8qIENPTkZJR19NRU1DRyAq
+LworCitzdGF0aWMgaW5saW5lIHN0cnVjdCBscnV2ZWMgKmxvY2tfcGFnZV9s
+cnV2ZWMoc3RydWN0IHBhZ2UgKnBhZ2UpCit7CisJc3RydWN0IGxydXZlYyAq
+bHJ1dmVjID0gTlVMTDsKKworCXJlbG9ja19wYWdlX2xydXZlYyhwYWdlLCAm
+bHJ1dmVjKTsKKwlyZXR1cm4gbHJ1dmVjOworfQorCiAvKiBsaW51eC9tbS92
+bXNjYW4uYyAqLwogZXh0ZXJuIHVuc2lnbmVkIGxvbmcgem9uZV9yZWNsYWlt
+YWJsZV9wYWdlcyhzdHJ1Y3Qgem9uZSAqem9uZSk7CiBleHRlcm4gdW5zaWdu
+ZWQgbG9uZyB0cnlfdG9fZnJlZV9wYWdlcyhzdHJ1Y3Qgem9uZWxpc3QgKnpv
+bmVsaXN0LCBpbnQgb3JkZXIsCmRpZmYgLS1naXQgYS9tbS9jb21wYWN0aW9u
+LmMgYi9tbS9jb21wYWN0aW9uLmMKaW5kZXggYzAyMTU1NjYwOThkLi43OTFl
+OTVlOTdlYTIgMTAwNjQ0Ci0tLSBhL21tL2NvbXBhY3Rpb24uYworKysgYi9t
+bS9jb21wYWN0aW9uLmMKQEAgLTY2Nyw5ICs2NjcsNyBAQCBpc29sYXRlX21p
+Z3JhdGVwYWdlc19ibG9jayhzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYywg
+dW5zaWduZWQgbG9uZyBsb3dfcGZuLAogewogCXN0cnVjdCB6b25lICp6b25l
+ID0gY2MtPnpvbmU7CiAJdW5zaWduZWQgbG9uZyBucl9zY2FubmVkID0gMCwg
+bnJfaXNvbGF0ZWQgPSAwOwotCXN0cnVjdCBscnV2ZWMgKmxydXZlYzsKLQl1
+bnNpZ25lZCBsb25nIGZsYWdzID0gMDsKLQlib29sIGxvY2tlZCA9IGZhbHNl
+OworCXN0cnVjdCBscnV2ZWMgKmxydXZlYyA9IE5VTEw7CiAJc3RydWN0IHBh
+Z2UgKnBhZ2UgPSBOVUxMLCAqdmFsaWRfcGFnZSA9IE5VTEw7CiAJdW5zaWdu
+ZWQgbG9uZyBzdGFydF9wZm4gPSBsb3dfcGZuOwogCWJvb2wgc2tpcF9vbl9m
+YWlsdXJlID0gZmFsc2U7CkBAIC03MzAsMTAgKzcyOCw5IEBAIGlzb2xhdGVf
+bWlncmF0ZXBhZ2VzX2Jsb2NrKHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNj
+LCB1bnNpZ25lZCBsb25nIGxvd19wZm4sCiAJCSAqIGlmIGNvbnRlbmRlZC4K
+IAkJICovCiAJCWlmICghKGxvd19wZm4gJSBTV0FQX0NMVVNURVJfTUFYKSkg
+ewotCQkJaWYgKGxvY2tlZCkgewotCQkJCXNwaW5fdW5sb2NrX2lycXJlc3Rv
+cmUoem9uZV9scnVfbG9jayh6b25lKSwKLQkJCQkJCQlmbGFncyk7Ci0JCQkJ
+bG9ja2VkID0gZmFsc2U7CisJCQlpZiAobHJ1dmVjKSB7CisJCQkJdW5sb2Nr
+X2xydXZlYyhscnV2ZWMpOworCQkJCWxydXZlYyA9IE5VTEw7CiAJCQl9CiAJ
+CQlpZiAoY29tcGFjdF9zaG91bGRfYWJvcnQoY2MpKQogCQkJCWJyZWFrOwpA
+QCAtNzk0LDEwICs3OTEsOSBAQCBpc29sYXRlX21pZ3JhdGVwYWdlc19ibG9j
+ayhzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYywgdW5zaWduZWQgbG9uZyBs
+b3dfcGZuLAogCQkJICovCiAJCQlpZiAodW5saWtlbHkoX19QYWdlTW92YWJs
+ZShwYWdlKSkgJiYKIAkJCQkJIVBhZ2VJc29sYXRlZChwYWdlKSkgewotCQkJ
+CWlmIChsb2NrZWQpIHsKLQkJCQkJc3Bpbl91bmxvY2tfaXJxcmVzdG9yZSh6
+b25lX2xydV9sb2NrKHpvbmUpLAotCQkJCQkJCQkJZmxhZ3MpOwotCQkJCQls
+b2NrZWQgPSBmYWxzZTsKKwkJCQlpZiAobHJ1dmVjKSB7CisJCQkJCXVubG9j
+a19scnV2ZWMobHJ1dmVjKTsKKwkJCQkJbHJ1dmVjID0gTlVMTDsKIAkJCQl9
+CiAKIAkJCQlpZiAoIWlzb2xhdGVfbW92YWJsZV9wYWdlKHBhZ2UsIGlzb2xf
+bW9kZSkpCkBAIC04MzksMTUgKzgzNSw4IEBAIGlzb2xhdGVfbWlncmF0ZXBh
+Z2VzX2Jsb2NrKHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNjLCB1bnNpZ25l
+ZCBsb25nIGxvd19wZm4sCiAJCWlmICghZ2V0X3BhZ2VfdW5sZXNzX3plcm8o
+cGFnZSkpCiAJCQlnb3RvIGlzb2xhdGVfZmFpbDsKIAotCQkvKiBJZiB3ZSBh
+bHJlYWR5IGhvbGQgdGhlIGxvY2ssIHdlIGNhbiBza2lwIHNvbWUgcmVjaGVj
+a2luZyAqLwotCQlpZiAoIWxvY2tlZCkgewotCQkJbG9ja2VkID0gY29tcGFj
+dF90cnlsb2NrX2lycXNhdmUoem9uZV9scnVfbG9jayh6b25lKSwKLQkJCQkJ
+CQkJJmZsYWdzLCBjYyk7Ci0JCQlpZiAoIWxvY2tlZCkgewotCQkJCXB1dF9w
+YWdlKHBhZ2UpOwotCQkJCWJyZWFrOwotCQkJfQotCQl9CisJCS8qIFRlbXBv
+cmFyeSByZWdyZXNzaW9uIGZyb20gdHJ5bG9jaywgZml4ZWQgaW4gbGF0ZXIg
+cGF0Y2ggKi8KKwkJcmVsb2NrX3BhZ2VfbHJ1dmVjKHBhZ2UsICZscnV2ZWMp
+OwogCiAJCS8qIFJlY2hlY2sgUGFnZUxSVSBhbmQgUGFnZUNvbXBvdW5kIHVu
+ZGVyIGxvY2sgKi8KIAkJaWYgKHVubGlrZWx5KCFQYWdlTFJVKHBhZ2UpIHx8
+IFBhZ2VDb21wb3VuZChwYWdlKSkpIHsKQEAgLTg4MCw3ICs4NjksNiBAQCBp
+c29sYXRlX21pZ3JhdGVwYWdlc19ibG9jayhzdHJ1Y3QgY29tcGFjdF9jb250
+cm9sICpjYywgdW5zaWduZWQgbG9uZyBsb3dfcGZuLAogCQl9CiAKIAkJLyog
+UGFnZSBjYW4gbm93IGJlIHNhZmVseSBpc29sYXRlZCAqLwotCQlscnV2ZWMg
+PSBtZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHBhZ2UsIHpvbmUtPnpvbmVfcGdk
+YXQpOwogCQlDbGVhclBhZ2VMUlUocGFnZSk7CiAJCWRlbF9wYWdlX2Zyb21f
+bHJ1X2xpc3QocGFnZSwgbHJ1dmVjLCBwYWdlX2xydShwYWdlKSk7CiAJCWlu
+Y19ub2RlX3BhZ2Vfc3RhdGUocGFnZSwKQEAgLTkxMCw4ICs4OTgsOCBAQCBp
+c29sYXRlX21pZ3JhdGVwYWdlc19ibG9jayhzdHJ1Y3QgY29tcGFjdF9jb250
+cm9sICpjYywgdW5zaWduZWQgbG9uZyBsb3dfcGZuLAogCiB1bmxvY2tfYW5k
+X3B1dDoKIAkJLyogQXZvaWQgcG90ZW50aWFsIGRlYWRsb2NrIGluIGZyZWVp
+bmcgcGFnZSB1bmRlciBscnVfbG9jayAqLwotCQlzcGluX3VubG9ja19pcnFy
+ZXN0b3JlKHpvbmVfbHJ1X2xvY2soem9uZSksIGZsYWdzKTsKLQkJbG9ja2Vk
+ID0gZmFsc2U7CisJCXVubG9ja19scnV2ZWMobHJ1dmVjKTsKKwkJbHJ1dmVj
+ID0gTlVMTDsKIAkJcHV0X3BhZ2UocGFnZSk7CiAKIGlzb2xhdGVfZmFpbDoK
+QEAgLTkyNCw5ICs5MTIsOSBAQCBpc29sYXRlX21pZ3JhdGVwYWdlc19ibG9j
+ayhzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYywgdW5zaWduZWQgbG9uZyBs
+b3dfcGZuLAogCQkgKiBwYWdlIGFueXdheS4KIAkJICovCiAJCWlmIChucl9p
+c29sYXRlZCkgewotCQkJaWYgKGxvY2tlZCkgewotCQkJCXNwaW5fdW5sb2Nr
+X2lycXJlc3RvcmUoem9uZV9scnVfbG9jayh6b25lKSwgZmxhZ3MpOwotCQkJ
+CWxvY2tlZCA9IGZhbHNlOworCQkJaWYgKGxydXZlYykgeworCQkJCXVubG9j
+a19scnV2ZWMobHJ1dmVjKTsKKwkJCQlscnV2ZWMgPSBOVUxMOwogCQkJfQog
+CQkJcHV0YmFja19tb3ZhYmxlX3BhZ2VzKCZjYy0+bWlncmF0ZXBhZ2VzKTsK
+IAkJCWNjLT5ucl9taWdyYXRlcGFnZXMgPSAwOwpAQCAtOTUxLDggKzkzOSw4
+IEBAIGlzb2xhdGVfbWlncmF0ZXBhZ2VzX2Jsb2NrKHN0cnVjdCBjb21wYWN0
+X2NvbnRyb2wgKmNjLCB1bnNpZ25lZCBsb25nIGxvd19wZm4sCiAJaWYgKHVu
+bGlrZWx5KGxvd19wZm4gPiBlbmRfcGZuKSkKIAkJbG93X3BmbiA9IGVuZF9w
+Zm47CiAKLQlpZiAobG9ja2VkKQotCQlzcGluX3VubG9ja19pcnFyZXN0b3Jl
+KHpvbmVfbHJ1X2xvY2soem9uZSksIGZsYWdzKTsKKwlpZiAobHJ1dmVjKQor
+CQl1bmxvY2tfbHJ1dmVjKGxydXZlYyk7CiAKIAkvKgogCSAqIFVwZGF0ZSB0
+aGUgcGFnZWJsb2NrLXNraXAgaW5mb3JtYXRpb24gYW5kIGNhY2hlZCBzY2Fu
+bmVyIHBmbiwKZGlmZiAtLWdpdCBhL21tL2h1Z2VfbWVtb3J5LmMgYi9tbS9o
+dWdlX21lbW9yeS5jCmluZGV4IGI5ZjNkYmQ4ODViZC4uZjc3Yjk4YzRjYTQ0
+IDEwMDY0NAotLS0gYS9tbS9odWdlX21lbW9yeS5jCisrKyBiL21tL2h1Z2Vf
+bWVtb3J5LmMKQEAgLTI0MTAsMTcgKzI0MTAsMTMgQEAgc3RhdGljIHZvaWQg
+X19zcGxpdF9odWdlX3BhZ2VfdGFpbChzdHJ1Y3QgcGFnZSAqaGVhZCwgaW50
+IHRhaWwsCiAJbHJ1X2FkZF9wYWdlX3RhaWwoaGVhZCwgcGFnZV90YWlsLCBs
+cnV2ZWMsIGxpc3QpOwogfQogCi1zdGF0aWMgdm9pZCBfX3NwbGl0X2h1Z2Vf
+cGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IGxpc3RfaGVhZCAqbGlz
+dCwKLQkJdW5zaWduZWQgbG9uZyBmbGFncykKK3N0YXRpYyB2b2lkIF9fc3Bs
+aXRfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlLAorCQlzdHJ1Y3QgbHJ1
+dmVjICpscnV2ZWMsIHN0cnVjdCBsaXN0X2hlYWQgKmxpc3QpCiB7CiAJc3Ry
+dWN0IHBhZ2UgKmhlYWQgPSBjb21wb3VuZF9oZWFkKHBhZ2UpOwotCXN0cnVj
+dCB6b25lICp6b25lID0gcGFnZV96b25lKGhlYWQpOwotCXN0cnVjdCBscnV2
+ZWMgKmxydXZlYzsKIAlwZ29mZl90IGVuZCA9IC0xOwogCWludCBpOwogCi0J
+bHJ1dmVjID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhoZWFkLCB6b25lLT56
+b25lX3BnZGF0KTsKLQogCS8qIGNvbXBsZXRlIG1lbWNnIHdvcmtzIGJlZm9y
+ZSBhZGQgcGFnZXMgdG8gTFJVICovCiAJbWVtX2Nncm91cF9zcGxpdF9odWdl
+X2ZpeHVwKGhlYWQpOwogCkBAIC0yNDUzLDcgKzI0NDksNyBAQCBzdGF0aWMg
+dm9pZCBfX3NwbGl0X2h1Z2VfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgc3Ry
+dWN0IGxpc3RfaGVhZCAqbGlzdCwKIAkJeGFfdW5sb2NrKCZoZWFkLT5tYXBw
+aW5nLT5pX3BhZ2VzKTsKIAl9CiAKLQlzcGluX3VubG9ja19pcnFyZXN0b3Jl
+KHpvbmVfbHJ1X2xvY2socGFnZV96b25lKGhlYWQpKSwgZmxhZ3MpOworCXVu
+bG9ja19scnV2ZWMobHJ1dmVjKTsKIAogCXVuZnJlZXplX3BhZ2UoaGVhZCk7
+CiAKQEAgLTI1OTUsOSArMjU5MSw5IEBAIGludCBzcGxpdF9odWdlX3BhZ2Vf
+dG9fbGlzdChzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IGxpc3RfaGVhZCAq
+bGlzdCkKIAlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0YSA9IE5PREVfREFU
+QShwYWdlX3RvX25pZChoZWFkKSk7CiAJc3RydWN0IGFub25fdm1hICphbm9u
+X3ZtYSA9IE5VTEw7CiAJc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcg
+PSBOVUxMOworCXN0cnVjdCBscnV2ZWMgKmxydXZlYzsKIAlpbnQgY291bnQs
+IG1hcGNvdW50LCBleHRyYV9waW5zLCByZXQ7CiAJYm9vbCBtbG9ja2VkOwot
+CXVuc2lnbmVkIGxvbmcgZmxhZ3M7CiAKIAlWTV9CVUdfT05fUEFHRShpc19o
+dWdlX3plcm9fcGFnZShwYWdlKSwgcGFnZSk7CiAJVk1fQlVHX09OX1BBR0Uo
+IVBhZ2VMb2NrZWQocGFnZSksIHBhZ2UpOwpAQCAtMjY1Myw3ICsyNjQ5LDcg
+QEAgaW50IHNwbGl0X2h1Z2VfcGFnZV90b19saXN0KHN0cnVjdCBwYWdlICpw
+YWdlLCBzdHJ1Y3QgbGlzdF9oZWFkICpsaXN0KQogCQlscnVfYWRkX2RyYWlu
+KCk7CiAKIAkvKiBwcmV2ZW50IFBhZ2VMUlUgdG8gZ28gYXdheSBmcm9tIHVu
+ZGVyIHVzLCBhbmQgZnJlZXplIGxydSBzdGF0cyAqLwotCXNwaW5fbG9ja19p
+cnFzYXZlKHpvbmVfbHJ1X2xvY2socGFnZV96b25lKGhlYWQpKSwgZmxhZ3Mp
+OworCWxydXZlYyA9IGxvY2tfcGFnZV9scnV2ZWMoaGVhZCk7CiAKIAlpZiAo
+bWFwcGluZykgewogCQl2b2lkICoqcHNsb3Q7CkBAIC0yNjgyLDcgKzI2Nzgs
+NyBAQCBpbnQgc3BsaXRfaHVnZV9wYWdlX3RvX2xpc3Qoc3RydWN0IHBhZ2Ug
+KnBhZ2UsIHN0cnVjdCBsaXN0X2hlYWQgKmxpc3QpCiAJCWlmIChtYXBwaW5n
+KQogCQkJX19kZWNfbm9kZV9wYWdlX3N0YXRlKHBhZ2UsIE5SX1NITUVNX1RI
+UFMpOwogCQlzcGluX3VubG9jaygmcGdkYXRhLT5zcGxpdF9xdWV1ZV9sb2Nr
+KTsKLQkJX19zcGxpdF9odWdlX3BhZ2UocGFnZSwgbGlzdCwgZmxhZ3MpOwor
+CQlfX3NwbGl0X2h1Z2VfcGFnZShwYWdlLCBscnV2ZWMsIGxpc3QpOwogCQlp
+ZiAoUGFnZVN3YXBDYWNoZShoZWFkKSkgewogCQkJc3dwX2VudHJ5X3QgZW50
+cnkgPSB7IC52YWwgPSBwYWdlX3ByaXZhdGUoaGVhZCkgfTsKIApAQCAtMjcw
+MSw3ICsyNjk3LDcgQEAgaW50IHNwbGl0X2h1Z2VfcGFnZV90b19saXN0KHN0
+cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3QgbGlzdF9oZWFkICpsaXN0KQogCQlz
+cGluX3VubG9jaygmcGdkYXRhLT5zcGxpdF9xdWV1ZV9sb2NrKTsKIGZhaWw6
+CQlpZiAobWFwcGluZykKIAkJCXhhX3VubG9jaygmbWFwcGluZy0+aV9wYWdl
+cyk7Ci0JCXNwaW5fdW5sb2NrX2lycXJlc3RvcmUoem9uZV9scnVfbG9jayhw
+YWdlX3pvbmUoaGVhZCkpLCBmbGFncyk7CisJCXVubG9ja19scnV2ZWMobHJ1
+dmVjKTsKIAkJdW5mcmVlemVfcGFnZShoZWFkKTsKIAkJcmV0ID0gLUVCVVNZ
+OwogCX0KZGlmZiAtLWdpdCBhL21tL21lbWNvbnRyb2wuYyBiL21tL21lbWNv
+bnRyb2wuYwppbmRleCA5ZjA5OTc4MzVjODYuLmQ1MGQ3NGNlYmZhZiAxMDA2
+NDQKLS0tIGEvbW0vbWVtY29udHJvbC5jCisrKyBiL21tL21lbWNvbnRyb2wu
+YwpAQCAtOTE1LDQ0ICs5MTUsNjQgQEAgaW50IG1lbV9jZ3JvdXBfc2Nhbl90
+YXNrcyhzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csCiB9CiAKIC8qKgotICog
+bWVtX2Nncm91cF9wYWdlX2xydXZlYyAtIHJldHVybiBscnV2ZWMgZm9yIGlz
+b2xhdGluZy9wdXR0aW5nIGFuIExSVSBwYWdlCisgKiByZWxvY2tfcGFnZV9s
+cnV2ZWMgLSBsb2NrIGFuZCB1cGRhdGUgbHJ1dmVjIGZvciB0aGlzIHBhZ2Us
+IHVubG9ja2luZyBwcmV2aW91cwogICogQHBhZ2U6IHRoZSBwYWdlCi0gKiBA
+cGdkYXQ6IHBnZGF0IG9mIHRoZSBwYWdlCi0gKgotICogVGhpcyBmdW5jdGlv
+biBpcyBvbmx5IHNhZmUgd2hlbiBmb2xsb3dpbmcgdGhlIExSVSBwYWdlIGlz
+b2xhdGlvbgotICogYW5kIHB1dGJhY2sgcHJvdG9jb2w6IHRoZSBMUlUgbG9j
+ayBtdXN0IGJlIGhlbGQsIGFuZCB0aGUgcGFnZSBtdXN0Ci0gKiBlaXRoZXIg
+YmUgUGFnZUxSVSgpIG9yIHRoZSBjYWxsZXIgbXVzdCBoYXZlIGlzb2xhdGVk
+L2FsbG9jYXRlZCBpdC4KKyAqIEBscnV2cDogcG9pbnRlciB0byB3aGVyZSB0
+byBvdXRwdXQgbHJ1dmVjOyB1bmxvY2sgaW5wdXQgbHJ1dmVjIGlmIG5vbi1O
+VUxMCiAgKi8KLXN0cnVjdCBscnV2ZWMgKm1lbV9jZ3JvdXBfcGFnZV9scnV2
+ZWMoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdk
+YXQpCit2b2lkIHJlbG9ja19wYWdlX2xydXZlYyhzdHJ1Y3QgcGFnZSAqcGFn
+ZSwgc3RydWN0IGxydXZlYyAqKmxydXZwKQogewotCXN0cnVjdCBtZW1fY2dy
+b3VwICptZW1jZzsKKwlzdHJ1Y3QgbWVtX2Nncm91cCAqb3JpZ19tZW1jZywg
+Km1lbWNnOwogCXN0cnVjdCBscnV2ZWMgKmxydXZlYzsKLQlpbnQgbmlkOwot
+Ci0JaWYgKG1lbV9jZ3JvdXBfZGlzYWJsZWQoKSkgewotCQlscnV2ZWMgPSAm
+cGdkYXQtPmxydXZlYzsKLQkJZ290byBvdXQ7Ci0JfQorCWludCBuaWQgPSBw
+YWdlX3RvX25pZChwYWdlKTsKKwlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0
+ID0gTk9ERV9EQVRBKG5pZCk7CiAKLQltZW1jZyA9IHBhZ2UtPm1lbV9jZ3Jv
+dXA7CiAJLyoKLQkgKiBTd2FwY2FjaGUgcmVhZGFoZWFkIHBhZ2VzIGFyZSBh
+ZGRlZCB0byB0aGUgTFJVIC0gYW5kCi0JICogcG9zc2libHkgbWlncmF0ZWQg
+LSBiZWZvcmUgdGhleSBhcmUgY2hhcmdlZC4KKwkgKiBJbWFnaW5lIGJlaW5n
+IHByZWVtcHRlZCBmb3IgYSBsb25nIHRpbWU6IHdlIG5lZWQgdG8gbWFrZSBz
+dXJlIHRoYXQKKwkgKiB0aGUgc3RydWN0dXJlIGF0IHBhZ2UtPm1lbV9jZ3Jv
+dXAsIGFuZCBzdHJ1Y3R1cmVzIGl0IGxpbmtzIHRvLCBjYW5ub3QKKwkgKiBi
+ZSBmcmVlZCB3aGlsZSB3ZSBsb2NhdGUgYW5kIGFjcXVpcmUgaXRzIGxydXZl
+YyBsb2NrLiAgY2dyb3VwJ3MgY3NzCisJICogZGVzdHJ1Y3Rpb24gd2FpdHMg
+UkNVIGdyYWNlIHBlcmlvZCBiZWZvcmUgY3NzX2ZyZWUsIG1ha2luZyB0aGlz
+IHNhZmUuCiAJICovCi0JaWYgKCFtZW1jZykKLQkJbWVtY2cgPSByb290X21l
+bV9jZ3JvdXA7CisJcmN1X3JlYWRfbG9jaygpOworYWdhaW46CisJb3JpZ19t
+ZW1jZyA9IG1lbWNnID0gUkVBRF9PTkNFKHBhZ2UtPm1lbV9jZ3JvdXApOwor
+CisJaWYgKGxpa2VseSghbWVtX2Nncm91cF9kaXNhYmxlZCgpKSkgeworCQkv
+KgorCQkgKiBTd2FwY2FjaGUgcmVhZGFoZWFkIHBhZ2VzIGFyZSBhZGRlZCB0
+byB0aGUgTFJVIC0KKwkJICogYW5kIHBvc3NpYmx5IG1pZ3JhdGVkIC0gYmVm
+b3JlIHRoZXkgYXJlIGNoYXJnZWQuCisJCSAqLworCQlpZiAoIW1lbWNnKQor
+CQkJbWVtY2cgPSByb290X21lbV9jZ3JvdXA7CisJCWxydXZlYyA9ICZtZW1j
+Zy0+bm9kZWluZm9bbmlkXS0+bHJ1dmVjOworCX0gZWxzZQorCQlscnV2ZWMg
+PSAmcGdkYXQtPmxydXZlYzsKIAotCW5pZCA9IHBhZ2VfdG9fbmlkKHBhZ2Up
+OwotCWxydXZlYyA9ICZtZW1jZy0+bm9kZWluZm9bbmlkXS0+bHJ1dmVjOwot
+b3V0OgogCS8qCiAJICogU2luY2UgYSBub2RlIGNhbiBiZSBvbmxpbmVkIGFm
+dGVyIHRoZSBtZW1fY2dyb3VwIHdhcyBjcmVhdGVkLAotCSAqIHdlIGhhdmUg
+dG8gYmUgcHJlcGFyZWQgdG8gaW5pdGlhbGl6ZSBscnV2ZWMtPnpvbmUgaGVy
+ZTsKKwkgKiB3ZSBoYXZlIHRvIGJlIHByZXBhcmVkIHRvIGluaXRpYWxpemUg
+bHJ1dmVjLT5wZ2RhdCBoZXJlOwogCSAqIGFuZCBpZiBvZmZsaW5lZCB0aGVu
+IHJlb25saW5lZCwgd2UgbmVlZCB0byByZWluaXRpYWxpemUgaXQuCiAJICov
+CiAJaWYgKHVubGlrZWx5KGxydXZlYy0+cGdkYXQgIT0gcGdkYXQpKQogCQls
+cnV2ZWMtPnBnZGF0ID0gcGdkYXQ7Ci0JcmV0dXJuIGxydXZlYzsKKworCS8q
+CisJICogRm9yIHRoZSBtb21lbnQsIHNpbXBseSBsb2NrIGJ5IHBnZGF0IGp1
+c3QgYXMgYmVmb3JlLgorCSAqLworCWlmICgqbHJ1dnAgJiYgKCpscnV2cCkt
+PnBnZGF0ICE9IGxydXZlYy0+cGdkYXQpIHsKKwkJdW5sb2NrX2xydXZlYygq
+bHJ1dnApOworCQkqbHJ1dnAgPSBOVUxMOworCX0KKwlpZiAoISpscnV2cCkK
+KwkJbG9ja19scnV2ZWMobHJ1dmVjKTsKKwkqbHJ1dnAgPSBscnV2ZWM7CisK
+KwkvKgorCSAqIEJ1dCBwYWdlLT5tZW1fY2dyb3VwIG1heSBoYXZlIGNoYW5n
+ZWQgc2luY2Ugd2UgbG9va2VkLi4uCisJICovCisJaWYgKHVubGlrZWx5KFJF
+QURfT05DRShwYWdlLT5tZW1fY2dyb3VwKSAhPSBvcmlnX21lbWNnKSkKKwkJ
+Z290byBhZ2FpbjsKKworCXJjdV9yZWFkX3VubG9jaygpOwogfQogCiAvKioK
+QEAgLTIwNTcsNyArMjA3Nyw2IEBAIHN0YXRpYyB2b2lkIGNhbmNlbF9jaGFy
+Z2Uoc3RydWN0IG1lbV9jZ3JvdXAgKm1lbWNnLCB1bnNpZ25lZCBpbnQgbnJf
+cGFnZXMpCiBzdGF0aWMgdm9pZCBjb21taXRfY2hhcmdlKHN0cnVjdCBwYWdl
+ICpwYWdlLCBzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csCiAJCQkgIGJvb2wg
+bHJ1Y2FyZSkKIHsKLQlzdHJ1Y3Qgem9uZSAqem9uZTsKIAlzdHJ1Y3QgbHJ1
+dmVjICpscnV2ZWM7CiAJYm9vbCBpc29sYXRlZCA9IGZhbHNlOwogCkBAIC0y
+MDY4LDEwICsyMDg3LDggQEAgc3RhdGljIHZvaWQgY29tbWl0X2NoYXJnZShz
+dHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IG1lbV9jZ3JvdXAgKm1lbWNnLAog
+CSAqIG1heSBhbHJlYWR5IGJlIG9uIHNvbWUgb3RoZXIgbWVtX2Nncm91cCdz
+IExSVS4gIFRha2UgY2FyZSBvZiBpdC4KIAkgKi8KIAlpZiAobHJ1Y2FyZSkg
+ewotCQl6b25lID0gcGFnZV96b25lKHBhZ2UpOwotCQlzcGluX2xvY2tfaXJx
+KHpvbmVfbHJ1X2xvY2soem9uZSkpOworCQlscnV2ZWMgPSBsb2NrX3BhZ2Vf
+bHJ1dmVjKHBhZ2UpOwogCQlpZiAoUGFnZUxSVShwYWdlKSkgewotCQkJbHJ1
+dmVjID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhwYWdlLCB6b25lLT56b25l
+X3BnZGF0KTsKIAkJCUNsZWFyUGFnZUxSVShwYWdlKTsKIAkJCWRlbF9wYWdl
+X2Zyb21fbHJ1X2xpc3QocGFnZSwgbHJ1dmVjLCBwYWdlX2xydShwYWdlKSk7
+CiAJCQlpc29sYXRlZCA9IHRydWU7CkBAIC0yMDk2LDEyICsyMTEzLDEyIEBA
+IHN0YXRpYyB2b2lkIGNvbW1pdF9jaGFyZ2Uoc3RydWN0IHBhZ2UgKnBhZ2Us
+IHN0cnVjdCBtZW1fY2dyb3VwICptZW1jZywKIAogCWlmIChscnVjYXJlKSB7
+CiAJCWlmIChpc29sYXRlZCkgewotCQkJbHJ1dmVjID0gbWVtX2Nncm91cF9w
+YWdlX2xydXZlYyhwYWdlLCB6b25lLT56b25lX3BnZGF0KTsKKwkJCXJlbG9j
+a19wYWdlX2xydXZlYyhwYWdlLCAmbHJ1dmVjKTsKIAkJCVZNX0JVR19PTl9Q
+QUdFKFBhZ2VMUlUocGFnZSksIHBhZ2UpOwogCQkJU2V0UGFnZUxSVShwYWdl
+KTsKIAkJCWFkZF9wYWdlX3RvX2xydV9saXN0KHBhZ2UsIGxydXZlYywgcGFn
+ZV9scnUocGFnZSkpOwogCQl9Ci0JCXNwaW5fdW5sb2NrX2lycSh6b25lX2xy
+dV9sb2NrKHpvbmUpKTsKKwkJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCX0K
+IH0KIApkaWZmIC0tZ2l0IGEvbW0vbWxvY2suYyBiL21tL21sb2NrLmMKaW5k
+ZXggNzRlNWE2NTQ3YzNkLi5hOWIzZTYwNDU1NGMgMTAwNjQ0Ci0tLSBhL21t
+L21sb2NrLmMKKysrIGIvbW0vbWxvY2suYwpAQCAtMTAzLDE3ICsxMDMsMTIg
+QEAgdm9pZCBtbG9ja192bWFfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkKIH0K
+IAogLyoKLSAqIElzb2xhdGUgYSBwYWdlIGZyb20gTFJVIHdpdGggb3B0aW9u
+YWwgZ2V0X3BhZ2UoKSBwaW4uCisgKiBJc29sYXRlIGEgcGFnZSBmcm9tIExS
+VS4KICAqIEFzc3VtZXMgbHJ1X2xvY2sgYWxyZWFkeSBoZWxkIGFuZCBwYWdl
+IGFscmVhZHkgcGlubmVkLgogICovCi1zdGF0aWMgYm9vbCBfX211bmxvY2tf
+aXNvbGF0ZV9scnVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgYm9vbCBnZXRw
+YWdlKQorc3RhdGljIGJvb2wgX19tdW5sb2NrX2lzb2xhdGVfbHJ1X3BhZ2Uo
+c3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMgKmxydXZlYykKIHsK
+IAlpZiAoUGFnZUxSVShwYWdlKSkgewotCQlzdHJ1Y3QgbHJ1dmVjICpscnV2
+ZWM7Ci0KLQkJbHJ1dmVjID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhwYWdl
+LCBwYWdlX3BnZGF0KHBhZ2UpKTsKLQkJaWYgKGdldHBhZ2UpCi0JCQlnZXRf
+cGFnZShwYWdlKTsKIAkJQ2xlYXJQYWdlTFJVKHBhZ2UpOwogCQlkZWxfcGFn
+ZV9mcm9tX2xydV9saXN0KHBhZ2UsIGxydXZlYywgcGFnZV9scnUocGFnZSkp
+OwogCQlyZXR1cm4gdHJ1ZTsKQEAgLTE4Miw2ICsxNzcsNyBAQCBzdGF0aWMg
+dm9pZCBfX211bmxvY2tfaXNvbGF0aW9uX2ZhaWxlZChzdHJ1Y3QgcGFnZSAq
+cGFnZSkKIHVuc2lnbmVkIGludCBtdW5sb2NrX3ZtYV9wYWdlKHN0cnVjdCBw
+YWdlICpwYWdlKQogewogCWludCBucl9wYWdlczsKKwlzdHJ1Y3QgbHJ1dmVj
+ICpscnV2ZWM7CiAJc3RydWN0IHpvbmUgKnpvbmUgPSBwYWdlX3pvbmUocGFn
+ZSk7CiAKIAkvKiBGb3IgdHJ5X3RvX211bmxvY2soKSBhbmQgdG8gc2VyaWFs
+aXplIHdpdGggcGFnZSBtaWdyYXRpb24gKi8KQEAgLTE5NCw3ICsxOTAsNyBA
+QCB1bnNpZ25lZCBpbnQgbXVubG9ja192bWFfcGFnZShzdHJ1Y3QgcGFnZSAq
+cGFnZSkKIAkgKiBtaWdodCBvdGhlcndpc2UgY29weSBQYWdlTWxvY2tlZCB0
+byBwYXJ0IG9mIHRoZSB0YWlsIHBhZ2VzIGJlZm9yZQogCSAqIHdlIGNsZWFy
+IGl0IGluIHRoZSBoZWFkIHBhZ2UuIEl0IGFsc28gc3RhYmlsaXplcyBocGFn
+ZV9ucl9wYWdlcygpLgogCSAqLwotCXNwaW5fbG9ja19pcnEoem9uZV9scnVf
+bG9jayh6b25lKSk7CisJbHJ1dmVjID0gbG9ja19wYWdlX2xydXZlYyhwYWdl
+KTsKIAogCWlmICghVGVzdENsZWFyUGFnZU1sb2NrZWQocGFnZSkpIHsKIAkJ
+LyogUG90ZW50aWFsbHksIFBURS1tYXBwZWQgVEhQOiBkbyBub3Qgc2tpcCB0
+aGUgcmVzdCBQVEVzICovCkBAIC0yMDUsMTUgKzIwMSwxNiBAQCB1bnNpZ25l
+ZCBpbnQgbXVubG9ja192bWFfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkKIAlu
+cl9wYWdlcyA9IGhwYWdlX25yX3BhZ2VzKHBhZ2UpOwogCV9fbW9kX3pvbmVf
+cGFnZV9zdGF0ZSh6b25lLCBOUl9NTE9DSywgLW5yX3BhZ2VzKTsKIAotCWlm
+IChfX211bmxvY2tfaXNvbGF0ZV9scnVfcGFnZShwYWdlLCB0cnVlKSkgewot
+CQlzcGluX3VubG9ja19pcnEoem9uZV9scnVfbG9jayh6b25lKSk7CisJaWYg
+KF9fbXVubG9ja19pc29sYXRlX2xydV9wYWdlKHBhZ2UsIGxydXZlYykpIHsK
+KwkJZ2V0X3BhZ2UocGFnZSk7CisJCXVubG9ja19scnV2ZWMobHJ1dmVjKTsK
+IAkJX19tdW5sb2NrX2lzb2xhdGVkX3BhZ2UocGFnZSk7CiAJCWdvdG8gb3V0
+OwogCX0KIAlfX211bmxvY2tfaXNvbGF0aW9uX2ZhaWxlZChwYWdlKTsKIAog
+dW5sb2NrX291dDoKLQlzcGluX3VubG9ja19pcnEoem9uZV9scnVfbG9jayh6
+b25lKSk7CisJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCiBvdXQ6CiAJcmV0
+dXJuIG5yX3BhZ2VzIC0gMTsKQEAgLTI4OSw2ICsyODYsNyBAQCBzdGF0aWMg
+dm9pZCBfX3B1dGJhY2tfbHJ1X2Zhc3Qoc3RydWN0IHBhZ2V2ZWMgKnB2ZWMs
+IGludCBwZ3Jlc2N1ZWQpCiAgKi8KIHN0YXRpYyB2b2lkIF9fbXVubG9ja19w
+YWdldmVjKHN0cnVjdCBwYWdldmVjICpwdmVjLCBzdHJ1Y3Qgem9uZSAqem9u
+ZSkKIHsKKwlzdHJ1Y3QgbHJ1dmVjICpscnV2ZWMgPSBOVUxMOwogCWludCBp
+OwogCWludCBuciA9IHBhZ2V2ZWNfY291bnQocHZlYyk7CiAJaW50IGRlbHRh
+X211bmxvY2tlZCA9IC1ucjsKQEAgLTI5OCwxNiArMjk2LDE2IEBAIHN0YXRp
+YyB2b2lkIF9fbXVubG9ja19wYWdldmVjKHN0cnVjdCBwYWdldmVjICpwdmVj
+LCBzdHJ1Y3Qgem9uZSAqem9uZSkKIAlwYWdldmVjX2luaXQoJnB2ZWNfcHV0
+YmFjayk7CiAKIAkvKiBQaGFzZSAxOiBwYWdlIGlzb2xhdGlvbiAqLwotCXNw
+aW5fbG9ja19pcnEoem9uZV9scnVfbG9jayh6b25lKSk7CiAJZm9yIChpID0g
+MDsgaSA8IG5yOyBpKyspIHsKIAkJc3RydWN0IHBhZ2UgKnBhZ2UgPSBwdmVj
+LT5wYWdlc1tpXTsKIAorCQlyZWxvY2tfcGFnZV9scnV2ZWMocGFnZSwgJmxy
+dXZlYyk7CiAJCWlmIChUZXN0Q2xlYXJQYWdlTWxvY2tlZChwYWdlKSkgewog
+CQkJLyoKIAkJCSAqIFdlIGFscmVhZHkgaGF2ZSBwaW4gZnJvbSBmb2xsb3df
+cGFnZV9tYXNrKCkKIAkJCSAqIHNvIHdlIGNhbiBzcGFyZSB0aGUgZ2V0X3Bh
+Z2UoKSBoZXJlLgogCQkJICovCi0JCQlpZiAoX19tdW5sb2NrX2lzb2xhdGVf
+bHJ1X3BhZ2UocGFnZSwgZmFsc2UpKQorCQkJaWYgKF9fbXVubG9ja19pc29s
+YXRlX2xydV9wYWdlKHBhZ2UsIGxydXZlYykpCiAJCQkJY29udGludWU7CiAJ
+CQllbHNlCiAJCQkJX19tdW5sb2NrX2lzb2xhdGlvbl9mYWlsZWQocGFnZSk7
+CkBAIC0zMjQsOCArMzIyLDExIEBAIHN0YXRpYyB2b2lkIF9fbXVubG9ja19w
+YWdldmVjKHN0cnVjdCBwYWdldmVjICpwdmVjLCBzdHJ1Y3Qgem9uZSAqem9u
+ZSkKIAkJcGFnZXZlY19hZGQoJnB2ZWNfcHV0YmFjaywgcHZlYy0+cGFnZXNb
+aV0pOwogCQlwdmVjLT5wYWdlc1tpXSA9IE5VTEw7CiAJfQotCV9fbW9kX3pv
+bmVfcGFnZV9zdGF0ZSh6b25lLCBOUl9NTE9DSywgZGVsdGFfbXVubG9ja2Vk
+KTsKLQlzcGluX3VubG9ja19pcnEoem9uZV9scnVfbG9jayh6b25lKSk7CisK
+KwlpZiAobHJ1dmVjKSB7CisJCV9fbW9kX3pvbmVfcGFnZV9zdGF0ZSh6b25l
+LCBOUl9NTE9DSywgZGVsdGFfbXVubG9ja2VkKTsKKwkJdW5sb2NrX2xydXZl
+YyhscnV2ZWMpOworCX0KIAogCS8qIE5vdyB3ZSBjYW4gcmVsZWFzZSBwaW5z
+IG9mIHBhZ2VzIHRoYXQgd2UgYXJlIG5vdCBtdW5sb2NraW5nICovCiAJcGFn
+ZXZlY19yZWxlYXNlKCZwdmVjX3B1dGJhY2spOwpkaWZmIC0tZ2l0IGEvbW0v
+c3dhcC5jIGIvbW0vc3dhcC5jCmluZGV4IDNkZDUxODgzMjA5Ni4uZTZiMWRm
+N2ZmYjJiIDEwMDY0NAotLS0gYS9tbS9zd2FwLmMKKysrIGIvbW0vc3dhcC5j
+CkBAIC01OCwxNiArNTgsMTMgQEAgc3RhdGljIERFRklORV9QRVJfQ1BVKHN0
+cnVjdCBwYWdldmVjLCBhY3RpdmF0ZV9wYWdlX3B2ZWNzKTsKIHN0YXRpYyB2
+b2lkIF9fcGFnZV9jYWNoZV9yZWxlYXNlKHN0cnVjdCBwYWdlICpwYWdlKQog
+ewogCWlmIChQYWdlTFJVKHBhZ2UpKSB7Ci0JCXN0cnVjdCB6b25lICp6b25l
+ID0gcGFnZV96b25lKHBhZ2UpOwogCQlzdHJ1Y3QgbHJ1dmVjICpscnV2ZWM7
+Ci0JCXVuc2lnbmVkIGxvbmcgZmxhZ3M7CiAKLQkJc3Bpbl9sb2NrX2lycXNh
+dmUoem9uZV9scnVfbG9jayh6b25lKSwgZmxhZ3MpOwotCQlscnV2ZWMgPSBt
+ZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHBhZ2UsIHpvbmUtPnpvbmVfcGdkYXQp
+OworCQlscnV2ZWMgPSBsb2NrX3BhZ2VfbHJ1dmVjKHBhZ2UpOwogCQlWTV9C
+VUdfT05fUEFHRSghUGFnZUxSVShwYWdlKSwgcGFnZSk7CiAJCV9fQ2xlYXJQ
+YWdlTFJVKHBhZ2UpOwogCQlkZWxfcGFnZV9mcm9tX2xydV9saXN0KHBhZ2Us
+IGxydXZlYywgcGFnZV9vZmZfbHJ1KHBhZ2UpKTsKLQkJc3Bpbl91bmxvY2tf
+aXJxcmVzdG9yZSh6b25lX2xydV9sb2NrKHpvbmUpLCBmbGFncyk7CisJCXVu
+bG9ja19scnV2ZWMobHJ1dmVjKTsKIAl9CiAJX19DbGVhclBhZ2VXYWl0ZXJz
+KHBhZ2UpOwogCW1lbV9jZ3JvdXBfdW5jaGFyZ2UocGFnZSk7CkBAIC0xOTAs
+MjYgKzE4NywxNiBAQCBzdGF0aWMgdm9pZCBwYWdldmVjX2xydV9tb3ZlX2Zu
+KHN0cnVjdCBwYWdldmVjICpwdmVjLAogCXZvaWQgKmFyZykKIHsKIAlpbnQg
+aTsKLQlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0ID0gTlVMTDsKLQlzdHJ1
+Y3QgbHJ1dmVjICpscnV2ZWM7Ci0JdW5zaWduZWQgbG9uZyBmbGFncyA9IDA7
+CisJc3RydWN0IGxydXZlYyAqbHJ1dmVjID0gTlVMTDsKIAogCWZvciAoaSA9
+IDA7IGkgPCBwYWdldmVjX2NvdW50KHB2ZWMpOyBpKyspIHsKIAkJc3RydWN0
+IHBhZ2UgKnBhZ2UgPSBwdmVjLT5wYWdlc1tpXTsKLQkJc3RydWN0IHBnbGlz
+dF9kYXRhICpwYWdlcGdkYXQgPSBwYWdlX3BnZGF0KHBhZ2UpOwotCi0JCWlm
+IChwYWdlcGdkYXQgIT0gcGdkYXQpIHsKLQkJCWlmIChwZ2RhdCkKLQkJCQlz
+cGluX3VubG9ja19pcnFyZXN0b3JlKCZwZ2RhdC0+bHJ1X2xvY2ssIGZsYWdz
+KTsKLQkJCXBnZGF0ID0gcGFnZXBnZGF0OwotCQkJc3Bpbl9sb2NrX2lycXNh
+dmUoJnBnZGF0LT5scnVfbG9jaywgZmxhZ3MpOwotCQl9CiAKLQkJbHJ1dmVj
+ID0gbWVtX2Nncm91cF9wYWdlX2xydXZlYyhwYWdlLCBwZ2RhdCk7CisJCXJl
+bG9ja19wYWdlX2xydXZlYyhwYWdlLCAmbHJ1dmVjKTsKIAkJKCptb3ZlX2Zu
+KShwYWdlLCBscnV2ZWMsIGFyZyk7CiAJfQotCWlmIChwZ2RhdCkKLQkJc3Bp
+bl91bmxvY2tfaXJxcmVzdG9yZSgmcGdkYXQtPmxydV9sb2NrLCBmbGFncyk7
+CisJaWYgKGxydXZlYykKKwkJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCXJl
+bGVhc2VfcGFnZXMocHZlYy0+cGFnZXMsIHB2ZWMtPm5yKTsKIAlwYWdldmVj
+X3JlaW5pdChwdmVjKTsKIH0KQEAgLTMyNywxMiArMzE0LDEyIEBAIHN0YXRp
+YyBib29sIG5lZWRfYWN0aXZhdGVfcGFnZV9kcmFpbihpbnQgY3B1KQogCiB2
+b2lkIGFjdGl2YXRlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7Ci0Jc3Ry
+dWN0IHpvbmUgKnpvbmUgPSBwYWdlX3pvbmUocGFnZSk7CisJc3RydWN0IGxy
+dXZlYyAqbHJ1dmVjOwogCiAJcGFnZSA9IGNvbXBvdW5kX2hlYWQocGFnZSk7
+Ci0Jc3Bpbl9sb2NrX2lycSh6b25lX2xydV9sb2NrKHpvbmUpKTsKLQlfX2Fj
+dGl2YXRlX3BhZ2UocGFnZSwgbWVtX2Nncm91cF9wYWdlX2xydXZlYyhwYWdl
+LCB6b25lLT56b25lX3BnZGF0KSwgTlVMTCk7Ci0Jc3Bpbl91bmxvY2tfaXJx
+KHpvbmVfbHJ1X2xvY2soem9uZSkpOworCWxydXZlYyA9IGxvY2tfcGFnZV9s
+cnV2ZWMocGFnZSk7CisJX19hY3RpdmF0ZV9wYWdlKHBhZ2UsIGxydXZlYywg
+TlVMTCk7CisJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogfQogI2VuZGlmCiAK
+QEAgLTcxNSw5ICs3MDIsNyBAQCB2b2lkIHJlbGVhc2VfcGFnZXMoc3RydWN0
+IHBhZ2UgKipwYWdlcywgaW50IG5yKQogewogCWludCBpOwogCUxJU1RfSEVB
+RChwYWdlc190b19mcmVlKTsKLQlzdHJ1Y3QgcGdsaXN0X2RhdGEgKmxvY2tl
+ZF9wZ2RhdCA9IE5VTEw7Ci0Jc3RydWN0IGxydXZlYyAqbHJ1dmVjOwotCXVu
+c2lnbmVkIGxvbmcgdW5pbml0aWFsaXplZF92YXIoZmxhZ3MpOworCXN0cnVj
+dCBscnV2ZWMgKmxydXZlYyA9IE5VTEw7CiAJdW5zaWduZWQgaW50IHVuaW5p
+dGlhbGl6ZWRfdmFyKGxvY2tfYmF0Y2gpOwogCiAJZm9yIChpID0gMDsgaSA8
+IG5yOyBpKyspIHsKQEAgLTcyNiwxMSArNzExLDExIEBAIHZvaWQgcmVsZWFz
+ZV9wYWdlcyhzdHJ1Y3QgcGFnZSAqKnBhZ2VzLCBpbnQgbnIpCiAJCS8qCiAJ
+CSAqIE1ha2Ugc3VyZSB0aGUgSVJRLXNhZmUgbG9jay1ob2xkaW5nIHRpbWUg
+ZG9lcyBub3QgZ2V0CiAJCSAqIGV4Y2Vzc2l2ZSB3aXRoIGEgY29udGludW91
+cyBzdHJpbmcgb2YgcGFnZXMgZnJvbSB0aGUKLQkJICogc2FtZSBwZ2RhdC4g
+VGhlIGxvY2sgaXMgaGVsZCBvbmx5IGlmIHBnZGF0ICE9IE5VTEwuCisJCSAq
+IHNhbWUgbHJ1dmVjLiBUaGUgbG9jayBpcyBoZWxkIG9ubHkgaWYgbHJ1dmVj
+ICE9IE5VTEwuCiAJCSAqLwotCQlpZiAobG9ja2VkX3BnZGF0ICYmICsrbG9j
+a19iYXRjaCA9PSBTV0FQX0NMVVNURVJfTUFYKSB7Ci0JCQlzcGluX3VubG9j
+a19pcnFyZXN0b3JlKCZsb2NrZWRfcGdkYXQtPmxydV9sb2NrLCBmbGFncyk7
+Ci0JCQlsb2NrZWRfcGdkYXQgPSBOVUxMOworCQlpZiAobHJ1dmVjICYmICsr
+bG9ja19iYXRjaCA9PSBTV0FQX0NMVVNURVJfTUFYKSB7CisJCQl1bmxvY2tf
+bHJ1dmVjKGxydXZlYyk7CisJCQlscnV2ZWMgPSBOVUxMOwogCQl9CiAKIAkJ
+aWYgKGlzX2h1Z2VfemVyb19wYWdlKHBhZ2UpKQpAQCAtNzM4LDEwICs3MjMs
+OSBAQCB2b2lkIHJlbGVhc2VfcGFnZXMoc3RydWN0IHBhZ2UgKipwYWdlcywg
+aW50IG5yKQogCiAJCS8qIERldmljZSBwdWJsaWMgcGFnZSBjYW4gbm90IGJl
+IGh1Z2UgcGFnZSAqLwogCQlpZiAoaXNfZGV2aWNlX3B1YmxpY19wYWdlKHBh
+Z2UpKSB7Ci0JCQlpZiAobG9ja2VkX3BnZGF0KSB7Ci0JCQkJc3Bpbl91bmxv
+Y2tfaXJxcmVzdG9yZSgmbG9ja2VkX3BnZGF0LT5scnVfbG9jaywKLQkJCQkJ
+CSAgICAgICBmbGFncyk7Ci0JCQkJbG9ja2VkX3BnZGF0ID0gTlVMTDsKKwkJ
+CWlmIChscnV2ZWMpIHsKKwkJCQl1bmxvY2tfbHJ1dmVjKGxydXZlYyk7CisJ
+CQkJbHJ1dmVjID0gTlVMTDsKIAkJCX0KIAkJCXB1dF96b25lX2RldmljZV9w
+cml2YXRlX29yX3B1YmxpY19wYWdlKHBhZ2UpOwogCQkJY29udGludWU7CkBA
+IC03NTIsMjcgKzczNiwyMCBAQCB2b2lkIHJlbGVhc2VfcGFnZXMoc3RydWN0
+IHBhZ2UgKipwYWdlcywgaW50IG5yKQogCQkJY29udGludWU7CiAKIAkJaWYg
+KFBhZ2VDb21wb3VuZChwYWdlKSkgewotCQkJaWYgKGxvY2tlZF9wZ2RhdCkg
+ewotCQkJCXNwaW5fdW5sb2NrX2lycXJlc3RvcmUoJmxvY2tlZF9wZ2RhdC0+
+bHJ1X2xvY2ssIGZsYWdzKTsKLQkJCQlsb2NrZWRfcGdkYXQgPSBOVUxMOwor
+CQkJaWYgKGxydXZlYykgeworCQkJCXVubG9ja19scnV2ZWMobHJ1dmVjKTsK
+KwkJCQlscnV2ZWMgPSBOVUxMOwogCQkJfQogCQkJX19wdXRfY29tcG91bmRf
+cGFnZShwYWdlKTsKIAkJCWNvbnRpbnVlOwogCQl9CiAKIAkJaWYgKFBhZ2VM
+UlUocGFnZSkpIHsKLQkJCXN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQgPSBw
+YWdlX3BnZGF0KHBhZ2UpOworCQkJc3RydWN0IGxydXZlYyAqcHJldl9scnV2
+ZWMgPSBscnV2ZWM7CiAKLQkJCWlmIChwZ2RhdCAhPSBsb2NrZWRfcGdkYXQp
+IHsKLQkJCQlpZiAobG9ja2VkX3BnZGF0KQotCQkJCQlzcGluX3VubG9ja19p
+cnFyZXN0b3JlKCZsb2NrZWRfcGdkYXQtPmxydV9sb2NrLAotCQkJCQkJCQkJ
+ZmxhZ3MpOworCQkJcmVsb2NrX3BhZ2VfbHJ1dmVjKHBhZ2UsICZscnV2ZWMp
+OworCQkJaWYgKGxydXZlYyAhPSBwcmV2X2xydXZlYykKIAkJCQlsb2NrX2Jh
+dGNoID0gMDsKLQkJCQlsb2NrZWRfcGdkYXQgPSBwZ2RhdDsKLQkJCQlzcGlu
+X2xvY2tfaXJxc2F2ZSgmbG9ja2VkX3BnZGF0LT5scnVfbG9jaywgZmxhZ3Mp
+OwotCQkJfQotCi0JCQlscnV2ZWMgPSBtZW1fY2dyb3VwX3BhZ2VfbHJ1dmVj
+KHBhZ2UsIGxvY2tlZF9wZ2RhdCk7CiAJCQlWTV9CVUdfT05fUEFHRSghUGFn
+ZUxSVShwYWdlKSwgcGFnZSk7CiAJCQlfX0NsZWFyUGFnZUxSVShwYWdlKTsK
+IAkJCWRlbF9wYWdlX2Zyb21fbHJ1X2xpc3QocGFnZSwgbHJ1dmVjLCBwYWdl
+X29mZl9scnUocGFnZSkpOwpAQCAtNzg0LDggKzc2MSw4IEBAIHZvaWQgcmVs
+ZWFzZV9wYWdlcyhzdHJ1Y3QgcGFnZSAqKnBhZ2VzLCBpbnQgbnIpCiAKIAkJ
+bGlzdF9hZGQoJnBhZ2UtPmxydSwgJnBhZ2VzX3RvX2ZyZWUpOwogCX0KLQlp
+ZiAobG9ja2VkX3BnZGF0KQotCQlzcGluX3VubG9ja19pcnFyZXN0b3JlKCZs
+b2NrZWRfcGdkYXQtPmxydV9sb2NrLCBmbGFncyk7CisJaWYgKGxydXZlYykK
+KwkJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCiAJbWVtX2Nncm91cF91bmNo
+YXJnZV9saXN0KCZwYWdlc190b19mcmVlKTsKIAlmcmVlX3VucmVmX3BhZ2Vf
+bGlzdCgmcGFnZXNfdG9fZnJlZSk7CkBAIC04MjQsNyArODAxLDcgQEAgdm9p
+ZCBscnVfYWRkX3BhZ2VfdGFpbChzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0
+IHBhZ2UgKnBhZ2VfdGFpbCwKIAlWTV9CVUdfT05fUEFHRShQYWdlQ29tcG91
+bmQocGFnZV90YWlsKSwgcGFnZSk7CiAJVk1fQlVHX09OX1BBR0UoUGFnZUxS
+VShwYWdlX3RhaWwpLCBwYWdlKTsKIAlWTV9CVUdfT04oTlJfQ1BVUyAhPSAx
+ICYmCi0JCSAgIXNwaW5faXNfbG9ja2VkKCZscnV2ZWNfcGdkYXQobHJ1dmVj
+KS0+bHJ1X2xvY2spKTsKKwkJICAhc3Bpbl9pc19sb2NrZWQobHJ1X2xvY2tw
+dHIobHJ1dmVjKSkpOwogCiAJaWYgKCFsaXN0KQogCQlTZXRQYWdlTFJVKHBh
+Z2VfdGFpbCk7CmRpZmYgLS1naXQgYS9tbS92bXNjYW4uYyBiL21tL3Ztc2Nh
+bi5jCmluZGV4IGY1YTMxNmNhMDM3Yy4uNTY0NmQ3NzQ3NGJlIDEwMDY0NAot
+LS0gYS9tbS92bXNjYW4uYworKysgYi9tbS92bXNjYW4uYwpAQCAtMTU0Miwx
+MSArMTU0Miw5IEBAIGludCBpc29sYXRlX2xydV9wYWdlKHN0cnVjdCBwYWdl
+ICpwYWdlKQogCVdBUk5fUkFURUxJTUlUKFBhZ2VUYWlsKHBhZ2UpLCAidHJ5
+aW5nIHRvIGlzb2xhdGUgdGFpbCBwYWdlIik7CiAKIAlpZiAoUGFnZUxSVShw
+YWdlKSkgewotCQlzdHJ1Y3Qgem9uZSAqem9uZSA9IHBhZ2Vfem9uZShwYWdl
+KTsKIAkJc3RydWN0IGxydXZlYyAqbHJ1dmVjOwogCi0JCXNwaW5fbG9ja19p
+cnEoem9uZV9scnVfbG9jayh6b25lKSk7Ci0JCWxydXZlYyA9IG1lbV9jZ3Jv
+dXBfcGFnZV9scnV2ZWMocGFnZSwgem9uZS0+em9uZV9wZ2RhdCk7CisJCWxy
+dXZlYyA9IGxvY2tfcGFnZV9scnV2ZWMocGFnZSk7CiAJCWlmIChQYWdlTFJV
+KHBhZ2UpKSB7CiAJCQlpbnQgbHJ1ID0gcGFnZV9scnUocGFnZSk7CiAJCQln
+ZXRfcGFnZShwYWdlKTsKQEAgLTE1NTQsNyArMTU1Miw3IEBAIGludCBpc29s
+YXRlX2xydV9wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQogCQkJZGVsX3BhZ2Vf
+ZnJvbV9scnVfbGlzdChwYWdlLCBscnV2ZWMsIGxydSk7CiAJCQlyZXQgPSAw
+OwogCQl9Ci0JCXNwaW5fdW5sb2NrX2lycSh6b25lX2xydV9sb2NrKHpvbmUp
+KTsKKwkJdW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCX0KIAlyZXR1cm4gcmV0
+OwogfQpAQCAtMTU5OSw3ICsxNTk3LDcgQEAgc3RhdGljIGludCB0b29fbWFu
+eV9pc29sYXRlZChzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0LCBpbnQgZmls
+ZSwKIHN0YXRpYyBub2lubGluZV9mb3Jfc3RhY2sgdW5zaWduZWQgaW50CiBw
+dXRiYWNrX2luYWN0aXZlX3BhZ2VzKHN0cnVjdCBscnV2ZWMgKmxydXZlYywg
+c3RydWN0IGxpc3RfaGVhZCAqcGFnZV9saXN0KQogewotCXN0cnVjdCBwZ2xp
+c3RfZGF0YSAqcGdkYXQgPSBscnV2ZWNfcGdkYXQobHJ1dmVjKTsKKwlzdHJ1
+Y3QgbHJ1dmVjICpvcmlnX2xydXZlYyA9IGxydXZlYzsKIAl1bnNpZ25lZCBp
+bnQgbnJfcm90YXRlZCA9IDA7CiAJTElTVF9IRUFEKHBhZ2VzX3RvX2ZyZWUp
+OwogCkBAIC0xNjEzLDEzICsxNjExLDE2IEBAIHB1dGJhY2tfaW5hY3RpdmVf
+cGFnZXMoc3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1Y3QgbGlzdF9oZWFk
+ICpwYWdlX2xpc3QpCiAJCVZNX0JVR19PTl9QQUdFKFBhZ2VMUlUocGFnZSks
+IHBhZ2UpOwogCQlsaXN0X2RlbCgmcGFnZS0+bHJ1KTsKIAkJaWYgKHVubGlr
+ZWx5KCFwYWdlX2V2aWN0YWJsZShwYWdlKSkpIHsKLQkJCXNwaW5fdW5sb2Nr
+X2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwkJCWlmIChscnV2ZWMpIHsKKwkJ
+CQl1bmxvY2tfbHJ1dmVjKGxydXZlYyk7CisJCQkJbHJ1dmVjID0gTlVMTDsK
+KwkJCX0KIAkJCXB1dGJhY2tfbHJ1X3BhZ2UocGFnZSk7Ci0JCQlzcGluX2xv
+Y2tfaXJxKCZwZ2RhdC0+bHJ1X2xvY2spOwogCQkJY29udGludWU7CiAJCX0K
+IAotCQlscnV2ZWMgPSBtZW1fY2dyb3VwX3BhZ2VfbHJ1dmVjKHBhZ2UsIHBn
+ZGF0KTsKKwkJLyogT2NjYXNpb25hbGx5LCBtZW1jZyBoYXMgY2hhbmdlZCwg
+c28gY2hhbmdlIGxydXZlYyAqLworCQlyZWxvY2tfcGFnZV9scnV2ZWMocGFn
+ZSwgJmxydXZlYyk7CiAKIAkJU2V0UGFnZUxSVShwYWdlKTsKIAkJbHJ1ID0g
+cGFnZV9scnUocGFnZSk7CkBAIC0xNjM0LDE1ICsxNjM1LDIxIEBAIHB1dGJh
+Y2tfaW5hY3RpdmVfcGFnZXMoc3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1
+Y3QgbGlzdF9oZWFkICpwYWdlX2xpc3QpCiAJCQlkZWxfcGFnZV9mcm9tX2xy
+dV9saXN0KHBhZ2UsIGxydXZlYywgbHJ1KTsKIAogCQkJaWYgKHVubGlrZWx5
+KFBhZ2VDb21wb3VuZChwYWdlKSkpIHsKLQkJCQlzcGluX3VubG9ja19pcnEo
+JnBnZGF0LT5scnVfbG9jayk7CisJCQkJdW5sb2NrX2xydXZlYyhscnV2ZWMp
+OworCQkJCWxydXZlYyA9IE5VTEw7CiAJCQkJbWVtX2Nncm91cF91bmNoYXJn
+ZShwYWdlKTsKIAkJCQkoKmdldF9jb21wb3VuZF9wYWdlX2R0b3IocGFnZSkp
+KHBhZ2UpOwotCQkJCXNwaW5fbG9ja19pcnEoJnBnZGF0LT5scnVfbG9jayk7
+CiAJCQl9IGVsc2UKIAkJCQlsaXN0X2FkZCgmcGFnZS0+bHJ1LCAmcGFnZXNf
+dG9fZnJlZSk7CiAJCX0KIAl9CiAKKwlpZiAobHJ1dmVjICE9IG9yaWdfbHJ1
+dmVjKSB7CisJCWlmIChscnV2ZWMpCisJCQl1bmxvY2tfbHJ1dmVjKGxydXZl
+Yyk7CisJCWxvY2tfbHJ1dmVjKG9yaWdfbHJ1dmVjKTsKKwl9CisKIAkvKgog
+CSAqIFRvIHNhdmUgb3VyIGNhbGxlcidzIHN0YWNrLCBub3cgdXNlIGlucHV0
+IGxpc3QgZm9yIHBhZ2VzIHRvIGZyZWUuCiAJICovCkBAIC0xNzAxLDcgKzE3
+MDgsNyBAQCBzaHJpbmtfaW5hY3RpdmVfbGlzdCh1bnNpZ25lZCBsb25nIG5y
+X3RvX3NjYW4sIHN0cnVjdCBscnV2ZWMgKmxydXZlYywKIAlpZiAoIXNjLT5t
+YXlfdW5tYXApCiAJCWlzb2xhdGVfbW9kZSB8PSBJU09MQVRFX1VOTUFQUEVE
+OwogCi0Jc3Bpbl9sb2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwlsb2Nr
+X2xydXZlYyhscnV2ZWMpOwogCiAJbnJfdGFrZW4gPSBpc29sYXRlX2xydV9w
+YWdlcyhucl90b19zY2FuLCBscnV2ZWMsICZwYWdlX2xpc3QsCiAJCQkJICAg
+ICAmbnJfc2Nhbm5lZCwgc2MsIGlzb2xhdGVfbW9kZSwgbHJ1KTsKQEAgLTE3
+MjAsNyArMTcyNyw3IEBAIHNocmlua19pbmFjdGl2ZV9saXN0KHVuc2lnbmVk
+IGxvbmcgbnJfdG9fc2Nhbiwgc3RydWN0IGxydXZlYyAqbHJ1dmVjLAogCQlj
+b3VudF9tZW1jZ19ldmVudHMobHJ1dmVjX21lbWNnKGxydXZlYyksIFBHU0NB
+Tl9ESVJFQ1QsCiAJCQkJICAgbnJfc2Nhbm5lZCk7CiAJfQotCXNwaW5fdW5s
+b2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwl1bmxvY2tfbHJ1dmVjKGxy
+dXZlYyk7CiAKIAlpZiAobnJfdGFrZW4gPT0gMCkKIAkJcmV0dXJuIDA7CkBA
+IC0xNzI4LDcgKzE3MzUsNyBAQCBzaHJpbmtfaW5hY3RpdmVfbGlzdCh1bnNp
+Z25lZCBsb25nIG5yX3RvX3NjYW4sIHN0cnVjdCBscnV2ZWMgKmxydXZlYywK
+IAlucl9yZWNsYWltZWQgPSBzaHJpbmtfcGFnZV9saXN0KCZwYWdlX2xpc3Qs
+IHBnZGF0LCBzYywgMCwKIAkJCQkmc3RhdCwgZmFsc2UpOwogCi0Jc3Bpbl9s
+b2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwlsb2NrX2xydXZlYyhscnV2
+ZWMpOwogCiAJaWYgKGN1cnJlbnRfaXNfa3N3YXBkKCkpIHsKIAkJaWYgKGds
+b2JhbF9yZWNsYWltKHNjKSkKQEAgLTE3NDcsNyArMTc1NCw3IEBAIHNocmlu
+a19pbmFjdGl2ZV9saXN0KHVuc2lnbmVkIGxvbmcgbnJfdG9fc2Nhbiwgc3Ry
+dWN0IGxydXZlYyAqbHJ1dmVjLAogCiAJX19tb2Rfbm9kZV9wYWdlX3N0YXRl
+KHBnZGF0LCBOUl9JU09MQVRFRF9BTk9OICsgZmlsZSwgLW5yX3Rha2VuKTsK
+IAotCXNwaW5fdW5sb2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwl1bmxv
+Y2tfbHJ1dmVjKGxydXZlYyk7CiAKIAltZW1fY2dyb3VwX3VuY2hhcmdlX2xp
+c3QoJnBhZ2VfbGlzdCk7CiAJZnJlZV91bnJlZl9wYWdlX2xpc3QoJnBhZ2Vf
+bGlzdCk7CkBAIC0xODA1LDE0ICsxODEyLDE2IEBAIHN0YXRpYyB1bnNpZ25l
+ZCBtb3ZlX2FjdGl2ZV9wYWdlc190b19scnUoc3RydWN0IGxydXZlYyAqbHJ1
+dmVjLAogCQkJCSAgICAgc3RydWN0IGxpc3RfaGVhZCAqcGFnZXNfdG9fZnJl
+ZSwKIAkJCQkgICAgIGVudW0gbHJ1X2xpc3QgbHJ1KQogewotCXN0cnVjdCBw
+Z2xpc3RfZGF0YSAqcGdkYXQgPSBscnV2ZWNfcGdkYXQobHJ1dmVjKTsKKwlz
+dHJ1Y3QgbHJ1dmVjICpvcmlnX2xydXZlYyA9IGxydXZlYzsKIAlzdHJ1Y3Qg
+cGFnZSAqcGFnZTsKIAlpbnQgbnJfcGFnZXM7CiAJaW50IG5yX21vdmVkID0g
+MDsKIAogCXdoaWxlICghbGlzdF9lbXB0eShsaXN0KSkgewogCQlwYWdlID0g
+bHJ1X3RvX3BhZ2UobGlzdCk7Ci0JCWxydXZlYyA9IG1lbV9jZ3JvdXBfcGFn
+ZV9scnV2ZWMocGFnZSwgcGdkYXQpOworCisJCS8qIE9jY2FzaW9uYWxseSwg
+bWVtY2cgaGFzIGNoYW5nZWQsIHNvIGNoYW5nZSBscnV2ZWMgKi8KKwkJcmVs
+b2NrX3BhZ2VfbHJ1dmVjKHBhZ2UsICZscnV2ZWMpOwogCiAJCVZNX0JVR19P
+Tl9QQUdFKFBhZ2VMUlUocGFnZSksIHBhZ2UpOwogCQlTZXRQYWdlTFJVKHBh
+Z2UpOwpAQCAtMTgyNywxMCArMTgzNiwxMCBAQCBzdGF0aWMgdW5zaWduZWQg
+bW92ZV9hY3RpdmVfcGFnZXNfdG9fbHJ1KHN0cnVjdCBscnV2ZWMgKmxydXZl
+YywKIAkJCWRlbF9wYWdlX2Zyb21fbHJ1X2xpc3QocGFnZSwgbHJ1dmVjLCBs
+cnUpOwogCiAJCQlpZiAodW5saWtlbHkoUGFnZUNvbXBvdW5kKHBhZ2UpKSkg
+ewotCQkJCXNwaW5fdW5sb2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwkJ
+CQl1bmxvY2tfbHJ1dmVjKGxydXZlYyk7CisJCQkJbHJ1dmVjID0gTlVMTDsK
+IAkJCQltZW1fY2dyb3VwX3VuY2hhcmdlKHBhZ2UpOwogCQkJCSgqZ2V0X2Nv
+bXBvdW5kX3BhZ2VfZHRvcihwYWdlKSkocGFnZSk7Ci0JCQkJc3Bpbl9sb2Nr
+X2lycSgmcGdkYXQtPmxydV9sb2NrKTsKIAkJCX0gZWxzZQogCQkJCWxpc3Rf
+YWRkKCZwYWdlLT5scnUsIHBhZ2VzX3RvX2ZyZWUpOwogCQl9IGVsc2UgewpA
+QCAtMTgzOCw2ICsxODQ3LDEyIEBAIHN0YXRpYyB1bnNpZ25lZCBtb3ZlX2Fj
+dGl2ZV9wYWdlc190b19scnUoc3RydWN0IGxydXZlYyAqbHJ1dmVjLAogCQl9
+CiAJfQogCisJaWYgKGxydXZlYyAhPSBvcmlnX2xydXZlYykgeworCQlpZiAo
+bHJ1dmVjKQorCQkJdW5sb2NrX2xydXZlYyhscnV2ZWMpOworCQlsb2NrX2xy
+dXZlYyhvcmlnX2xydXZlYyk7CisJfQorCiAJcmV0dXJuIG5yX21vdmVkOwog
+fQogCkBAIC0xODY1LDcgKzE4ODAsNyBAQCBzdGF0aWMgdm9pZCBzaHJpbmtf
+YWN0aXZlX2xpc3QodW5zaWduZWQgbG9uZyBucl90b19zY2FuLAogCWlmICgh
+c2MtPm1heV91bm1hcCkKIAkJaXNvbGF0ZV9tb2RlIHw9IElTT0xBVEVfVU5N
+QVBQRUQ7CiAKLQlzcGluX2xvY2tfaXJxKCZwZ2RhdC0+bHJ1X2xvY2spOwor
+CWxvY2tfbHJ1dmVjKGxydXZlYyk7CiAKIAlucl90YWtlbiA9IGlzb2xhdGVf
+bHJ1X3BhZ2VzKG5yX3RvX3NjYW4sIGxydXZlYywgJmxfaG9sZCwKIAkJCQkg
+ICAgICZucl9zY2FubmVkLCBzYywgaXNvbGF0ZV9tb2RlLCBscnUpOwpAQCAt
+MTg3Niw3ICsxODkxLDcgQEAgc3RhdGljIHZvaWQgc2hyaW5rX2FjdGl2ZV9s
+aXN0KHVuc2lnbmVkIGxvbmcgbnJfdG9fc2NhbiwKIAlfX2NvdW50X3ZtX2V2
+ZW50cyhQR1JFRklMTCwgbnJfc2Nhbm5lZCk7CiAJY291bnRfbWVtY2dfZXZl
+bnRzKGxydXZlY19tZW1jZyhscnV2ZWMpLCBQR1JFRklMTCwgbnJfc2Nhbm5l
+ZCk7CiAKLQlzcGluX3VubG9ja19pcnEoJnBnZGF0LT5scnVfbG9jayk7CisJ
+dW5sb2NrX2xydXZlYyhscnV2ZWMpOwogCiAJd2hpbGUgKCFsaXN0X2VtcHR5
+KCZsX2hvbGQpKSB7CiAJCWNvbmRfcmVzY2hlZCgpOwpAQCAtMTkyMSw3ICsx
+OTM2LDcgQEAgc3RhdGljIHZvaWQgc2hyaW5rX2FjdGl2ZV9saXN0KHVuc2ln
+bmVkIGxvbmcgbnJfdG9fc2NhbiwKIAkvKgogCSAqIE1vdmUgcGFnZXMgYmFj
+ayB0byB0aGUgbHJ1IGxpc3QuCiAJICovCi0Jc3Bpbl9sb2NrX2lycSgmcGdk
+YXQtPmxydV9sb2NrKTsKKwlsb2NrX2xydXZlYyhscnV2ZWMpOwogCS8qCiAJ
+ICogQ291bnQgcmVmZXJlbmNlZCBwYWdlcyBmcm9tIGN1cnJlbnRseSB1c2Vk
+IG1hcHBpbmdzIGFzIHJvdGF0ZWQsCiAJICogZXZlbiB0aG91Z2ggb25seSBz
+b21lIG9mIHRoZW0gYXJlIGFjdHVhbGx5IHJlLWFjdGl2YXRlZC4gIFRoaXMK
+QEAgLTE5MzcsNyArMTk1Miw3IEBAIHN0YXRpYyB2b2lkIHNocmlua19hY3Rp
+dmVfbGlzdCh1bnNpZ25lZCBsb25nIG5yX3RvX3NjYW4sCiAJY291bnRfbWVt
+Y2dfZXZlbnRzKGxydXZlY19tZW1jZyhscnV2ZWMpLCBQR0RFQUNUSVZBVEUs
+IG5yX2RlYWN0aXZhdGUpOwogCV9fbW9kX25vZGVfcGFnZV9zdGF0ZShwZ2Rh
+dCwgTlJfSVNPTEFURURfQU5PTiArIGZpbGUsIC1ucl90YWtlbik7CiAKLQlz
+cGluX3VubG9ja19pcnEoJnBnZGF0LT5scnVfbG9jayk7CisJdW5sb2NrX2xy
+dXZlYyhscnV2ZWMpOwogCiAJbWVtX2Nncm91cF91bmNoYXJnZV9saXN0KCZs
+X2hvbGQpOwogCWZyZWVfdW5yZWZfcGFnZV9saXN0KCZsX2hvbGQpOwpAQCAt
+MjA2Miw3ICsyMDc3LDYgQEAgc3RhdGljIHZvaWQgZ2V0X3NjYW5fY291bnQo
+c3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1Y3QgbWVtX2Nncm91cCAqbWVt
+Y2csCiAJc3RydWN0IHpvbmVfcmVjbGFpbV9zdGF0ICpyZWNsYWltX3N0YXQg
+PSAmbHJ1dmVjLT5yZWNsYWltX3N0YXQ7CiAJdTY0IGZyYWN0aW9uWzJdOwog
+CXU2NCBkZW5vbWluYXRvciA9IDA7CS8qIGdjYyAqLwotCXN0cnVjdCBwZ2xp
+c3RfZGF0YSAqcGdkYXQgPSBscnV2ZWNfcGdkYXQobHJ1dmVjKTsKIAl1bnNp
+Z25lZCBsb25nIGFub25fcHJpbywgZmlsZV9wcmlvOwogCWVudW0gc2Nhbl9i
+YWxhbmNlIHNjYW5fYmFsYW5jZTsKIAl1bnNpZ25lZCBsb25nIGFub24sIGZp
+bGU7CkBAIC0yMTA3LDYgKzIxMjEsNyBAQCBzdGF0aWMgdm9pZCBnZXRfc2Nh
+bl9jb3VudChzdHJ1Y3QgbHJ1dmVjICpscnV2ZWMsIHN0cnVjdCBtZW1fY2dy
+b3VwICptZW1jZywKIAkgKiBhbm9uIHBhZ2VzLiAgVHJ5IHRvIGRldGVjdCB0
+aGlzIGJhc2VkIG9uIGZpbGUgTFJVIHNpemUuCiAJICovCiAJaWYgKGdsb2Jh
+bF9yZWNsYWltKHNjKSkgeworCQlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0
+ID0gbHJ1dmVjX3BnZGF0KGxydXZlYyk7CiAJCXVuc2lnbmVkIGxvbmcgcGdk
+YXRmaWxlOwogCQl1bnNpZ25lZCBsb25nIHBnZGF0ZnJlZTsKIAkJaW50IHo7
+CkBAIC0yMTgwLDcgKzIxOTUsNyBAQCBzdGF0aWMgdm9pZCBnZXRfc2Nhbl9j
+b3VudChzdHJ1Y3QgbHJ1dmVjICpscnV2ZWMsIHN0cnVjdCBtZW1fY2dyb3Vw
+ICptZW1jZywKIAlmaWxlICA9IGxydXZlY19scnVfc2l6ZShscnV2ZWMsIExS
+VV9BQ1RJVkVfRklMRSwgTUFYX05SX1pPTkVTKSArCiAJCWxydXZlY19scnVf
+c2l6ZShscnV2ZWMsIExSVV9JTkFDVElWRV9GSUxFLCBNQVhfTlJfWk9ORVMp
+OwogCi0Jc3Bpbl9sb2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwlsb2Nr
+X2xydXZlYyhscnV2ZWMpOwogCWlmICh1bmxpa2VseShyZWNsYWltX3N0YXQt
+PnJlY2VudF9zY2FubmVkWzBdID4gYW5vbiAvIDQpKSB7CiAJCXJlY2xhaW1f
+c3RhdC0+cmVjZW50X3NjYW5uZWRbMF0gLz0gMjsKIAkJcmVjbGFpbV9zdGF0
+LT5yZWNlbnRfcm90YXRlZFswXSAvPSAyOwpAQCAtMjIwMSw3ICsyMjE2LDcg
+QEAgc3RhdGljIHZvaWQgZ2V0X3NjYW5fY291bnQoc3RydWN0IGxydXZlYyAq
+bHJ1dmVjLCBzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtY2csCiAKIAlmcCA9IGZp
+bGVfcHJpbyAqIChyZWNsYWltX3N0YXQtPnJlY2VudF9zY2FubmVkWzFdICsg
+MSk7CiAJZnAgLz0gcmVjbGFpbV9zdGF0LT5yZWNlbnRfcm90YXRlZFsxXSAr
+IDE7Ci0Jc3Bpbl91bmxvY2tfaXJxKCZwZ2RhdC0+bHJ1X2xvY2spOworCXVu
+bG9ja19scnV2ZWMobHJ1dmVjKTsKIAogCWZyYWN0aW9uWzBdID0gYXA7CiAJ
+ZnJhY3Rpb25bMV0gPSBmcDsKQEAgLTM5MjIsMjQgKzM5MzcsMTYgQEAgaW50
+IHBhZ2VfZXZpY3RhYmxlKHN0cnVjdCBwYWdlICpwYWdlKQogICovCiB2b2lk
+IGNoZWNrX21vdmVfdW5ldmljdGFibGVfcGFnZXMoc3RydWN0IHBhZ2UgKipw
+YWdlcywgaW50IG5yX3BhZ2VzKQogewotCXN0cnVjdCBscnV2ZWMgKmxydXZl
+YzsKLQlzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0ID0gTlVMTDsKKwlzdHJ1
+Y3QgbHJ1dmVjICpscnV2ZWMgPSBOVUxMOwogCWludCBwZ3NjYW5uZWQgPSAw
+OwogCWludCBwZ3Jlc2N1ZWQgPSAwOwogCWludCBpOwogCiAJZm9yIChpID0g
+MDsgaSA8IG5yX3BhZ2VzOyBpKyspIHsKIAkJc3RydWN0IHBhZ2UgKnBhZ2Ug
+PSBwYWdlc1tpXTsKLQkJc3RydWN0IHBnbGlzdF9kYXRhICpwYWdlcGdkYXQg
+PSBwYWdlX3BnZGF0KHBhZ2UpOwogCiAJCXBnc2Nhbm5lZCsrOwotCQlpZiAo
+cGFnZXBnZGF0ICE9IHBnZGF0KSB7Ci0JCQlpZiAocGdkYXQpCi0JCQkJc3Bp
+bl91bmxvY2tfaXJxKCZwZ2RhdC0+bHJ1X2xvY2spOwotCQkJcGdkYXQgPSBw
+YWdlcGdkYXQ7Ci0JCQlzcGluX2xvY2tfaXJxKCZwZ2RhdC0+bHJ1X2xvY2sp
+OwotCQl9Ci0JCWxydXZlYyA9IG1lbV9jZ3JvdXBfcGFnZV9scnV2ZWMocGFn
+ZSwgcGdkYXQpOworCQlyZWxvY2tfcGFnZV9scnV2ZWMocGFnZSwgJmxydXZl
+Yyk7CiAKIAkJaWYgKCFQYWdlTFJVKHBhZ2UpIHx8ICFQYWdlVW5ldmljdGFi
+bGUocGFnZSkpCiAJCQljb250aW51ZTsKQEAgLTM5NTUsMTAgKzM5NjIsMTAg
+QEAgdm9pZCBjaGVja19tb3ZlX3VuZXZpY3RhYmxlX3BhZ2VzKHN0cnVjdCBw
+YWdlICoqcGFnZXMsIGludCBucl9wYWdlcykKIAkJfQogCX0KIAotCWlmIChw
+Z2RhdCkgeworCWlmIChscnV2ZWMpIHsKIAkJX19jb3VudF92bV9ldmVudHMo
+VU5FVklDVEFCTEVfUEdSRVNDVUVELCBwZ3Jlc2N1ZWQpOwogCQlfX2NvdW50
+X3ZtX2V2ZW50cyhVTkVWSUNUQUJMRV9QR1NDQU5ORUQsIHBnc2Nhbm5lZCk7
+Ci0JCXNwaW5fdW5sb2NrX2lycSgmcGdkYXQtPmxydV9sb2NrKTsKKwkJdW5s
+b2NrX2xydXZlYyhscnV2ZWMpOwogCX0KIH0KICNlbmRpZiAvKiBDT05GSUdf
+U0hNRU0gKi8KLS0gCjIuMTcuMS4xMTg1Lmc1NWJlOTQ3ODMyLWdvb2cKCgAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwNi1tbS1tZW1jZy1wZXItbWVtY2ct
+cGVyLW5vZGUtbHJ1LWxvY2tpbmcucGF0Y2gAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDA2NDQAMDMxNTA2
+NgAwMjU3NTIzADAwMDAwMDExNzQzADEzMzA1MzcyMTI0ADAyMjQ0MAAgMAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAB1c3RhciAgAGh1Z2hkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAcHJpbWFyeWdyb3VwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGcm9tIGRh
+MDAxMjFkMzliNGE5ZDA2YzlkODdjNmM2MTUxMmJjYmY4NDJiZmQgTW9uIFNl
+cCAxNyAwMDowMDowMCAyMDAxCkZyb206IEh1Z2ggRGlja2lucyA8aHVnaGRA
+Z29vZ2xlLmNvbT4KRGF0ZTogVHVlLCAxMiBKdW4gMjAxMiAxNTo0Njo1OSAt
+MDcwMApTdWJqZWN0OiBbUEFUQ0ggNi85XSBtbS9tZW1jZzogcGVyLW1lbWNn
+IHBlci1ub2RlIGxydSBsb2NraW5nCgpXZSdyZSBuZWFybHkgdGhlcmUuICBO
+b3cgbW92ZSBscnVfbG9jayBhbmQgaXJxZmxhZ3MgaW50byBzdHJ1Y3QgbHJ1
+dmVjLApzbyB0aGV5IGFyZSBpbiBldmVyeSBwZ2RhdCAoZm9yICFDT05GSUdf
+TUVNQ0cgYW5kIG1lbV9jZ3JvdXBfZGlzYWJsZWQoKQpjYXNlcykgYW5kIGlu
+IGV2ZXJ5IG1lbWNnIGxydXZlYy4KCkV4dGVuZCB0aGUgbWVtY2cgdmVyc2lv
+biBvZiByZWxvY2tfcGFnZV9scnV2ZWMoKSB0byBkcm9wIG9sZCBhbmQgdGFr
+ZQpuZXcgbG9jayB3aGVuZXZlciBjaGFuZ2luZyBscnV2ZWMsIHJldHJ5aW5n
+IGFzIGJlZm9yZSBpZiBtZW1jZyBjaGFuZ2VkLgoKVGhlbiBmbGlwIHRoZSBz
+d2l0Y2ggZnJvbSBwZXItbm9kZSBscnUgbG9ja2luZyB0byBwZXItbWVtY2cg
+cGVyLW5vZGUKbHJ1IGxvY2tpbmcuCgpTaWduZWQtb2ZmLWJ5OiBIdWdoIERp
+Y2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+Ci0tLQogaW5jbHVkZS9saW51eC9t
+bXpvbmUuaCB8IDEyICsrKysrLS0tLS0tLQogaW5jbHVkZS9saW51eC9zd2Fw
+LmggICB8IDE3ICsrKysrKysrKystLS0tLS0tCiBtbS9tZW1jb250cm9sLmMg
+ICAgICAgIHwgMTAgKysrKysrLS0tLQogbW0vbW16b25lLmMgICAgICAgICAg
+ICB8ICAxICsKIG1tL3BhZ2VfYWxsb2MuYyAgICAgICAgfCAgMSAtCiA1IGZp
+bGVzIGNoYW5nZWQsIDIyIGluc2VydGlvbnMoKyksIDE5IGRlbGV0aW9ucygt
+KQoKZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvbW16b25lLmggYi9pbmNs
+dWRlL2xpbnV4L21tem9uZS5oCmluZGV4IDFmNWIxNTA0MGIwNi4uN2RhYjhj
+N2U5Njk3IDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L21tem9uZS5oCisr
+KyBiL2luY2x1ZGUvbGludXgvbW16b25lLmgKQEAgLTEwMSw3ICsxMDEsNyBA
+QCBzdHJ1Y3QgZnJlZV9hcmVhIHsKIHN0cnVjdCBwZ2xpc3RfZGF0YTsKIAog
+LyoKLSAqIHpvbmUtPmxvY2sgYW5kIHRoZSB6b25lIGxydV9sb2NrIGFyZSB0
+d28gb2YgdGhlIGhvdHRlc3QgbG9ja3MgaW4gdGhlIGtlcm5lbC4KKyAqIHpv
+bmUtPmxvY2sgYW5kIGxydXZlYy0+bHJ1X2xvY2sgYXJlIHR3byBvZiB0aGUg
+aG90dGVzdCBsb2NrcyBpbiB0aGUga2VybmVsLgogICogU28gYWRkIGEgd2ls
+ZCBhbW91bnQgb2YgcGFkZGluZyBoZXJlIHRvIGVuc3VyZSB0aGF0IHRoZXkg
+ZmFsbCBpbnRvIHNlcGFyYXRlCiAgKiBjYWNoZWxpbmVzLiAgVGhlcmUgYXJl
+IHZlcnkgZmV3IHpvbmUgc3RydWN0dXJlcyBpbiB0aGUgbWFjaGluZSwgc28g
+c3BhY2UKICAqIGNvbnN1bXB0aW9uIGlzIG5vdCBhIGNvbmNlcm4gaGVyZS4K
+QEAgLTIzNCw2ICsyMzQsOCBAQCBzdHJ1Y3Qgem9uZV9yZWNsYWltX3N0YXQg
+ewogfTsKIAogc3RydWN0IGxydXZlYyB7CisJc3BpbmxvY2tfdAkJCWxydV9s
+b2NrOworCXVuc2lnbmVkIGxvbmcJCQlpcnFmbGFnczsKIAlzdHJ1Y3QgbGlz
+dF9oZWFkCQlsaXN0c1tOUl9MUlVfTElTVFNdOwogCXN0cnVjdCB6b25lX3Jl
+Y2xhaW1fc3RhdAlyZWNsYWltX3N0YXQ7CiAJLyogRXZpY3Rpb25zICYgYWN0
+aXZhdGlvbnMgb24gdGhlIGluYWN0aXZlIGZpbGUgbGlzdCAqLwpAQCAtNjky
+LDExICs2OTQsNiBAQCB0eXBlZGVmIHN0cnVjdCBwZ2xpc3RfZGF0YSB7CiAJ
+dW5zaWduZWQgbG9uZwkJbWluX3NsYWJfcGFnZXM7CiAjZW5kaWYgLyogQ09O
+RklHX05VTUEgKi8KIAotCS8qIFdyaXRlLWludGVuc2l2ZSBmaWVsZHMgdXNl
+ZCBieSBwYWdlIHJlY2xhaW0gKi8KLQlaT05FX1BBRERJTkcoX3BhZDFfKQot
+CXNwaW5sb2NrX3QJCWxydV9sb2NrOwotCXVuc2lnbmVkIGxvbmcJCWlycWZs
+YWdzOwotCiAjaWZkZWYgQ09ORklHX0RFRkVSUkVEX1NUUlVDVF9QQUdFX0lO
+SVQKIAkvKgogCSAqIElmIG1lbW9yeSBpbml0aWFsaXNhdGlvbiBvbiBsYXJn
+ZSBtYWNoaW5lcyBpcyBkZWZlcnJlZCB0aGVuIHRoaXMKQEAgLTcxNCw4ICs3
+MTEsOSBAQCB0eXBlZGVmIHN0cnVjdCBwZ2xpc3RfZGF0YSB7CiAjZW5kaWYK
+IAogCS8qIEZpZWxkcyBjb21tb25seSBhY2Nlc3NlZCBieSB0aGUgcGFnZSBy
+ZWNsYWltIHNjYW5uZXIgKi8KLQlzdHJ1Y3QgbHJ1dmVjCQlscnV2ZWM7CisJ
+Wk9ORV9QQURESU5HKF9wYWQxXykKIAorCXN0cnVjdCBscnV2ZWMJCWxydXZl
+YzsKIAl1bnNpZ25lZCBsb25nCQlmbGFnczsKIAogCVpPTkVfUEFERElORyhf
+cGFkMl8pCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L3N3YXAuaCBiL2lu
+Y2x1ZGUvbGludXgvc3dhcC5oCmluZGV4IDJmZjQyNWNlODg3ZS4uNjhiZTMz
+YzcyZTFlIDEwMDY0NAotLS0gYS9pbmNsdWRlL2xpbnV4L3N3YXAuaAorKysg
+Yi9pbmNsdWRlL2xpbnV4L3N3YXAuaApAQCAtMzQzLDI1ICszNDMsMjggQEAg
+ZXh0ZXJuIHZvaWQgbHJ1X2NhY2hlX2FkZF9hY3RpdmVfb3JfdW5ldmljdGFi
+bGUoc3RydWN0IHBhZ2UgKnBhZ2UsCiAKIHN0YXRpYyBpbmxpbmUgc3Bpbmxv
+Y2tfdCAqbHJ1X2xvY2twdHIoc3RydWN0IGxydXZlYyAqbHJ1dmVjKQogewot
+CXJldHVybiAmbHJ1dmVjX3BnZGF0KGxydXZlYyktPmxydV9sb2NrOworCS8q
+CisJICogVXNlIHBlci1tZW1jZy1wZXItbm9kZSBscnVfbG9jay4KKwkgKiBP
+ciwgdG8gcmV2ZXJ0IHRvIHVzaW5nIHBlci1ub2RlIGxydV9sb2NrLAorCSAq
+IHJldHVybiAmbHJ1dmVjX3BnZGF0KGxydXZlYyktPmxydXZlYy5scnVfbG9j
+azsKKwkgKi8KKwlyZXR1cm4gJmxydXZlYy0+bHJ1X2xvY2s7CiB9CiAKIHN0
+YXRpYyBpbmxpbmUgdm9pZCBsb2NrX2xydXZlYyhzdHJ1Y3QgbHJ1dmVjICps
+cnV2ZWMpCiB7Ci0Jc3RydWN0IHBnbGlzdF9kYXRhICpwZ2RhdCA9IGxydXZl
+Y19wZ2RhdChscnV2ZWMpOwogCXVuc2lnbmVkIGxvbmcgaXJxZmxhZ3M7CiAK
+LQlzcGluX2xvY2tfaXJxc2F2ZSgmcGdkYXQtPmxydV9sb2NrLCBpcnFmbGFn
+cyk7Ci0JcGdkYXQtPmlycWZsYWdzID0gaXJxZmxhZ3M7CisJc3Bpbl9sb2Nr
+X2lycXNhdmUobHJ1X2xvY2twdHIobHJ1dmVjKSwgaXJxZmxhZ3MpOworCWxy
+dXZlYy0+aXJxZmxhZ3MgPSBpcnFmbGFnczsKIH0KIAogc3RhdGljIGlubGlu
+ZSB2b2lkIHVubG9ja19scnV2ZWMoc3RydWN0IGxydXZlYyAqbHJ1dmVjKQog
+ewotCXN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQgPSBscnV2ZWNfcGdkYXQo
+bHJ1dmVjKTsKIAl1bnNpZ25lZCBsb25nIGlycWZsYWdzOwogCi0JaXJxZmxh
+Z3MgPSBwZ2RhdC0+aXJxZmxhZ3M7Ci0Jc3Bpbl91bmxvY2tfaXJxcmVzdG9y
+ZSgmcGdkYXQtPmxydV9sb2NrLCBpcnFmbGFncyk7CisJaXJxZmxhZ3MgPSBs
+cnV2ZWMtPmlycWZsYWdzOworCXNwaW5fdW5sb2NrX2lycXJlc3RvcmUobHJ1
+X2xvY2twdHIobHJ1dmVjKSwgaXJxZmxhZ3MpOwogfQogCiAjaWZkZWYgQ09O
+RklHX01FTUNHCmRpZmYgLS1naXQgYS9tbS9tZW1jb250cm9sLmMgYi9tbS9t
+ZW1jb250cm9sLmMKaW5kZXggZDUwZDc0Y2ViZmFmLi5iOGNiODZhOGJhY2Ug
+MTAwNjQ0Ci0tLSBhL21tL21lbWNvbnRyb2wuYworKysgYi9tbS9tZW1jb250
+cm9sLmMKQEAgLTk1NiwxNSArOTU2LDE3IEBAIHZvaWQgcmVsb2NrX3BhZ2Vf
+bHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3QgbHJ1dmVjICoqbHJ1
+dnApCiAJCWxydXZlYy0+cGdkYXQgPSBwZ2RhdDsKIAogCS8qCi0JICogRm9y
+IHRoZSBtb21lbnQsIHNpbXBseSBsb2NrIGJ5IHBnZGF0IGp1c3QgYXMgYmVm
+b3JlLgorCSAqIFNvbWV0aW1lcyB3ZSBhcmUgY2FsbGVkIHdpdGggbm9uLU5V
+TEwgKmxydXZwIHNwaW5sb2NrIGFscmVhZHkgaGVsZDoKKwkgKiBob2xkIG9u
+IGlmIHdlIHdhbnQgdGhlIHNhbWUgbG9jayBhZ2Fpbiwgb3RoZXJ3aXNlIGRy
+b3AgYW5kIGFjcXVpcmUuCiAJICovCi0JaWYgKCpscnV2cCAmJiAoKmxydXZw
+KS0+cGdkYXQgIT0gbHJ1dmVjLT5wZ2RhdCkgeworCWlmICgqbHJ1dnAgJiYg
+KmxydXZwICE9IGxydXZlYykgewogCQl1bmxvY2tfbHJ1dmVjKCpscnV2cCk7
+CiAJCSpscnV2cCA9IE5VTEw7CiAJfQotCWlmICghKmxydXZwKQorCWlmICgh
+KmxydXZwKSB7CisJCSpscnV2cCA9IGxydXZlYzsKIAkJbG9ja19scnV2ZWMo
+bHJ1dmVjKTsKLQkqbHJ1dnAgPSBscnV2ZWM7CisJfQogCiAJLyoKIAkgKiBC
+dXQgcGFnZS0+bWVtX2Nncm91cCBtYXkgaGF2ZSBjaGFuZ2VkIHNpbmNlIHdl
+IGxvb2tlZC4uLgpkaWZmIC0tZ2l0IGEvbW0vbW16b25lLmMgYi9tbS9tbXpv
+bmUuYwppbmRleCA0Njg2ZmRjMjNiYjkuLjM3NTBhOTBlZDRhMCAxMDA2NDQK
+LS0tIGEvbW0vbW16b25lLmMKKysrIGIvbW0vbW16b25lLmMKQEAgLTkxLDYg
+KzkxLDcgQEAgdm9pZCBscnV2ZWNfaW5pdChzdHJ1Y3QgbHJ1dmVjICpscnV2
+ZWMpCiAJZW51bSBscnVfbGlzdCBscnU7CiAKIAltZW1zZXQobHJ1dmVjLCAw
+LCBzaXplb2Yoc3RydWN0IGxydXZlYykpOworCXNwaW5fbG9ja19pbml0KCZs
+cnV2ZWMtPmxydV9sb2NrKTsKIAogCWZvcl9lYWNoX2xydShscnUpCiAJCUlO
+SVRfTElTVF9IRUFEKCZscnV2ZWMtPmxpc3RzW2xydV0pOwpkaWZmIC0tZ2l0
+IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jCmluZGV4IDJh
+NmQ2OWYzNzBlNC4uNzExOTcyMzhjMDI5IDEwMDY0NAotLS0gYS9tbS9wYWdl
+X2FsbG9jLmMKKysrIGIvbW0vcGFnZV9hbGxvYy5jCkBAIC02MjIyLDcgKzYy
+MjIsNiBAQCBzdGF0aWMgdm9pZCBfX3BhZ2luZ2luaXQgZnJlZV9hcmVhX2lu
+aXRfY29yZShzdHJ1Y3QgcGdsaXN0X2RhdGEgKnBnZGF0KQogCWluaXRfd2Fp
+dHF1ZXVlX2hlYWQoJnBnZGF0LT5rY29tcGFjdGRfd2FpdCk7CiAjZW5kaWYK
+IAlwZ2RhdF9wYWdlX2V4dF9pbml0KHBnZGF0KTsKLQlzcGluX2xvY2tfaW5p
+dCgmcGdkYXQtPmxydV9sb2NrKTsKIAlscnV2ZWNfaW5pdCgmcGdkYXQtPmxy
+dXZlYyk7CiAKIAlwZ2RhdC0+cGVyX2NwdV9ub2Rlc3RhdHMgPSAmYm9vdF9u
+b2Rlc3RhdHM7Ci0tIAoyLjE3LjEuMTE4NS5nNTViZTk0NzgzMi1nb29nCgoA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDctbW0tbWVtY2ctYXN5
+bmMtY29tcGFjdGlvbi1uZWVkcy10cnlsb2NrX3BhZ2VfbHJ1dmVjLnBhdGNo
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwMDAwNjQ0
+ADAzMTUwNjYAMDI1NzUyMwAwMDAwMDAxMzYwMwAxMzMwNTM3MjEyNAAwMjUy
+MzMAIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAdXN0YXIgIABodWdoZAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAHByaW1hcnlncm91cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+RnJvbSA4OTFjNWQ3OWJjZTllZWRjMDEyYjM4NjE4YTBlZjgxYjZjZDU5M2Vi
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQpGcm9tOiBIdWdoIERpY2tpbnMg
+PGh1Z2hkQGdvb2dsZS5jb20+CkRhdGU6IFNhdCwgMTEgSnVuIDIwMTYgMjE6
+NTk6MzYgLTA3MDAKU3ViamVjdDogW1BBVENIIDcvOV0gbW0vbWVtY2c6IGFz
+eW5jIGNvbXBhY3Rpb24gbmVlZHMgdHJ5bG9ja19wYWdlX2xydXZlYwoKdjMu
+MTggY29tbWl0IDhiNDRkMjc5MWY5MSAoIm1tLCBjb21wYWN0aW9uOiBwZXJp
+b2RpY2FsbHkgZHJvcCBsb2NrIGFuZApyZXN0b3JlIElSUXMgaW4gc2Nhbm5l
+cnMiKSBtYWRlIGNvbXBhY3RfdHJ5bG9ja19pcnFzYXZlKCkgZG8gYSBwcm9w
+ZXIKdHJ5bG9jaywgaW5zdGVhZCBvZiB0aGUgZWFybGllciBzcGluX2lzX2Nv
+bnRlbmRlZCgpIGNoZWNraW5nLiAgVGhhdApzZWVtcyBsaWtlIGEgZ29vZCBp
+bXByb3ZlbWVudCwgYnV0IGl0IGRvZXMgaW52aXRlIGVxdWl2YWxlbnQgc3Vw
+cG9ydApmcm9tIHJlbG9ja19wYWdlX2xydXZlYygpOiBvdGhlcndpc2Ugd2Ug
+aGF2ZSByZWdyZXNzZWQgY29tcGFjdGlvbgpieSByZW1vdmluZyBib3RoIHRo
+YXQgdHJ5bG9jayBhbmQgdGhlIGVhcmxpZXIgY29udGVudGlvbiBjaGVja2lu
+Zy4KClNvIG5vdyBtYWtlIHRyeWxvY2tfcGFnZV9scnV2ZWMocGFnZSwgJmxy
+dXZlYywgYm9vbCB0cnlpbmcpIHRoZSBiYXNpYwpmdW5jdGlvbiwgYW5kIHJl
+bG9ja19wYWdlX2xydXZlYyhwYWdlLCAmbHJ1dmVjKSBhIHdyYXBwZXIgYXJv
+dW5kIGl0Owpob3BpbmcgdGhhdCB0aGUgbmV3ICJ0cnlpbmciIGJyYW5jaCBk
+b2VzIG5vdCBkZWdyYWRlIHBlcmZvcm1hbmNlLgoKQnV0IHRoZXJlJ3MgdGhl
+biBhIHNpemVhYmxlIHBpZWNlIG9mIGNvZGUgY29tbW9uIHRvIGl0cyBtYWlu
+IHBhdGgKaW4gbWVtY29udHJvbC5jLCBhbmQgd2hhdCBoYWQgYmV0dGVyIG5v
+dyBiZSBhbiBvdXQtb2YtbGluZSAjaWZuZGVmCkNPTkZJR19NRU1DRyB2ZXJz
+aW9uIGluIHN3YXAuYzogYWJzdHJhY3QgdGhhdCBwYXJ0IG91dCBhcyBhbiBp
+bmxpbmUKaGVscGVyIF9fdHJ5bG9ja19scnV2ZWMoKSBpbiBzd2FwLmguCgpT
+aWduZWQtb2ZmLWJ5OiBIdWdoIERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+
+Ci0tLQogaW5jbHVkZS9saW51eC9zd2FwLmggfCAzMyArKysrKysrKysrKysr
+KysrKysrKysrKystLS0tLS0tLS0KIG1tL2NvbXBhY3Rpb24uYyAgICAgIHwg
+IDggKysrKysrLS0KIG1tL21lbWNvbnRyb2wuYyAgICAgIHwgMjIgKysrKysr
+KysrKy0tLS0tLS0tLS0tLQogbW0vc3dhcC5jICAgICAgICAgICAgfCAgNyAr
+KysrKysrCiA0IGZpbGVzIGNoYW5nZWQsIDQ3IGluc2VydGlvbnMoKyksIDIz
+IGRlbGV0aW9ucygtKQoKZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvc3dh
+cC5oIGIvaW5jbHVkZS9saW51eC9zd2FwLmgKaW5kZXggNjhiZTMzYzcyZTFl
+Li4xODVhYmU0ZGU2ODcgMTAwNjQ0Ci0tLSBhL2luY2x1ZGUvbGludXgvc3dh
+cC5oCisrKyBiL2luY2x1ZGUvbGludXgvc3dhcC5oCkBAIC0zNjcsMjQgKzM2
+NywzOSBAQCBzdGF0aWMgaW5saW5lIHZvaWQgdW5sb2NrX2xydXZlYyhzdHJ1
+Y3QgbHJ1dmVjICpscnV2ZWMpCiAJc3Bpbl91bmxvY2tfaXJxcmVzdG9yZShs
+cnVfbG9ja3B0cihscnV2ZWMpLCBpcnFmbGFncyk7CiB9CiAKLSNpZmRlZiBD
+T05GSUdfTUVNQ0cKLS8qIGxpbnV4L21tL21lbWNvbnRyb2wuYyAqLwotZXh0
+ZXJuIHZvaWQgcmVsb2NrX3BhZ2VfbHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdl
+LCBzdHJ1Y3QgbHJ1dmVjICoqbHJ1dnApOwotI2Vsc2UKLXN0YXRpYyBpbmxp
+bmUgdm9pZCByZWxvY2tfcGFnZV9scnV2ZWMoc3RydWN0IHBhZ2UgKnBhZ2Us
+IHN0cnVjdCBscnV2ZWMgKipscnV2cCkKKy8qIF9fdHJ5bG9ja19scnV2ZWMo
+KSBpcyBpbmxpbmVkIGludG8gZWl0aGVyIHZlcnNpb24gb2YgcGFnZV90cnls
+b2NrX2xydXZlYygpICovCitzdGF0aWMgaW5saW5lIGJvb2wKK19fdHJ5bG9j
+a19scnV2ZWMoc3RydWN0IGxydXZlYyAqbHJ1dmVjLCBzdHJ1Y3QgbHJ1dmVj
+ICoqbHJ1dnAsIGJvb2wgdHJ5aW5nKQogewotCXN0cnVjdCBscnV2ZWMgKmxy
+dXZlYyA9ICZwYWdlX3BnZGF0KHBhZ2UpLT5scnV2ZWM7Ci0KKwkvKgorCSAq
+IFNvbWV0aW1lcyB3ZSBhcmUgY2FsbGVkIHdpdGggbm9uLU5VTEwgKmxydXZw
+IHNwaW5sb2NrIGFscmVhZHkgaGVsZDoKKwkgKiBob2xkIG9uIGlmIHdlIHdh
+bnQgdGhlIHNhbWUgbG9jayBhZ2Fpbiwgb3RoZXJ3aXNlIGRyb3AgYW5kIGFj
+cXVpcmUuCisJICovCiAJaWYgKCpscnV2cCAmJiAqbHJ1dnAgIT0gbHJ1dmVj
+KSB7CiAJCXVubG9ja19scnV2ZWMoKmxydXZwKTsKIAkJKmxydXZwID0gTlVM
+TDsKIAl9CiAJaWYgKCEqbHJ1dnApIHsKKwkJc3BpbmxvY2tfdCAqbG9ja3B0
+ciA9IGxydV9sb2NrcHRyKGxydXZlYyk7CisJCXVuc2lnbmVkIGxvbmcgaXJx
+ZmxhZ3M7CisKKwkJaWYgKGxpa2VseSghdHJ5aW5nKSkKKwkJCXNwaW5fbG9j
+a19pcnFzYXZlKGxvY2twdHIsIGlycWZsYWdzKTsKKwkJZWxzZSBpZiAoIXNw
+aW5fdHJ5bG9ja19pcnFzYXZlKGxvY2twdHIsIGlycWZsYWdzKSkKKwkJCXJl
+dHVybiBmYWxzZTsKKwkJbHJ1dmVjLT5pcnFmbGFncyA9IGlycWZsYWdzOwog
+CQkqbHJ1dnAgPSBscnV2ZWM7Ci0JCWxvY2tfbHJ1dmVjKGxydXZlYyk7CiAJ
+fQorCXJldHVybiB0cnVlOworfQorCisvKiBpbiBsaW51eC9tbS9tZW1jb250
+cm9sLmMgb3IgbGludXgvbW0vc3dhcC5jICovCitib29sIHRyeWxvY2tfcGFn
+ZV9scnV2ZWMoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMgKips
+cnV2cCwgYm9vbCB0cnlpbmcpOworCitzdGF0aWMgaW5saW5lIHZvaWQgcmVs
+b2NrX3BhZ2VfbHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3QgbHJ1
+dmVjICoqbHJ1dnApCit7CisJdHJ5bG9ja19wYWdlX2xydXZlYyhwYWdlLCBs
+cnV2cCwgZmFsc2UpOwogfQotI2VuZGlmIC8qIENPTkZJR19NRU1DRyAqLwog
+CiBzdGF0aWMgaW5saW5lIHN0cnVjdCBscnV2ZWMgKmxvY2tfcGFnZV9scnV2
+ZWMoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7CmRpZmYgLS1naXQgYS9tbS9jb21w
+YWN0aW9uLmMgYi9tbS9jb21wYWN0aW9uLmMKaW5kZXggNzkxZTk1ZTk3ZWEy
+Li43MDk2MjljNTg5NWMgMTAwNjQ0Ci0tLSBhL21tL2NvbXBhY3Rpb24uYwor
+KysgYi9tbS9jb21wYWN0aW9uLmMKQEAgLTgzNSw4ICs4MzUsMTIgQEAgaXNv
+bGF0ZV9taWdyYXRlcGFnZXNfYmxvY2soc3RydWN0IGNvbXBhY3RfY29udHJv
+bCAqY2MsIHVuc2lnbmVkIGxvbmcgbG93X3BmbiwKIAkJaWYgKCFnZXRfcGFn
+ZV91bmxlc3NfemVybyhwYWdlKSkKIAkJCWdvdG8gaXNvbGF0ZV9mYWlsOwog
+Ci0JCS8qIFRlbXBvcmFyeSByZWdyZXNzaW9uIGZyb20gdHJ5bG9jaywgZml4
+ZWQgaW4gbGF0ZXIgcGF0Y2ggKi8KLQkJcmVsb2NrX3BhZ2VfbHJ1dmVjKHBh
+Z2UsICZscnV2ZWMpOworCQlpZiAoIXRyeWxvY2tfcGFnZV9scnV2ZWMocGFn
+ZSwgJmxydXZlYywKKwkJCQkJIGNjLT5tb2RlID09IE1JR1JBVEVfQVNZTkMp
+KSB7CisJCQlwdXRfcGFnZShwYWdlKTsKKwkJCWNjLT5jb250ZW5kZWQgPSB0
+cnVlOworCQkJYnJlYWs7CisJCX0KIAogCQkvKiBSZWNoZWNrIFBhZ2VMUlUg
+YW5kIFBhZ2VDb21wb3VuZCB1bmRlciBsb2NrICovCiAJCWlmICh1bmxpa2Vs
+eSghUGFnZUxSVShwYWdlKSB8fCBQYWdlQ29tcG91bmQocGFnZSkpKSB7CmRp
+ZmYgLS1naXQgYS9tbS9tZW1jb250cm9sLmMgYi9tbS9tZW1jb250cm9sLmMK
+aW5kZXggYjhjYjg2YThiYWNlLi45YjRlOGNiZDBkZmQgMTAwNjQ0Ci0tLSBh
+L21tL21lbWNvbnRyb2wuYworKysgYi9tbS9tZW1jb250cm9sLmMKQEAgLTkx
+NSwxMSArOTE1LDE1IEBAIGludCBtZW1fY2dyb3VwX3NjYW5fdGFza3Moc3Ry
+dWN0IG1lbV9jZ3JvdXAgKm1lbWNnLAogfQogCiAvKioKLSAqIHJlbG9ja19w
+YWdlX2xydXZlYyAtIGxvY2sgYW5kIHVwZGF0ZSBscnV2ZWMgZm9yIHRoaXMg
+cGFnZSwgdW5sb2NraW5nIHByZXZpb3VzCisgKiB0cnlsb2NrX3BhZ2VfbHJ1
+dmVjIC0gbG9jayBvciB0cnlsb2NrIGxydXZlYyBmb3IgcGFnZSwgdW5sb2Nr
+aW5nIHByZXZpb3VzCiAgKiBAcGFnZTogdGhlIHBhZ2UKICAqIEBscnV2cDog
+cG9pbnRlciB0byB3aGVyZSB0byBvdXRwdXQgbHJ1dmVjOyB1bmxvY2sgaW5w
+dXQgbHJ1dmVjIGlmIG5vbi1OVUxMCisgKiBAdHJ5aW5nOiB1c3VhbGx5IGZh
+bHNlLCBidXQgdHJ1ZSB0byB0cnlsb2NrIGluc3RlYWQgb2YgbG9jaworICoK
+KyAqIE1vc3QgY2FsbGVycyB1c2Ugdm9pZCBwYWdlX3JlbG9ja19scnV2ZWMo
+KTogcGFnZV90cnlsb2NrX2xydXZlYygsLGZhbHNlKTsKKyAqIGJ1dCBjb21w
+YWN0aW9uJ3MgaXNvbGF0ZV9taWdyYXRlcGFnZXNfYmxvY2soKSBuZWVkcyB0
+aGUgdHJ5bG9jay4KICAqLwotdm9pZCByZWxvY2tfcGFnZV9scnV2ZWMoc3Ry
+dWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMgKipscnV2cCkKK2Jvb2wg
+dHJ5bG9ja19wYWdlX2xydXZlYyhzdHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0
+IGxydXZlYyAqKmxydXZwLCBib29sIHRyeWluZykKIHsKIAlzdHJ1Y3QgbWVt
+X2Nncm91cCAqb3JpZ19tZW1jZywgKm1lbWNnOwogCXN0cnVjdCBscnV2ZWMg
+KmxydXZlYzsKQEAgLTk1NiwxNyArOTYwLDEwIEBAIHZvaWQgcmVsb2NrX3Bh
+Z2VfbHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3QgbHJ1dmVjICoq
+bHJ1dnApCiAJCWxydXZlYy0+cGdkYXQgPSBwZ2RhdDsKIAogCS8qCi0JICog
+U29tZXRpbWVzIHdlIGFyZSBjYWxsZWQgd2l0aCBub24tTlVMTCAqbHJ1dnAg
+c3BpbmxvY2sgYWxyZWFkeSBoZWxkOgotCSAqIGhvbGQgb24gaWYgd2Ugd2Fu
+dCB0aGUgc2FtZSBsb2NrIGFnYWluLCBvdGhlcndpc2UgZHJvcCBhbmQgYWNx
+dWlyZS4KKwkgKiBJZiBscnV2ZWMgZGlmZmVycyBmcm9tICpscnV2cCwgZHJv
+cCAqbHJ1dnAgbG9jayBhbmQKKwkgKiB0YWtlIGxydXZlYyBsb2NrOiBzZWUg
+aW5saW5lIGluIGluY2x1ZGUvbGludXgvc3dhcC5oLgogCSAqLwotCWlmICgq
+bHJ1dnAgJiYgKmxydXZwICE9IGxydXZlYykgewotCQl1bmxvY2tfbHJ1dmVj
+KCpscnV2cCk7Ci0JCSpscnV2cCA9IE5VTEw7Ci0JfQotCWlmICghKmxydXZw
+KSB7Ci0JCSpscnV2cCA9IGxydXZlYzsKLQkJbG9ja19scnV2ZWMobHJ1dmVj
+KTsKLQl9CisJX190cnlsb2NrX2xydXZlYyhscnV2ZWMsIGxydXZwLCB0cnlp
+bmcpOwogCiAJLyoKIAkgKiBCdXQgcGFnZS0+bWVtX2Nncm91cCBtYXkgaGF2
+ZSBjaGFuZ2VkIHNpbmNlIHdlIGxvb2tlZC4uLgpAQCAtOTc1LDYgKzk3Miw3
+IEBAIHZvaWQgcmVsb2NrX3BhZ2VfbHJ1dmVjKHN0cnVjdCBwYWdlICpwYWdl
+LCBzdHJ1Y3QgbHJ1dmVjICoqbHJ1dnApCiAJCWdvdG8gYWdhaW47CiAKIAly
+Y3VfcmVhZF91bmxvY2soKTsKKwlyZXR1cm4gKmxydXZwICE9IE5VTEw7CiB9
+CiAKIC8qKgpkaWZmIC0tZ2l0IGEvbW0vc3dhcC5jIGIvbW0vc3dhcC5jCmlu
+ZGV4IGU2YjFkZjdmZmIyYi4uZjY5MDJmMTYxMTJjIDEwMDY0NAotLS0gYS9t
+bS9zd2FwLmMKKysrIGIvbW0vc3dhcC5jCkBAIC01MSw2ICs1MSwxMyBAQCBz
+dGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGxydV9sYXp5
+ZnJlZV9wdmVjcyk7CiBzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBh
+Z2V2ZWMsIGFjdGl2YXRlX3BhZ2VfcHZlY3MpOwogI2VuZGlmCiAKKyNpZm5k
+ZWYgQ09ORklHX01FTUNHCitib29sIHRyeWxvY2tfcGFnZV9scnV2ZWMoc3Ry
+dWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMgKipscnV2cCwgYm9vbCB0
+cnlpbmcpCit7CisJcmV0dXJuIF9fdHJ5bG9ja19scnV2ZWMoJnBhZ2VfcGdk
+YXQocGFnZSktPmxydXZlYywgbHJ1dnAsIHRyeWluZyk7Cit9CisjZW5kaWYK
+KwogLyoKICAqIFRoaXMgcGF0aCBhbG1vc3QgbmV2ZXIgaGFwcGVucyBmb3Ig
+Vk0gYWN0aXZpdHkgLSBwYWdlcyBhcmUgbm9ybWFsbHkKICAqIGZyZWVkIHZp
+YSBwYWdldmVjcy4gIEJ1dCBpdCBnZXRzIHVzZWQgYnkgbmV0d29ya2luZy4K
+LS0gCjIuMTcuMS4xMTg1Lmc1NWJlOTQ3ODMyLWdvb2cKCgAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwOC1tbS1tZW1jZy1hc3luYy1j
+b21wYWN0aW9uLXRyeS04LXBhZ2VzLWJlZm9yZS1naXZpbmctLnBhdGNoAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDA2NDQAMDMx
+NTA2NgAwMjU3NTIzADAwMDAwMDA2NjM2ADEzMzA1MzcyMTI0ADAyNDc2MwAg
+MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAB1c3RhciAgAGh1Z2hkAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAcHJpbWFyeWdyb3VwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGcm9t
+IDc1MjAzMTY0N2NmZmZkYmVhNjUyNDExMjliNGVkMTVmNWY4Nzk4ZWUgTW9u
+IFNlcCAxNyAwMDowMDowMCAyMDAxCkZyb206IEh1Z2ggRGlja2lucyA8aHVn
+aGRAZ29vZ2xlLmNvbT4KRGF0ZTogU2F0LCAxOCBKdW4gMjAxNiAyMDo1NTo1
+MCAtMDcwMApTdWJqZWN0OiBbUEFUQ0ggOC85XSBtbS9tZW1jZzogYXN5bmMg
+Y29tcGFjdGlvbiB0cnkgOCBwYWdlcyBiZWZvcmUgZ2l2aW5nIHVwCgpFdmVy
+IHNpbmNlIHdlIGZpcnN0IGltcGxlbWVudGVkIHBlci1tZW1jZyBwZXItem9u
+ZSBscnUgbG9ja2luZywKdGhlcmUncyBiZWVuIGFuIHVuc29sdmVkIGNvbnVu
+ZHJ1bSB3aGVyZSBjb21wYWN0aW9uIGlzb2xhdGVzIHBhZ2VzCmZvciBtaWdy
+YXRpb246IGlmIHRoZXJlJ3MgY29udGVudGlvbiBvbiB1cHN0cmVhbSdzIHBn
+ZGF0LT5scnVfbG9jaywKdGhlbiBvZiBjb3Vyc2UgTUlHUkFURV9BU1lOQyBz
+aG91bGQgYWJvcnQsIGJlY2F1c2UgZXZlcnkgcGFnZSB0aGF0CmZvbGxvd3Mg
+aXMgc3ViamVjdCB0byB0aGUgc2FtZSBsb2NrIGFuZCB0aGUgc2FtZSBjb250
+ZW50aW9uOyBidXQKaXQgd2FzIG5vdCBzbyBvYnZpb3VzIHdoYXQgdG8gZG8g
+d2hlbiBhZGphY2VudCBwYWdlcyBtYXkgYmVsb25nCnRvIGEgZGlmZmVyZW50
+IG1lbWNnLCBzdWJqZWN0IHRvIGEgZGlmZmVyZW50IGxydXZlYy0+bHJ1X2xv
+Y2suCgpOb3cgdGhhdCB3ZSBoYXZlIGFsbCBhZHZhbmNlZCB0byB1c2luZyBz
+cGluX3RyeWxvY2tzCmluc3RlYWQgb2YgcmV0cm9zcGVjdGl2ZSBzcGluX2lz
+X2NvbnRlbmRlZCBjaGVja3MsIHRoZSBwcm9ibGVtCnNlZW1zIG11Y2ggbW9y
+ZSB0cmFjdGFibGU6IE1JR1JBVEVfQVNZTkMgc2hvdWxkIG5vdCBhYm9ydCBh
+cwpzb29uIGFzIHRoZSBmaXJzdCBscnUgdHJ5bG9jayBmYWlscyAobm8gbW9y
+ZSB0aGFuIGl0IGFib3J0cyBvbgplbmNvdW50ZXJpbmcgYSBwaW5uZWQgcGFn
+ZSBvciBhIG5vbi1scnUgcGFnZSksIGJ1dCBzaG91bGQgYWJvcnQKaWYgdGhl
+IHRyeWxvY2tzIGtlZXAgb24gZmFpbGluZy4KClNvLCBzaW1wbHkgYWJvcnQg
+d2hlbiBlaWdodCBzdWNjZXNzaXZlIHRyeWxvY2tzIGZhaWwsCnRoYXQgZWln
+aHQgYmVpbmcgcmF0aGVyIHB1bGxlZCBvdXQgb2YgdGhlIGFpcjogd2UgZW1l
+cmdlCmZyb20gYSB3b3JsZCB3aGVyZSBpdCB3YXMgYWx3YXlzIDEsIGJ1dCBk
+b24ndCBkYXJlIGdvIHRvbyBmYXI7CkknbGwgaGFwcGlseSBjaGFuZ2UgaXQg
+aWYgd2UgYXJlIHBlcnN1YWRlZCBvZiBhIGJldHRlciBudW1iZXIuCgpOb3Rl
+IHRoYXQgdGhlIENPTkZJR19NRU1DRz15IG1lbV9jZ3JvdXBfZGlzYWJsZWQo
+KSBjYXNlIHdpbGwKbWFrZSA4IHRyaWVzIChhbmQgc29tZXRpbWVzIGZpbmQg
+b25lIG9mIHRob3NlIHN1Y2NlZWRpbmcgb25jZQpsb2NrIGlzIHVubG9ja2Vk
+KSwgd2hlcmVhcyB0aGUgIUNPTkZJR19NRU1DRyBjYXNlIHN0aWNrcyBhdCAx
+OgphIG1pbm9yIGRlY3JlcGFuY3ksIG5vdCBhIHdvcnJ5LgoKU2lnbmVkLW9m
+Zi1ieTogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUuY29tPgotLS0KIG1t
+L2NvbXBhY3Rpb24uYyB8IDIyICsrKysrKysrKysrKysrKysrKysrKysKIDEg
+ZmlsZSBjaGFuZ2VkLCAyMiBpbnNlcnRpb25zKCspCgpkaWZmIC0tZ2l0IGEv
+bW0vY29tcGFjdGlvbi5jIGIvbW0vY29tcGFjdGlvbi5jCmluZGV4IDcwOTYy
+OWM1ODk1Yy4uNWJiMzU0YWNiZGZjIDEwMDY0NAotLS0gYS9tbS9jb21wYWN0
+aW9uLmMKKysrIGIvbW0vY29tcGFjdGlvbi5jCkBAIC02NDMsNiArNjQzLDI0
+IEBAIHN0YXRpYyBib29sIHRvb19tYW55X2lzb2xhdGVkKHN0cnVjdCB6b25l
+ICp6b25lKQogCXJldHVybiBpc29sYXRlZCA+IChpbmFjdGl2ZSArIGFjdGl2
+ZSkgLyAyOwogfQogCisjaWZkZWYgQ09ORklHX01FTUNHCisvKgorICogRWFj
+aCBtZW1jZyBoYXMgaXRzIG93biBscnVfbG9jayBmb3IgZWFjaCBub2RlOiBz
+byBpZiBvbmUgcGFnZSdzIGxydV9sb2NrCisgKiBpcyBoZWxkLCB0aGUgbmV4
+dCBwYWdlJ3MgbHJ1X2xvY2sgbWF5IHdlbGwgbm90IGJlIGhlbGQ7IHlldCBp
+dCBjb3VsZAorICogZWFzaWx5IGJlIHRoZSBjYXNlIHRoYXQgYSBzaW5nbGUg
+bWVtY2cgZG9taW5hdGVzLCBzbyB3ZSBzdGlsbCBwcmVmZXIgdGhlCisgKiBN
+SUdSQVRFX0FTWU5DIGlzb2xhdGVfbWlncmF0ZXBhZ2VzX2Jsb2NrKCkgdG8g
+Z2l2ZSB1cCwgaWYgaXQgcmVwZWF0ZWRseQorICogZmluZHMgdGhlIGxydV9s
+b2NrIHRoYXQgaXQgbmVlZHMgaXMgYWxyZWFkeSBoZWxkLiAgTm8gc2NpZW5j
+ZSBoYXMgZ29uZQorICogaW50byBjaG9vc2luZyB0aGUgbnVtYmVyIDgsIGFu
+ZCB0aGVyZSBtYXkgYmUgbXVjaCBiZXR0ZXIgc3RyYXRlZ2llcy4KKyAqLwor
+I2RlZmluZSBNQVhfQVNZTkNfTE9DS19DT05URU5USU9OUwk4CisjZWxzZQor
+LyoKKyAqIFRoZXJlIGlzIGEgc2luZ2xlIGxydV9sb2NrIGZvciB0aGUgd2hv
+bGUgbm9kZSwgc28gaWYgaXQncyBoZWxkIGZvciBvbmUKKyAqIHBhZ2UsIHRo
+ZW4gaXQncyBoZWxkIGZvciB0aGUgZm9sbG93aW5nIHBhZ2VzIHRvbyAodW5s
+ZXNzIHNvb24gcmVsZWFzZWQpLgorICovCisjZGVmaW5lIE1BWF9BU1lOQ19M
+T0NLX0NPTlRFTlRJT05TCTEKKyNlbmRpZgorCiAvKioKICAqIGlzb2xhdGVf
+bWlncmF0ZXBhZ2VzX2Jsb2NrKCkgLSBpc29sYXRlIGFsbCBtaWdyYXRlLWFi
+bGUgcGFnZXMgd2l0aGluCiAgKgkJCQkgIGEgc2luZ2xlIHBhZ2VibG9jawpA
+QCAtNjcyLDYgKzY5MCw3IEBAIGlzb2xhdGVfbWlncmF0ZXBhZ2VzX2Jsb2Nr
+KHN0cnVjdCBjb21wYWN0X2NvbnRyb2wgKmNjLCB1bnNpZ25lZCBsb25nIGxv
+d19wZm4sCiAJdW5zaWduZWQgbG9uZyBzdGFydF9wZm4gPSBsb3dfcGZuOwog
+CWJvb2wgc2tpcF9vbl9mYWlsdXJlID0gZmFsc2U7CiAJdW5zaWduZWQgbG9u
+ZyBuZXh0X3NraXBfcGZuID0gMDsKKwlpbnQgY29udGVudGlvbnMgPSAwOwog
+CiAJLyoKIAkgKiBFbnN1cmUgdGhhdCB0aGVyZSBhcmUgbm90IHRvbyBtYW55
+IHBhZ2VzIGlzb2xhdGVkIGZyb20gdGhlIExSVQpAQCAtODM4LDkgKzg1Nywx
+MiBAQCBpc29sYXRlX21pZ3JhdGVwYWdlc19ibG9jayhzdHJ1Y3QgY29tcGFj
+dF9jb250cm9sICpjYywgdW5zaWduZWQgbG9uZyBsb3dfcGZuLAogCQlpZiAo
+IXRyeWxvY2tfcGFnZV9scnV2ZWMocGFnZSwgJmxydXZlYywKIAkJCQkJIGNj
+LT5tb2RlID09IE1JR1JBVEVfQVNZTkMpKSB7CiAJCQlwdXRfcGFnZShwYWdl
+KTsKKwkJCWlmICgrK2NvbnRlbnRpb25zIDwgTUFYX0FTWU5DX0xPQ0tfQ09O
+VEVOVElPTlMpCisJCQkJZ290byBpc29sYXRlX2ZhaWw7CiAJCQljYy0+Y29u
+dGVuZGVkID0gdHJ1ZTsKIAkJCWJyZWFrOwogCQl9CisJCWNvbnRlbnRpb25z
+ID0gMDsKIAogCQkvKiBSZWNoZWNrIFBhZ2VMUlUgYW5kIFBhZ2VDb21wb3Vu
+ZCB1bmRlciBsb2NrICovCiAJCWlmICh1bmxpa2VseSghUGFnZUxSVShwYWdl
+KSB8fCBQYWdlQ29tcG91bmQocGFnZSkpKSB7Ci0tIAoyLjE3LjEuMTE4NS5n
+NTViZTk0NzgzMi1nb29nCgoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAwMDktbW0tbWVtY2ctdXBkYXRl
+LWxydV9sb2NrLURvYy1hbmQtY29tbWVudHMucGF0Y2gAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwMDAwNjQ0ADAz
+MTUwNjYAMDI1NzUyMwAwMDAwMDAzMjYzMQAxMzMwNTM3MjEyNAAwMjMwMTMA
+IDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAdXN0YXIgIABodWdoZAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAHByaW1hcnlncm91cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARnJv
+bSA3ZmY2NGFjMWFkODAzOWZiYmQ5YTFjYzU4NzFjMzAwYmI3YjE1ZmZlIE1v
+biBTZXAgMTcgMDA6MDA6MDAgMjAwMQpGcm9tOiBIdWdoIERpY2tpbnMgPGh1
+Z2hkQGdvb2dsZS5jb20+CkRhdGU6IFR1ZSwgMTIgSnVuIDIwMTIgMTU6NDc6
+MDIgLTA3MDAKU3ViamVjdDogW1BBVENIIDkvOV0gbW0vbWVtY2c6IHVwZGF0
+ZSBscnVfbG9jayBEb2MgYW5kIGNvbW1lbnRzCgpVcGRhdGUgc2NhdHRlcmVk
+IHJlZmVyZW5jZXMgZnJvbSAiem9uZV9scnVfbG9jayIgdG8gImxydXZlYy0+
+bHJ1X2xvY2siCihpbiBsb3ctbGV2ZWwgZGVzY3JpcHRpb25zKSBvciAibHJ1
+dmVjIGxvY2siICh3aGVyZSB0aGF0IHJlYWRzIGJldHRlcikuCgpJbiB0aGUg
+Y291cnNlIG9mIGRvaW5nIHNvLCB1cGRhdGUgbG9jayBvcmRlcmluZyBjb21t
+ZW50cyBpbiBtbS9ybWFwLmMKYW5kIG1tL2ZpbGVtYXAuYyBhbmQgRG9jdW1l
+bnRhdGlvbi9jZ3JvdXBzL21lbW9yeS50eHQgLSBzbGlnaHRseSwgd2l0aApu
+byBhdHRlbXB0IHRvIGJlIGNvbXBsZXRlIChzd2FwX2xvY2ssIGluIHBhcnRp
+Y3VsYXIsIGxlZnQgb3V0LW9mLWRhdGUpLgpSZW1vdmUgYWxsdXNpb25zIHRv
+IHNldF9wYWdlX2RpcnR5IHVuZGVyIHBhZ2VfcmVtb3ZlX3JtYXA6IGdvbmUg
+aW4gdjMuOS4KCm1lbWNnX3Rlc3QudHh0IGxvb2tzIHF1aXRlIG91dC1vZi1k
+YXRlOiBqdXN0IGdpdmUgTFJVIGEgc2hvcnQgcGFyYWdyYXBoLgpSZXBsYWNl
+ZCB6b25lIGJ5IG5vZGUgdGhyb3VnaG91dCB1bmV2aWN0YWJsZS1scnUudHh0
+IChleGNlcHQgZm9yIHN0YXRzKS4KTGVhdmUgRG9jdW1lbnRhdGlvbi9sb2Nr
+aW5nL2xvY2tzdGF0LnR4dCB1bnRvdWNoZWQgdGhpcyB0aW1lOiBpdCBkb2Vz
+bid0Cm1hdHRlciBpZiB0aGF0IHN0aWxsIHJlZmVycyB0byB6b25lLT5scnVf
+bG9jaywgYWxvbmcgd2l0aCBvdGhlciBoaXN0b3J5LgoKU2lnbmVkLW9mZi1i
+eTogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUuY29tPgotLS0KIERvY3Vt
+ZW50YXRpb24vY2dyb3VwLXYxL21lbWNnX3Rlc3QudHh0IHwgMTQgKysrLS0t
+LS0tLS0tLS0KIERvY3VtZW50YXRpb24vY2dyb3VwLXYxL21lbW9yeS50eHQg
+ICAgIHwgMjMgKysrKysrKysrKysrLS0tLS0tLS0tLS0KIERvY3VtZW50YXRp
+b24vdHJhY2UvZXZlbnRzLWttZW0ucnN0ICAgIHwgIDIgKy0KIERvY3VtZW50
+YXRpb24vdm0vdW5ldmljdGFibGUtbHJ1LnR4dCAgIHwgMjIgKysrKysrKyst
+LS0tLS0tLS0tLS0tLQogaW5jbHVkZS9saW51eC9tbV90eXBlcy5oICAgICAg
+ICAgICAgICAgfCAgMiArLQogbW0vZmlsZW1hcC5jICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgfCAgOCArKy0tLS0tLQogbW0vbWVtY29udHJvbC5jICAg
+ICAgICAgICAgICAgICAgICAgICAgfCAgNCArKy0tCiBtbS9ybWFwLmMgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICB8IDE2ICsrKysrKystLS0tLS0t
+LS0KIG1tL3Ztc2Nhbi5jICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwg
+IDYgKysrLS0tCiA5IGZpbGVzIGNoYW5nZWQsIDM5IGluc2VydGlvbnMoKyks
+IDU4IGRlbGV0aW9ucygtKQoKZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24v
+Y2dyb3VwLXYxL21lbWNnX3Rlc3QudHh0IGIvRG9jdW1lbnRhdGlvbi9jZ3Jv
+dXAtdjEvbWVtY2dfdGVzdC50eHQKaW5kZXggNWM3ZjMxMGYzMmJiLi4zZDJm
+NGUzZjQ5MmUgMTAwNjQ0Ci0tLSBhL0RvY3VtZW50YXRpb24vY2dyb3VwLXYx
+L21lbWNnX3Rlc3QudHh0CisrKyBiL0RvY3VtZW50YXRpb24vY2dyb3VwLXYx
+L21lbWNnX3Rlc3QudHh0CkBAIC0xMDYsMTcgKzEwNiw5IEBAIFVuZGVyIGJl
+bG93IGV4cGxhbmF0aW9uLCB3ZSBhc3N1bWUgQ09ORklHX01FTV9SRVNfQ1RS
+TF9TV0FQPXkuCiAJbWVtX2Nncm91cF9taWdyYXRlKCkKIAogOC4gTFJVCi0g
+ICAgICAgIEVhY2ggbWVtY2cgaGFzIGl0cyBvd24gcHJpdmF0ZSBMUlUuIE5v
+dywgaXRzIGhhbmRsaW5nIGlzIHVuZGVyIGdsb2JhbAotCVZNJ3MgY29udHJv
+bCAobWVhbnMgdGhhdCBpdCdzIGhhbmRsZWQgdW5kZXIgZ2xvYmFsIHpvbmVf
+bHJ1X2xvY2spLgotCUFsbW9zdCBhbGwgcm91dGluZXMgYXJvdW5kIG1lbWNn
+J3MgTFJVIGlzIGNhbGxlZCBieSBnbG9iYWwgTFJVJ3MKLQlsaXN0IG1hbmFn
+ZW1lbnQgZnVuY3Rpb25zIHVuZGVyIHpvbmVfbHJ1X2xvY2soKS4KLQotCUEg
+c3BlY2lhbCBmdW5jdGlvbiBpcyBtZW1fY2dyb3VwX2lzb2xhdGVfcGFnZXMo
+KS4gVGhpcyBzY2FucwotCW1lbWNnJ3MgcHJpdmF0ZSBMUlUgYW5kIGNhbGwg
+X19pc29sYXRlX2xydV9wYWdlKCkgdG8gZXh0cmFjdCBhIHBhZ2UKLQlmcm9t
+IExSVS4KLQkoQnkgX19pc29sYXRlX2xydV9wYWdlKCksIHRoZSBwYWdlIGlz
+IHJlbW92ZWQgZnJvbSBib3RoIG9mIGdsb2JhbCBhbmQKLQkgcHJpdmF0ZSBM
+UlUuKQotCisJRWFjaCBtZW1jZyBoYXMgaXRzIG93biB2ZWN0b3Igb2YgTFJV
+cyAoaW5hY3RpdmUgYW5vbiwgYWN0aXZlIGFub24sCisJaW5hY3RpdmUgZmls
+ZSwgYWN0aXZlIGZpbGUsIHVuZXZpY3RhYmxlKSBvZiBwYWdlcyBmcm9tIGVh
+Y2ggbm9kZSwKKwllYWNoIExSVSBoYW5kbGVkIHVuZGVyIGEgc2luZ2xlIGxy
+dV9sb2NrIGZvciB0aGF0IG1lbWNnIGFuZCBub2RlLgogCiA5LiBUeXBpY2Fs
+IFRlc3RzLgogCmRpZmYgLS1naXQgYS9Eb2N1bWVudGF0aW9uL2Nncm91cC12
+MS9tZW1vcnkudHh0IGIvRG9jdW1lbnRhdGlvbi9jZ3JvdXAtdjEvbWVtb3J5
+LnR4dAppbmRleCAzNjgyZTk5MjM0YzIuLjhiNTBlZmYwYjhkOCAxMDA2NDQK
+LS0tIGEvRG9jdW1lbnRhdGlvbi9jZ3JvdXAtdjEvbWVtb3J5LnR4dAorKysg
+Yi9Eb2N1bWVudGF0aW9uL2Nncm91cC12MS9tZW1vcnkudHh0CkBAIC0yNjEs
+MTcgKzI2MSwxOCBAQCBXaGVuIG9vbSBldmVudCBub3RpZmllciBpcyByZWdp
+c3RlcmVkLCBldmVudCB3aWxsIGJlIGRlbGl2ZXJlZC4KIAogMi42IExvY2tp
+bmcKIAotICAgbG9ja19wYWdlX2Nncm91cCgpL3VubG9ja19wYWdlX2Nncm91
+cCgpIHNob3VsZCBub3QgYmUgY2FsbGVkIHVuZGVyCi0gICB0aGUgaV9wYWdl
+cyBsb2NrLgotCi0gICBPdGhlciBsb2NrIG9yZGVyIGlzIGZvbGxvd2luZzoK
+LSAgIFBHX2xvY2tlZC4KLSAgIG1tLT5wYWdlX3RhYmxlX2xvY2sKLSAgICAg
+ICB6b25lX2xydV9sb2NrCi0JICBsb2NrX3BhZ2VfY2dyb3VwLgotICBJbiBt
+YW55IGNhc2VzLCBqdXN0IGxvY2tfcGFnZV9jZ3JvdXAoKSBpcyBjYWxsZWQu
+Ci0gIHBlci16b25lLXBlci1jZ3JvdXAgTFJVIChjZ3JvdXAncyBwcml2YXRl
+IExSVSkgaXMganVzdCBndWFyZGVkIGJ5Ci0gIHpvbmVfbHJ1X2xvY2ssIGl0
+IGhhcyBubyBsb2NrIG9mIGl0cyBvd24uCitMb2NrIG9yZGVyIGlzIGFzIGZv
+bGxvd3M6CisKK21tLT5tbWFwX3NlbQorICBwYWdlLT5QR19sb2NrZWQKKyAg
+ICBtYXBwaW5nLT5pX21tYXBfcndzZW0KKyAgICAgIGFub25fdm1hLT5yd3Nl
+bQorICAgICAgICBtbS0+cGFnZV90YWJsZV9sb2NrIG9yIHB0ZSBsb2NrCisg
+ICAgICAgICAgbHJ1dmVjLT5scnVfbG9jaworICAgICAgICAgICAgbWVtY2ct
+Pm1vdmVfbG9jaworICAgICAgICAgICAgICBtYXBwaW5nLT5pX3BhZ2VzIGxv
+Y2sKKworUGVyLW1lbWNnIHBlci1ub2RlIExSVSAoY2dyb3VwJ3MgcHJpdmF0
+ZSBMUlUpIGlzIGd1YXJkZWQgYnkgbHJ1dmVjLT5scnVfbG9jay4KIAogMi43
+IEtlcm5lbCBNZW1vcnkgRXh0ZW5zaW9uIChDT05GSUdfTUVNQ0dfS01FTSkK
+IApkaWZmIC0tZ2l0IGEvRG9jdW1lbnRhdGlvbi90cmFjZS9ldmVudHMta21l
+bS5yc3QgYi9Eb2N1bWVudGF0aW9uL3RyYWNlL2V2ZW50cy1rbWVtLnJzdApp
+bmRleCA1NTU0ODQxMTBlMzYuLjY4ZmE3NTI0NzQ4OCAxMDA2NDQKLS0tIGEv
+RG9jdW1lbnRhdGlvbi90cmFjZS9ldmVudHMta21lbS5yc3QKKysrIGIvRG9j
+dW1lbnRhdGlvbi90cmFjZS9ldmVudHMta21lbS5yc3QKQEAgLTY5LDcgKzY5
+LDcgQEAgV2hlbiBwYWdlcyBhcmUgZnJlZWQgaW4gYmF0Y2gsIHRoZSBhbHNv
+IG1tX3BhZ2VfZnJlZV9iYXRjaGVkIGlzIHRyaWdnZXJlZC4KIEJyb2FkbHkg
+c3BlYWtpbmcsIHBhZ2VzIGFyZSB0YWtlbiBvZmYgdGhlIExSVSBsb2NrIGlu
+IGJ1bGsgYW5kCiBmcmVlZCBpbiBiYXRjaCB3aXRoIGEgcGFnZSBsaXN0LiBT
+aWduaWZpY2FudCBhbW91bnRzIG9mIGFjdGl2aXR5IGhlcmUgY291bGQKIGlu
+ZGljYXRlIHRoYXQgdGhlIHN5c3RlbSBpcyB1bmRlciBtZW1vcnkgcHJlc3N1
+cmUgYW5kIGNhbiBhbHNvIGluZGljYXRlCi1jb250ZW50aW9uIG9uIHRoZSB6
+b25lLT5scnVfbG9jay4KK2NvbnRlbnRpb24gb24gdGhlIGxydXZlYy0+bHJ1
+X2xvY2suCiAKIDQuIFBlci1DUFUgQWxsb2NhdG9yIEFjdGl2aXR5CiA9PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PQpkaWZmIC0tZ2l0IGEvRG9jdW1l
+bnRhdGlvbi92bS91bmV2aWN0YWJsZS1scnUudHh0IGIvRG9jdW1lbnRhdGlv
+bi92bS91bmV2aWN0YWJsZS1scnUudHh0CmluZGV4IGUxNDcxODU3MjQ3Ni4u
+YTY4ZDc0NzBiYjZjIDEwMDY0NAotLS0gYS9Eb2N1bWVudGF0aW9uL3ZtL3Vu
+ZXZpY3RhYmxlLWxydS50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi92bS91bmV2
+aWN0YWJsZS1scnUudHh0CkBAIC01Nyw3ICs1Nyw3IEBAIHJlY2xhaW0gaW4g
+TGludXguICBUaGUgcHJvYmxlbXMgaGF2ZSBiZWVuIG9ic2VydmVkIGF0IGN1
+c3RvbWVyIHNpdGVzIG9uIGxhcmdlCiBtZW1vcnkgeDg2XzY0IHN5c3RlbXMu
+CiAKIFRvIGlsbHVzdHJhdGUgdGhpcyB3aXRoIGFuIGV4YW1wbGUsIGEgbm9u
+LU5VTUEgeDg2XzY0IHBsYXRmb3JtIHdpdGggMTI4R0Igb2YKLW1haW4gbWVt
+b3J5IHdpbGwgaGF2ZSBvdmVyIDMyIG1pbGxpb24gNGsgcGFnZXMgaW4gYSBz
+aW5nbGUgem9uZS4gIFdoZW4gYSBsYXJnZQorbWFpbiBtZW1vcnkgd2lsbCBo
+YXZlIG92ZXIgMzIgbWlsbGlvbiA0ayBwYWdlcyBpbiBhIHNpbmdsZSBub2Rl
+LiAgV2hlbiBhIGxhcmdlCiBmcmFjdGlvbiBvZiB0aGVzZSBwYWdlcyBhcmUg
+bm90IGV2aWN0YWJsZSBmb3IgYW55IHJlYXNvbiBbc2VlIGJlbG93XSwgdm1z
+Y2FuCiB3aWxsIHNwZW5kIGEgbG90IG9mIHRpbWUgc2Nhbm5pbmcgdGhlIExS
+VSBsaXN0cyBsb29raW5nIGZvciB0aGUgc21hbGwgZnJhY3Rpb24KIG9mIHBh
+Z2VzIHRoYXQgYXJlIGV2aWN0YWJsZS4gIFRoaXMgY2FuIHJlc3VsdCBpbiBh
+IHNpdHVhdGlvbiB3aGVyZSBhbGwgQ1BVcyBhcmUKQEAgLTc5LDcgKzc5LDcg
+QEAgdW5ldmljdGFibGUsIGVpdGhlciBieSBkZWZpbml0aW9uIG9yIGJ5IGNp
+cmN1bXN0YW5jZSwgaW4gdGhlIGZ1dHVyZS4KIFRIRSBVTkVWSUNUQUJMRSBQ
+QUdFIExJU1QKIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIAotVGhlIFVu
+ZXZpY3RhYmxlIExSVSBpbmZyYXN0cnVjdHVyZSBjb25zaXN0cyBvZiBhbiBh
+ZGRpdGlvbmFsLCBwZXItem9uZSwgTFJVIGxpc3QKK1RoZSBVbmV2aWN0YWJs
+ZSBMUlUgaW5mcmFzdHJ1Y3R1cmUgY29uc2lzdHMgb2YgYW4gYWRkaXRpb25h
+bCwgcGVyLW5vZGUsIExSVSBsaXN0CiBjYWxsZWQgdGhlICJ1bmV2aWN0YWJs
+ZSIgbGlzdCBhbmQgYW4gYXNzb2NpYXRlZCBwYWdlIGZsYWcsIFBHX3VuZXZp
+Y3RhYmxlLCB0bwogaW5kaWNhdGUgdGhhdCB0aGUgcGFnZSBpcyBiZWluZyBt
+YW5hZ2VkIG9uIHRoZSB1bmV2aWN0YWJsZSBsaXN0LgogCkBAIC0xMDgsMTUg
+KzEwOCw5IEBAIFRoZSB1bmV2aWN0YWJsZSBsaXN0IGRvZXMgbm90IGRpZmZl
+cmVudGlhdGUgYmV0d2VlbiBmaWxlLWJhY2tlZCBhbmQgYW5vbnltb3VzLAog
+c3dhcC1iYWNrZWQgcGFnZXMuICBUaGlzIGRpZmZlcmVudGlhdGlvbiBpcyBv
+bmx5IGltcG9ydGFudCB3aGlsZSB0aGUgcGFnZXMgYXJlLAogaW4gZmFjdCwg
+ZXZpY3RhYmxlLgogCi1UaGUgdW5ldmljdGFibGUgbGlzdCBiZW5lZml0cyBm
+cm9tIHRoZSAiYXJyYXlpZmljYXRpb24iIG9mIHRoZSBwZXItem9uZSBMUlUK
+K1RoZSB1bmV2aWN0YWJsZSBsaXN0IGJlbmVmaXRzIGZyb20gdGhlICJhcnJh
+eWlmaWNhdGlvbiIgb2YgdGhlIHBlci1ub2RlIExSVQogbGlzdHMgYW5kIHN0
+YXRpc3RpY3Mgb3JpZ2luYWxseSBwcm9wb3NlZCBhbmQgcG9zdGVkIGJ5IENo
+cmlzdG9waCBMYW1ldGVyLgogCi1UaGUgdW5ldmljdGFibGUgbGlzdCBkb2Vz
+IG5vdCB1c2UgdGhlIExSVSBwYWdldmVjIG1lY2hhbmlzbS4gUmF0aGVyLAot
+dW5ldmljdGFibGUgcGFnZXMgYXJlIHBsYWNlZCBkaXJlY3RseSBvbiB0aGUg
+cGFnZSdzIHpvbmUncyB1bmV2aWN0YWJsZSBsaXN0Ci11bmRlciB0aGUgem9u
+ZSBscnVfbG9jay4gIFRoaXMgYWxsb3dzIHVzIHRvIHByZXZlbnQgdGhlIHN0
+cmFuZGluZyBvZiBwYWdlcyBvbgotdGhlIHVuZXZpY3RhYmxlIGxpc3Qgd2hl
+biBvbmUgdGFzayBoYXMgdGhlIHBhZ2UgaXNvbGF0ZWQgZnJvbSB0aGUgTFJV
+IGFuZCBvdGhlcgotdGFza3MgYXJlIGNoYW5naW5nIHRoZSAiZXZpY3RhYmls
+aXR5IiBzdGF0ZSBvZiB0aGUgcGFnZS4KLQogCiBNRU1PUlkgQ09OVFJPTCBH
+Uk9VUCBJTlRFUkFDVElPTgogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0KQEAgLTEyNSw4ICsxMTksOCBAQCBUaGUgdW5ldmljdGFibGUgTFJV
+IGZhY2lsaXR5IGludGVyYWN0cyB3aXRoIHRoZSBtZW1vcnkgY29udHJvbCBn
+cm91cCBbYWthCiBtZW1vcnkgY29udHJvbGxlcjsgc2VlIERvY3VtZW50YXRp
+b24vY2dyb3VwLXYxL21lbW9yeS50eHRdIGJ5IGV4dGVuZGluZyB0aGUKIGxy
+dV9saXN0IGVudW0uCiAKLVRoZSBtZW1vcnkgY29udHJvbGxlciBkYXRhIHN0
+cnVjdHVyZSBhdXRvbWF0aWNhbGx5IGdldHMgYSBwZXItem9uZSB1bmV2aWN0
+YWJsZQotbGlzdCBhcyBhIHJlc3VsdCBvZiB0aGUgImFycmF5aWZpY2F0aW9u
+IiBvZiB0aGUgcGVyLXpvbmUgTFJVIGxpc3RzIChvbmUgcGVyCitUaGUgbWVt
+b3J5IGNvbnRyb2xsZXIgZGF0YSBzdHJ1Y3R1cmUgYXV0b21hdGljYWxseSBn
+ZXRzIGEgcGVyLW5vZGUgdW5ldmljdGFibGUKK2xpc3QgYXMgYSByZXN1bHQg
+b2YgdGhlICJhcnJheWlmaWNhdGlvbiIgb2YgdGhlIHBlci1ub2RlIExSVSBs
+aXN0cyAob25lIHBlcgogbHJ1X2xpc3QgZW51bSBlbGVtZW50KS4gIFRoZSBt
+ZW1vcnkgY29udHJvbGxlciB0cmFja3MgdGhlIG1vdmVtZW50IG9mIHBhZ2Vz
+IHRvCiBhbmQgZnJvbSB0aGUgdW5ldmljdGFibGUgbGlzdC4KIApAQCAtMjEz
+LDcgKzIwNyw3IEBAIGZvciB0aGUgc2FrZSBvZiBleHBlZGllbmN5LCB0byBs
+ZWF2ZSBhIHVuZXZpY3RhYmxlIHBhZ2Ugb24gb25lIG9mIHRoZSByZWd1bGFy
+CiBhY3RpdmUvaW5hY3RpdmUgTFJVIGxpc3RzIGZvciB2bXNjYW4gdG8gZGVh
+bCB3aXRoLiAgdm1zY2FuIGNoZWNrcyBmb3Igc3VjaAogcGFnZXMgaW4gYWxs
+IG9mIHRoZSBzaHJpbmtfe2FjdGl2ZXxpbmFjdGl2ZXxwYWdlfV9saXN0KCkg
+ZnVuY3Rpb25zIGFuZCB3aWxsCiAiY3VsbCIgc3VjaCBwYWdlcyB0aGF0IGl0
+IGVuY291bnRlcnM6IHRoYXQgaXMsIGl0IGRpdmVydHMgdGhvc2UgcGFnZXMg
+dG8gdGhlCi11bmV2aWN0YWJsZSBsaXN0IGZvciB0aGUgem9uZSBiZWluZyBz
+Y2FubmVkLgordW5ldmljdGFibGUgbGlzdCBmb3IgdGhlIG5vZGUgYmVpbmcg
+c2Nhbm5lZC4KIAogVGhlcmUgbWF5IGJlIHNpdHVhdGlvbnMgd2hlcmUgYSBw
+YWdlIGlzIG1hcHBlZCBpbnRvIGEgVk1fTE9DS0VEIFZNQSwgYnV0IHRoZQog
+cGFnZSBpcyBub3QgbWFya2VkIGFzIFBHX21sb2NrZWQuICBTdWNoIHBhZ2Vz
+IHdpbGwgbWFrZSBpdCBhbGwgdGhlIHdheSB0bwpAQCAtMzQ2LDcgKzM0MCw3
+IEBAIElmIHRoZSBwYWdlIHdhcyBOT1QgYWxyZWFkeSBtbG9ja2VkLCBtbG9j
+a192bWFfcGFnZSgpIGF0dGVtcHRzIHRvIGlzb2xhdGUgdGhlCiBwYWdlIGZy
+b20gdGhlIExSVSwgYXMgaXQgaXMgbGlrZWx5IG9uIHRoZSBhcHByb3ByaWF0
+ZSBhY3RpdmUgb3IgaW5hY3RpdmUgbGlzdAogYXQgdGhhdCB0aW1lLiAgSWYg
+dGhlIGlzb2xhdGVfbHJ1X3BhZ2UoKSBzdWNjZWVkcywgbWxvY2tfdm1hX3Bh
+Z2UoKSB3aWxsIHB1dAogYmFjayB0aGUgcGFnZSAtIGJ5IGNhbGxpbmcgcHV0
+YmFja19scnVfcGFnZSgpIC0gd2hpY2ggd2lsbCBub3RpY2UgdGhhdCB0aGUg
+cGFnZQotaXMgbm93IG1sb2NrZWQgYW5kIGRpdmVydCB0aGUgcGFnZSB0byB0
+aGUgem9uZSdzIHVuZXZpY3RhYmxlIGxpc3QuICBJZgoraXMgbm93IG1sb2Nr
+ZWQgYW5kIGRpdmVydCB0aGUgcGFnZSB0byB0aGUgbm9kZSdzIHVuZXZpY3Rh
+YmxlIGxpc3QuICBJZgogbWxvY2tfdm1hX3BhZ2UoKSBpcyB1bmFibGUgdG8g
+aXNvbGF0ZSB0aGUgcGFnZSBmcm9tIHRoZSBMUlUsIHZtc2NhbiB3aWxsIGhh
+bmRsZQogaXQgbGF0ZXIgaWYgYW5kIHdoZW4gaXQgYXR0ZW1wdHMgdG8gcmVj
+bGFpbSB0aGUgcGFnZS4KIApAQCAtNjE4LDcgKzYxMiw3IEBAIFNvbWUgZXhh
+bXBsZXMgb2YgdGhlc2UgdW5ldmljdGFibGUgcGFnZXMgb24gdGhlIExSVSBs
+aXN0cyBhcmU6CiAgICAgIHVuZXZpY3RhYmxlIGxpc3QgaW4gbWxvY2tfdm1h
+X3BhZ2UoKS4KIAogc2hyaW5rX2luYWN0aXZlX2xpc3QoKSBhbHNvIGRpdmVy
+dHMgYW55IHVuZXZpY3RhYmxlIHBhZ2VzIHRoYXQgaXQgZmluZHMgb24gdGhl
+Ci1pbmFjdGl2ZSBsaXN0cyB0byB0aGUgYXBwcm9wcmlhdGUgem9uZSdzIHVu
+ZXZpY3RhYmxlIGxpc3QuCitpbmFjdGl2ZSBsaXN0cyB0byB0aGUgYXBwcm9w
+cmlhdGUgbm9kZSdzIHVuZXZpY3RhYmxlIGxpc3QuCiAKIHNocmlua19pbmFj
+dGl2ZV9saXN0KCkgc2hvdWxkIG9ubHkgc2VlIFNITV9MT0NLJ2QgcGFnZXMg
+dGhhdCBiZWNhbWUgU0hNX0xPQ0snZAogYWZ0ZXIgc2hyaW5rX2FjdGl2ZV9s
+aXN0KCkgaGFkIG1vdmVkIHRoZW0gdG8gdGhlIGluYWN0aXZlIGxpc3QsIG9y
+IHBhZ2VzIG1hcHBlZApkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbV90
+eXBlcy5oIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oCmluZGV4IDIxNjEy
+MzQ3ZDMxMS4uMjZkZGNmMTEwZjgyIDEwMDY0NAotLS0gYS9pbmNsdWRlL2xp
+bnV4L21tX3R5cGVzLmgKKysrIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5o
+CkBAIC0xMzIsNyArMTMyLDcgQEAgc3RydWN0IHBhZ2UgewogCSAqLwogCXVu
+aW9uIHsKIAkJc3RydWN0IGxpc3RfaGVhZCBscnU7CS8qIFBhZ2VvdXQgbGlz
+dCwgZWcuIGFjdGl2ZV9saXN0Ci0JCQkJCSAqIHByb3RlY3RlZCBieSB6b25l
+X2xydV9sb2NrICEKKwkJCQkJICogcHJvdGVjdGVkIGJ5IGxydXZlYy0+bHJ1
+X2xvY2suCiAJCQkJCSAqIENhbiBiZSB1c2VkIGFzIGEgZ2VuZXJpYyBsaXN0
+CiAJCQkJCSAqIGJ5IHRoZSBwYWdlIG93bmVyLgogCQkJCQkgKi8KZGlmZiAt
+LWdpdCBhL21tL2ZpbGVtYXAuYyBiL21tL2ZpbGVtYXAuYwppbmRleCAwNjA0
+Y2IwMmU2ZjMuLjkzMzgxMzUyYTU2NiAxMDA2NDQKLS0tIGEvbW0vZmlsZW1h
+cC5jCisrKyBiL21tL2ZpbGVtYXAuYwpAQCAtOTYsMTIgKzk2LDggQEAKICAq
+ICAgIC0+c3dhcF9sb2NrCQkodHJ5X3RvX3VubWFwX29uZSkKICAqICAgIC0+
+cHJpdmF0ZV9sb2NrCQkodHJ5X3RvX3VubWFwX29uZSkKICAqICAgIC0+aV9w
+YWdlcyBsb2NrCQkodHJ5X3RvX3VubWFwX29uZSkKLSAqICAgIC0+em9uZV9s
+cnVfbG9jayh6b25lKQkoZm9sbG93X3BhZ2UtPm1hcmtfcGFnZV9hY2Nlc3Nl
+ZCkKLSAqICAgIC0+em9uZV9scnVfbG9jayh6b25lKQkoY2hlY2tfcHRlX3Jh
+bmdlLT5pc29sYXRlX2xydV9wYWdlKQotICogICAgLT5wcml2YXRlX2xvY2sJ
+CShwYWdlX3JlbW92ZV9ybWFwLT5zZXRfcGFnZV9kaXJ0eSkKLSAqICAgIC0+
+aV9wYWdlcyBsb2NrCQkocGFnZV9yZW1vdmVfcm1hcC0+c2V0X3BhZ2VfZGly
+dHkpCi0gKiAgICBiZGkud2ItPmxpc3RfbG9jawkJKHBhZ2VfcmVtb3ZlX3Jt
+YXAtPnNldF9wYWdlX2RpcnR5KQotICogICAgLT5pbm9kZS0+aV9sb2NrCQko
+cGFnZV9yZW1vdmVfcm1hcC0+c2V0X3BhZ2VfZGlydHkpCisgKiAgICAtPmxy
+dXZlYy0+bHJ1X2xvY2sJKGZvbGxvd19wYWdlX3B0ZS0+bWFya19wYWdlX2Fj
+Y2Vzc2VkKQorICogICAgLT5scnV2ZWMtPmxydV9sb2NrCShxdWV1ZV9wYWdl
+c19wdGVfcmFuZ2UtPmlzb2xhdGVfbHJ1X3BhZ2UpCiAgKiAgICAtPm1lbWNn
+LT5tb3ZlX2xvY2sJKHBhZ2VfcmVtb3ZlX3JtYXAtPmxvY2tfcGFnZV9tZW1j
+ZykKICAqICAgIGJkaS53Yi0+bGlzdF9sb2NrCQkoemFwX3B0ZV9yYW5nZS0+
+c2V0X3BhZ2VfZGlydHkpCiAgKiAgICAtPmlub2RlLT5pX2xvY2sJCSh6YXBf
+cHRlX3JhbmdlLT5zZXRfcGFnZV9kaXJ0eSkKZGlmZiAtLWdpdCBhL21tL21l
+bWNvbnRyb2wuYyBiL21tL21lbWNvbnRyb2wuYwppbmRleCA5YjRlOGNiZDBk
+ZmQuLmM5MTdiZWQ4ZmQ2YSAxMDA2NDQKLS0tIGEvbW0vbWVtY29udHJvbC5j
+CisrKyBiL21tL21lbWNvbnRyb2wuYwpAQCAtMjM5Miw4ICsyMzkyLDggQEAg
+dm9pZCBtZW1jZ19rbWVtX3VuY2hhcmdlKHN0cnVjdCBwYWdlICpwYWdlLCBp
+bnQgb3JkZXIpCiAjaWZkZWYgQ09ORklHX1RSQU5TUEFSRU5UX0hVR0VQQUdF
+CiAKIC8qCi0gKiBCZWNhdXNlIHRhaWwgcGFnZXMgYXJlIG5vdCBtYXJrZWQg
+YXMgInVzZWQiLCBzZXQgaXQuIFdlJ3JlIHVuZGVyCi0gKiB6b25lX2xydV9s
+b2NrIGFuZCBtaWdyYXRpb24gZW50cmllcyBzZXR1cCBpbiBhbGwgcGFnZSBt
+YXBwaW5ncy4KKyAqIEJlY2F1c2UgdGFpbCBwYWdlcyBhcmUgbm90IG1hcmtl
+ZCB3aXRoIG1lbV9jZ3JvdXAsIG5vdyBzZXQgdGhlbS4gV2UncmUKKyAqIHVu
+ZGVyIGxydXZlYyBsb2NrLCB3aXRoIG1pZ3JhdGlvbiBlbnRyaWVzIGluIHBs
+YWNlIG9mIGFsbCBwYWdlIG1hcHBpbmdzLgogICovCiB2b2lkIG1lbV9jZ3Jv
+dXBfc3BsaXRfaHVnZV9maXh1cChzdHJ1Y3QgcGFnZSAqaGVhZCkKIHsKZGlm
+ZiAtLWdpdCBhL21tL3JtYXAuYyBiL21tL3JtYXAuYwppbmRleCA4ZDUzMzdm
+ZWQzN2IuLmU0MTQzNjllZDZjZSAxMDA2NDQKLS0tIGEvbW0vcm1hcC5jCisr
+KyBiL21tL3JtYXAuYwpAQCAtMjcsMTggKzI3LDE2IEBACiAgKiAgICAgICAg
+IG1hcHBpbmctPmlfbW1hcF9yd3NlbQogICogICAgICAgICAgIGFub25fdm1h
+LT5yd3NlbQogICogICAgICAgICAgICAgbW0tPnBhZ2VfdGFibGVfbG9jayBv
+ciBwdGVfbG9jawotICogICAgICAgICAgICAgICB6b25lX2xydV9sb2NrIChp
+biBtYXJrX3BhZ2VfYWNjZXNzZWQsIGlzb2xhdGVfbHJ1X3BhZ2UpCisgKiAg
+ICAgICAgICAgICAgIGxydXZlYy0+bHJ1X2xvY2sgKGluIG1hcmtfcGFnZV9h
+Y2Nlc3NlZCwgaXNvbGF0ZV9scnVfcGFnZSkKICAqICAgICAgICAgICAgICAg
+c3dhcF9sb2NrIChpbiBzd2FwX2R1cGxpY2F0ZSwgc3dhcF9pbmZvX2dldCkK
+ICAqICAgICAgICAgICAgICAgICBtbWxpc3RfbG9jayAoaW4gbW1wdXQsIGRy
+YWluX21tbGlzdCBhbmQgb3RoZXJzKQotICogICAgICAgICAgICAgICAgIG1h
+cHBpbmctPnByaXZhdGVfbG9jayAoaW4gX19zZXRfcGFnZV9kaXJ0eV9idWZm
+ZXJzKQotICogICAgICAgICAgICAgICAgICAgbWVtX2Nncm91cF97YmVnaW4s
+ZW5kfV9wYWdlX3N0YXQgKG1lbWNnLT5tb3ZlX2xvY2spCi0gKiAgICAgICAg
+ICAgICAgICAgICAgIGlfcGFnZXMgbG9jayAod2lkZWx5IHVzZWQpCi0gKiAg
+ICAgICAgICAgICAgICAgaW5vZGUtPmlfbG9jayAoaW4gc2V0X3BhZ2VfZGly
+dHkncyBfX21hcmtfaW5vZGVfZGlydHkpCiAgKiAgICAgICAgICAgICAgICAg
+YmRpLndiLT5saXN0X2xvY2sgKGluIHNldF9wYWdlX2RpcnR5J3MgX19tYXJr
+X2lub2RlX2RpcnR5KQotICogICAgICAgICAgICAgICAgICAgc2JfbG9jayAo
+d2l0aGluIGlub2RlX2xvY2sgaW4gZnMvZnMtd3JpdGViYWNrLmMpCi0gKiAg
+ICAgICAgICAgICAgICAgICBpX3BhZ2VzIGxvY2sgKHdpZGVseSB1c2VkLCBp
+biBzZXRfcGFnZV9kaXJ0eSwKLSAqICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICBpbiBhcmNoLWRlcGVuZGVudCBmbHVzaF9kY2FjaGVfbW1hcF9sb2Nr
+LAotICogICAgICAgICAgICAgICAgICAgICAgICAgICAgIHdpdGhpbiBiZGku
+d2ItPmxpc3RfbG9jayBpbiBfX3N5bmNfc2luZ2xlX2lub2RlKQorICogICAg
+ICAgICAgICAgICBpbm9kZS0+aV9sb2NrIChpbiBzZXRfcGFnZV9kaXJ0eSdz
+IF9fbWFya19pbm9kZV9kaXJ0eSkKKyAqICAgICAgICAgICAgICAgbWFwcGlu
+Zy0+cHJpdmF0ZV9sb2NrIChpbiBfX3NldF9wYWdlX2RpcnR5X2J1ZmZlcnMp
+CisgKiAgICAgICAgICAgICAgICAgbWVtY2ctPm1vdmVfbG9jayAoaW4gbG9j
+a19wYWdlX21lbWNnKQorICogICAgICAgICAgICAgICAgICAgbWFwcGluZy0+
+aV9wYWdlcyBsb2NrICh3aWRlbHkgdXNlZCwgaW4gc2V0X3BhZ2VfZGlydHks
+CisgKiAgICAgICAgICAgICAgICAgICAgICAgICAgIGluIGFyY2gtZGVwZW5k
+ZW50IGZsdXNoX2RjYWNoZV9tbWFwX2xvY2spCisgKiAgICAgICAgICAgICAg
+ICAgICAgIGxpc3RfbHJ1LT5ub2RlLT5sb2NrIChpbiBwYWdlX2NhY2hlX3Ry
+ZWVfZGVsZXRlKQogICoKICAqIGFub25fdm1hLT5yd3NlbSxtYXBwaW5nLT5p
+X211dGV4ICAgICAgKG1lbW9yeV9mYWlsdXJlLCBjb2xsZWN0X3Byb2NzX2Fu
+b24pCiAgKiAgIC0+dGFza2xpc3RfbG9jawpkaWZmIC0tZ2l0IGEvbW0vdm1z
+Y2FuLmMgYi9tbS92bXNjYW4uYwppbmRleCA1NjQ2ZDc3NDc0YmUuLjIzNWQ3
+MmRjNjA1OSAxMDA2NDQKLS0tIGEvbW0vdm1zY2FuLmMKKysrIGIvbW0vdm1z
+Y2FuLmMKQEAgLTE0MTUsNyArMTQxNSw3IEBAIHN0YXRpYyBfX2Fsd2F5c19p
+bmxpbmUgdm9pZCB1cGRhdGVfbHJ1X3NpemVzKHN0cnVjdCBscnV2ZWMgKmxy
+dXZlYywKIH0KIAogLyoKLSAqIHpvbmVfbHJ1X2xvY2sgaXMgaGVhdmlseSBj
+b250ZW5kZWQuICBTb21lIG9mIHRoZSBmdW5jdGlvbnMgdGhhdAorICogbHJ1
+dmVjIGxvY2sgaXMgaGVhdmlseSBjb250ZW5kZWQuICBTb21lIG9mIHRoZSBm
+dW5jdGlvbnMgdGhhdAogICogc2hyaW5rIHRoZSBsaXN0cyBwZXJmb3JtIGJl
+dHRlciBieSB0YWtpbmcgb3V0IGEgYmF0Y2ggb2YgcGFnZXMKICAqIGFuZCB3
+b3JraW5nIG9uIHRoZW0gb3V0c2lkZSB0aGUgTFJVIGxvY2suCiAgKgpAQCAt
+MTc5NCw5ICsxNzk0LDkgQEAgc2hyaW5rX2luYWN0aXZlX2xpc3QodW5zaWdu
+ZWQgbG9uZyBucl90b19zY2FuLCBzdHJ1Y3QgbHJ1dmVjICpscnV2ZWMsCiAg
+KiBwcm9jZXNzZXMsIGZyb20gcm1hcC4KICAqCiAgKiBJZiB0aGUgcGFnZXMg
+YXJlIG1vc3RseSB1bm1hcHBlZCwgdGhlIHByb2Nlc3NpbmcgaXMgZmFzdCBh
+bmQgaXQgaXMKLSAqIGFwcHJvcHJpYXRlIHRvIGhvbGQgem9uZV9scnVfbG9j
+ayBhY3Jvc3MgdGhlIHdob2xlIG9wZXJhdGlvbi4gIEJ1dCBpZgorICogYXBw
+cm9wcmlhdGUgdG8gaG9sZCBscnV2ZWMgbG9jayBhY3Jvc3MgdGhlIHdob2xl
+IG9wZXJhdGlvbi4gIEJ1dCBpZgogICogdGhlIHBhZ2VzIGFyZSBtYXBwZWQs
+IHRoZSBwcm9jZXNzaW5nIGlzIHNsb3cgKHBhZ2VfcmVmZXJlbmNlZCgpKSBz
+byB3ZQotICogc2hvdWxkIGRyb3Agem9uZV9scnVfbG9jayBhcm91bmQgZWFj
+aCBwYWdlLiAgSXQncyBpbXBvc3NpYmxlIHRvIGJhbGFuY2UKKyAqIHNob3Vs
+ZCBkcm9wIGxydXZlYyBsb2NrIGFyb3VuZCBlYWNoIHBhZ2UuICBJdCdzIGlt
+cG9zc2libGUgdG8gYmFsYW5jZQogICogdGhpcywgc28gaW5zdGVhZCB3ZSBy
+ZW1vdmUgdGhlIHBhZ2VzIGZyb20gdGhlIExSVSB3aGlsZSBwcm9jZXNzaW5n
+IHRoZW0uCiAgKiBJdCBpcyBzYWZlIHRvIHJlbHkgb24gUEdfYWN0aXZlIGFn
+YWluc3QgdGhlIG5vbi1MUlUgcGFnZXMgaW4gaGVyZSBiZWNhdXNlCiAgKiBu
+b2JvZHkgd2lsbCBwbGF5IHdpdGggdGhhdCBiaXQgb24gYSBub24tTFJVIHBh
+Z2UuCi0tIAoyLjE3LjEuMTE4NS5nNTViZTk0NzgzMi1nb29nCgoAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAMDAxMC1wYWdlLW1pZ3JhdGlvbi11c2Utb3duLXdhaXRxdWV1ZS1u
+b3Qtd2FpdF9vbl9wYWdlX2xvLnBhdGNoAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAADAwMDA2NDQAMDMxNTA2NgAwMjU3NTIzADAwMDAw
+MDIxNDYwADEzMzA1MzcyMjE1ADAyNTM1NAAgMAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB1c3RhciAg
+AGh1Z2hkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcHJpbWFyeWdyb3Vw
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGcm9tIDQyMDVmMmZiOGYzOTQxZTgz
+NDY5ODRiMmEyNzMzYjliZWI4YzAzMWMgTW9uIFNlcCAxNyAwMDowMDowMCAy
+MDAxCkZyb206IEh1Z2ggRGlja2lucyA8aHVnaGRAZ29vZ2xlLmNvbT4KRGF0
+ZTogRnJpLCAyMyBNYXIgMjAxOCAxNjowNDo1MSAtMDcwMApTdWJqZWN0OiBb
+UEFUQ0hdIHBhZ2UgbWlncmF0aW9uOiB1c2Ugb3duIHdhaXRxdWV1ZSBub3Qg
+d2FpdF9vbl9wYWdlX2xvY2tlZCgpCgpXYWl0aW5nIG9uIGEgcGFnZSBtaWdy
+YXRpb24gZW50cnkgaGFzIHVzZWQgd2FpdF9vbl9wYWdlX2xvY2tlZCgpIGFs
+bAphbG9uZyBzaW5jZSAyMDA2OiBidXQgeW91IGNhbm5vdCBzYWZlbHkgd2Fp
+dF9vbl9wYWdlX2xvY2tlZCgpIHdpdGhvdXQKaG9sZGluZyBhIHJlZmVyZW5j
+ZSB0byB0aGUgcGFnZSwgYW5kIHRoYXQgZXh0cmEgcmVmZXJlbmNlIGlzIGVu
+b3VnaAp0byBtYWtlIG1pZ3JhdGVfcGFnZV9tb3ZlX21hcHBpbmcoKSBmYWls
+IHdpdGggLUVBR0FJTiwgaWYgYW5vdGhlciB0YXNrCmZhdWx0cyBvbiBhbiBl
+bnRyeSBiZWZvcmUgbWlncmF0ZV9wYWdlX21vdmVfbWFwcGluZygpIGdldHMg
+dGhlcmUuCgpBbmQgdGhhdCBmYWlsdXJlIGlzIHJldHJpZWQgbmluZSB0aW1l
+cywgYW1wbGlmeWluZyB0aGUgcGFpbiB3aGVuCnRyeWluZyB0byBtaWdyYXRl
+IGEgcG9wdWxhciBwYWdlLiAgV2l0aCBhIHNpbmdsZSBwZXJzaXN0ZW50IGZh
+dWx0ZXIsCm1pZ3JhdGlvbiBzb21ldGltZXMgc3VjY2VlZHM7IHdpdGggdHdv
+IG9yIHRocmVlIGNvbmN1cnJlbnQgZmF1bHRlcnMsCnN1Y2Nlc3MgYmVjb21l
+cyBtdWNoIGxlc3MgbGlrZWx5IChhbmQgdGhlIG1vcmUgdGhlIHBhZ2Ugd2Fz
+IG1hcHBlZCwKdGhlIHdvcnNlIHRoZSBvdmVyaGVhZCBvZiB1bm1hcHBpbmcg
+YW5kIHJlbWFwcGluZyBpdCBvbiBlYWNoIHRyeSkuCgp3YWl0X29uX3BhZ2Vf
+bG9ja2VkKCkgaXMgdGhlIHdyb25nIHRvb2wgZm9yIHRoaXMgam9iOiBwYWdl
+IG1pZ3JhdGlvbgpzaG91bGQgdXNlIGl0cyBvd24gd2FpdHF1ZXVlOyBhbmQg
+aWYgZWFjaCB3YWl0ZXIgaG9sZHMgcHRlIGxvY2sgdW50aWwKaXQncyBxdWV1
+ZWQsIHdlIGFyZSBzYWZlIHRvIHdha2VfdXBfYWxsKCkgYWZ0ZXIgcmVtb3Zl
+X21pZ3JhdGlvbl9wdGVzKCkKaGFzIHRha2VuIGFuZCByZWxlYXNlZCBldmVy
+eSBwdGUgbG9jayB0byByZW1vdmUgYWxsIHRoZSBlbnRyaWVzLgoKSG93IG1h
+bnkgaGFzaGVkIHdhaXRxdWV1ZSBidWNrZXRzIGRvZXMgdGhpcyBkZXNlcnZl
+PyAgSSdtIG5vdCBzdXJlLApidXQgd2UgYXJlIGN1cnJlbnRseSB1c2luZyAy
+NTYgZm9yIHRoZSB2ZXJ5IGNvbW1vbiB1bmxvY2tfcGFnZSgpLAphbmQgdGhp
+cyBwYWdlIG1pZ3JhdGlvbiByYWNlIGlzIGEgcmFyZSBjYXNlIGJ5IGNvbXBh
+cmlzb24sIHNvIEkgZG9uJ3QKc2VlIHdoeSB3ZSdkIG5lZWQgbW9yZSB0aGFu
+IG9uZSBoZXJlOiBhZGQgaGFzaGluZyAoYnkgcGZuLCBvciBwZXJoYXBzCmJ5
+IGEgbWlncmF0aW9uIHNlcXVlbmNlIG51bWJlcikgaWYgdGhlIG5lZWQgaXMg
+ZGVtb25zdHJhdGVkIGxhdGVyLgoKVGhlIGJlc3Qgd2F5IHRvIGhhbmRsZSB3
+YWtpbmcgZm9yIEhNTSdzIG1pZ3JhdGVfdm1hKCkgaXMgbGVzcyBvYnZpb3Vz
+CnRoYW4gaW4gb3RoZXIgY2FzZXM6IEkndmUgcGxhY2VkIGEgd2FrZV9taWdy
+YXRpb25fZW50cnlfd2FpdGVycygpIGNhbGwKY2xvc2UgdG8gd2hlcmV2ZXIg
+bWlncmF0aW9uIHB0ZXMgYXJlIHJlbW92ZWQgKG9uY2UgcGVyIHJhbmdlLCBy
+YXRoZXIKdGhhbiBvbmNlIHBlciBwYWdlKSwgd2hpY2ggSSBob3BlIGlzIG9w
+dGltYWwsIGJ1dCBtaWdodCBub3QgYmUuCgpEYXZpZCBIZXJybWFubiAoYnV0
+IHdhcyBoZSB0aGUgZmlyc3Q/KSBub3RpY2VkIHRoaXMgaXNzdWUgaW4gMjAx
+NDoKaHR0cHM6Ly9tYXJjLmluZm8vP2w9bGludXgtbW0mbT0xNDAxMTA0NjU2
+MDgxMTYmdz0yClRpbSBDaGVuIHN0YXJ0ZWQgYSB0aHJlYWQgaW4gQXVndXN0
+IDIwMTcgd2hpY2ggbWlnaHQgYmUgcmVsZXZhbnQ6Cmh0dHBzOi8vbWFyYy5p
+bmZvLz9sPWxpbnV4LW1tJm09MTUwMjc1OTQxMDE0OTE1Jnc9Mgp3aGljaCBl
+bmRlZCB1cCBpbiA0LjE0IGNvbW1pdHM6CjI1NTRkYjkxNjU4NiAoInNjaGVk
+L3dhaXQ6IEJyZWFrIHVwIGxvbmcgd2FrZSBsaXN0IHdhbGsiKQoxMWExOWM3
+YjA5OWYgKCJzY2hlZC93YWl0OiBJbnRyb2R1Y2Ugd2FrZXVwIGJvb21hcmsg
+aW4gd2FrZV91cF9wYWdlX2JpdCIpCgpOb3RlIG9uIGNsZWFubGluZXNzIG9m
+IF9fbWlncmF0aW9uX2VudHJ5X3dhaXQoKTogSSd2ZSByZWZyYWluZWQgZnJv
+bQpjbGVhbnVwIGhlcmUsIGJ1dCBkaXNsaWtlIGl0cyB1bnVzZWQgbW0gYXJn
+LCBpdHMgdGFraW5nIG9mIGEgbG9jawpiZXR0ZXIgdGFrZW4gYnkgY2FsbGVy
+cywgYnV0IG1vc3Qgb2YgYWxsIGl0cyBwdGVfdW5tYXBfdW5sb2NrKCkgd2hl
+bgp0aGUgbWlncmF0aW9uX2VudHJ5X3dhaXRfaHVnZSgpIGNhc2UgbmV2ZXIg
+ZGlkIHB0ZV9vZmZzZXRfbWFwKCkuICBJdAp0dXJucyBvdXQgdGhlIGxhdHRl
+ciBpcyBub3QgYW4gYWN0dWFsIGJ1Zywgc2luY2Ugdm1hX21pZ3JhdGFibGUo
+KSdzCkNPTkZJR19BUkNIX0VOQUJMRV9IVUdFUEFHRV9NSUdSQVRJT04gY2hl
+Y2sgY3VycmVudGx5IGxpbWl0cyB0aGlzIHRvCjY0LWJpdCwgZXhjbHVkaW5n
+IDMyLWJpdCdzIENPTkZJR19ISUdIUFRFOyBhbmQgc2FkbHkgaXQncyBhIHJl
+Y3VycmVudApwYXR0ZXJuIGluIHBhcnRzIG9mIHRoZSBjb2RlIHdvcmtpbmcg
+d2l0aCBodWdldGxiICJwdGUicyBhbG9uZ3NpZGUKcHJvcGVyIHB0ZXMuCgpT
+aWduZWQtb2ZmLWJ5OiBIdWdoIERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+
+Ci0tLQogaW5jbHVkZS9saW51eC9zd2Fwb3BzLmggfCAgMSArCiBtbS9odWdl
+X21lbW9yeS5jICAgICAgICB8IDE1ICsrKysrKystLS0tLQogbW0vbWlncmF0
+ZS5jICAgICAgICAgICAgfCA1NCArKysrKysrKysrKysrKysrKysrKysrKy0t
+LS0tLS0tLS0tLS0tLS0tLQogMyBmaWxlcyBjaGFuZ2VkLCA0MSBpbnNlcnRp
+b25zKCspLCAyOSBkZWxldGlvbnMoLSkKCmRpZmYgLS1naXQgYS9pbmNsdWRl
+L2xpbnV4L3N3YXBvcHMuaCBiL2luY2x1ZGUvbGludXgvc3dhcG9wcy5oCmlu
+ZGV4IDFkMzg3N2MzOWEwMC4uNjE3YzkzMDcyZDI5IDEwMDY0NAotLS0gYS9p
+bmNsdWRlL2xpbnV4L3N3YXBvcHMuaAorKysgYi9pbmNsdWRlL2xpbnV4L3N3
+YXBvcHMuaApAQCAtMjI2LDYgKzIyNiw3IEBAIGV4dGVybiB2b2lkIG1pZ3Jh
+dGlvbl9lbnRyeV93YWl0KHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCBwbWRfdCAq
+cG1kLAogCQkJCQl1bnNpZ25lZCBsb25nIGFkZHJlc3MpOwogZXh0ZXJuIHZv
+aWQgbWlncmF0aW9uX2VudHJ5X3dhaXRfaHVnZShzdHJ1Y3Qgdm1fYXJlYV9z
+dHJ1Y3QgKnZtYSwKIAkJc3RydWN0IG1tX3N0cnVjdCAqbW0sIHB0ZV90ICpw
+dGUpOworZXh0ZXJuIHZvaWQgd2FrZV9taWdyYXRpb25fZW50cnlfd2FpdGVy
+cyh2b2lkKTsKICNlbHNlCiAKICNkZWZpbmUgbWFrZV9taWdyYXRpb25fZW50
+cnkocGFnZSwgd3JpdGUpIHN3cF9lbnRyeSgwLCAwKQpkaWZmIC0tZ2l0IGEv
+bW0vaHVnZV9tZW1vcnkuYyBiL21tL2h1Z2VfbWVtb3J5LmMKaW5kZXggZjc3
+Yjk4YzRjYTQ0Li5kOWU3OTc1MTM0Y2EgMTAwNjQ0Ci0tLSBhL21tL2h1Z2Vf
+bWVtb3J5LmMKKysrIGIvbW0vaHVnZV9tZW1vcnkuYwpAQCAtMTQ4MiwxMiAr
+MTQ4Miw4IEBAIGludCBkb19odWdlX3BtZF9udW1hX3BhZ2Uoc3RydWN0IHZt
+X2ZhdWx0ICp2bWYsIHBtZF90IHBtZCkKIAkgKiBjaGVja19zYW1lIGFzIHRo
+ZSBwYWdlIG1heSBubyBsb25nZXIgYmUgbWFwcGVkLgogCSAqLwogCWlmICh1
+bmxpa2VseShwbWRfdHJhbnNfbWlncmF0aW5nKCp2bWYtPnBtZCkpKSB7Ci0J
+CXBhZ2UgPSBwbWRfcGFnZSgqdm1mLT5wbWQpOwotCQlpZiAoIWdldF9wYWdl
+X3VubGVzc196ZXJvKHBhZ2UpKQotCQkJZ290byBvdXRfdW5sb2NrOwogCQlz
+cGluX3VubG9jayh2bWYtPnB0bCk7Ci0JCXdhaXRfb25fcGFnZV9sb2NrZWQo
+cGFnZSk7Ci0JCXB1dF9wYWdlKHBhZ2UpOworCQlwbWRfbWlncmF0aW9uX2Vu
+dHJ5X3dhaXQodm1hLT52bV9tbSwgdm1mLT5wbWQpOwogCQlnb3RvIG91dDsK
+IAl9CiAKQEAgLTE1MTcsNyArMTUxMywxMyBAQCBpbnQgZG9faHVnZV9wbWRf
+bnVtYV9wYWdlKHN0cnVjdCB2bV9mYXVsdCAqdm1mLCBwbWRfdCBwbWQpCiAJ
+CQlnb3RvIGNsZWFyX3BtZG51bWE7CiAJfQogCi0JLyogTWlncmF0aW9uIGNv
+dWxkIGhhdmUgc3RhcnRlZCBzaW5jZSB0aGUgcG1kX3RyYW5zX21pZ3JhdGlu
+ZyBjaGVjayAqLworCS8qCisJICogTWlncmF0aW9uIGNvdWxkIGhhdmUgc3Rh
+cnRlZCBzaW5jZSB0aGUgcG1kX3RyYW5zX21pZ3JhdGluZyBjaGVjazsKKwkg
+KiBidXQgcGVyaGFwcyB0aGUgcGFnZSBpcyBsb2NrZWQgZm9yIHNvbWUgb3Ro
+ZXIgcmVhc29uLiAgSGVyZSB3ZQorCSAqIGhhdmUgbGl0dGxlIGNob2ljZSBi
+dXQgdG8gdGFrZSBhIHJlZmVyZW5jZSBhbmQgd2FpdF9vbl9wYWdlX2xvY2tl
+ZCwKKwkgKiB3aXRoIHRoYXQgZXh0cmEgcmVmZXJlbmNlIGxpa2VseSB0byBk
+ZWZlYXQgYSBjb21wZXRpbmcgbWlncmF0aW9uLgorCSAqIE9oIHdlbGwsIGl0
+IHNob3VsZCBiZSBhbiB1bmxpa2VseSBjYXNlLCBhbmQgc29tZXRpbWVzIGJl
+c3QgZGVmZWF0ZWQuCisJICovCiAJaWYgKCFwYWdlX2xvY2tlZCkgewogCQlw
+YWdlX25pZCA9IC0xOwogCQlpZiAoIWdldF9wYWdlX3VubGVzc196ZXJvKHBh
+Z2UpKQpAQCAtMjM0Nyw2ICsyMzQ5LDcgQEAgc3RhdGljIHZvaWQgdW5mcmVl
+emVfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkKIAkJZm9yIChpID0gMDsgaSA8
+IEhQQUdFX1BNRF9OUjsgaSsrKQogCQkJcmVtb3ZlX21pZ3JhdGlvbl9wdGVz
+KHBhZ2UgKyBpLCBwYWdlICsgaSwgdHJ1ZSk7CiAJfQorCXdha2VfbWlncmF0
+aW9uX2VudHJ5X3dhaXRlcnMoKTsKIH0KIAogc3RhdGljIHZvaWQgX19zcGxp
+dF9odWdlX3BhZ2VfdGFpbChzdHJ1Y3QgcGFnZSAqaGVhZCwgaW50IHRhaWws
+CmRpZmYgLS1naXQgYS9tbS9taWdyYXRlLmMgYi9tbS9taWdyYXRlLmMKaW5k
+ZXggOGMwYWYwZjdjYWIxLi5iNDRlYTFkODgwNzggMTAwNjQ0Ci0tLSBhL21t
+L21pZ3JhdGUuYworKysgYi9tbS9taWdyYXRlLmMKQEAgLTI5OSw5ICsyOTks
+MTcgQEAgdm9pZCByZW1vdmVfbWlncmF0aW9uX3B0ZXMoc3RydWN0IHBhZ2Ug
+Km9sZCwgc3RydWN0IHBhZ2UgKm5ldywgYm9vbCBsb2NrZWQpCiAJCXJtYXBf
+d2FsayhuZXcsICZyd2MpOwogfQogCitzdGF0aWMgREVDTEFSRV9XQUlUX1FV
+RVVFX0hFQUQobWlncmF0aW9uX3dhaXRxdWV1ZSk7CisKK3ZvaWQgd2FrZV9t
+aWdyYXRpb25fZW50cnlfd2FpdGVycyh2b2lkKQoreworCXdha2VfdXBfYWxs
+KCZtaWdyYXRpb25fd2FpdHF1ZXVlKTsKK30KKwogLyoKICAqIFNvbWV0aGlu
+ZyB1c2VkIHRoZSBwdGUgb2YgYSBwYWdlIHVuZGVyIG1pZ3JhdGlvbi4gV2Ug
+bmVlZCB0bwotICogZ2V0IHRvIHRoZSBwYWdlIGFuZCB3YWl0IHVudGlsIG1p
+Z3JhdGlvbiBpcyBmaW5pc2hlZC4KKyAqIHdhaXQgdW50aWwgbWlncmF0aW9u
+IGlzIGZpbmlzaGVkOiBob2xkIHBhZ2UgdGFibGUgbG9jayB1bnRpbCB3ZQor
+ICogYXJlIHF1ZXVlZCwgdG8gbWFrZSBzdXJlIHJlbW92ZV9taWdyYXRpb25f
+cHRlcygpIHdpbGwgd2FrZSB1cy4KICAqIFdoZW4gd2UgcmV0dXJuIGZyb20g
+dGhpcyBmdW5jdGlvbiB0aGUgZmF1bHQgd2lsbCBiZSByZXRyaWVkLgogICov
+CiB2b2lkIF9fbWlncmF0aW9uX2VudHJ5X3dhaXQoc3RydWN0IG1tX3N0cnVj
+dCAqbW0sIHB0ZV90ICpwdGVwLApAQCAtMzA5LDcgKzMxNyw3IEBAIHZvaWQg
+X19taWdyYXRpb25fZW50cnlfd2FpdChzdHJ1Y3QgbW1fc3RydWN0ICptbSwg
+cHRlX3QgKnB0ZXAsCiB7CiAJcHRlX3QgcHRlOwogCXN3cF9lbnRyeV90IGVu
+dHJ5OwotCXN0cnVjdCBwYWdlICpwYWdlOworCURFRklORV9XQUlUKHdhaXQp
+OwogCiAJc3Bpbl9sb2NrKHB0bCk7CiAJcHRlID0gKnB0ZXA7CkBAIC0zMjAs
+MjAgKzMyOCwxMCBAQCB2b2lkIF9fbWlncmF0aW9uX2VudHJ5X3dhaXQoc3Ry
+dWN0IG1tX3N0cnVjdCAqbW0sIHB0ZV90ICpwdGVwLAogCWlmICghaXNfbWln
+cmF0aW9uX2VudHJ5KGVudHJ5KSkKIAkJZ290byBvdXQ7CiAKLQlwYWdlID0g
+bWlncmF0aW9uX2VudHJ5X3RvX3BhZ2UoZW50cnkpOwotCi0JLyoKLQkgKiBP
+bmNlIHJhZGl4LXRyZWUgcmVwbGFjZW1lbnQgb2YgcGFnZSBtaWdyYXRpb24g
+c3RhcnRlZCwgcGFnZV9jb3VudAotCSAqICptdXN0KiBiZSB6ZXJvLiBBbmQs
+IHdlIGRvbid0IHdhbnQgdG8gY2FsbCB3YWl0X29uX3BhZ2VfbG9ja2VkKCkK
+LQkgKiBhZ2FpbnN0IGEgcGFnZSB3aXRob3V0IGdldF9wYWdlKCkuCi0JICog
+U28sIHdlIHVzZSBnZXRfcGFnZV91bmxlc3NfemVybygpLCBoZXJlLiBFdmVu
+IGZhaWxlZCwgcGFnZSBmYXVsdAotCSAqIHdpbGwgb2NjdXIgYWdhaW4uCi0J
+ICovCi0JaWYgKCFnZXRfcGFnZV91bmxlc3NfemVybyhwYWdlKSkKLQkJZ290
+byBvdXQ7CisJcHJlcGFyZV90b193YWl0KCZtaWdyYXRpb25fd2FpdHF1ZXVl
+LCAmd2FpdCwgVEFTS19VTklOVEVSUlVQVElCTEUpOwogCXB0ZV91bm1hcF91
+bmxvY2socHRlcCwgcHRsKTsKLQl3YWl0X29uX3BhZ2VfbG9ja2VkKHBhZ2Up
+OwotCXB1dF9wYWdlKHBhZ2UpOworCXNjaGVkdWxlKCk7CisJZmluaXNoX3dh
+aXQoJm1pZ3JhdGlvbl93YWl0cXVldWUsICZ3YWl0KTsKIAlyZXR1cm47CiBv
+dXQ6CiAJcHRlX3VubWFwX3VubG9jayhwdGVwLCBwdGwpOwpAQCAtMzU4LDE3
+ICszNTYsMTYgQEAgdm9pZCBtaWdyYXRpb25fZW50cnlfd2FpdF9odWdlKHN0
+cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLAogdm9pZCBwbWRfbWlncmF0aW9u
+X2VudHJ5X3dhaXQoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHBtZF90ICpwbWQp
+CiB7CiAJc3BpbmxvY2tfdCAqcHRsOwotCXN0cnVjdCBwYWdlICpwYWdlOwor
+CURFRklORV9XQUlUKHdhaXQpOwogCiAJcHRsID0gcG1kX2xvY2sobW0sIHBt
+ZCk7CiAJaWYgKCFpc19wbWRfbWlncmF0aW9uX2VudHJ5KCpwbWQpKQogCQln
+b3RvIHVubG9jazsKLQlwYWdlID0gbWlncmF0aW9uX2VudHJ5X3RvX3BhZ2Uo
+cG1kX3RvX3N3cF9lbnRyeSgqcG1kKSk7Ci0JaWYgKCFnZXRfcGFnZV91bmxl
+c3NfemVybyhwYWdlKSkKLQkJZ290byB1bmxvY2s7CisKKwlwcmVwYXJlX3Rv
+X3dhaXQoJm1pZ3JhdGlvbl93YWl0cXVldWUsICZ3YWl0LCBUQVNLX1VOSU5U
+RVJSVVBUSUJMRSk7CiAJc3Bpbl91bmxvY2socHRsKTsKLQl3YWl0X29uX3Bh
+Z2VfbG9ja2VkKHBhZ2UpOwotCXB1dF9wYWdlKHBhZ2UpOworCXNjaGVkdWxl
+KCk7CisJZmluaXNoX3dhaXQoJm1pZ3JhdGlvbl93YWl0cXVldWUsICZ3YWl0
+KTsKIAlyZXR1cm47CiB1bmxvY2s6CiAJc3Bpbl91bmxvY2socHRsKTsKQEAg
+LTg2Miw2ICs4NTksNyBAQCBzdGF0aWMgaW50IHdyaXRlb3V0KHN0cnVjdCBh
+ZGRyZXNzX3NwYWNlICptYXBwaW5nLCBzdHJ1Y3QgcGFnZSAqcGFnZSkKIAkg
+KiBiZSBzdWNjZXNzZnVsLgogCSAqLwogCXJlbW92ZV9taWdyYXRpb25fcHRl
+cyhwYWdlLCBwYWdlLCBmYWxzZSk7CisJd2FrZV9taWdyYXRpb25fZW50cnlf
+d2FpdGVycygpOwogCiAJcmMgPSBtYXBwaW5nLT5hX29wcy0+d3JpdGVwYWdl
+KHBhZ2UsICZ3YmMpOwogCkBAIC0xMDk5LDkgKzEwOTcsMTEgQEAgc3RhdGlj
+IGludCBfX3VubWFwX2FuZF9tb3ZlKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1
+Y3QgcGFnZSAqbmV3cGFnZSwKIAlpZiAoIXBhZ2VfbWFwcGVkKHBhZ2UpKQog
+CQlyYyA9IG1vdmVfdG9fbmV3X3BhZ2UobmV3cGFnZSwgcGFnZSwgbW9kZSk7
+CiAKLQlpZiAocGFnZV93YXNfbWFwcGVkKQorCWlmIChwYWdlX3dhc19tYXBw
+ZWQpIHsKIAkJcmVtb3ZlX21pZ3JhdGlvbl9wdGVzKHBhZ2UsCiAJCQlyYyA9
+PSBNSUdSQVRFUEFHRV9TVUNDRVNTID8gbmV3cGFnZSA6IHBhZ2UsIGZhbHNl
+KTsKKwkJd2FrZV9taWdyYXRpb25fZW50cnlfd2FpdGVycygpOworCX0KIAog
+b3V0X3VubG9ja19ib3RoOgogCXVubG9ja19wYWdlKG5ld3BhZ2UpOwpAQCAt
+MTMxMSw5ICsxMzExLDExIEBAIHN0YXRpYyBpbnQgdW5tYXBfYW5kX21vdmVf
+aHVnZV9wYWdlKG5ld19wYWdlX3QgZ2V0X25ld19wYWdlLAogCWlmICghcGFn
+ZV9tYXBwZWQoaHBhZ2UpKQogCQlyYyA9IG1vdmVfdG9fbmV3X3BhZ2UobmV3
+X2hwYWdlLCBocGFnZSwgbW9kZSk7CiAKLQlpZiAocGFnZV93YXNfbWFwcGVk
+KQorCWlmIChwYWdlX3dhc19tYXBwZWQpIHsKIAkJcmVtb3ZlX21pZ3JhdGlv
+bl9wdGVzKGhwYWdlLAogCQkJcmMgPT0gTUlHUkFURVBBR0VfU1VDQ0VTUyA/
+IG5ld19ocGFnZSA6IGhwYWdlLCBmYWxzZSk7CisJCXdha2VfbWlncmF0aW9u
+X2VudHJ5X3dhaXRlcnMoKTsKKwl9CiAKIAl1bmxvY2tfcGFnZShuZXdfaHBh
+Z2UpOwogCkBAIC0yNTUzLDYgKzI1NTUsOCBAQCBzdGF0aWMgdm9pZCBtaWdy
+YXRlX3ZtYV9wcmVwYXJlKHN0cnVjdCBtaWdyYXRlX3ZtYSAqbWlncmF0ZSkK
+IAkJdW5sb2NrX3BhZ2UocGFnZSk7CiAJCXB1dF9wYWdlKHBhZ2UpOwogCQly
+ZXN0b3JlLS07CisJCWlmICghcmVzdG9yZSkKKwkJCXdha2VfbWlncmF0aW9u
+X2VudHJ5X3dhaXRlcnMoKTsKIAl9CiB9CiAKQEAgLTI2MDYsNiArMjYxMCw4
+IEBAIHN0YXRpYyB2b2lkIG1pZ3JhdGVfdm1hX3VubWFwKHN0cnVjdCBtaWdy
+YXRlX3ZtYSAqbWlncmF0ZSkKIAkJbWlncmF0ZS0+c3JjW2ldID0gMDsKIAkJ
+dW5sb2NrX3BhZ2UocGFnZSk7CiAJCXJlc3RvcmUtLTsKKwkJaWYgKCFyZXN0
+b3JlKQorCQkJd2FrZV9taWdyYXRpb25fZW50cnlfd2FpdGVycygpOwogCiAJ
+CWlmIChpc196b25lX2RldmljZV9wYWdlKHBhZ2UpKQogCQkJcHV0X3BhZ2Uo
+cGFnZSk7CkBAIC0yODg1LDYgKzI4OTEsOCBAQCBzdGF0aWMgdm9pZCBtaWdy
+YXRlX3ZtYV9maW5hbGl6ZShzdHJ1Y3QgbWlncmF0ZV92bWEgKm1pZ3JhdGUp
+CiAJCQkJcHV0YmFja19scnVfcGFnZShuZXdwYWdlKTsKIAkJfQogCX0KKwor
+CXdha2VfbWlncmF0aW9uX2VudHJ5X3dhaXRlcnMoKTsKIH0KIAogLyoKLS0g
+CjIuMTcuMS4xMTg1Lmc1NWJlOTQ3ODMyLWdvb2cKCgAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAwMDExLW1tLWZpeC1zd2Fwb2ZmLW9mLUtTTS1wYWdl
+cy5wYXRjaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDAwMDY0NAAwMzE1MDY2ADAyNTc1
+MjMAMDAwMDAwMDE1MDEAMTMzMDUzNzIyNDYAMDIwMTEzACAwAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AHVzdGFyICAAaHVnaGQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwcmlt
+YXJ5Z3JvdXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZyb20gZDk4OGYyYTgz
+ODdlYWI4MGVhMWNhNGIzODcwMTIxNzNhODI4OWZiYSBNb24gU2VwIDE3IDAw
+OjAwOjAwIDIwMDEKRnJvbTogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUu
+Y29tPgpEYXRlOiBNb24sIDQgSnVuIDIwMTggMTg6Mjk6NTIgLTA3MDAKU3Vi
+amVjdDogW1BBVENIXSBtbTogZml4IHN3YXBvZmYgb2YgS1NNIHBhZ2VzCgpT
+aWduZWQtb2ZmLWJ5OiBIdWdoIERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+
+Ci0tLQogbW0vc3dhcGZpbGUuYyB8IDMgKy0tCiAxIGZpbGUgY2hhbmdlZCwg
+MSBpbnNlcnRpb24oKyksIDIgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEv
+bW0vc3dhcGZpbGUuYyBiL21tL3N3YXBmaWxlLmMKaW5kZXggNzhhMDE1ZmNl
+YzNiLi44YTU4Y2QxODliOGEgMTAwNjQ0Ci0tLSBhL21tL3N3YXBmaWxlLmMK
+KysrIGIvbW0vc3dhcGZpbGUuYwpAQCAtMjIyNCw4ICsyMjI0LDcgQEAgaW50
+IHRyeV90b191bnVzZSh1bnNpZ25lZCBpbnQgdHlwZSwgYm9vbCBmcm9udHN3
+YXAsCiAJCSAqIGRlbGV0ZSwgc2luY2UgaXQgbWF5IG5vdCBoYXZlIGJlZW4g
+d3JpdHRlbiBvdXQgdG8gc3dhcCB5ZXQuCiAJCSAqLwogCQlpZiAoUGFnZVN3
+YXBDYWNoZShwYWdlKSAmJgotCQkgICAgbGlrZWx5KHBhZ2VfcHJpdmF0ZShw
+YWdlKSA9PSBlbnRyeS52YWwpICYmCi0JCSAgICAhcGFnZV9zd2FwcGVkKHBh
+Z2UpKQorCQkgICAgbGlrZWx5KHBhZ2VfcHJpdmF0ZShwYWdlKSA9PSBlbnRy
+eS52YWwpKQogCQkJZGVsZXRlX2Zyb21fc3dhcF9jYWNoZShjb21wb3VuZF9o
+ZWFkKHBhZ2UpKTsKIAogCQkvKgotLSAKMi4xNy4xLjExODUuZzU1YmU5NDc4
+MzItZ29vZwoKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAA=
 
-For selinux for both cases, this would translate to a correctly
-determined blocked access. In the first case with this change a correct a=
-vc
-log would be reported, in the second legacy case an incorrect avc log
-would be reported against an uninitialized u:object_r:unlabeled:s0
-context making the logs cosmetically useless for audit2allow.
-
-This patch series is inert and is the wide-spread addition of the
-flags option for xattr functions, and a replacement of __vfs_getxattr
-with __vfs_getxattr({...XATTR_NOSECURITY}).
-
-Signed-off-by: Mark Salyzyn <salyzyn@android.com>
-Cc: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com
-Cc: linux-security-module@vger.kernel.org
-Cc: stable@vger.kernel.org # 4.4, 4.9, 4.14 & 4.19
----
-v7:
-- missed spots in fs/9p/acl.c, fs/afs/xattr.c, fs/ecryptfs/crypto.c,
-  fs/ubifs/xattr.c, fs/xfs/libxfs/xfs_attr.c,
-  security/integrity/evm/evm_main.c and security/smack/smack_lsm.c.
-
-v6:
-- kernfs missed a spot
-
-v5:
-- introduce struct xattr_gs_args for get and set methods,
-  __vfs_getxattr and __vfs_setxattr functions.
-- cover a missing spot in ext2.
-- switch from snprintf to scnprintf for correctness.
-
-v4:
-- ifdef __KERNEL__ around XATTR_NOSECURITY to
-  keep it colocated in uapi headers.
-
-v3:
-- poor aim on ubifs not ubifs_xattr_get, but static xattr_get
-
-v2:
-- Missed a spot: ubifs, erofs and afs.
-
-v1:
-- Removed from an overlayfs patch set, and made independent.
-  Expect this to be the basis of some security improvements.
-
-a
-
-a
----
- Documentation/filesystems/Locking |  10 ++-
- drivers/staging/erofs/xattr.c     |   8 +--
- fs/9p/acl.c                       |  51 +++++++-------
- fs/9p/xattr.c                     |  19 +++--
- fs/afs/xattr.c                    | 112 +++++++++++++-----------------
- fs/btrfs/xattr.c                  |  36 +++++-----
- fs/ceph/xattr.c                   |  40 +++++------
- fs/cifs/xattr.c                   |  72 +++++++++----------
- fs/ecryptfs/crypto.c              |  20 +++---
- fs/ecryptfs/inode.c               |  36 ++++++----
- fs/ecryptfs/mmap.c                |  39 ++++++-----
- fs/ext2/xattr_security.c          |  16 ++---
- fs/ext2/xattr_trusted.c           |  15 ++--
- fs/ext2/xattr_user.c              |  19 +++--
- fs/ext4/xattr_security.c          |  15 ++--
- fs/ext4/xattr_trusted.c           |  15 ++--
- fs/ext4/xattr_user.c              |  19 +++--
- fs/f2fs/xattr.c                   |  42 +++++------
- fs/fuse/xattr.c                   |  23 +++---
- fs/gfs2/xattr.c                   |  18 ++---
- fs/hfs/attr.c                     |  15 ++--
- fs/hfsplus/xattr.c                |  17 +++--
- fs/hfsplus/xattr_security.c       |  13 ++--
- fs/hfsplus/xattr_trusted.c        |  13 ++--
- fs/hfsplus/xattr_user.c           |  13 ++--
- fs/jffs2/security.c               |  16 ++---
- fs/jffs2/xattr_trusted.c          |  16 ++---
- fs/jffs2/xattr_user.c             |  16 ++---
- fs/jfs/xattr.c                    |  33 ++++-----
- fs/kernfs/inode.c                 |  23 +++---
- fs/nfs/nfs4proc.c                 |  28 ++++----
- fs/ocfs2/xattr.c                  |  52 ++++++--------
- fs/orangefs/xattr.c               |  19 ++---
- fs/overlayfs/inode.c              |  43 ++++++------
- fs/overlayfs/overlayfs.h          |   6 +-
- fs/overlayfs/super.c              |  53 ++++++--------
- fs/posix_acl.c                    |  23 +++---
- fs/reiserfs/xattr.c               |   2 +-
- fs/reiserfs/xattr_security.c      |  22 +++---
- fs/reiserfs/xattr_trusted.c       |  22 +++---
- fs/reiserfs/xattr_user.c          |  22 +++---
- fs/squashfs/xattr.c               |  10 +--
- fs/ubifs/xattr.c                  |  33 +++++----
- fs/xattr.c                        | 112 ++++++++++++++++++------------
- fs/xfs/libxfs/xfs_attr.c          |   4 +-
- fs/xfs/libxfs/xfs_attr.h          |   2 +-
- fs/xfs/xfs_xattr.c                |  35 +++++-----
- include/linux/xattr.h             |  26 ++++---
- include/uapi/linux/xattr.h        |   7 +-
- mm/shmem.c                        |  21 +++---
- net/socket.c                      |  16 ++---
- security/commoncap.c              |  29 +++++---
- security/integrity/evm/evm_main.c |  13 +++-
- security/selinux/hooks.c          |  28 ++++++--
- security/smack/smack_lsm.c        |  38 ++++++----
- 55 files changed, 732 insertions(+), 734 deletions(-)
-
-diff --git a/Documentation/filesystems/Locking b/Documentation/filesystem=
-s/Locking
-index 204dd3ea36bb..e2687f21c7d6 100644
---- a/Documentation/filesystems/Locking
-+++ b/Documentation/filesystems/Locking
-@@ -101,12 +101,10 @@ of the locking scheme for directory operations.
- ----------------------- xattr_handler operations -----------------------
- prototypes:
- 	bool (*list)(struct dentry *dentry);
--	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
--		   struct inode *inode, const char *name, void *buffer,
--		   size_t size);
--	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
--		   struct inode *inode, const char *name, const void *buffer,
--		   size_t size, int flags);
-+	int (*get)(const struct xattr_handler *handler,
-+		   struct xattr_gs_flags);
-+	int (*set)(const struct xattr_handler *handler,
-+		   struct xattr_gs_flags);
-=20
- locking rules:
- 	all may block
-diff --git a/drivers/staging/erofs/xattr.c b/drivers/staging/erofs/xattr.=
-c
-index df40654b9fbb..41dcfc82f0b2 100644
---- a/drivers/staging/erofs/xattr.c
-+++ b/drivers/staging/erofs/xattr.c
-@@ -462,10 +462,9 @@ int erofs_getxattr(struct inode *inode, int index,
- }
-=20
- static int erofs_xattr_generic_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	struct erofs_sb_info *const sbi =3D EROFS_I_SB(inode);
-+	struct erofs_sb_info *const sbi =3D EROFS_I_SB(args->inode);
-=20
- 	switch (handler->flags) {
- 	case EROFS_XATTR_INDEX_USER:
-@@ -482,7 +481,8 @@ static int erofs_xattr_generic_get(const struct xattr=
-_handler *handler,
- 		return -EINVAL;
- 	}
-=20
--	return erofs_getxattr(inode, handler->flags, name, buffer, size);
-+	return erofs_getxattr(args->inode, handler->flags, args->name,
-+			      args->buffer, args->size);
- }
-=20
- const struct xattr_handler erofs_xattr_user_handler =3D {
-diff --git a/fs/9p/acl.c b/fs/9p/acl.c
-index 6261719f6f2a..2f5184de75c4 100644
---- a/fs/9p/acl.c
-+++ b/fs/9p/acl.c
-@@ -213,60 +213,61 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep=
-,
- }
-=20
- static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
- 	struct v9fs_session_info *v9ses;
- 	struct posix_acl *acl;
- 	int error;
-=20
--	v9ses =3D v9fs_dentry2v9ses(dentry);
-+	v9ses =3D v9fs_dentry2v9ses(args->dentry);
- 	/*
- 	 * We allow set/get/list of acl when access=3Dclient is not specified
- 	 */
- 	if ((v9ses->flags & V9FS_ACCESS_MASK) !=3D V9FS_ACCESS_CLIENT)
--		return v9fs_xattr_get(dentry, handler->name, buffer, size);
-+		return v9fs_xattr_get(args->dentry, handler->name,
-+				      args->buffer, args->size);
-=20
--	acl =3D v9fs_get_cached_acl(inode, handler->flags);
-+	acl =3D v9fs_get_cached_acl(args->inode, handler->flags);
- 	if (IS_ERR(acl))
- 		return PTR_ERR(acl);
- 	if (acl =3D=3D NULL)
- 		return -ENODATA;
--	error =3D posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
-+	error =3D posix_acl_to_xattr(&init_user_ns, acl,
-+				   args->buffer, args->size);
- 	posix_acl_release(acl);
-=20
- 	return error;
- }
-=20
- static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, const void *value,
--			      size_t size, int flags)
-+			      struct xattr_gs_args *args)
- {
- 	int retval;
- 	struct posix_acl *acl;
- 	struct v9fs_session_info *v9ses;
-=20
--	v9ses =3D v9fs_dentry2v9ses(dentry);
-+	v9ses =3D v9fs_dentry2v9ses(args->dentry);
- 	/*
- 	 * set the attribute on the remote. Without even looking at the
- 	 * xattr value. We leave it to the server to validate
- 	 */
- 	if ((v9ses->flags & V9FS_ACCESS_MASK) !=3D V9FS_ACCESS_CLIENT)
--		return v9fs_xattr_set(dentry, handler->name, value, size,
--				      flags);
-+		return v9fs_xattr_set(args->dentry, handler->name,
-+				      args->value, args->size, args->flags);
-=20
--	if (S_ISLNK(inode->i_mode))
-+	if (S_ISLNK(args->inode->i_mode))
- 		return -EOPNOTSUPP;
--	if (!inode_owner_or_capable(inode))
-+	if (!inode_owner_or_capable(args->inode))
- 		return -EPERM;
--	if (value) {
-+	if (args->value) {
- 		/* update the cached acl value */
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 		else if (acl) {
--			retval =3D posix_acl_valid(inode->i_sb->s_user_ns, acl);
-+			retval =3D posix_acl_valid(args->inode->i_sb->s_user_ns,
-+						 acl);
- 			if (retval)
- 				goto err_out;
- 		}
-@@ -279,7 +280,8 @@ static int v9fs_xattr_set_acl(const struct xattr_hand=
-ler *handler,
- 			struct iattr iattr =3D { 0 };
- 			struct posix_acl *old_acl =3D acl;
-=20
--			retval =3D posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
-+			retval =3D posix_acl_update_mode(args->inode,
-+						       &iattr.ia_mode, &acl);
- 			if (retval)
- 				goto err_out;
- 			if (!acl) {
-@@ -289,19 +291,19 @@ static int v9fs_xattr_set_acl(const struct xattr_ha=
-ndler *handler,
- 				 * update ACL.
- 				 */
- 				posix_acl_release(old_acl);
--				value =3D NULL;
--				size =3D 0;
-+				args->value =3D NULL;
-+				args->size =3D 0;
- 			}
- 			iattr.ia_valid =3D ATTR_MODE;
- 			/* FIXME should we update ctime ?
- 			 * What is the following setxattr update the
- 			 * mode ?
- 			 */
--			v9fs_vfs_setattr_dotl(dentry, &iattr);
-+			v9fs_vfs_setattr_dotl(args->dentry, &iattr);
- 		}
- 		break;
- 	case ACL_TYPE_DEFAULT:
--		if (!S_ISDIR(inode->i_mode)) {
-+		if (!S_ISDIR(args->inode->i_mode)) {
- 			retval =3D acl ? -EINVAL : 0;
- 			goto err_out;
- 		}
-@@ -309,9 +311,10 @@ static int v9fs_xattr_set_acl(const struct xattr_han=
-dler *handler,
- 	default:
- 		BUG();
- 	}
--	retval =3D v9fs_xattr_set(dentry, handler->name, value, size, flags);
-+	retval =3D v9fs_xattr_set(args->dentry, handler->name,
-+				args->value, args->size, args->flags);
- 	if (!retval)
--		set_cached_acl(inode, handler->flags, acl);
-+		set_cached_acl(args->inode, handler->flags, acl);
- err_out:
- 	posix_acl_release(acl);
- 	return retval;
-diff --git a/fs/9p/xattr.c b/fs/9p/xattr.c
-index ac8ff8ca4c11..36d4c309be08 100644
---- a/fs/9p/xattr.c
-+++ b/fs/9p/xattr.c
-@@ -138,22 +138,19 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char =
-*buffer, size_t buffer_size)
- }
-=20
- static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	const char *full_name =3D xattr_full_name(handler, name);
--
--	return v9fs_xattr_get(dentry, full_name, buffer, size);
-+	return v9fs_xattr_get(args->dentry,
-+			      xattr_full_name(handler, args->name),
-+			      args->buffer, args->size);
- }
-=20
- static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, const void *value,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	const char *full_name =3D xattr_full_name(handler, name);
--
--	return v9fs_xattr_set(dentry, full_name, value, size, flags);
-+	return v9fs_xattr_set(args->dentry,
-+			      xattr_full_name(handler, args->name),
-+			      args->value, args->size, args->flags);
- }
-=20
- static struct xattr_handler v9fs_xattr_user_handler =3D {
-diff --git a/fs/afs/xattr.c b/fs/afs/xattr.c
-index 5552d034090a..787ae107642d 100644
---- a/fs/afs/xattr.c
-+++ b/fs/afs/xattr.c
-@@ -38,13 +38,11 @@ ssize_t afs_listxattr(struct dentry *dentry, char *bu=
-ffer, size_t size)
-  * Get a file's ACL.
-  */
- static int afs_xattr_get_acl(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-@@ -76,9 +74,9 @@ static int afs_xattr_get_acl(const struct xattr_handler=
- *handler,
-=20
- 	if (ret =3D=3D 0) {
- 		ret =3D acl->size;
--		if (size > 0) {
--			if (acl->size <=3D size)
--				memcpy(buffer, acl->data, acl->size);
-+		if (args->size > 0) {
-+			if (acl->size <=3D args->size)
-+				memcpy(args->buffer, acl->data, acl->size);
- 			else
- 				ret =3D -ERANGE;
- 		}
-@@ -96,25 +94,23 @@ static int afs_xattr_get_acl(const struct xattr_handl=
-er *handler,
-  * Set a file's AFS3 ACL.
-  */
- static int afs_xattr_set_acl(const struct xattr_handler *handler,
--                             struct dentry *dentry,
--                             struct inode *inode, const char *name,
--                             const void *buffer, size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-=20
--	if (flags =3D=3D XATTR_CREATE)
-+	if (args->flags =3D=3D XATTR_CREATE)
- 		return -EINVAL;
-=20
- 	scb =3D kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
- 	if (!scb)
- 		goto error;
-=20
--	acl =3D kmalloc(sizeof(*acl) + size, GFP_KERNEL);
-+	acl =3D kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
- 	if (!acl)
- 		goto error_scb;
-=20
-@@ -124,8 +120,8 @@ static int afs_xattr_set_acl(const struct xattr_handl=
-er *handler,
- 		goto error_acl;
- 	}
-=20
--	acl->size =3D size;
--	memcpy(acl->data, buffer, size);
-+	acl->size =3D args->size;
-+	memcpy(acl->data, args->value, args->size);
-=20
- 	ret =3D -ERESTARTSYS;
- 	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-@@ -161,25 +157,23 @@ static const struct xattr_handler afs_xattr_afs_acl=
-_handler =3D {
-  * Get a file's YFS ACL.
-  */
- static int afs_xattr_get_yfs(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct yfs_acl *yacl =3D NULL;
- 	struct key *key;
- 	char buf[16], *data;
- 	int which =3D 0, dsize, ret =3D -ENOMEM;
-=20
--	if (strcmp(name, "acl") =3D=3D 0)
-+	if (strcmp(args->name, "acl") =3D=3D 0)
- 		which =3D 0;
--	else if (strcmp(name, "acl_inherited") =3D=3D 0)
-+	else if (strcmp(args->name, "acl_inherited") =3D=3D 0)
- 		which =3D 1;
--	else if (strcmp(name, "acl_num_cleaned") =3D=3D 0)
-+	else if (strcmp(args->name, "acl_num_cleaned") =3D=3D 0)
- 		which =3D 2;
--	else if (strcmp(name, "vol_acl") =3D=3D 0)
-+	else if (strcmp(args->name, "vol_acl") =3D=3D 0)
- 		which =3D 3;
- 	else
- 		return -EOPNOTSUPP;
-@@ -228,11 +222,11 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
- 		break;
- 	case 1:
- 		data =3D buf;
--		dsize =3D snprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
-+		dsize =3D scnprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
- 		break;
- 	case 2:
- 		data =3D buf;
--		dsize =3D snprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
-+		dsize =3D scnprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
- 		break;
- 	case 3:
- 		data =3D yacl->vol_acl->data;
-@@ -244,12 +238,12 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
- 	}
-=20
- 	ret =3D dsize;
--	if (size > 0) {
--		if (dsize > size) {
-+	if (args->size > 0) {
-+		if (dsize > args->size) {
- 			ret =3D -ERANGE;
- 			goto error_key;
- 		}
--		memcpy(buffer, data, dsize);
-+		memcpy(args->buffer, data, dsize);
- 	}
-=20
- error_key:
-@@ -266,31 +260,29 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
-  * Set a file's YFS ACL.
-  */
- static int afs_xattr_set_yfs(const struct xattr_handler *handler,
--                             struct dentry *dentry,
--                             struct inode *inode, const char *name,
--                             const void *buffer, size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-=20
--	if (flags =3D=3D XATTR_CREATE ||
--	    strcmp(name, "acl") !=3D 0)
-+	if (args->flags =3D=3D XATTR_CREATE ||
-+	    strcmp(args->name, "acl") !=3D 0)
- 		return -EINVAL;
-=20
- 	scb =3D kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
- 	if (!scb)
- 		goto error;
-=20
--	acl =3D kmalloc(sizeof(*acl) + size, GFP_KERNEL);
-+	acl =3D kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
- 	if (!acl)
- 		goto error_scb;
-=20
--	acl->size =3D size;
--	memcpy(acl->data, buffer, size);
-+	acl->size =3D args->size;
-+	memcpy(acl->data, args->value, args->size);
-=20
- 	key =3D afs_request_key(vnode->volume->cell);
- 	if (IS_ERR(key)) {
-@@ -332,20 +324,18 @@ static const struct xattr_handler afs_xattr_yfs_han=
-dler =3D {
-  * Get the name of the cell on which a file resides.
-  */
- static int afs_xattr_get_cell(const struct xattr_handler *handler,
--			      struct dentry *dentry,
--			      struct inode *inode, const char *name,
--			      void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_cell *cell =3D vnode->volume->cell;
- 	size_t namelen;
-=20
- 	namelen =3D cell->name_len;
--	if (size =3D=3D 0)
-+	if (args->size =3D=3D 0)
- 		return namelen;
--	if (namelen > size)
-+	if (namelen > args->size)
- 		return -ERANGE;
--	memcpy(buffer, cell->name, namelen);
-+	memcpy(args->buffer, cell->name, namelen);
- 	return namelen;
- }
-=20
-@@ -359,30 +349,30 @@ static const struct xattr_handler afs_xattr_afs_cel=
-l_handler =3D {
-  * hex numbers separated by colons.
-  */
- static int afs_xattr_get_fid(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	char text[16 + 1 + 24 + 1 + 8 + 1];
- 	size_t len;
-=20
- 	/* The volume ID is 64-bit, the vnode ID is 96-bit and the
- 	 * uniquifier is 32-bit.
- 	 */
--	len =3D sprintf(text, "%llx:", vnode->fid.vid);
-+	len =3D scnprintf(text, sizeof(text), "%llx:", vnode->fid.vid);
- 	if (vnode->fid.vnode_hi)
--		len +=3D sprintf(text + len, "%x%016llx",
-+		len +=3D scnprintf(text + len, sizeof(text) - len, "%x%016llx",
- 			       vnode->fid.vnode_hi, vnode->fid.vnode);
- 	else
--		len +=3D sprintf(text + len, "%llx", vnode->fid.vnode);
--	len +=3D sprintf(text + len, ":%x", vnode->fid.unique);
-+		len +=3D scnprintf(text + len, sizeof(text) - len, "%llx",
-+				 vnode->fid.vnode);
-+	len +=3D scnprintf(text + len, sizeof(text) - len, ":%x",
-+			 vnode->fid.unique);
-=20
--	if (size =3D=3D 0)
-+	if (args->size =3D=3D 0)
- 		return len;
--	if (len > size)
-+	if (len > args->size)
- 		return -ERANGE;
--	memcpy(buffer, text, len);
-+	memcpy(args->buffer, text, len);
- 	return len;
- }
-=20
-@@ -395,20 +385,18 @@ static const struct xattr_handler afs_xattr_afs_fid=
-_handler =3D {
-  * Get the name of the volume on which a file resides.
-  */
- static int afs_xattr_get_volume(const struct xattr_handler *handler,
--			      struct dentry *dentry,
--			      struct inode *inode, const char *name,
--			      void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	const char *volname =3D vnode->volume->name;
- 	size_t namelen;
-=20
- 	namelen =3D strlen(volname);
--	if (size =3D=3D 0)
-+	if (args->size =3D=3D 0)
- 		return namelen;
--	if (namelen > size)
-+	if (namelen > args->size)
- 		return -ERANGE;
--	memcpy(buffer, volname, namelen);
-+	memcpy(args->buffer, volname, namelen);
- 	return namelen;
- }
-=20
-diff --git a/fs/btrfs/xattr.c b/fs/btrfs/xattr.c
-index 95d9aebff2c4..e47a0e461bd2 100644
---- a/fs/btrfs/xattr.c
-+++ b/fs/btrfs/xattr.c
-@@ -352,33 +352,30 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char=
- *buffer, size_t size)
- }
-=20
- static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return btrfs_getxattr(inode, name, buffer, size);
-+	return btrfs_getxattr(args->inode,
-+			      xattr_full_name(handler, args->name),
-+			      args->buffer, args->size);
- }
-=20
- static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *buffer,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
-+	return btrfs_setxattr_trans(args->inode,
-+				    xattr_full_name(handler, args->name),
-+				    args->value, args->size, args->flags);
- }
-=20
- static int btrfs_xattr_handler_set_prop(const struct xattr_handler *hand=
-ler,
--					struct dentry *unused, struct inode *inode,
--					const char *name, const void *value,
--					size_t size, int flags)
-+					struct xattr_gs_args *args)
- {
- 	int ret;
- 	struct btrfs_trans_handle *trans;
--	struct btrfs_root *root =3D BTRFS_I(inode)->root;
-+	struct btrfs_root *root =3D BTRFS_I(args->inode)->root;
-=20
--	name =3D xattr_full_name(handler, name);
--	ret =3D btrfs_validate_prop(name, value, size);
-+	ret =3D btrfs_validate_prop(xattr_full_name(handler, args->name),
-+				  args->value, args->size);
- 	if (ret)
- 		return ret;
-=20
-@@ -386,11 +383,12 @@ static int btrfs_xattr_handler_set_prop(const struc=
-t xattr_handler *handler,
- 	if (IS_ERR(trans))
- 		return PTR_ERR(trans);
-=20
--	ret =3D btrfs_set_prop(trans, inode, name, value, size, flags);
-+	ret =3D btrfs_set_prop(trans, args->inode, args->name,
-+			     args->value, args->size, args->flags);
- 	if (!ret) {
--		inode_inc_iversion(inode);
--		inode->i_ctime =3D current_time(inode);
--		ret =3D btrfs_update_inode(trans, root, inode);
-+		inode_inc_iversion(args->inode);
-+		args->inode->i_ctime =3D current_time(args->inode);
-+		ret =3D btrfs_update_inode(trans, root, args->inode);
- 		BUG_ON(ret);
- 	}
-=20
-diff --git a/fs/ceph/xattr.c b/fs/ceph/xattr.c
-index 37b458a9af3a..71395a8e5ec7 100644
---- a/fs/ceph/xattr.c
-+++ b/fs/ceph/xattr.c
-@@ -1170,22 +1170,21 @@ int __ceph_setxattr(struct inode *inode, const ch=
-ar *name,
- }
-=20
- static int ceph_get_xattr_handler(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, void *value, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	if (!ceph_is_valid_xattr(name))
-+	if (!ceph_is_valid_xattr(args->name))
- 		return -EOPNOTSUPP;
--	return __ceph_getxattr(inode, name, value, size);
-+	return __ceph_getxattr(args->inode, args->name,
-+			       args->buffer, args->size);
- }
-=20
- static int ceph_set_xattr_handler(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, const void *value,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	if (!ceph_is_valid_xattr(name))
-+	if (!ceph_is_valid_xattr(args->name))
- 		return -EOPNOTSUPP;
--	return __ceph_setxattr(inode, name, value, size, flags);
-+	return __ceph_setxattr(args->inode, args->name,
-+			       args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler ceph_other_xattr_handler =3D {
-@@ -1291,25 +1290,22 @@ void ceph_security_invalidate_secctx(struct inode=
- *inode)
- }
-=20
- static int ceph_xattr_set_security_label(const struct xattr_handler *han=
-dler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *key, const void *buf,
--				    size_t buflen, int flags)
-+					 struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key)) {
--		const char *name =3D xattr_full_name(handler, key);
--		return __ceph_setxattr(inode, name, buf, buflen, flags);
--	}
-+	if (security_ismaclabel(args->name))
-+		return __ceph_setxattr(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->value, args->size, args->flags);
- 	return  -EOPNOTSUPP;
- }
-=20
- static int ceph_xattr_get_security_label(const struct xattr_handler *han=
-dler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *key, void *buf, size_t buflen)
-+					 struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key)) {
--		const char *name =3D xattr_full_name(handler, key);
--		return __ceph_getxattr(inode, name, buf, buflen);
--	}
-+	if (security_ismaclabel(args->name))
-+		return __ceph_getxattr(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->buffer, args->size);
- 	return  -EOPNOTSUPP;
- }
-=20
-diff --git a/fs/cifs/xattr.c b/fs/cifs/xattr.c
-index 9076150758d8..2506d12c7e5d 100644
---- a/fs/cifs/xattr.c
-+++ b/fs/cifs/xattr.c
-@@ -48,13 +48,11 @@
- enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT }=
-;
-=20
- static int cifs_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, const void *value,
--			  size_t size, int flags)
-+			  struct xattr_gs_args *args)
- {
- 	int rc =3D -EOPNOTSUPP;
- 	unsigned int xid;
--	struct super_block *sb =3D dentry->d_sb;
-+	struct super_block *sb =3D args->dentry->d_sb;
- 	struct cifs_sb_info *cifs_sb =3D CIFS_SB(sb);
- 	struct tcon_link *tlink;
- 	struct cifs_tcon *pTcon;
-@@ -67,7 +65,7 @@ static int cifs_xattr_set(const struct xattr_handler *h=
-andler,
-=20
- 	xid =3D get_xid();
-=20
--	full_path =3D build_path_from_dentry(dentry);
-+	full_path =3D build_path_from_dentry(args->dentry);
- 	if (full_path =3D=3D NULL) {
- 		rc =3D -ENOMEM;
- 		goto out;
-@@ -78,7 +76,7 @@ static int cifs_xattr_set(const struct xattr_handler *h=
-andler,
- 	/* if proc/fs/cifs/streamstoxattr is set then
- 		search server for EAs or streams to
- 		returns as xattrs */
--	if (size > MAX_EA_VALUE_SIZE) {
-+	if (args->size > MAX_EA_VALUE_SIZE) {
- 		cifs_dbg(FYI, "size of EA value too large\n");
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
-@@ -91,29 +89,30 @@ static int cifs_xattr_set(const struct xattr_handler =
-*handler,
-=20
- 		if (pTcon->ses->server->ops->set_EA)
- 			rc =3D pTcon->ses->server->ops->set_EA(xid, pTcon,
--				full_path, name, value, (__u16)size,
-+				full_path, args->name,
-+				args->value, (__u16)args->size,
- 				cifs_sb->local_nls, cifs_sb);
- 		break;
-=20
- 	case XATTR_CIFS_ACL: {
- 		struct cifs_ntsd *pacl;
-=20
--		if (!value)
-+		if (!args->value)
- 			goto out;
--		pacl =3D kmalloc(size, GFP_KERNEL);
-+		pacl =3D kmalloc(args->size, GFP_KERNEL);
- 		if (!pacl) {
- 			rc =3D -ENOMEM;
- 		} else {
--			memcpy(pacl, value, size);
--			if (value &&
-+			memcpy(pacl, args->value, args->size);
-+			if (args->value &&
- 			    pTcon->ses->server->ops->set_acl)
- 				rc =3D pTcon->ses->server->ops->set_acl(pacl,
--						size, inode,
-+						args->size, args->inode,
- 						full_path, CIFS_ACL_DACL);
- 			else
- 				rc =3D -EOPNOTSUPP;
- 			if (rc =3D=3D 0) /* force revalidate of the inode */
--				CIFS_I(inode)->time =3D 0;
-+				CIFS_I(args->inode)->time =3D 0;
- 			kfree(pacl);
- 		}
- 		break;
-@@ -121,11 +120,11 @@ static int cifs_xattr_set(const struct xattr_handle=
-r *handler,
-=20
- 	case XATTR_ACL_ACCESS:
- #ifdef CONFIG_CIFS_POSIX
--		if (!value)
-+		if (!args->value)
- 			goto out;
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBSetPosixACL(xid, pTcon, full_path,
--				value, (const int)size,
-+				args->value, (const int)args->size,
- 				ACL_TYPE_ACCESS, cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -133,11 +132,11 @@ static int cifs_xattr_set(const struct xattr_handle=
-r *handler,
-=20
- 	case XATTR_ACL_DEFAULT:
- #ifdef CONFIG_CIFS_POSIX
--		if (!value)
-+		if (!args->value)
- 			goto out;
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBSetPosixACL(xid, pTcon, full_path,
--				value, (const int)size,
-+				args->value, (const int)args->size,
- 				ACL_TYPE_DEFAULT, cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -198,12 +197,11 @@ static int cifs_creation_time_get(struct dentry *de=
-ntry, struct inode *inode,
-=20
-=20
- static int cifs_xattr_get(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, void *value, size_t size)
-+			  struct xattr_gs_args *args)
- {
- 	ssize_t rc =3D -EOPNOTSUPP;
- 	unsigned int xid;
--	struct super_block *sb =3D dentry->d_sb;
-+	struct super_block *sb =3D args->dentry->d_sb;
- 	struct cifs_sb_info *cifs_sb =3D CIFS_SB(sb);
- 	struct tcon_link *tlink;
- 	struct cifs_tcon *pTcon;
-@@ -216,7 +214,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
-=20
- 	xid =3D get_xid();
-=20
--	full_path =3D build_path_from_dentry(dentry);
-+	full_path =3D build_path_from_dentry(args->dentry);
- 	if (full_path =3D=3D NULL) {
- 		rc =3D -ENOMEM;
- 		goto out;
-@@ -225,14 +223,17 @@ static int cifs_xattr_get(const struct xattr_handle=
-r *handler,
- 	/* return alt name if available as pseudo attr */
- 	switch (handler->flags) {
- 	case XATTR_USER:
--		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
--		if ((strcmp(name, CIFS_XATTR_ATTRIB) =3D=3D 0) ||
--		    (strcmp(name, SMB3_XATTR_ATTRIB) =3D=3D 0)) {
--			rc =3D cifs_attrib_get(dentry, inode, value, size);
-+		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__,
-+			 args->name);
-+		if ((strcmp(args->name, CIFS_XATTR_ATTRIB) =3D=3D 0) ||
-+		    (strcmp(args->name, SMB3_XATTR_ATTRIB) =3D=3D 0)) {
-+			rc =3D cifs_attrib_get(args->dentry, args->inode,
-+					     args->buffer, args->size);
- 			break;
--		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) =3D=3D 0) ||
--		    (strcmp(name, SMB3_XATTR_CREATETIME) =3D=3D 0)) {
--			rc =3D cifs_creation_time_get(dentry, inode, value, size);
-+		} else if ((strcmp(args->name, CIFS_XATTR_CREATETIME) =3D=3D 0) ||
-+		    (strcmp(args->name, SMB3_XATTR_CREATETIME) =3D=3D 0)) {
-+			rc =3D cifs_creation_time_get(args->dentry, args->inode,
-+						    args->buffer, args->size);
- 			break;
- 		}
-=20
-@@ -241,7 +242,8 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
-=20
- 		if (pTcon->ses->server->ops->query_all_EAs)
- 			rc =3D pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
--				full_path, name, value, size, cifs_sb);
-+				full_path, args->name,
-+				args->buffer, args->size, cifs_sb);
- 		break;
-=20
- 	case XATTR_CIFS_ACL: {
-@@ -252,17 +254,17 @@ static int cifs_xattr_get(const struct xattr_handle=
-r *handler,
- 			goto out; /* rc already EOPNOTSUPP */
-=20
- 		pacl =3D pTcon->ses->server->ops->get_acl(cifs_sb,
--				inode, full_path, &acllen);
-+				args->inode, full_path, &acllen);
- 		if (IS_ERR(pacl)) {
- 			rc =3D PTR_ERR(pacl);
- 			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
- 				 __func__, rc);
- 		} else {
--			if (value) {
--				if (acllen > size)
-+			if (args->buffer) {
-+				if (acllen > args->size)
- 					acllen =3D -ERANGE;
- 				else
--					memcpy(value, pacl, acllen);
-+					memcpy(args->buffer, pacl, acllen);
- 			}
- 			rc =3D acllen;
- 			kfree(pacl);
-@@ -274,7 +276,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
- #ifdef CONFIG_CIFS_POSIX
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBGetPosixACL(xid, pTcon, full_path,
--				value, size, ACL_TYPE_ACCESS,
-+				args->buffer, args->size, ACL_TYPE_ACCESS,
- 				cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -284,7 +286,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
- #ifdef CONFIG_CIFS_POSIX
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBGetPosixACL(xid, pTcon, full_path,
--				value, size, ACL_TYPE_DEFAULT,
-+				args->buffer, args->size, ACL_TYPE_DEFAULT,
- 				cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-diff --git a/fs/ecryptfs/crypto.c b/fs/ecryptfs/crypto.c
-index f91db24bbf3b..5fbda6491920 100644
---- a/fs/ecryptfs/crypto.c
-+++ b/fs/ecryptfs/crypto.c
-@@ -1114,20 +1114,24 @@ ecryptfs_write_metadata_to_xattr(struct dentry *e=
-cryptfs_dentry,
- 				 char *page_virt, size_t size)
- {
- 	int rc;
--	struct dentry *lower_dentry =3D ecryptfs_dentry_to_lower(ecryptfs_dentr=
-y);
--	struct inode *lower_inode =3D d_inode(lower_dentry);
-+	struct xattr_gs_args lower =3D {};
-=20
--	if (!(lower_inode->i_opflags & IOP_XATTR)) {
-+	lower.dentry =3D ecryptfs_dentry_to_lower(ecryptfs_dentry);
-+	lower.inode =3D d_inode(lower.dentry);
-+
-+	if (!(lower.inode->i_opflags & IOP_XATTR)) {
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
- 	}
-=20
--	inode_lock(lower_inode);
--	rc =3D __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			    page_virt, size, 0);
-+	lower.name =3D ECRYPTFS_XATTR_NAME;
-+	lower.value =3D page_virt;
-+	lower.size =3D size;
-+	inode_lock(lower.inode);
-+	rc =3D __vfs_setxattr(&lower);
- 	if (!rc && ecryptfs_inode)
--		fsstack_copy_attr_all(ecryptfs_inode, lower_inode);
--	inode_unlock(lower_inode);
-+		fsstack_copy_attr_all(ecryptfs_inode, lower.inode);
-+	inode_unlock(lower.inode);
- out:
- 	return rc;
- }
-diff --git a/fs/ecryptfs/inode.c b/fs/ecryptfs/inode.c
-index 18426f4855f1..fc4435847a45 100644
---- a/fs/ecryptfs/inode.c
-+++ b/fs/ecryptfs/inode.c
-@@ -1009,16 +1009,24 @@ ecryptfs_setxattr(struct dentry *dentry, struct i=
-node *inode,
-=20
- ssize_t
- ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower=
-_inode,
--			const char *name, void *value, size_t size)
-+			const char *name, void *buffer, size_t size)
- {
- 	int rc;
-+	struct xattr_gs_args args;
-=20
- 	if (!(lower_inode->i_opflags & IOP_XATTR)) {
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
- 	}
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D lower_dentry;
-+	args.inode =3D lower_inode;
-+	args.name =3D name;
-+	args.buffer =3D buffer;
-+	args.size =3D size;
-+	args.flags =3D XATTR_NOSECURITY;
- 	inode_lock(lower_inode);
--	rc =3D __vfs_getxattr(lower_dentry, lower_inode, name, value, size);
-+	rc =3D __vfs_getxattr(&args);
- 	inode_unlock(lower_inode);
- out:
- 	return rc;
-@@ -1102,23 +1110,23 @@ const struct inode_operations ecryptfs_main_iops =
-=3D {
- };
-=20
- static int ecryptfs_xattr_get(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	return ecryptfs_getxattr(dentry, inode, name, buffer, size);
-+	return ecryptfs_getxattr(args->dentry, args->inode, args->name,
-+				 args->buffer, args->size);
- }
-=20
- static int ecryptfs_xattr_set(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, const void *value, size_t size,
--			      int flags)
-+			      struct xattr_gs_args *args)
- {
--	if (value)
--		return ecryptfs_setxattr(dentry, inode, name, value, size, flags);
--	else {
--		BUG_ON(flags !=3D XATTR_REPLACE);
--		return ecryptfs_removexattr(dentry, inode, name);
--	}
-+	if (args->value)
-+		return ecryptfs_setxattr(args->dentry, args->inode, args->name,
-+					 args->value, args->size, args->flags);
-+	else if (args->flags !=3D XATTR_REPLACE)
-+		return -EINVAL;
-+	else
-+		return ecryptfs_removexattr(args->dentry, args->inode,
-+					    args->name);
- }
-=20
- static const struct xattr_handler ecryptfs_xattr_handler =3D {
-diff --git a/fs/ecryptfs/mmap.c b/fs/ecryptfs/mmap.c
-index cffa0c1ec829..90dc0354ec5e 100644
---- a/fs/ecryptfs/mmap.c
-+++ b/fs/ecryptfs/mmap.c
-@@ -402,37 +402,40 @@ struct kmem_cache *ecryptfs_xattr_cache;
-=20
- static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_ino=
-de)
- {
--	ssize_t size;
--	void *xattr_virt;
--	struct dentry *lower_dentry =3D
--		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
--	struct inode *lower_inode =3D d_inode(lower_dentry);
-+	struct xattr_gs_args args;
- 	int rc;
-=20
--	if (!(lower_inode->i_opflags & IOP_XATTR)) {
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D ecryptfs_inode_to_private(ecryptfs_inode)->
-+		lower_file->f_path.dentry;
-+	args.inode =3D d_inode(args.dentry);
-+	if (!(args.inode->i_opflags & IOP_XATTR)) {
- 		printk(KERN_WARNING
- 		       "No support for setting xattr in lower filesystem\n");
- 		rc =3D -ENOSYS;
- 		goto out;
- 	}
--	xattr_virt =3D kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
--	if (!xattr_virt) {
-+	args.buffer =3D kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
-+	if (!args.buffer) {
- 		rc =3D -ENOMEM;
- 		goto out;
- 	}
--	inode_lock(lower_inode);
--	size =3D __vfs_getxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			      xattr_virt, PAGE_SIZE);
--	if (size < 0)
--		size =3D 8;
--	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
--	rc =3D __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			    xattr_virt, size, 0);
--	inode_unlock(lower_inode);
-+	args.name =3D ECRYPTFS_XATTR_NAME;
-+	args.size =3D PAGE_SIZE;
-+	args.flags =3D XATTR_NOSECURITY;
-+	inode_lock(args.inode);
-+	args.size =3D __vfs_getxattr(&args);
-+	if (args.size < 0)
-+		args.size =3D 8;
-+	put_unaligned_be64(i_size_read(ecryptfs_inode), args.buffer);
-+	args.flags =3D 0;
-+	args.value =3D args.buffer;
-+	rc =3D __vfs_setxattr(&args);
-+	inode_unlock(args.inode);
- 	if (rc)
- 		printk(KERN_ERR "Error whilst attempting to write inode size "
- 		       "to lower file xattr; rc =3D [%d]\n", rc);
--	kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
-+	kmem_cache_free(ecryptfs_xattr_cache, args.buffer);
- out:
- 	return rc;
- }
-diff --git a/fs/ext2/xattr_security.c b/fs/ext2/xattr_security.c
-index 9a682e440acb..d651d4a7c9ca 100644
---- a/fs/ext2/xattr_security.c
-+++ b/fs/ext2/xattr_security.c
-@@ -10,21 +10,19 @@
-=20
- static int
- ext2_xattr_security_get(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_SECURITY, name,
--			      buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_SECURITY,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_security_set(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY, name,
--			      value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_SECURITY,
-+			      args->name, args->value, args->size,
-+			      args->flags);
- }
-=20
- static int ext2_initxattrs(struct inode *inode, const struct xattr *xatt=
-r_array,
-diff --git a/fs/ext2/xattr_trusted.c b/fs/ext2/xattr_trusted.c
-index 49add1107850..41390dd0386a 100644
---- a/fs/ext2/xattr_trusted.c
-+++ b/fs/ext2/xattr_trusted.c
-@@ -17,21 +17,18 @@ ext2_xattr_trusted_list(struct dentry *dentry)
-=20
- static int
- ext2_xattr_trusted_get(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, void *buffer, size_t size)
-+		       struct xattr_gs_args *args)
- {
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_TRUSTED, name,
--			      buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_TRUSTED, args->name=
-,
-+			      args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_trusted_set(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, const void *value,
--		       size_t size, int flags)
-+		       struct xattr_gs_args *args)
- {
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_TRUSTED, name,
--			      value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_TRUSTED, args->name=
-,
-+			      args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext2_xattr_trusted_handler =3D {
-diff --git a/fs/ext2/xattr_user.c b/fs/ext2/xattr_user.c
-index c243a3b4d69d..1ef881890dde 100644
---- a/fs/ext2/xattr_user.c
-+++ b/fs/ext2/xattr_user.c
-@@ -19,26 +19,23 @@ ext2_xattr_user_list(struct dentry *dentry)
-=20
- static int
- ext2_xattr_user_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *buffer, size_t size)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_USER,
--			      name, buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_USER, args->name,
-+			      args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_user_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
-=20
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_USER,
--			      name, value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_USER, args->name,
-+			      args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext2_xattr_user_handler =3D {
-diff --git a/fs/ext4/xattr_security.c b/fs/ext4/xattr_security.c
-index 197a9d8a15ef..71ed703e01fe 100644
---- a/fs/ext4/xattr_security.c
-+++ b/fs/ext4/xattr_security.c
-@@ -14,21 +14,18 @@
-=20
- static int
- ext4_xattr_security_get(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_SECURITY,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_SECURITY,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_security_set(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_SECURITY,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_SECURITY,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- static int
-diff --git a/fs/ext4/xattr_trusted.c b/fs/ext4/xattr_trusted.c
-index e9389e5d75c3..ed347a978102 100644
---- a/fs/ext4/xattr_trusted.c
-+++ b/fs/ext4/xattr_trusted.c
-@@ -21,21 +21,18 @@ ext4_xattr_trusted_list(struct dentry *dentry)
-=20
- static int
- ext4_xattr_trusted_get(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, void *buffer, size_t size)
-+		       struct xattr_gs_args *args)
- {
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_TRUSTED,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_trusted_set(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, const void *value,
--		       size_t size, int flags)
-+		       struct xattr_gs_args *args)
- {
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_TRUSTED,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_TRUSTED,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext4_xattr_trusted_handler =3D {
-diff --git a/fs/ext4/xattr_user.c b/fs/ext4/xattr_user.c
-index d4546184b34b..86e9f5a9284d 100644
---- a/fs/ext4/xattr_user.c
-+++ b/fs/ext4/xattr_user.c
-@@ -20,25 +20,22 @@ ext4_xattr_user_list(struct dentry *dentry)
-=20
- static int
- ext4_xattr_user_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *buffer, size_t size)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_USER,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_USER,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_user_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_USER,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_USER,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext4_xattr_user_handler =3D {
-diff --git a/fs/f2fs/xattr.c b/fs/f2fs/xattr.c
-index b32c45621679..4fd47b84616f 100644
---- a/fs/f2fs/xattr.c
-+++ b/fs/f2fs/xattr.c
-@@ -23,10 +23,9 @@
- #include "xattr.h"
-=20
- static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	struct f2fs_sb_info *sbi =3D F2FS_SB(inode->i_sb);
-+	struct f2fs_sb_info *sbi =3D F2FS_SB(args->inode->i_sb);
-=20
- 	switch (handler->flags) {
- 	case F2FS_XATTR_INDEX_USER:
-@@ -39,16 +38,14 @@ static int f2fs_xattr_generic_get(const struct xattr_=
-handler *handler,
- 	default:
- 		return -EINVAL;
- 	}
--	return f2fs_getxattr(inode, handler->flags, name,
--			     buffer, size, NULL);
-+	return f2fs_getxattr(args->inode, handler->flags, args->name,
-+			     args->buffer, args->size, NULL);
- }
-=20
- static int f2fs_xattr_generic_set(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, const void *value,
--		size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	struct f2fs_sb_info *sbi =3D F2FS_SB(inode->i_sb);
-+	struct f2fs_sb_info *sbi =3D F2FS_SB(args->inode->i_sb);
-=20
- 	switch (handler->flags) {
- 	case F2FS_XATTR_INDEX_USER:
-@@ -61,8 +58,8 @@ static int f2fs_xattr_generic_set(const struct xattr_ha=
-ndler *handler,
- 	default:
- 		return -EINVAL;
- 	}
--	return f2fs_setxattr(inode, handler->flags, name,
--					value, size, NULL, flags);
-+	return f2fs_setxattr(args->inode, handler->flags, args->name,
-+			     args->value, args->size, NULL, args->flags);
- }
-=20
- static bool f2fs_xattr_user_list(struct dentry *dentry)
-@@ -78,36 +75,33 @@ static bool f2fs_xattr_trusted_list(struct dentry *de=
-ntry)
- }
-=20
- static int f2fs_xattr_advise_get(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, void *buffer, size_t size)
-+				 struct xattr_gs_args *args)
- {
--	if (buffer)
--		*((char *)buffer) =3D F2FS_I(inode)->i_advise;
-+	if (args->buffer)
-+		*((char *)args->buffer) =3D F2FS_I(args->inode)->i_advise;
- 	return sizeof(char);
- }
-=20
- static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, const void *value,
--		size_t size, int flags)
-+				 struct xattr_gs_args *args)
- {
--	unsigned char old_advise =3D F2FS_I(inode)->i_advise;
-+	unsigned char old_advise =3D F2FS_I(args->inode)->i_advise;
- 	unsigned char new_advise;
-=20
--	if (!inode_owner_or_capable(inode))
-+	if (!inode_owner_or_capable(args->inode))
- 		return -EPERM;
--	if (value =3D=3D NULL)
-+	if (args->value =3D=3D NULL)
- 		return -EINVAL;
-=20
--	new_advise =3D *(char *)value;
-+	new_advise =3D *(char *)args->value;
- 	if (new_advise & ~FADVISE_MODIFIABLE_BITS)
- 		return -EINVAL;
-=20
- 	new_advise =3D new_advise & FADVISE_MODIFIABLE_BITS;
- 	new_advise |=3D old_advise & ~FADVISE_MODIFIABLE_BITS;
-=20
--	F2FS_I(inode)->i_advise =3D new_advise;
--	f2fs_mark_inode_dirty_sync(inode, true);
-+	F2FS_I(args->inode)->i_advise =3D new_advise;
-+	f2fs_mark_inode_dirty_sync(args->inode, true);
- 	return 0;
- }
-=20
-diff --git a/fs/fuse/xattr.c b/fs/fuse/xattr.c
-index 433717640f78..8b8fb719d498 100644
---- a/fs/fuse/xattr.c
-+++ b/fs/fuse/xattr.c
-@@ -175,21 +175,19 @@ int fuse_removexattr(struct inode *inode, const cha=
-r *name)
- }
-=20
- static int fuse_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *dentry, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			  struct xattr_gs_args *args)
- {
--	return fuse_getxattr(inode, name, value, size);
-+	return fuse_getxattr(args->inode, args->name, args->buffer, args->size)=
-;
- }
-=20
- static int fuse_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, const void *value, size_t size,
--			  int flags)
-+			  struct xattr_gs_args *args)
- {
--	if (!value)
--		return fuse_removexattr(inode, name);
-+	if (!args->value)
-+		return fuse_removexattr(args->inode, args->name);
-=20
--	return fuse_setxattr(inode, name, value, size, flags);
-+	return fuse_setxattr(args->inode, args->name,
-+			     args->value, args->size, args->flags);
- }
-=20
- static bool no_xattr_list(struct dentry *dentry)
-@@ -198,16 +196,13 @@ static bool no_xattr_list(struct dentry *dentry)
- }
-=20
- static int no_xattr_get(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, void *value, size_t size)
-+			struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int no_xattr_set(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *nodee,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-diff --git a/fs/gfs2/xattr.c b/fs/gfs2/xattr.c
-index bbe593d16bea..bf8e1bd17a29 100644
---- a/fs/gfs2/xattr.c
-+++ b/fs/gfs2/xattr.c
-@@ -587,10 +587,9 @@ static int __gfs2_xattr_get(struct inode *inode, con=
-st char *name,
- }
-=20
- static int gfs2_xattr_get(const struct xattr_handler *handler,
--			  struct dentry *unused, struct inode *inode,
--			  const char *name, void *buffer, size_t size)
-+			  struct xattr_gs_args *args)
- {
--	struct gfs2_inode *ip =3D GFS2_I(inode);
-+	struct gfs2_inode *ip =3D GFS2_I(args->inode);
- 	struct gfs2_holder gh;
- 	int ret;
-=20
-@@ -603,7 +602,8 @@ static int gfs2_xattr_get(const struct xattr_handler =
-*handler,
- 	} else {
- 		gfs2_holder_mark_uninitialized(&gh);
- 	}
--	ret =3D __gfs2_xattr_get(inode, name, buffer, size, handler->flags);
-+	ret =3D __gfs2_xattr_get(args->inode, args->name,
-+			       args->buffer, args->size, handler->flags);
- 	if (gfs2_holder_initialized(&gh))
- 		gfs2_glock_dq_uninit(&gh);
- 	return ret;
-@@ -1214,11 +1214,9 @@ int __gfs2_xattr_set(struct inode *inode, const ch=
-ar *name,
- }
-=20
- static int gfs2_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *unused, struct inode *inode,
--			  const char *name, const void *value,
--			  size_t size, int flags)
-+			  struct xattr_gs_args *args)
- {
--	struct gfs2_inode *ip =3D GFS2_I(inode);
-+	struct gfs2_inode *ip =3D GFS2_I(args->inode);
- 	struct gfs2_holder gh;
- 	int ret;
-=20
-@@ -1237,7 +1235,9 @@ static int gfs2_xattr_set(const struct xattr_handle=
-r *handler,
- 			return -EIO;
- 		gfs2_holder_mark_uninitialized(&gh);
- 	}
--	ret =3D __gfs2_xattr_set(inode, name, value, size, flags, handler->flag=
-s);
-+	ret =3D __gfs2_xattr_set(args->inode, args->name,
-+			       args->value, args->size,
-+			       args->flags, handler->flags);
- 	if (gfs2_holder_initialized(&gh))
- 		gfs2_glock_dq_uninit(&gh);
- 	return ret;
-diff --git a/fs/hfs/attr.c b/fs/hfs/attr.c
-index 74fa62643136..b3355368dc58 100644
---- a/fs/hfs/attr.c
-+++ b/fs/hfs/attr.c
-@@ -114,21 +114,20 @@ static ssize_t __hfs_getxattr(struct inode *inode, =
-enum hfs_xattr_type type,
- }
-=20
- static int hfs_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			 struct xattr_gs_args *args)
- {
--	return __hfs_getxattr(inode, handler->flags, value, size);
-+	return __hfs_getxattr(args->inode, handler->flags,
-+			      args->buffer, args->size);
- }
-=20
- static int hfs_xattr_set(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, const void *value, size_t size,
--			 int flags)
-+			 struct xattr_gs_args *args)
- {
--	if (!value)
-+	if (!args->value)
- 		return -EOPNOTSUPP;
-=20
--	return __hfs_setxattr(inode, handler->flags, value, size, flags);
-+	return __hfs_setxattr(args->inode, handler->flags,
-+			      args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler hfs_creator_handler =3D {
-diff --git a/fs/hfsplus/xattr.c b/fs/hfsplus/xattr.c
-index bb0b27d88e50..b6cc7f18bce8 100644
---- a/fs/hfsplus/xattr.c
-+++ b/fs/hfsplus/xattr.c
-@@ -838,14 +838,13 @@ static int hfsplus_removexattr(struct inode *inode,=
- const char *name)
- }
-=20
- static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, void *buffer, size_t size)
-+				struct xattr_gs_args *args)
- {
- 	/*
- 	 * Don't allow retrieving properly prefixed attributes
- 	 * by prepending them with "osx."
- 	 */
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
-=20
- 	/*
-@@ -854,19 +853,18 @@ static int hfsplus_osx_getxattr(const struct xattr_=
-handler *handler,
- 	 * creates), so we pass the name through unmodified (after
- 	 * ensuring it doesn't conflict with another namespace).
- 	 */
--	return __hfsplus_getxattr(inode, name, buffer, size);
-+	return __hfsplus_getxattr(args->inode, args->name,
-+				  args->buffer, args->size);
- }
-=20
- static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, const void *buffer,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
- 	/*
- 	 * Don't allow setting properly prefixed attributes
- 	 * by prepending them with "osx."
- 	 */
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
-=20
- 	/*
-@@ -875,7 +873,8 @@ static int hfsplus_osx_setxattr(const struct xattr_ha=
-ndler *handler,
- 	 * creates), so we pass the name through unmodified (after
- 	 * ensuring it doesn't conflict with another namespace).
- 	 */
--	return __hfsplus_setxattr(inode, name, buffer, size, flags);
-+	return __hfsplus_setxattr(args->inode, args->name,
-+				  args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler hfsplus_xattr_osx_handler =3D {
-diff --git a/fs/hfsplus/xattr_security.c b/fs/hfsplus/xattr_security.c
-index cfbe6a3bfb1e..8a8185eca12e 100644
---- a/fs/hfsplus/xattr_security.c
-+++ b/fs/hfsplus/xattr_security.c
-@@ -14,20 +14,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_security_getxattr(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *name, void *buffer, size_t size)
-+				     struct xattr_gs_args *args)
- {
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN);
- }
-=20
- static int hfsplus_security_setxattr(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *name, const void *buffer,
--				     size_t size, int flags)
-+				     struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->value, args->size, args->flags,
- 				XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN);
- }
-diff --git a/fs/hfsplus/xattr_trusted.c b/fs/hfsplus/xattr_trusted.c
-index fbad91e1dada..a682a2e363e7 100644
---- a/fs/hfsplus/xattr_trusted.c
-+++ b/fs/hfsplus/xattr_trusted.c
-@@ -13,20 +13,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_trusted_getxattr(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, void *buffer, size_t size)
-+				    struct xattr_gs_args *args)
- {
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_TRUSTED_PREFIX,
- 				XATTR_TRUSTED_PREFIX_LEN);
- }
-=20
- static int hfsplus_trusted_setxattr(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, const void *buffer,
--				    size_t size, int flags)
-+				    struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->buffer, args->size, args->flags,
- 				XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
- }
-=20
-diff --git a/fs/hfsplus/xattr_user.c b/fs/hfsplus/xattr_user.c
-index 74d19faf255e..9b58d7ec263d 100644
---- a/fs/hfsplus/xattr_user.c
-+++ b/fs/hfsplus/xattr_user.c
-@@ -13,20 +13,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_user_getxattr(const struct xattr_handler *handler,
--				 struct dentry *unused, struct inode *inode,
--				 const char *name, void *buffer, size_t size)
-+				 struct xattr_gs_args *args)
- {
-=20
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
- }
-=20
- static int hfsplus_user_setxattr(const struct xattr_handler *handler,
--				 struct dentry *unused, struct inode *inode,
--				 const char *name, const void *buffer,
--				 size_t size, int flags)
-+				 struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->value, args->size, args->flags,
- 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
- }
-=20
-diff --git a/fs/jffs2/security.c b/fs/jffs2/security.c
-index c2332e30f218..6aa552db3807 100644
---- a/fs/jffs2/security.c
-+++ b/fs/jffs2/security.c
-@@ -49,20 +49,18 @@ int jffs2_init_security(struct inode *inode, struct i=
-node *dir,
-=20
- /* ---- XATTR Handler for "security.*" ----------------- */
- static int jffs2_security_getxattr(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_SECURITY,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_SECURITY,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_security_setxattr(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *buffer,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_SECURITY,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_SECURITY,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- const struct xattr_handler jffs2_security_xattr_handler =3D {
-diff --git a/fs/jffs2/xattr_trusted.c b/fs/jffs2/xattr_trusted.c
-index 5d6030826c52..5d235175d6fd 100644
---- a/fs/jffs2/xattr_trusted.c
-+++ b/fs/jffs2/xattr_trusted.c
-@@ -17,20 +17,18 @@
- #include "nodelist.h"
-=20
- static int jffs2_trusted_getxattr(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_TRUSTED,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_trusted_setxattr(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, const void *buffer,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_TRUSTED,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- static bool jffs2_trusted_listxattr(struct dentry *dentry)
-diff --git a/fs/jffs2/xattr_user.c b/fs/jffs2/xattr_user.c
-index 9d027b4abcf9..a35a0785e72b 100644
---- a/fs/jffs2/xattr_user.c
-+++ b/fs/jffs2/xattr_user.c
-@@ -17,20 +17,18 @@
- #include "nodelist.h"
-=20
- static int jffs2_user_getxattr(const struct xattr_handler *handler,
--			       struct dentry *unused, struct inode *inode,
--			       const char *name, void *buffer, size_t size)
-+			       struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_USER,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_USER,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_user_setxattr(const struct xattr_handler *handler,
--			       struct dentry *unused, struct inode *inode,
--			       const char *name, const void *buffer,
--			       size_t size, int flags)
-+			       struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_USER,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_USER,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- const struct xattr_handler jffs2_user_xattr_handler =3D {
-diff --git a/fs/jfs/xattr.c b/fs/jfs/xattr.c
-index db41e7803163..225fc440ff62 100644
---- a/fs/jfs/xattr.c
-+++ b/fs/jfs/xattr.c
-@@ -924,39 +924,36 @@ static int __jfs_xattr_set(struct inode *inode, con=
-st char *name,
- }
-=20
- static int jfs_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			 struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return __jfs_getxattr(inode, name, value, size);
-+	return __jfs_getxattr(args->inode, xattr_full_name(handler, args->name)=
-,
-+			      args->buffer, args->size);
- }
-=20
- static int jfs_xattr_set(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, const void *value,
--			 size_t size, int flags)
-+			 struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return __jfs_xattr_set(inode, name, value, size, flags);
-+	return __jfs_xattr_set(args->inode,
-+			       xattr_full_name(handler, args->name),
-+			       args->value, args->size, args->flags);
- }
-=20
- static int jfs_xattr_get_os2(const struct xattr_handler *handler,
--			     struct dentry *unused, struct inode *inode,
--			     const char *name, void *value, size_t size)
-+			     struct xattr_gs_args *args)
- {
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
--	return __jfs_getxattr(inode, name, value, size);
-+	return __jfs_getxattr(args->inode, args->name,
-+			      args->buffer, args->size);
- }
-=20
- static int jfs_xattr_set_os2(const struct xattr_handler *handler,
--			     struct dentry *unused, struct inode *inode,
--			     const char *name, const void *value,
--			     size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
--	return __jfs_xattr_set(inode, name, value, size, flags);
-+	return __jfs_xattr_set(args->inode, args->name,
-+			       args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler jfs_user_xattr_handler =3D {
-diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
-index f3f3984cce80..1ae646a0b20b 100644
---- a/fs/kernfs/inode.c
-+++ b/fs/kernfs/inode.c
-@@ -288,13 +288,13 @@ int kernfs_iop_permission(struct inode *inode, int =
-mask)
- }
-=20
- int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
--		     void *value, size_t size)
-+		     void *buffer, size_t size)
- {
- 	struct kernfs_iattrs *attrs =3D kernfs_iattrs_noalloc(kn);
- 	if (!attrs)
- 		return -ENODATA;
-=20
--	return simple_xattr_get(&attrs->xattrs, name, value, size);
-+	return simple_xattr_get(&attrs->xattrs, name, buffer, size);
- }
-=20
- int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
-@@ -308,24 +308,21 @@ int kernfs_xattr_set(struct kernfs_node *kn, const =
-char *name,
- }
-=20
- static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *suffix, void *value, size_t size)
-+				struct xattr_gs_args *args)
- {
--	const char *name =3D xattr_full_name(handler, suffix);
--	struct kernfs_node *kn =3D inode->i_private;
-+	struct kernfs_node *kn =3D args->inode->i_private;
-=20
--	return kernfs_xattr_get(kn, name, value, size);
-+	return kernfs_xattr_get(kn, xattr_full_name(handler, args->name),
-+				args->buffer, args->size);
- }
-=20
- static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *suffix, const void *value,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
--	const char *name =3D xattr_full_name(handler, suffix);
--	struct kernfs_node *kn =3D inode->i_private;
-+	struct kernfs_node *kn =3D args->inode->i_private;
-=20
--	return kernfs_xattr_set(kn, name, value, size, flags);
-+	return kernfs_xattr_set(kn, xattr_full_name(handler, args->name),
-+				args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler kernfs_trusted_xattr_handler =3D {
-diff --git a/fs/nfs/nfs4proc.c b/fs/nfs/nfs4proc.c
-index 1406858bae6c..1f0388440ec9 100644
---- a/fs/nfs/nfs4proc.c
-+++ b/fs/nfs/nfs4proc.c
-@@ -7209,18 +7209,15 @@ nfs4_release_lockowner(struct nfs_server *server,=
- struct nfs4_lock_state *lsp)
- #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
-=20
- static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *key, const void *buf,
--				   size_t buflen, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return nfs4_proc_set_acl(inode, buf, buflen);
-+	return nfs4_proc_set_acl(args->inode, args->value, args->size);
- }
-=20
- static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *key, void *buf, size_t buflen)
-+				   struct xattr_gs_args *args)
- {
--	return nfs4_proc_get_acl(inode, buf, buflen);
-+	return nfs4_proc_get_acl(args->inode, args->buffer, args->size);
- }
-=20
- static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
-@@ -7231,22 +7228,21 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentr=
-y *dentry)
- #ifdef CONFIG_NFS_V4_SECURITY_LABEL
-=20
- static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *key, const void *buf,
--				     size_t buflen, int flags)
-+				     struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key))
--		return nfs4_set_security_label(inode, buf, buflen);
-+	if (security_ismaclabel(args->name))
-+		return nfs4_set_security_label(args->inode,
-+					       args->value, args->size);
-=20
- 	return -EOPNOTSUPP;
- }
-=20
- static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *key, void *buf, size_t buflen)
-+				     struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key))
--		return nfs4_get_security_label(inode, buf, buflen);
-+	if (security_ismaclabel(args->name))
-+		return nfs4_get_security_label(args->inode,
-+					       args->buffer, args->size);
- 	return -EOPNOTSUPP;
- }
-=20
-diff --git a/fs/ocfs2/xattr.c b/fs/ocfs2/xattr.c
-index 90c830e3758e..25ac1557e303 100644
---- a/fs/ocfs2/xattr.c
-+++ b/fs/ocfs2/xattr.c
-@@ -7241,20 +7241,18 @@ int ocfs2_init_security_and_acl(struct inode *dir=
-,
-  * 'security' attributes support
-  */
- static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, void *buffer, size_t size)
-+				    struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_SECURITY,
--			       name, buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_SECURITY,
-+			       args->name, args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_security_set(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, const void *value,
--				    size_t size, int flags)
-+				    struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_SECURITY,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xat=
-tr_array,
-@@ -7313,20 +7311,18 @@ const struct xattr_handler ocfs2_xattr_security_h=
-andler =3D {
-  * 'trusted' attributes support
-  */
- static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_TRUSTED,
--			       name, buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
-+			       args->name, args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_trusted_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *value,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_TRUSTED,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- const struct xattr_handler ocfs2_xattr_trusted_handler =3D {
-@@ -7339,29 +7335,27 @@ const struct xattr_handler ocfs2_xattr_trusted_ha=
-ndler =3D {
-  * 'user' attributes support
-  */
- static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, void *buffer, size_t size)
-+				struct xattr_gs_args *args)
- {
--	struct ocfs2_super *osb =3D OCFS2_SB(inode->i_sb);
-+	struct ocfs2_super *osb =3D OCFS2_SB(args->inode->i_sb);
-=20
- 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
- 		return -EOPNOTSUPP;
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_USER, name,
--			       buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_USER, args->name,
-+			       args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_user_set(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, const void *value,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
--	struct ocfs2_super *osb =3D OCFS2_SB(inode->i_sb);
-+	struct ocfs2_super *osb =3D OCFS2_SB(args->inode->i_sb);
-=20
- 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
- 		return -EOPNOTSUPP;
-=20
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_USER,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_USER,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- const struct xattr_handler ocfs2_xattr_user_handler =3D {
-diff --git a/fs/orangefs/xattr.c b/fs/orangefs/xattr.c
-index bdc285aea360..d222922af141 100644
---- a/fs/orangefs/xattr.c
-+++ b/fs/orangefs/xattr.c
-@@ -526,24 +526,17 @@ ssize_t orangefs_listxattr(struct dentry *dentry, c=
-har *buffer, size_t size)
- }
-=20
- static int orangefs_xattr_set_default(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      const void *buffer,
--				      size_t size,
--				      int flags)
-+				      struct xattr_gs_args *args)
- {
--	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
-+	return orangefs_inode_setxattr(args->inode, args->name,
-+				       args->value, args->size, args->flags);
- }
-=20
- static int orangefs_xattr_get_default(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      void *buffer,
--				      size_t size)
-+				      struct xattr_gs_args *args)
- {
--	return orangefs_inode_getxattr(inode, name, buffer, size);
-+	return orangefs_inode_getxattr(args->inode, args->name,
-+				       args->buffer, args->size);
-=20
- }
-=20
-diff --git a/fs/overlayfs/inode.c b/fs/overlayfs/inode.c
-index 7663aeb85fa3..a14d450b8564 100644
---- a/fs/overlayfs/inode.c
-+++ b/fs/overlayfs/inode.c
-@@ -318,60 +318,61 @@ bool ovl_is_private_xattr(const char *name)
- 		       sizeof(OVL_XATTR_PREFIX) - 1) =3D=3D 0;
- }
-=20
--int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  const void *value, size_t size, int flags)
-+int ovl_xattr_set(struct xattr_gs_args *args)
- {
- 	int err;
--	struct dentry *upperdentry =3D ovl_i_dentry_upper(inode);
--	struct dentry *realdentry =3D upperdentry ?: ovl_dentry_lower(dentry);
-+	struct dentry *upperdentry =3D ovl_i_dentry_upper(args->inode);
-+	struct dentry *realdentry =3D
-+		upperdentry ?: ovl_dentry_lower(args->dentry);
- 	const struct cred *old_cred;
-=20
--	err =3D ovl_want_write(dentry);
-+	err =3D ovl_want_write(args->dentry);
- 	if (err)
- 		goto out;
-=20
--	if (!value && !upperdentry) {
--		err =3D vfs_getxattr(realdentry, name, NULL, 0);
-+	if (!args->value && !upperdentry) {
-+		err =3D vfs_getxattr(realdentry, args->name, NULL, 0);
- 		if (err < 0)
- 			goto out_drop_write;
- 	}
-=20
- 	if (!upperdentry) {
--		err =3D ovl_copy_up(dentry);
-+		err =3D ovl_copy_up(args->dentry);
- 		if (err)
- 			goto out_drop_write;
-=20
--		realdentry =3D ovl_dentry_upper(dentry);
-+		realdentry =3D ovl_dentry_upper(args->dentry);
- 	}
-=20
--	old_cred =3D ovl_override_creds(dentry->d_sb);
--	if (value)
--		err =3D vfs_setxattr(realdentry, name, value, size, flags);
-+	old_cred =3D ovl_override_creds(args->dentry->d_sb);
-+	if (args->value)
-+		err =3D vfs_setxattr(realdentry, args->name,
-+				   args->value, args->size, args->flags);
- 	else {
--		WARN_ON(flags !=3D XATTR_REPLACE);
--		err =3D vfs_removexattr(realdentry, name);
-+		WARN_ON(args->flags !=3D XATTR_REPLACE);
-+		err =3D vfs_removexattr(realdentry, args->name);
- 	}
- 	revert_creds(old_cred);
-=20
- 	/* copy c/mtime */
--	ovl_copyattr(d_inode(realdentry), inode);
-+	ovl_copyattr(d_inode(realdentry), args->inode);
-=20
- out_drop_write:
--	ovl_drop_write(dentry);
-+	ovl_drop_write(args->dentry);
- out:
- 	return err;
- }
-=20
--int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  void *value, size_t size)
-+int ovl_xattr_get(struct xattr_gs_args *args)
- {
- 	ssize_t res;
- 	const struct cred *old_cred;
- 	struct dentry *realdentry =3D
--		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
-+		ovl_i_dentry_upper(args->inode) ?:
-+		ovl_dentry_lower(args->dentry);
-=20
--	old_cred =3D ovl_override_creds(dentry->d_sb);
--	res =3D vfs_getxattr(realdentry, name, value, size);
-+	old_cred =3D ovl_override_creds(args->dentry->d_sb);
-+	res =3D vfs_getxattr(realdentry, args->name, args->buffer, args->size);
- 	revert_creds(old_cred);
- 	return res;
- }
-diff --git a/fs/overlayfs/overlayfs.h b/fs/overlayfs/overlayfs.h
-index 6934bcf030f0..c6a8ec049099 100644
---- a/fs/overlayfs/overlayfs.h
-+++ b/fs/overlayfs/overlayfs.h
-@@ -353,10 +353,8 @@ int ovl_setattr(struct dentry *dentry, struct iattr =
-*attr);
- int ovl_getattr(const struct path *path, struct kstat *stat,
- 		u32 request_mask, unsigned int flags);
- int ovl_permission(struct inode *inode, int mask);
--int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  const void *value, size_t size, int flags);
--int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  void *value, size_t size);
-+int ovl_xattr_set(struct xattr_gs_args *args);
-+int ovl_xattr_get(struct xattr_gs_args *args);
- ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
- struct posix_acl *ovl_get_acl(struct inode *inode, int type);
- int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flag=
-s);
-diff --git a/fs/overlayfs/super.c b/fs/overlayfs/super.c
-index b368e2e102fa..e41359ba9159 100644
---- a/fs/overlayfs/super.c
-+++ b/fs/overlayfs/super.c
-@@ -853,26 +853,24 @@ static unsigned int ovl_split_lowerdirs(char *str)
-=20
- static int __maybe_unused
- ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
-+	return ovl_xattr_get(args);
- }
-=20
- static int __maybe_unused
- ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	struct dentry *workdir =3D ovl_workdir(dentry);
--	struct inode *realinode =3D ovl_inode_real(inode);
-+	struct dentry *workdir =3D ovl_workdir(args->dentry);
-+	struct inode *realinode =3D ovl_inode_real(args->inode);
- 	struct posix_acl *acl =3D NULL;
- 	int err;
-=20
- 	/* Check that everything is OK before copy-up */
--	if (value) {
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+	if (args->value) {
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 	}
-@@ -881,12 +879,13 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- 		goto out_acl_release;
- 	if (!realinode->i_op->set_acl)
- 		goto out_acl_release;
--	if (handler->flags =3D=3D ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode)) =
-{
-+	if (handler->flags =3D=3D ACL_TYPE_DEFAULT &&
-+	    !S_ISDIR(args->inode->i_mode)) {
- 		err =3D acl ? -EACCES : 0;
- 		goto out_acl_release;
- 	}
- 	err =3D -EPERM;
--	if (!inode_owner_or_capable(inode))
-+	if (!inode_owner_or_capable(args->inode))
- 		goto out_acl_release;
-=20
- 	posix_acl_release(acl);
-@@ -895,20 +894,20 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- 	 * Check if sgid bit needs to be cleared (actual setacl operation will
- 	 * be done with mounter's capabilities and so that won't do it for us).
- 	 */
--	if (unlikely(inode->i_mode & S_ISGID) &&
-+	if (unlikely(args->inode->i_mode & S_ISGID) &&
- 	    handler->flags =3D=3D ACL_TYPE_ACCESS &&
--	    !in_group_p(inode->i_gid) &&
--	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
-+	    !in_group_p(args->inode->i_gid) &&
-+	    !capable_wrt_inode_uidgid(args->inode, CAP_FSETID)) {
- 		struct iattr iattr =3D { .ia_valid =3D ATTR_KILL_SGID };
-=20
--		err =3D ovl_setattr(dentry, &iattr);
-+		err =3D ovl_setattr(args->dentry, &iattr);
- 		if (err)
- 			return err;
- 	}
-=20
--	err =3D ovl_xattr_set(dentry, inode, handler->name, value, size, flags)=
-;
-+	err =3D ovl_xattr_set(args);
- 	if (!err)
--		ovl_copyattr(ovl_inode_real(inode), inode);
-+		ovl_copyattr(ovl_inode_real(args->inode), args->inode);
-=20
- 	return err;
-=20
-@@ -918,33 +917,27 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- }
-=20
- static int ovl_own_xattr_get(const struct xattr_handler *handler,
--			     struct dentry *dentry, struct inode *inode,
--			     const char *name, void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int ovl_own_xattr_set(const struct xattr_handler *handler,
--			     struct dentry *dentry, struct inode *inode,
--			     const char *name, const void *value,
--			     size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int ovl_other_xattr_get(const struct xattr_handler *handler,
--			       struct dentry *dentry, struct inode *inode,
--			       const char *name, void *buffer, size_t size)
-+			       struct xattr_gs_args *args)
- {
--	return ovl_xattr_get(dentry, inode, name, buffer, size);
-+	return ovl_xattr_get(args);
- }
-=20
- static int ovl_other_xattr_set(const struct xattr_handler *handler,
--			       struct dentry *dentry, struct inode *inode,
--			       const char *name, const void *value,
--			       size_t size, int flags)
-+			       struct xattr_gs_args *args)
- {
--	return ovl_xattr_set(dentry, inode, name, value, size, flags);
-+	return ovl_xattr_set(args);
- }
-=20
- static const struct xattr_handler __maybe_unused
-diff --git a/fs/posix_acl.c b/fs/posix_acl.c
-index 84ad1c90d535..8cc7310386fe 100644
---- a/fs/posix_acl.c
-+++ b/fs/posix_acl.c
-@@ -831,24 +831,24 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
-=20
- static int
- posix_acl_xattr_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *value, size_t size)
-+		    struct xattr_gs_args *args)
- {
- 	struct posix_acl *acl;
- 	int error;
-=20
--	if (!IS_POSIXACL(inode))
-+	if (!IS_POSIXACL(args->inode))
- 		return -EOPNOTSUPP;
--	if (S_ISLNK(inode->i_mode))
-+	if (S_ISLNK(args->inode->i_mode))
- 		return -EOPNOTSUPP;
-=20
--	acl =3D get_acl(inode, handler->flags);
-+	acl =3D get_acl(args->inode, handler->flags);
- 	if (IS_ERR(acl))
- 		return PTR_ERR(acl);
- 	if (acl =3D=3D NULL)
- 		return -ENODATA;
-=20
--	error =3D posix_acl_to_xattr(&init_user_ns, acl, value, size);
-+	error =3D posix_acl_to_xattr(&init_user_ns, acl,
-+				   args->buffer, args->size);
- 	posix_acl_release(acl);
-=20
- 	return error;
-@@ -878,19 +878,18 @@ EXPORT_SYMBOL(set_posix_acl);
-=20
- static int
- posix_acl_xattr_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
- 	struct posix_acl *acl =3D NULL;
- 	int ret;
-=20
--	if (value) {
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+	if (args->value) {
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 	}
--	ret =3D set_posix_acl(inode, handler->flags, acl);
-+	ret =3D set_posix_acl(args->inode, handler->flags, acl);
- 	posix_acl_release(acl);
- 	return ret;
- }
-diff --git a/fs/reiserfs/xattr.c b/fs/reiserfs/xattr.c
-index b5b26d8a192c..b949a55b95bd 100644
---- a/fs/reiserfs/xattr.c
-+++ b/fs/reiserfs/xattr.c
-@@ -765,7 +765,7 @@ reiserfs_xattr_get(struct inode *inode, const char *n=
-ame, void *buffer,
- /* This is the implementation for the xattr plugin infrastructure */
- static inline const struct xattr_handler *
- find_xattr_handler_prefix(const struct xattr_handler **handlers,
--			   const char *name)
-+			  const char *name)
- {
- 	const struct xattr_handler *xah;
-=20
-diff --git a/fs/reiserfs/xattr_security.c b/fs/reiserfs/xattr_security.c
-index 20be9a0e5870..6d436ef207d1 100644
---- a/fs/reiserfs/xattr_security.c
-+++ b/fs/reiserfs/xattr_security.c
-@@ -10,27 +10,25 @@
- #include <linux/uaccess.h>
-=20
- static int
--security_get(const struct xattr_handler *handler, struct dentry *unused,
--	     struct inode *inode, const char *name, void *buffer, size_t size)
-+security_get(const struct xattr_handler *handler, struct xattr_gs_args *=
-args)
- {
--	if (IS_PRIVATE(inode))
-+	if (IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--security_set(const struct xattr_handler *handler, struct dentry *unused,
--	     struct inode *inode, const char *name, const void *buffer,
--	     size_t size, int flags)
-+security_set(const struct xattr_handler *handler, struct xattr_gs_args *=
-args)
- {
--	if (IS_PRIVATE(inode))
-+	if (IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool security_list(struct dentry *dentry)
-diff --git a/fs/reiserfs/xattr_trusted.c b/fs/reiserfs/xattr_trusted.c
-index 5ed48da3d02b..46dfc6e2e150 100644
---- a/fs/reiserfs/xattr_trusted.c
-+++ b/fs/reiserfs/xattr_trusted.c
-@@ -9,27 +9,25 @@
- #include <linux/uaccess.h>
-=20
- static int
--trusted_get(const struct xattr_handler *handler, struct dentry *unused,
--	    struct inode *inode, const char *name, void *buffer, size_t size)
-+trusted_get(const struct xattr_handler *handler, struct xattr_gs_args *a=
-rgs)
- {
--	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
-+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--trusted_set(const struct xattr_handler *handler, struct dentry *unused,
--	    struct inode *inode, const char *name, const void *buffer,
--	    size_t size, int flags)
-+trusted_set(const struct xattr_handler *handler, struct xattr_gs_args *a=
-rgs)
- {
--	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
-+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool trusted_list(struct dentry *dentry)
-diff --git a/fs/reiserfs/xattr_user.c b/fs/reiserfs/xattr_user.c
-index a573ca45bacc..4a0bafe62d05 100644
---- a/fs/reiserfs/xattr_user.c
-+++ b/fs/reiserfs/xattr_user.c
-@@ -8,25 +8,23 @@
- #include <linux/uaccess.h>
-=20
- static int
--user_get(const struct xattr_handler *handler, struct dentry *unused,
--	 struct inode *inode, const char *name, void *buffer, size_t size)
-+user_get(const struct xattr_handler *handler, struct xattr_gs_args *args=
-)
- {
--	if (!reiserfs_xattrs_user(inode->i_sb))
-+	if (!reiserfs_xattrs_user(args->inode->i_sb))
- 		return -EOPNOTSUPP;
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--user_set(const struct xattr_handler *handler, struct dentry *unused,
--	 struct inode *inode, const char *name, const void *buffer,
--	 size_t size, int flags)
-+user_set(const struct xattr_handler *handler, struct xattr_gs_args *args=
-)
- {
--	if (!reiserfs_xattrs_user(inode->i_sb))
-+	if (!reiserfs_xattrs_user(args->inode->i_sb))
- 		return -EOPNOTSUPP;
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool user_list(struct dentry *dentry)
-diff --git a/fs/squashfs/xattr.c b/fs/squashfs/xattr.c
-index e1e3f3dd5a06..c6403f187ced 100644
---- a/fs/squashfs/xattr.c
-+++ b/fs/squashfs/xattr.c
-@@ -199,15 +199,11 @@ static int squashfs_xattr_get(struct inode *inode, =
-int name_index,
- 	return err;
- }
-=20
--
- static int squashfs_xattr_handler_get(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      void *buffer, size_t size)
-+				      struct xattr_gs_args *args)
- {
--	return squashfs_xattr_get(inode, handler->flags, name,
--		buffer, size);
-+	return squashfs_xattr_get(args->inode, handler->flags, args->name,
-+				  args->buffer, args->size);
- }
-=20
- /*
-diff --git a/fs/ubifs/xattr.c b/fs/ubifs/xattr.c
-index 9aefbb60074f..aec02d94f2d6 100644
---- a/fs/ubifs/xattr.c
-+++ b/fs/ubifs/xattr.c
-@@ -668,30 +668,29 @@ int ubifs_init_security(struct inode *dentry, struc=
-t inode *inode,
- #endif
-=20
- static int xattr_get(const struct xattr_handler *handler,
--			   struct dentry *dentry, struct inode *inode,
--			   const char *name, void *buffer, size_t size)
-+		     struct xattr_gs_args *args)
- {
--	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", name,
--		inode->i_ino, dentry, size);
-+	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", args->name,
-+		args->inode->i_ino, args->dentry, args->size);
-=20
--	name =3D xattr_full_name(handler, name);
--	return ubifs_xattr_get(inode, name, buffer, size);
-+	return ubifs_xattr_get(args->inode,
-+			       xattr_full_name(handler, args->name),
-+			       args->buffer, args->size);
- }
-=20
- static int xattr_set(const struct xattr_handler *handler,
--			   struct dentry *dentry, struct inode *inode,
--			   const char *name, const void *value,
--			   size_t size, int flags)
-+		     struct xattr_gs_args *args)
- {
- 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
--		name, inode->i_ino, dentry, size);
--
--	name =3D xattr_full_name(handler, name);
--
--	if (value)
--		return ubifs_xattr_set(inode, name, value, size, flags, true);
--	else
--		return ubifs_xattr_remove(inode, name);
-+		args->name, args->inode->i_ino, args->dentry, args->size);
-+
-+	if (args->value)
-+		return ubifs_xattr_set(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->value, args->size,
-+				       args->flags, true);
-+	return ubifs_xattr_remove(args->inode,
-+				  xattr_full_name(handler, args->name));
- }
-=20
- static const struct xattr_handler ubifs_user_xattr_handler =3D {
-diff --git a/fs/xattr.c b/fs/xattr.c
-index 90dd78f0eb27..dceb5afe79be 100644
---- a/fs/xattr.c
-+++ b/fs/xattr.c
-@@ -135,19 +135,18 @@ xattr_permission(struct inode *inode, const char *n=
-ame, int mask)
- }
-=20
- int
--__vfs_setxattr(struct dentry *dentry, struct inode *inode, const char *n=
-ame,
--	       const void *value, size_t size, int flags)
-+__vfs_setxattr(struct xattr_gs_args *args)
- {
- 	const struct xattr_handler *handler;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(args->inode, &args->name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->set)
- 		return -EOPNOTSUPP;
--	if (size =3D=3D 0)
--		value =3D "";  /* empty EA, do not remove */
--	return handler->set(handler, dentry, inode, name, value, size, flags);
-+	if (args->size =3D=3D 0)
-+		args->value =3D "";  /* empty EA, do not remove */
-+	return handler->set(handler, args);
- }
- EXPORT_SYMBOL(__vfs_setxattr);
-=20
-@@ -178,7 +177,16 @@ int __vfs_setxattr_noperm(struct dentry *dentry, con=
-st char *name,
- 	if (issec)
- 		inode->i_flags &=3D ~S_NOSEC;
- 	if (inode->i_opflags & IOP_XATTR) {
--		error =3D __vfs_setxattr(dentry, inode, name, value, size, flags);
-+		struct xattr_gs_args args =3D {
-+			.dentry =3D dentry,
-+			.inode =3D inode,
-+			.name =3D name,
-+			.value =3D value,
-+			.size =3D size,
-+			.flags =3D flags,
-+		};
-+
-+		error =3D __vfs_setxattr(&args);
- 		if (!error) {
- 			fsnotify_xattr(dentry);
- 			security_inode_post_setxattr(dentry, name, value,
-@@ -268,68 +276,61 @@ vfs_getxattr_alloc(struct dentry *dentry, const cha=
-r *name, char **xattr_value,
- 		   size_t xattr_size, gfp_t flags)
- {
- 	const struct xattr_handler *handler;
--	struct inode *inode =3D dentry->d_inode;
--	char *value =3D *xattr_value;
-+	struct xattr_gs_args args;
- 	int error;
-=20
--	error =3D xattr_permission(inode, name, MAY_READ);
-+	error =3D xattr_permission(dentry->d_inode, name, MAY_READ);
- 	if (error)
- 		return error;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(dentry->d_inode, &name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->get)
- 		return -EOPNOTSUPP;
--	error =3D handler->get(handler, dentry, inode, name, NULL, 0);
-+	memset(&args, 0, sizeof(args));
-+	args.inode =3D dentry->d_inode;
-+	args.dentry =3D dentry;
-+	args.name =3D name;
-+	error =3D handler->get(handler, &args);
- 	if (error < 0)
- 		return error;
-=20
--	if (!value || (error > xattr_size)) {
--		value =3D krealloc(*xattr_value, error + 1, flags);
--		if (!value)
-+	args.buffer =3D *xattr_value;
-+	if (!*xattr_value || (error > xattr_size)) {
-+		args.buffer =3D krealloc(*xattr_value, error + 1, flags);
-+		if (!args.buffer)
- 			return -ENOMEM;
--		memset(value, 0, error + 1);
-+		memset(args.buffer, 0, error + 1);
- 	}
-=20
--	error =3D handler->get(handler, dentry, inode, name, value, error);
--	*xattr_value =3D value;
-+	args.size =3D error;
-+	error =3D handler->get(handler, &args);
-+	*xattr_value =3D args.buffer;
- 	return error;
- }
-=20
- ssize_t
--__vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *n=
-ame,
--	       void *value, size_t size)
-+__vfs_getxattr(struct xattr_gs_args *args)
- {
- 	const struct xattr_handler *handler;
--
--	handler =3D xattr_resolve_name(inode, &name);
--	if (IS_ERR(handler))
--		return PTR_ERR(handler);
--	if (!handler->get)
--		return -EOPNOTSUPP;
--	return handler->get(handler, dentry, inode, name, value, size);
--}
--EXPORT_SYMBOL(__vfs_getxattr);
--
--ssize_t
--vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_=
-t size)
--{
--	struct inode *inode =3D dentry->d_inode;
- 	int error;
-=20
--	error =3D xattr_permission(inode, name, MAY_READ);
-+	if (args->flags & XATTR_NOSECURITY)
-+		goto nolsm;
-+	error =3D xattr_permission(args->inode, args->name, MAY_READ);
- 	if (error)
- 		return error;
-=20
--	error =3D security_inode_getxattr(dentry, name);
-+	error =3D security_inode_getxattr(args->dentry, args->name);
- 	if (error)
- 		return error;
-=20
--	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-+	if (!strncmp(args->name, XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN)) {
--		const char *suffix =3D name + XATTR_SECURITY_PREFIX_LEN;
--		int ret =3D xattr_getsecurity(inode, suffix, value, size);
-+		const char *suffix =3D args->name + XATTR_SECURITY_PREFIX_LEN;
-+		int ret =3D xattr_getsecurity(args->inode, suffix,
-+					    args->buffer, args->size);
- 		/*
- 		 * Only overwrite the return value if a security module
- 		 * is actually active.
-@@ -339,7 +340,27 @@ vfs_getxattr(struct dentry *dentry, const char *name=
-, void *value, size_t size)
- 		return ret;
- 	}
- nolsm:
--	return __vfs_getxattr(dentry, inode, name, value, size);
-+	handler =3D xattr_resolve_name(args->inode, &args->name);
-+	if (IS_ERR(handler))
-+		return PTR_ERR(handler);
-+	if (!handler->get)
-+		return -EOPNOTSUPP;
-+	return handler->get(handler, args);
-+}
-+EXPORT_SYMBOL(__vfs_getxattr);
-+
-+ssize_t
-+vfs_getxattr(struct dentry *dentry, const char *name, void *buffer, size=
-_t size)
-+{
-+	struct xattr_gs_args args =3D {
-+		.dentry =3D dentry,
-+		.inode =3D dentry->d_inode,
-+		.name =3D name,
-+		.buffer =3D buffer,
-+		.size =3D size,
-+	};
-+
-+	return __vfs_getxattr(&args);
- }
- EXPORT_SYMBOL_GPL(vfs_getxattr);
-=20
-@@ -366,15 +387,20 @@ EXPORT_SYMBOL_GPL(vfs_listxattr);
- int
- __vfs_removexattr(struct dentry *dentry, const char *name)
- {
--	struct inode *inode =3D d_inode(dentry);
- 	const struct xattr_handler *handler;
-+	struct xattr_gs_args args;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(d_inode(dentry), &name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->set)
- 		return -EOPNOTSUPP;
--	return handler->set(handler, dentry, inode, name, NULL, 0, XATTR_REPLAC=
-E);
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_inode(dentry);
-+	args.name =3D name;
-+	args.flags =3D XATTR_REPLACE;
-+	return handler->set(handler, &args);
- }
- EXPORT_SYMBOL(__vfs_removexattr);
-=20
-diff --git a/fs/xfs/libxfs/xfs_attr.c b/fs/xfs/libxfs/xfs_attr.c
-index d48fcf11cc35..60fec712f60b 100644
---- a/fs/xfs/libxfs/xfs_attr.c
-+++ b/fs/xfs/libxfs/xfs_attr.c
-@@ -305,7 +305,7 @@ int
- xfs_attr_set(
- 	struct xfs_inode	*dp,
- 	const unsigned char	*name,
--	unsigned char		*value,
-+	const unsigned char	*value,
- 	int			valuelen,
- 	int			flags)
- {
-@@ -324,7 +324,7 @@ xfs_attr_set(
- 	if (error)
- 		return error;
-=20
--	args.value =3D value;
-+	args.value =3D (unsigned char *)value;
- 	args.valuelen =3D valuelen;
- 	args.op_flags =3D XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
- 	args.total =3D xfs_attr_calc_size(&args, &local);
-diff --git a/fs/xfs/libxfs/xfs_attr.h b/fs/xfs/libxfs/xfs_attr.h
-index ff28ebf3b635..afe184e5fb01 100644
---- a/fs/xfs/libxfs/xfs_attr.h
-+++ b/fs/xfs/libxfs/xfs_attr.h
-@@ -145,7 +145,7 @@ int xfs_attr_get_ilocked(struct xfs_inode *ip, struct=
- xfs_da_args *args);
- int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
- 		 unsigned char *value, int *valuelenp, int flags);
- int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
--		 unsigned char *value, int valuelen, int flags);
-+		 const unsigned char *value, int valuelen, int flags);
- int xfs_attr_set_args(struct xfs_da_args *args);
- int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int=
- flags);
- int xfs_attr_remove_args(struct xfs_da_args *args);
-diff --git a/fs/xfs/xfs_xattr.c b/fs/xfs/xfs_xattr.c
-index 3123b5aaad2a..313a828a3d1f 100644
---- a/fs/xfs/xfs_xattr.c
-+++ b/fs/xfs/xfs_xattr.c
-@@ -17,20 +17,20 @@
-=20
-=20
- static int
--xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused=
-,
--		struct inode *inode, const char *name, void *value, size_t size)
-+xfs_xattr_get(const struct xattr_handler *handler, struct xattr_gs_args =
-*args)
- {
- 	int xflags =3D handler->flags;
--	struct xfs_inode *ip =3D XFS_I(inode);
--	int error, asize =3D size;
-+	struct xfs_inode *ip =3D XFS_I(args->inode);
-+	int error, asize =3D args->size;
-=20
- 	/* Convert Linux syscall to XFS internal ATTR flags */
--	if (!size) {
-+	if (!args->size) {
- 		xflags |=3D ATTR_KERNOVAL;
--		value =3D NULL;
-+		args->buffer =3D NULL;
- 	}
-=20
--	error =3D xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags=
-);
-+	error =3D xfs_attr_get(ip, (const unsigned char *)args->name,
-+			     args->buffer, &asize, xflags);
- 	if (error)
- 		return error;
- 	return asize;
-@@ -59,26 +59,25 @@ xfs_forget_acl(
- }
-=20
- static int
--xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused=
-,
--		struct inode *inode, const char *name, const void *value,
--		size_t size, int flags)
-+xfs_xattr_set(const struct xattr_handler *handler, struct xattr_gs_args =
-*args)
- {
- 	int			xflags =3D handler->flags;
--	struct xfs_inode	*ip =3D XFS_I(inode);
-+	struct xfs_inode	*ip =3D XFS_I(args->inode);
- 	int			error;
-=20
- 	/* Convert Linux syscall to XFS internal ATTR flags */
--	if (flags & XATTR_CREATE)
-+	if (args->flags & XATTR_CREATE)
- 		xflags |=3D ATTR_CREATE;
--	if (flags & XATTR_REPLACE)
-+	if (args->flags & XATTR_REPLACE)
- 		xflags |=3D ATTR_REPLACE;
-=20
--	if (!value)
--		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
--	error =3D xfs_attr_set(ip, (unsigned char *)name,
--				(void *)value, size, xflags);
-+	if (!args->value)
-+		return xfs_attr_remove(ip, (const unsigned char *)args->name,
-+				       xflags);
-+	error =3D xfs_attr_set(ip, (const unsigned char *)args->name,
-+			     args->value, args->size, xflags);
- 	if (!error)
--		xfs_forget_acl(inode, name, xflags);
-+		xfs_forget_acl(args->inode, args->name, xflags);
-=20
- 	return error;
- }
-diff --git a/include/linux/xattr.h b/include/linux/xattr.h
-index 6dad031be3c2..b2afbdcf000f 100644
---- a/include/linux/xattr.h
-+++ b/include/linux/xattr.h
-@@ -25,17 +25,27 @@ struct dentry;
-  * name.  When @prefix is set instead, match attributes with that prefix=
- and
-  * with a non-empty suffix.
-  */
-+struct xattr_gs_args {
-+	struct dentry *dentry;
-+	struct inode *inode;
-+	const char *name;
-+	union {
-+		void *buffer;
-+		const void *value;
-+	};
-+	size_t size;
-+	int flags;
-+};
-+
- struct xattr_handler {
- 	const char *name;
- 	const char *prefix;
- 	int flags;      /* fs private flags */
- 	bool (*list)(struct dentry *dentry);
--	int (*get)(const struct xattr_handler *, struct dentry *dentry,
--		   struct inode *inode, const char *name, void *buffer,
--		   size_t size);
--	int (*set)(const struct xattr_handler *, struct dentry *dentry,
--		   struct inode *inode, const char *name, const void *buffer,
--		   size_t size, int flags);
-+	int (*get)(const struct xattr_handler *handler,
-+		   struct xattr_gs_args *args);
-+	int (*set)(const struct xattr_handler *handler,
-+		   struct xattr_gs_args *args);
- };
-=20
- const char *xattr_full_name(const struct xattr_handler *, const char *);
-@@ -46,10 +56,10 @@ struct xattr {
- 	size_t value_len;
- };
-=20
--ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, vo=
-id *, size_t);
-+ssize_t __vfs_getxattr(struct xattr_gs_args *args);
- ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
- ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
--int __vfs_setxattr(struct dentry *, struct inode *, const char *, const =
-void *, size_t, int);
-+int __vfs_setxattr(struct xattr_gs_args *args);
- int __vfs_setxattr_noperm(struct dentry *, const char *, const void *, s=
-ize_t, int);
- int vfs_setxattr(struct dentry *, const char *, const void *, size_t, in=
-t);
- int __vfs_removexattr(struct dentry *, const char *);
-diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
-index c1395b5bd432..1eba02616274 100644
---- a/include/uapi/linux/xattr.h
-+++ b/include/uapi/linux/xattr.h
-@@ -17,8 +17,11 @@
- #if __UAPI_DEF_XATTR
- #define __USE_KERNEL_XATTR_DEFS
-=20
--#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
--#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
-+#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
-+#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
-+#ifdef __KERNEL__ /* following is kernel internal, colocated for mainten=
-ance */
-+#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check=
- */
-+#endif
- #endif
-=20
- /* Namespaces */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2bed4761f279..c84687f57e43 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3205,24 +3205,23 @@ static int shmem_initxattrs(struct inode *inode,
- }
-=20
- static int shmem_xattr_handler_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	struct shmem_inode_info *info =3D SHMEM_I(inode);
-+	struct shmem_inode_info *info =3D SHMEM_I(args->inode);
-=20
--	name =3D xattr_full_name(handler, name);
--	return simple_xattr_get(&info->xattrs, name, buffer, size);
-+	return simple_xattr_get(&info->xattrs,
-+				xattr_full_name(handler, args->name),
-+				args->buffer, args->size);
- }
-=20
- static int shmem_xattr_handler_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *value,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	struct shmem_inode_info *info =3D SHMEM_I(inode);
-+	struct shmem_inode_info *info =3D SHMEM_I(args->inode);
-=20
--	name =3D xattr_full_name(handler, name);
--	return simple_xattr_set(&info->xattrs, name, value, size, flags);
-+	return simple_xattr_set(&info->xattrs,
-+				xattr_full_name(handler, args->name),
-+				args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler shmem_security_xattr_handler =3D {
-diff --git a/net/socket.c b/net/socket.c
-index 6a9ab7a8b1d2..7920caece7cc 100644
---- a/net/socket.c
-+++ b/net/socket.c
-@@ -299,15 +299,15 @@ static const struct dentry_operations sockfs_dentry=
-_operations =3D {
- };
-=20
- static int sockfs_xattr_get(const struct xattr_handler *handler,
--			    struct dentry *dentry, struct inode *inode,
--			    const char *suffix, void *value, size_t size)
-+			    struct xattr_gs_args *args)
- {
--	if (value) {
--		if (dentry->d_name.len + 1 > size)
-+	if (args->buffer) {
-+		if (args->dentry->d_name.len + 1 > args->size)
- 			return -ERANGE;
--		memcpy(value, dentry->d_name.name, dentry->d_name.len + 1);
-+		memcpy(args->buffer, args->dentry->d_name.name,
-+		       args->dentry->d_name.len + 1);
- 	}
--	return dentry->d_name.len + 1;
-+	return args->dentry->d_name.len + 1;
- }
-=20
- #define XATTR_SOCKPROTONAME_SUFFIX "sockprotoname"
-@@ -320,9 +320,7 @@ static const struct xattr_handler sockfs_xattr_handle=
-r =3D {
- };
-=20
- static int sockfs_security_xattr_set(const struct xattr_handler *handler=
-,
--				     struct dentry *dentry, struct inode *inode,
--				     const char *suffix, const void *value,
--				     size_t size, int flags)
-+				     struct xattr_gs_args *args)
- {
- 	/* Handled by LSM. */
- 	return -EAGAIN;
-diff --git a/security/commoncap.c b/security/commoncap.c
-index f4ee0ae106b2..c58b684d5d9a 100644
---- a/security/commoncap.c
-+++ b/security/commoncap.c
-@@ -294,11 +294,15 @@ int cap_capset(struct cred *new,
-  */
- int cap_inode_need_killpriv(struct dentry *dentry)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
--	int error;
-+	struct xattr_gs_args args;
-+
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_backing_inode(dentry);
-+	args.name =3D XATTR_NAME_CAPS;
-+	args.flags =3D XATTR_NOSECURITY;
-=20
--	error =3D __vfs_getxattr(dentry, inode, XATTR_NAME_CAPS, NULL, 0);
--	return error > 0;
-+	return __vfs_getxattr(&args) > 0;
- }
-=20
- /**
-@@ -570,7 +574,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_=
-vfs_cap_data *caps,
-  */
- int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_c=
-ap_data *cpu_caps)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
-+	struct xattr_gs_args args;
- 	__u32 magic_etc;
- 	unsigned tocopy, i;
- 	int size;
-@@ -580,13 +584,20 @@ int get_vfs_caps_from_disk(const struct dentry *den=
-try, struct cpu_vfs_cap_data
- 	struct user_namespace *fs_ns;
-=20
- 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
-+	memset(&args, 0, sizeof(args));
-=20
--	if (!inode)
-+	args.dentry =3D (struct dentry *)dentry;
-+	args.inode =3D d_backing_inode(args.dentry);
-+	if (!args.inode)
- 		return -ENODATA;
-=20
--	fs_ns =3D inode->i_sb->s_user_ns;
--	size =3D __vfs_getxattr((struct dentry *)dentry, inode,
--			      XATTR_NAME_CAPS, &data, XATTR_CAPS_SZ);
-+	fs_ns =3D args.inode->i_sb->s_user_ns;
-+
-+	args.name =3D XATTR_NAME_CAPS;
-+	args.buffer =3D &data;
-+	args.size =3D XATTR_CAPS_SZ;
-+	args.flags =3D XATTR_NOSECURITY;
-+	size =3D __vfs_getxattr(&args);
- 	if (size =3D=3D -ENODATA || size =3D=3D -EOPNOTSUPP)
- 		/* no data, that's ok */
- 		return -ENODATA;
-diff --git a/security/integrity/evm/evm_main.c b/security/integrity/evm/e=
-vm_main.c
-index f9a81b187fae..a53ef9281186 100644
---- a/security/integrity/evm/evm_main.c
-+++ b/security/integrity/evm/evm_main.c
-@@ -91,16 +91,23 @@ static bool evm_key_loaded(void)
-=20
- static int evm_find_protected_xattrs(struct dentry *dentry)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
-+	struct xattr_gs_args args;
- 	struct xattr_list *xattr;
- 	int error;
- 	int count =3D 0;
-=20
--	if (!(inode->i_opflags & IOP_XATTR))
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_backing_inode(dentry);
-+
-+	if (!(args.inode->i_opflags & IOP_XATTR))
- 		return -EOPNOTSUPP;
-=20
-+	args.flags =3D XATTR_NOSECURITY;
-+
- 	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
--		error =3D __vfs_getxattr(dentry, inode, xattr->name, NULL, 0);
-+		args.name =3D xattr->name;
-+		error =3D __vfs_getxattr(&args);
- 		if (error < 0) {
- 			if (error =3D=3D -ENODATA)
- 				continue;
-diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index 74dd46de01b6..23c3a2c468f7 100644
---- a/security/selinux/hooks.c
-+++ b/security/selinux/hooks.c
-@@ -540,6 +540,8 @@ static int sb_finish_set_opts(struct super_block *sb)
- 	int rc =3D 0;
-=20
- 	if (sbsec->behavior =3D=3D SECURITY_FS_USE_XATTR) {
-+		struct xattr_gs_args args;
-+
- 		/* Make sure that the xattr handler exists and that no
- 		   error other than -ENODATA is returned by getxattr on
- 		   the root directory.  -ENODATA is ok, as this may be
-@@ -552,7 +554,12 @@ static int sb_finish_set_opts(struct super_block *sb=
-)
- 			goto out;
- 		}
-=20
--		rc =3D __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
-+		memset(&args, 0, sizeof(args));
-+		args.dentry =3D root;
-+		args.inode =3D root_inode;
-+		args.name =3D XATTR_NAME_SELINUX;
-+		args.flags =3D XATTR_NOSECURITY;
-+		rc =3D __vfs_getxattr(&args);
- 		if (rc < 0 && rc !=3D -ENODATA) {
- 			if (rc =3D=3D -EOPNOTSUPP)
- 				pr_warn("SELinux: (dev %s, type "
-@@ -1371,6 +1378,7 @@ static int inode_doinit_use_xattr(struct inode *ino=
-de, struct dentry *dentry,
- 	char *context;
- 	unsigned int len;
- 	int rc;
-+	struct xattr_gs_args args;
-=20
- 	len =3D INITCONTEXTLEN;
- 	context =3D kmalloc(len + 1, GFP_NOFS);
-@@ -1378,12 +1386,21 @@ static int inode_doinit_use_xattr(struct inode *i=
-node, struct dentry *dentry,
- 		return -ENOMEM;
-=20
- 	context[len] =3D '\0';
--	rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, context, len);
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D inode;
-+	args.name =3D XATTR_NAME_SELINUX;
-+	args.buffer =3D context;
-+	args.size =3D len;
-+	args.flags =3D XATTR_NOSECURITY;
-+	rc =3D __vfs_getxattr(&args);
- 	if (rc =3D=3D -ERANGE) {
- 		kfree(context);
-=20
- 		/* Need a larger buffer.  Query for the right size. */
--		rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, NULL, 0);
-+		args.buffer =3D NULL;
-+		args.size =3D 0;
-+		rc =3D __vfs_getxattr(&args);
- 		if (rc < 0)
- 			return rc;
-=20
-@@ -1393,8 +1410,9 @@ static int inode_doinit_use_xattr(struct inode *ino=
-de, struct dentry *dentry,
- 			return -ENOMEM;
-=20
- 		context[len] =3D '\0';
--		rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX,
--				    context, len);
-+		args.buffer =3D context;
-+		args.size =3D len;
-+		rc =3D __vfs_getxattr(&args);
- 	}
- 	if (rc < 0) {
- 		kfree(context);
-diff --git a/security/smack/smack_lsm.c b/security/smack/smack_lsm.c
-index 4c5e5a438f8b..91e585bd1823 100644
---- a/security/smack/smack_lsm.c
-+++ b/security/smack/smack_lsm.c
-@@ -282,25 +282,32 @@ static struct smack_known *smk_fetch(const char *na=
-me, struct inode *ip,
- 					struct dentry *dp)
- {
- 	int rc;
--	char *buffer;
- 	struct smack_known *skp =3D NULL;
-+	struct xattr_gs_args args;
-=20
- 	if (!(ip->i_opflags & IOP_XATTR))
- 		return ERR_PTR(-EOPNOTSUPP);
-=20
--	buffer =3D kzalloc(SMK_LONGLABEL, GFP_KERNEL);
--	if (buffer =3D=3D NULL)
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dp;
-+	args.inode =3D ip;
-+	args.name =3D name;
-+	args.buffer =3D kzalloc(SMK_LONGLABEL, GFP_KERNEL);
-+	args.size =3D SMK_LONGLABEL;
-+	args.flags =3D XATTR_NOSECURITY;
-+
-+	if (args.buffer =3D=3D NULL)
- 		return ERR_PTR(-ENOMEM);
-=20
--	rc =3D __vfs_getxattr(dp, ip, name, buffer, SMK_LONGLABEL);
-+	rc =3D __vfs_getxattr(&args);
- 	if (rc < 0)
- 		skp =3D ERR_PTR(rc);
- 	else if (rc =3D=3D 0)
- 		skp =3D NULL;
- 	else
--		skp =3D smk_import_entry(buffer, rc);
-+		skp =3D smk_import_entry(args.buffer, rc);
-=20
--	kfree(buffer);
-+	kfree(args.buffer);
-=20
- 	return skp;
- }
-@@ -3424,6 +3431,8 @@ static void smack_d_instantiate(struct dentry *opt_=
-dentry, struct inode *inode)
- 		 * Transmuting directory
- 		 */
- 		if (S_ISDIR(inode->i_mode)) {
-+			struct xattr_gs_args args;
-+
- 			/*
- 			 * If this is a new directory and the label was
- 			 * transmuted when the inode was initialized
-@@ -3433,16 +3442,19 @@ static void smack_d_instantiate(struct dentry *op=
-t_dentry, struct inode *inode)
- 			 * If there is a transmute attribute on the
- 			 * directory mark the inode.
- 			 */
-+			memset(&args, 0, sizeof(args));
-+			args.dentry =3D dp;
-+			args.inode =3D inode;
-+			args.name =3D XATTR_NAME_SMACKTRANSMUTE;
-+			args.size =3D TRANS_TRUE_SIZE;
- 			if (isp->smk_flags & SMK_INODE_CHANGED) {
- 				isp->smk_flags &=3D ~SMK_INODE_CHANGED;
--				rc =3D __vfs_setxattr(dp, inode,
--					XATTR_NAME_SMACKTRANSMUTE,
--					TRANS_TRUE, TRANS_TRUE_SIZE,
--					0);
-+				args.value =3D TRANS_TRUE;
-+				rc =3D __vfs_setxattr(&args);
- 			} else {
--				rc =3D __vfs_getxattr(dp, inode,
--					XATTR_NAME_SMACKTRANSMUTE, trattr,
--					TRANS_TRUE_SIZE);
-+				args.buffer =3D trattr;
-+				args.flags =3D XATTR_NOSECURITY;
-+				rc =3D __vfs_getxattr(&args);
- 				if (rc >=3D 0 && strncmp(trattr, TRANS_TRUE,
- 						       TRANS_TRUE_SIZE) !=3D 0)
- 					rc =3D -EINVAL;
---=20
-2.23.0.rc1.153.gdeed80330f-goog
-
+--0-1540104598-1566325504=:1286--
 
