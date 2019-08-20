@@ -2,3569 +2,3791 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-1.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	UPPERCASE_50_75,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C822C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 15:33:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C4B81C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 15:47:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 123812054F
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 15:33:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 32E2122DA9
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 15:47:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=android.com header.i=@android.com header.b="V8Bvh4cB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 123812054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bJeZ2r2C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32E2122DA9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A0856B000D; Tue, 20 Aug 2019 11:33:44 -0400 (EDT)
+	id AD0B26B0005; Tue, 20 Aug 2019 11:47:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9517B6B000E; Tue, 20 Aug 2019 11:33:44 -0400 (EDT)
+	id A58986B000A; Tue, 20 Aug 2019 11:47:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 707B06B0010; Tue, 20 Aug 2019 11:33:44 -0400 (EDT)
+	id 80E9F6B000D; Tue, 20 Aug 2019 11:47:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0091.hostedemail.com [216.40.44.91])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF866B000D
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 11:33:44 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C093D55FA3
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 15:33:43 +0000 (UTC)
-X-FDA: 75843201126.06.sock31_203d527998b26
-X-HE-Tag: sock31_203d527998b26
-X-Filterd-Recvd-Size: 119705
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 15:33:40 +0000 (UTC)
-Received: by mail-pl1-f194.google.com with SMTP id z3so2944776pln.6
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 08:33:40 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=android.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=2+jWqn1PXdkjJKC9jCURPn4wynrMqvcG1X6u23+H6LM=;
-        b=V8Bvh4cBiQewe0HmkcZ94B06urWx8qpbeAM3ZXvdx9qzXGVXuZlUpL7Ac/Yin27/qz
-         CYcPWQ7VfiQZwkvpZawWTrRfZ8G9T5dHgCtmuM7a4MLomKz8Ds/hMO9bvY/OnNFfxpRh
-         I9V0mZas67bYCy7Z5f+2reO00eGB1HySvO4T9b/bFO/bbaQIWQKevGMtZwNA7vvmw7BD
-         G+mz6ertWlH/IwVxyUhOQnez9JqJqgwE9YRa2OSZdZmfv4bgpQVoa0JQRxeHymQ9e8Ru
-         uVEHhTpjypN0iqrcZ2rcAZSQjvWrHM8YYcBPjPyvTYhYhqHG5lztzqree1SguRBYfC/9
-         v6vQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=2+jWqn1PXdkjJKC9jCURPn4wynrMqvcG1X6u23+H6LM=;
-        b=Fy7GqpPHI8M/k1XdmSQiLFcxGemUTza+ZMfH3AdiPIT8SKNvf3yCRNiEbtj6ZqJOkK
-         ip8nx8UQCU7QDMwxXD+1fw11Qy2OwjQcJBm5feR96McX4g7Lv3NITLFaMEW1Jv6Tyysb
-         JbbkegjCb5O3s09UFDW+KhAad8DFasLCFt8ep4tbz8q9MIiG/q3qBMVTgCAYhGe0Q5cu
-         jJfEFTnoU9N0bNVO2xVbc0Dw1IWbJ9CLgtaxVnvOq+U4AsaPQj95mlPfTCkWo9UrqxZX
-         vfLxWAmsEjqhJOwc4x+Nzm29MvYeMRhKYn7rg7GyQDY4uhmJ5kl7v7A016Ki4E+6f7gp
-         4Qqg==
-X-Gm-Message-State: APjAAAXNhcvZmrKw00EWF+i2PoRlhzkI3re6NtRzPWxKBXss1Zv9xPZT
-	QR+NbgMLRGuoElhtqRx1aaFoig==
-X-Google-Smtp-Source: APXvYqx+LGl3z91ffb+Qc8Ki+s7XZ8QM6cFApoPgVhJIhBJcY9wWmJf7wI9CsS3Kdj48WsQfQJ2p4g==
-X-Received: by 2002:a17:902:1024:: with SMTP id b33mr29429363pla.325.1566315218301;
-        Tue, 20 Aug 2019 08:33:38 -0700 (PDT)
-Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
-        by smtp.gmail.com with ESMTPSA id j15sm18128384pfn.150.2019.08.20.08.33.35
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 20 Aug 2019 08:33:37 -0700 (PDT)
-From: Mark Salyzyn <salyzyn@android.com>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com,
-	Mark Salyzyn <salyzyn@android.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	linux-security-module@vger.kernel.org,
-	stable@vger.kernel.org,
-	Jonathan Corbet <corbet@lwn.net>,
-	Gao Xiang <gaoxiang25@huawei.com>,
-	Chao Yu <yuchao0@huawei.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	David Howells <dhowells@redhat.com>,
-	Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>,
-	David Sterba <dsterba@suse.com>,
-	Jeff Layton <jlayton@kernel.org>,
-	Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>,
-	Steve French <sfrench@samba.org>,
-	Tyler Hicks <tyhicks@canonical.com>,
-	Jan Kara <jack@suse.com>,
-	"Theodore Ts'o" <tytso@mit.edu>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Bob Peterson <rpeterso@redhat.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Richard Weinberger <richard@nod.at>,
-	Dave Kleikamp <shaggy@kernel.org>,
-	Tejun Heo <tj@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Mark Fasheh <mark@fasheh.com>,
-	Joel Becker <jlbec@evilplan.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	Artem Bityutskiy <dedekind1@gmail.com>,
-	Adrian Hunter <adrian.hunter@intel.com>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org,
-	Hugh Dickins <hughd@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Serge Hallyn <serge@hallyn.com>,
-	James Morris <jmorris@namei.org>,
-	Mimi Zohar <zohar@linux.ibm.com>,
-	Paul Moore <paul@paul-moore.com>,
-	Eric Paris <eparis@parisplace.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	"J. Bruce Fields" <bfields@redhat.com>,
-	Eric Biggers <ebiggers@google.com>,
-	Benjamin Coddington <bcodding@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mathieu Malaterre <malat@debian.org>,
-	=?UTF-8?q?Ernesto=20A=2E=20Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Vyacheslav Dubeyko <slava@dubeyko.com>,
-	Jann Horn <jannh@google.com>,
-	Bharath Vedartham <linux.bhar@gmail.com>,
-	Jeff Mahoney <jeffm@suse.com>,
-	Dave Chinner <dchinner@redhat.com>,
-	Allison Henderson <allison.henderson@oracle.com>,
-	Brian Foster <bfoster@redhat.com>,
-	Eric Sandeen <sandeen@sandeen.net>,
-	linux-doc@vger.kernel.org,
-	linux-erofs@lists.ozlabs.org,
-	devel@driverdev.osuosl.org,
-	v9fs-developer@lists.sourceforge.net,
-	linux-afs@lists.infradead.org,
-	linux-btrfs@vger.kernel.org,
-	ceph-devel@vger.kernel.org,
-	linux-cifs@vger.kernel.org,
-	samba-technical@lists.samba.org,
-	ecryptfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org,
-	cluster-devel@redhat.com,
-	linux-mtd@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net,
-	linux-nfs@vger.kernel.org,
-	ocfs2-devel@oss.oracle.com,
-	devel@lists.orangefs.org,
-	linux-unionfs@vger.kernel.org,
-	reiserfs-devel@vger.kernel.org,
-	linux-mm@kvack.org,
-	netdev@vger.kernel.org,
-	linux-integrity@vger.kernel.org,
-	selinux@vger.kernel.org
-Subject: [PATCH v6] Add flags option to get xattr method paired to __vfs_getxattr
-Date: Tue, 20 Aug 2019 08:32:54 -0700
-Message-Id: <20190820153326.115458-1-salyzyn@android.com>
-X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
+Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E6236B0005
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 11:47:35 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id B4D85180AD80A
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 15:47:34 +0000 (UTC)
+X-FDA: 75843236028.05.kick01_7df64cc7cb50
+X-HE-Tag: kick01_7df64cc7cb50
+X-Filterd-Recvd-Size: 92298
+Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 15:47:33 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=Content-Type:In-Reply-To:MIME-Version:
+	Date:Message-ID:From:References:Cc:To:Subject:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=3RXC9/1Vuybw4CQuGjviBy5XhmyWFu1HbKZYACa/ZgQ=; b=bJeZ2r2C/ZL77zh7suylIMsxE
+	UsfD2J//8DXYmulODRLUyX2DOwE9HUdASKxltExYpmnL9pzi7cDjV7+oPkosrQfmjzeE1oWMbTCow
+	vtcUf24vhYUq5S0nmaUFZfUkOVYCSMC8aMrbNn+MskzIFGxu/7VMRxmtqhpj4mnH7Ityyj9DviwBI
+	4abYdF5TfKJxVr1xTHdXmWkJOEnDZWNSEZ9pYNJI8wLNa/+GFP/5YllWIlRGY/nDgH6tfxJPAMRL1
+	RyOPFzYx7lXl9cSsE9p4eJRlszYFlaFL1yNShSo4W49Qs1SJtBReD0oCEnl2Qx4KdVslNrLIAPgWy
+	R+wcxMxKA==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=[192.168.1.17])
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i05c3-0000v2-M3; Tue, 20 Aug 2019 14:59:56 +0000
+Subject: Re: linux-next: Tree for Aug 20 (mm/memcontrol)
+To: Stephen Rothwell <sfr@canb.auug.org.au>,
+ Linux Next Mailing List <linux-next@vger.kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ Linux MM <linux-mm@kvack.org>
+References: <20190820170955.3ca79270@canb.auug.org.au>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <bcce34db-47ea-cf02-057d-c63c2bf7eeeb@infradead.org>
+Date: Tue, 20 Aug 2019 07:59:54 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190820170955.3ca79270@canb.auug.org.au>
+Content-Type: multipart/mixed;
+ boundary="------------6CA7F6BDE76E739DB22D29FC"
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Replace arguments for get and set xattr methods, and __vfs_getxattr
-and __vfs_setaxtr functions with a reference to the following now
-common argument structure:
+This is a multi-part message in MIME format.
+--------------6CA7F6BDE76E739DB22D29FC
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-struct xattr_gs_args {
-	struct dentry *dentry;
-	struct inode *inode;
-	const char *name;
-	union {
-		void *buffer;
-		const void *value;
-	};
-	size_t size;
-	int flags;
-};
+On 8/20/19 12:09 AM, Stephen Rothwell wrote:
+> Hi all,
+>=20
+> Changes since 20190819:
+>=20
 
-Which in effect adds a flags option to the get method and
-__vfs_getxattr function.
+on i386 or x86_64:
 
-Add a flag option to get xattr method that has bit flag of
-XATTR_NOSECURITY passed to it.  XATTR_NOSECURITY is generally then
-set in the __vfs_getxattr path when called by security
-infrastructure.
+../mm/memcontrol.c: In function =91__mem_cgroup_free=92:
+../mm/memcontrol.c:4885:2: error: implicit declaration of function =91mem=
+cg_flush_percpu_vmstats=92; did you mean =91qdisc_is_percpu_stats=92? [-W=
+error=3Dimplicit-function-declaration]
+  memcg_flush_percpu_vmstats(memcg, false);
+  ^~~~~~~~~~~~~~~~~~~~~~~~~~
+  qdisc_is_percpu_stats
+../mm/memcontrol.c:4886:2: error: implicit declaration of function =91mem=
+cg_flush_percpu_vmevents=92; did you mean =91memcg_check_events=92? [-Wer=
+ror=3Dimplicit-function-declaration]
+  memcg_flush_percpu_vmevents(memcg);
+  ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memcg_check_events
 
-This handles the case of a union filesystem driver that is being
-requested by the security layer to report back the xattr data.
 
-For the use case where access is to be blocked by the security layer.
 
-The path then could be security(dentry) ->
-__vfs_getxattr({dentry...XATTR_NOSECURITY}) ->
-handler->get({dentry...XATTR_NOSECURITY}) ->
-__vfs_getxattr({lower_dentry...XATTR_NOSECURITY}) ->
-lower_handler->get({lower_dentry...XATTR_NOSECURITY})
-which would report back through the chain data and success as
-expected, the logging security layer at the top would have the
-data to determine the access permissions and report back the target
-context that was blocked.
+Full i386 randconfig file is attached.
 
-Without the get handler flag, the path on a union filesystem would be
-the errant security(dentry) -> __vfs_getxattr(dentry) ->
-handler->get(dentry) -> vfs_getxattr(lower_dentry) -> nested ->
-security(lower_dentry, log off) -> lower_handler->get(lower_dentry)
-which would report back through the chain no data, and -EACCES.
 
-For selinux for both cases, this would translate to a correctly
-determined blocked access. In the first case with this change a correct a=
-vc
-log would be reported, in the second legacy case an incorrect avc log
-would be reported against an uninitialized u:object_r:unlabeled:s0
-context making the logs cosmetically useless for audit2allow.
-
-This patch series is inert and is the wide-spread addition of the
-flags option for xattr functions, and a replacement of __vfs_getxattr
-with __vfs_getxattr({...XATTR_NOSECURITY}).
-
-Signed-off-by: Mark Salyzyn <salyzyn@android.com>
-Cc: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com
-Cc: linux-security-module@vger.kernel.org
-Cc: stable@vger.kernel.org # 4.4, 4.9, 4.14 & 4.19
----
-v6:
-- kernfs missed a spot
-
-v5:
-- introduce struct xattr_gs_args for get and set methods,
-  __vfs_getxattr and __vfs_setxattr functions.
-- cover a missing spot in ext2.
-- switch from snprintf to scnprintf for correctness.
-
-v4:
-- ifdef __KERNEL__ around XATTR_NOSECURITY to
-  keep it colocated in uapi headers.
-
-v3:
-- poor aim on ubifs not ubifs_xattr_get, but static xattr_get
-
-v2:
-- Missed a spot: ubifs, erofs and afs.
-
-v1:
-- Removed from an overlayfs patch set, and made independent.
-  Expect this to be the basis of some security improvements.
-
-a
----
- Documentation/filesystems/Locking |  10 ++-
- drivers/staging/erofs/xattr.c     |   8 +--
- fs/9p/acl.c                       |  37 +++++-----
- fs/9p/xattr.c                     |  19 +++--
- fs/afs/xattr.c                    | 110 +++++++++++++----------------
- fs/btrfs/xattr.c                  |  36 +++++-----
- fs/ceph/xattr.c                   |  40 +++++------
- fs/cifs/xattr.c                   |  72 +++++++++----------
- fs/ecryptfs/crypto.c              |  20 +++---
- fs/ecryptfs/inode.c               |  36 ++++++----
- fs/ecryptfs/mmap.c                |  39 ++++++-----
- fs/ext2/xattr_security.c          |  16 ++---
- fs/ext2/xattr_trusted.c           |  15 ++--
- fs/ext2/xattr_user.c              |  19 +++--
- fs/ext4/xattr_security.c          |  15 ++--
- fs/ext4/xattr_trusted.c           |  15 ++--
- fs/ext4/xattr_user.c              |  19 +++--
- fs/f2fs/xattr.c                   |  42 +++++------
- fs/fuse/xattr.c                   |  23 +++---
- fs/gfs2/xattr.c                   |  18 ++---
- fs/hfs/attr.c                     |  15 ++--
- fs/hfsplus/xattr.c                |  17 +++--
- fs/hfsplus/xattr_security.c       |  13 ++--
- fs/hfsplus/xattr_trusted.c        |  13 ++--
- fs/hfsplus/xattr_user.c           |  13 ++--
- fs/jffs2/security.c               |  16 ++---
- fs/jffs2/xattr_trusted.c          |  16 ++---
- fs/jffs2/xattr_user.c             |  16 ++---
- fs/jfs/xattr.c                    |  33 ++++-----
- fs/kernfs/inode.c                 |  23 +++---
- fs/nfs/nfs4proc.c                 |  28 ++++----
- fs/ocfs2/xattr.c                  |  52 ++++++--------
- fs/orangefs/xattr.c               |  19 ++---
- fs/overlayfs/inode.c              |  43 ++++++------
- fs/overlayfs/overlayfs.h          |   6 +-
- fs/overlayfs/super.c              |  53 ++++++--------
- fs/posix_acl.c                    |  23 +++---
- fs/reiserfs/xattr.c               |   2 +-
- fs/reiserfs/xattr_security.c      |  22 +++---
- fs/reiserfs/xattr_trusted.c       |  22 +++---
- fs/reiserfs/xattr_user.c          |  22 +++---
- fs/squashfs/xattr.c               |  10 +--
- fs/ubifs/xattr.c                  |  27 ++++---
- fs/xattr.c                        | 112 ++++++++++++++++++------------
- fs/xfs/libxfs/xfs_attr.c          |   2 +-
- fs/xfs/libxfs/xfs_attr.h          |   2 +-
- fs/xfs/xfs_xattr.c                |  35 +++++-----
- include/linux/xattr.h             |  26 ++++---
- include/uapi/linux/xattr.h        |   7 +-
- mm/shmem.c                        |  21 +++---
- net/socket.c                      |  16 ++---
- security/commoncap.c              |  29 +++++---
- security/integrity/evm/evm_main.c |  11 ++-
- security/selinux/hooks.c          |  28 ++++++--
- security/smack/smack_lsm.c        |  34 ++++++---
- 55 files changed, 716 insertions(+), 720 deletions(-)
-
-diff --git a/Documentation/filesystems/Locking b/Documentation/filesystem=
-s/Locking
-index 204dd3ea36bb..e2687f21c7d6 100644
---- a/Documentation/filesystems/Locking
-+++ b/Documentation/filesystems/Locking
-@@ -101,12 +101,10 @@ of the locking scheme for directory operations.
- ----------------------- xattr_handler operations -----------------------
- prototypes:
- 	bool (*list)(struct dentry *dentry);
--	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
--		   struct inode *inode, const char *name, void *buffer,
--		   size_t size);
--	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
--		   struct inode *inode, const char *name, const void *buffer,
--		   size_t size, int flags);
-+	int (*get)(const struct xattr_handler *handler,
-+		   struct xattr_gs_flags);
-+	int (*set)(const struct xattr_handler *handler,
-+		   struct xattr_gs_flags);
-=20
- locking rules:
- 	all may block
-diff --git a/drivers/staging/erofs/xattr.c b/drivers/staging/erofs/xattr.=
-c
-index df40654b9fbb..41dcfc82f0b2 100644
---- a/drivers/staging/erofs/xattr.c
-+++ b/drivers/staging/erofs/xattr.c
-@@ -462,10 +462,9 @@ int erofs_getxattr(struct inode *inode, int index,
- }
-=20
- static int erofs_xattr_generic_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	struct erofs_sb_info *const sbi =3D EROFS_I_SB(inode);
-+	struct erofs_sb_info *const sbi =3D EROFS_I_SB(args->inode);
-=20
- 	switch (handler->flags) {
- 	case EROFS_XATTR_INDEX_USER:
-@@ -482,7 +481,8 @@ static int erofs_xattr_generic_get(const struct xattr=
-_handler *handler,
- 		return -EINVAL;
- 	}
-=20
--	return erofs_getxattr(inode, handler->flags, name, buffer, size);
-+	return erofs_getxattr(args->inode, handler->flags, args->name,
-+			      args->buffer, args->size);
- }
-=20
- const struct xattr_handler erofs_xattr_user_handler =3D {
-diff --git a/fs/9p/acl.c b/fs/9p/acl.c
-index 6261719f6f2a..7d15712005b5 100644
---- a/fs/9p/acl.c
-+++ b/fs/9p/acl.c
-@@ -213,56 +213,56 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep=
-,
- }
-=20
- static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
- 	struct v9fs_session_info *v9ses;
- 	struct posix_acl *acl;
- 	int error;
-=20
--	v9ses =3D v9fs_dentry2v9ses(dentry);
-+	v9ses =3D v9fs_dentry2v9ses(args->dentry);
- 	/*
- 	 * We allow set/get/list of acl when access=3Dclient is not specified
- 	 */
- 	if ((v9ses->flags & V9FS_ACCESS_MASK) !=3D V9FS_ACCESS_CLIENT)
--		return v9fs_xattr_get(dentry, handler->name, buffer, size);
-+		return v9fs_xattr_get(args->dentry, handler->name,
-+				      args->buffer, args->size);
-=20
--	acl =3D v9fs_get_cached_acl(inode, handler->flags);
-+	acl =3D v9fs_get_cached_acl(args->inode, handler->flags);
- 	if (IS_ERR(acl))
- 		return PTR_ERR(acl);
- 	if (acl =3D=3D NULL)
- 		return -ENODATA;
--	error =3D posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
-+	error =3D posix_acl_to_xattr(&init_user_ns, acl,
-+				   args->buffer, args->size);
- 	posix_acl_release(acl);
-=20
- 	return error;
- }
-=20
- static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, const void *value,
--			      size_t size, int flags)
-+			      struct xattr_gs_args *args)
- {
- 	int retval;
- 	struct posix_acl *acl;
- 	struct v9fs_session_info *v9ses;
-=20
--	v9ses =3D v9fs_dentry2v9ses(dentry);
-+	v9ses =3D v9fs_dentry2v9ses(args->dentry);
- 	/*
- 	 * set the attribute on the remote. Without even looking at the
- 	 * xattr value. We leave it to the server to validate
- 	 */
- 	if ((v9ses->flags & V9FS_ACCESS_MASK) !=3D V9FS_ACCESS_CLIENT)
--		return v9fs_xattr_set(dentry, handler->name, value, size,
--				      flags);
-+		return v9fs_xattr_set(args->dentry, handler->name,
-+				      args->value, args->size, args->flags);
-=20
- 	if (S_ISLNK(inode->i_mode))
- 		return -EOPNOTSUPP;
- 	if (!inode_owner_or_capable(inode))
- 		return -EPERM;
--	if (value) {
-+	if (args->value) {
- 		/* update the cached acl value */
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 		else if (acl) {
-@@ -289,15 +289,15 @@ static int v9fs_xattr_set_acl(const struct xattr_ha=
-ndler *handler,
- 				 * update ACL.
- 				 */
- 				posix_acl_release(old_acl);
--				value =3D NULL;
--				size =3D 0;
-+				args->value =3D NULL;
-+				args->size =3D 0;
- 			}
- 			iattr.ia_valid =3D ATTR_MODE;
- 			/* FIXME should we update ctime ?
- 			 * What is the following setxattr update the
- 			 * mode ?
- 			 */
--			v9fs_vfs_setattr_dotl(dentry, &iattr);
-+			v9fs_vfs_setattr_dotl(args->dentry, &iattr);
- 		}
- 		break;
- 	case ACL_TYPE_DEFAULT:
-@@ -309,7 +309,8 @@ static int v9fs_xattr_set_acl(const struct xattr_hand=
-ler *handler,
- 	default:
- 		BUG();
- 	}
--	retval =3D v9fs_xattr_set(dentry, handler->name, value, size, flags);
-+	retval =3D v9fs_xattr_set(args->dentry, handler->name,
-+				args->value, args->size, args->flags);
- 	if (!retval)
- 		set_cached_acl(inode, handler->flags, acl);
- err_out:
-diff --git a/fs/9p/xattr.c b/fs/9p/xattr.c
-index ac8ff8ca4c11..36d4c309be08 100644
---- a/fs/9p/xattr.c
-+++ b/fs/9p/xattr.c
-@@ -138,22 +138,19 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char =
-*buffer, size_t buffer_size)
- }
-=20
- static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	const char *full_name =3D xattr_full_name(handler, name);
--
--	return v9fs_xattr_get(dentry, full_name, buffer, size);
-+	return v9fs_xattr_get(args->dentry,
-+			      xattr_full_name(handler, args->name),
-+			      args->buffer, args->size);
- }
-=20
- static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, const void *value,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	const char *full_name =3D xattr_full_name(handler, name);
--
--	return v9fs_xattr_set(dentry, full_name, value, size, flags);
-+	return v9fs_xattr_set(args->dentry,
-+			      xattr_full_name(handler, args->name),
-+			      args->value, args->size, args->flags);
- }
-=20
- static struct xattr_handler v9fs_xattr_user_handler =3D {
-diff --git a/fs/afs/xattr.c b/fs/afs/xattr.c
-index 5552d034090a..87c1ef09912a 100644
---- a/fs/afs/xattr.c
-+++ b/fs/afs/xattr.c
-@@ -38,13 +38,11 @@ ssize_t afs_listxattr(struct dentry *dentry, char *bu=
-ffer, size_t size)
-  * Get a file's ACL.
-  */
- static int afs_xattr_get_acl(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-@@ -76,9 +74,9 @@ static int afs_xattr_get_acl(const struct xattr_handler=
- *handler,
-=20
- 	if (ret =3D=3D 0) {
- 		ret =3D acl->size;
--		if (size > 0) {
--			if (acl->size <=3D size)
--				memcpy(buffer, acl->data, acl->size);
-+		if (args->size > 0) {
-+			if (acl->size <=3D args->size)
-+				memcpy(args->buffer, acl->data, acl->size);
- 			else
- 				ret =3D -ERANGE;
- 		}
-@@ -96,25 +94,23 @@ static int afs_xattr_get_acl(const struct xattr_handl=
-er *handler,
-  * Set a file's AFS3 ACL.
-  */
- static int afs_xattr_set_acl(const struct xattr_handler *handler,
--                             struct dentry *dentry,
--                             struct inode *inode, const char *name,
--                             const void *buffer, size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-=20
--	if (flags =3D=3D XATTR_CREATE)
-+	if (args->flags =3D=3D XATTR_CREATE)
- 		return -EINVAL;
-=20
- 	scb =3D kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
- 	if (!scb)
- 		goto error;
-=20
--	acl =3D kmalloc(sizeof(*acl) + size, GFP_KERNEL);
-+	acl =3D kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
- 	if (!acl)
- 		goto error_scb;
-=20
-@@ -124,8 +120,8 @@ static int afs_xattr_set_acl(const struct xattr_handl=
-er *handler,
- 		goto error_acl;
- 	}
-=20
--	acl->size =3D size;
--	memcpy(acl->data, buffer, size);
-+	acl->size =3D args->size;
-+	memcpy(acl->data, args->value, args->size);
-=20
- 	ret =3D -ERESTARTSYS;
- 	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-@@ -161,25 +157,23 @@ static const struct xattr_handler afs_xattr_afs_acl=
-_handler =3D {
-  * Get a file's YFS ACL.
-  */
- static int afs_xattr_get_yfs(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct yfs_acl *yacl =3D NULL;
- 	struct key *key;
- 	char buf[16], *data;
- 	int which =3D 0, dsize, ret =3D -ENOMEM;
-=20
--	if (strcmp(name, "acl") =3D=3D 0)
-+	if (strcmp(args->name, "acl") =3D=3D 0)
- 		which =3D 0;
--	else if (strcmp(name, "acl_inherited") =3D=3D 0)
-+	else if (strcmp(args->name, "acl_inherited") =3D=3D 0)
- 		which =3D 1;
--	else if (strcmp(name, "acl_num_cleaned") =3D=3D 0)
-+	else if (strcmp(args->name, "acl_num_cleaned") =3D=3D 0)
- 		which =3D 2;
--	else if (strcmp(name, "vol_acl") =3D=3D 0)
-+	else if (strcmp(args->name, "vol_acl") =3D=3D 0)
- 		which =3D 3;
- 	else
- 		return -EOPNOTSUPP;
-@@ -228,11 +222,11 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
- 		break;
- 	case 1:
- 		data =3D buf;
--		dsize =3D snprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
-+		dsize =3D scnprintf(buf, sizeof(buf), "%u", yacl->inherit_flag);
- 		break;
- 	case 2:
- 		data =3D buf;
--		dsize =3D snprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
-+		dsize =3D scnprintf(buf, sizeof(buf), "%u", yacl->num_cleaned);
- 		break;
- 	case 3:
- 		data =3D yacl->vol_acl->data;
-@@ -244,12 +238,12 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
- 	}
-=20
- 	ret =3D dsize;
--	if (size > 0) {
--		if (dsize > size) {
-+	if (args->size > 0) {
-+		if (dsize > args->size) {
- 			ret =3D -ERANGE;
- 			goto error_key;
- 		}
--		memcpy(buffer, data, dsize);
-+		memcpy(args->buffer, data, dsize);
- 	}
-=20
- error_key:
-@@ -266,31 +260,29 @@ static int afs_xattr_get_yfs(const struct xattr_han=
-dler *handler,
-  * Set a file's YFS ACL.
-  */
- static int afs_xattr_set_yfs(const struct xattr_handler *handler,
--                             struct dentry *dentry,
--                             struct inode *inode, const char *name,
--                             const void *buffer, size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	struct afs_fs_cursor fc;
- 	struct afs_status_cb *scb;
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_acl *acl =3D NULL;
- 	struct key *key;
- 	int ret =3D -ENOMEM;
-=20
--	if (flags =3D=3D XATTR_CREATE ||
--	    strcmp(name, "acl") !=3D 0)
-+	if (args->flags =3D=3D XATTR_CREATE ||
-+	    strcmp(args->name, "acl") !=3D 0)
- 		return -EINVAL;
-=20
- 	scb =3D kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
- 	if (!scb)
- 		goto error;
-=20
--	acl =3D kmalloc(sizeof(*acl) + size, GFP_KERNEL);
-+	acl =3D kmalloc(sizeof(*acl) + args->size, GFP_KERNEL);
- 	if (!acl)
- 		goto error_scb;
-=20
--	acl->size =3D size;
--	memcpy(acl->data, buffer, size);
-+	acl->size =3D args->size;
-+	memcpy(acl->data, args->value, args->size);
-=20
- 	key =3D afs_request_key(vnode->volume->cell);
- 	if (IS_ERR(key)) {
-@@ -332,20 +324,18 @@ static const struct xattr_handler afs_xattr_yfs_han=
-dler =3D {
-  * Get the name of the cell on which a file resides.
-  */
- static int afs_xattr_get_cell(const struct xattr_handler *handler,
--			      struct dentry *dentry,
--			      struct inode *inode, const char *name,
--			      void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	struct afs_cell *cell =3D vnode->volume->cell;
- 	size_t namelen;
-=20
- 	namelen =3D cell->name_len;
- 	if (size =3D=3D 0)
- 		return namelen;
--	if (namelen > size)
-+	if (namelen > args->size)
- 		return -ERANGE;
--	memcpy(buffer, cell->name, namelen);
-+	memcpy(args->buffer, cell->name, namelen);
- 	return namelen;
- }
-=20
-@@ -359,30 +349,30 @@ static const struct xattr_handler afs_xattr_afs_cel=
-l_handler =3D {
-  * hex numbers separated by colons.
-  */
- static int afs_xattr_get_fid(const struct xattr_handler *handler,
--			     struct dentry *dentry,
--			     struct inode *inode, const char *name,
--			     void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	char text[16 + 1 + 24 + 1 + 8 + 1];
- 	size_t len;
-=20
- 	/* The volume ID is 64-bit, the vnode ID is 96-bit and the
- 	 * uniquifier is 32-bit.
- 	 */
--	len =3D sprintf(text, "%llx:", vnode->fid.vid);
-+	len =3D scnprintf(text, sizeof(text), "%llx:", vnode->fid.vid);
- 	if (vnode->fid.vnode_hi)
--		len +=3D sprintf(text + len, "%x%016llx",
-+		len +=3D scnprintf(text + len, sizeof(text) - len, "%x%016llx",
- 			       vnode->fid.vnode_hi, vnode->fid.vnode);
- 	else
--		len +=3D sprintf(text + len, "%llx", vnode->fid.vnode);
--	len +=3D sprintf(text + len, ":%x", vnode->fid.unique);
-+		len +=3D scnprintf(text + len, sizeof(text) - len, "%llx",
-+				 vnode->fid.vnode);
-+	len +=3D scnprintf(text + len, sizeof(text) - len, ":%x",
-+			 vnode->fid.unique);
-=20
--	if (size =3D=3D 0)
-+	if (args->size =3D=3D 0)
- 		return len;
--	if (len > size)
-+	if (len > args->size)
- 		return -ERANGE;
--	memcpy(buffer, text, len);
-+	memcpy(args->buffer, text, len);
- 	return len;
- }
-=20
-@@ -395,20 +385,18 @@ static const struct xattr_handler afs_xattr_afs_fid=
-_handler =3D {
-  * Get the name of the volume on which a file resides.
-  */
- static int afs_xattr_get_volume(const struct xattr_handler *handler,
--			      struct dentry *dentry,
--			      struct inode *inode, const char *name,
--			      void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	struct afs_vnode *vnode =3D AFS_FS_I(inode);
-+	struct afs_vnode *vnode =3D AFS_FS_I(args->inode);
- 	const char *volname =3D vnode->volume->name;
- 	size_t namelen;
-=20
- 	namelen =3D strlen(volname);
--	if (size =3D=3D 0)
-+	if (args->size =3D=3D 0)
- 		return namelen;
--	if (namelen > size)
-+	if (namelen > args->size)
- 		return -ERANGE;
--	memcpy(buffer, volname, namelen);
-+	memcpy(args->buffer, volname, namelen);
- 	return namelen;
- }
-=20
-diff --git a/fs/btrfs/xattr.c b/fs/btrfs/xattr.c
-index 95d9aebff2c4..e47a0e461bd2 100644
---- a/fs/btrfs/xattr.c
-+++ b/fs/btrfs/xattr.c
-@@ -352,33 +352,30 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char=
- *buffer, size_t size)
- }
-=20
- static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return btrfs_getxattr(inode, name, buffer, size);
-+	return btrfs_getxattr(args->inode,
-+			      xattr_full_name(handler, args->name),
-+			      args->buffer, args->size);
- }
-=20
- static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *buffer,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
-+	return btrfs_setxattr_trans(args->inode,
-+				    xattr_full_name(handler, args->name),
-+				    args->value, args->size, args->flags);
- }
-=20
- static int btrfs_xattr_handler_set_prop(const struct xattr_handler *hand=
-ler,
--					struct dentry *unused, struct inode *inode,
--					const char *name, const void *value,
--					size_t size, int flags)
-+					struct xattr_gs_args *args)
- {
- 	int ret;
- 	struct btrfs_trans_handle *trans;
--	struct btrfs_root *root =3D BTRFS_I(inode)->root;
-+	struct btrfs_root *root =3D BTRFS_I(args->inode)->root;
-=20
--	name =3D xattr_full_name(handler, name);
--	ret =3D btrfs_validate_prop(name, value, size);
-+	ret =3D btrfs_validate_prop(xattr_full_name(handler, args->name),
-+				  args->value, args->size);
- 	if (ret)
- 		return ret;
-=20
-@@ -386,11 +383,12 @@ static int btrfs_xattr_handler_set_prop(const struc=
-t xattr_handler *handler,
- 	if (IS_ERR(trans))
- 		return PTR_ERR(trans);
-=20
--	ret =3D btrfs_set_prop(trans, inode, name, value, size, flags);
-+	ret =3D btrfs_set_prop(trans, args->inode, args->name,
-+			     args->value, args->size, args->flags);
- 	if (!ret) {
--		inode_inc_iversion(inode);
--		inode->i_ctime =3D current_time(inode);
--		ret =3D btrfs_update_inode(trans, root, inode);
-+		inode_inc_iversion(args->inode);
-+		args->inode->i_ctime =3D current_time(args->inode);
-+		ret =3D btrfs_update_inode(trans, root, args->inode);
- 		BUG_ON(ret);
- 	}
-=20
-diff --git a/fs/ceph/xattr.c b/fs/ceph/xattr.c
-index 37b458a9af3a..71395a8e5ec7 100644
---- a/fs/ceph/xattr.c
-+++ b/fs/ceph/xattr.c
-@@ -1170,22 +1170,21 @@ int __ceph_setxattr(struct inode *inode, const ch=
-ar *name,
- }
-=20
- static int ceph_get_xattr_handler(const struct xattr_handler *handler,
--				  struct dentry *dentry, struct inode *inode,
--				  const char *name, void *value, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	if (!ceph_is_valid_xattr(name))
-+	if (!ceph_is_valid_xattr(args->name))
- 		return -EOPNOTSUPP;
--	return __ceph_getxattr(inode, name, value, size);
-+	return __ceph_getxattr(args->inode, args->name,
-+			       args->buffer, args->size);
- }
-=20
- static int ceph_set_xattr_handler(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, const void *value,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	if (!ceph_is_valid_xattr(name))
-+	if (!ceph_is_valid_xattr(args->name))
- 		return -EOPNOTSUPP;
--	return __ceph_setxattr(inode, name, value, size, flags);
-+	return __ceph_setxattr(args->inode, args->name,
-+			       args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler ceph_other_xattr_handler =3D {
-@@ -1291,25 +1290,22 @@ void ceph_security_invalidate_secctx(struct inode=
- *inode)
- }
-=20
- static int ceph_xattr_set_security_label(const struct xattr_handler *han=
-dler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *key, const void *buf,
--				    size_t buflen, int flags)
-+					 struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key)) {
--		const char *name =3D xattr_full_name(handler, key);
--		return __ceph_setxattr(inode, name, buf, buflen, flags);
--	}
-+	if (security_ismaclabel(args->name))
-+		return __ceph_setxattr(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->value, args->size, args->flags);
- 	return  -EOPNOTSUPP;
- }
-=20
- static int ceph_xattr_get_security_label(const struct xattr_handler *han=
-dler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *key, void *buf, size_t buflen)
-+					 struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key)) {
--		const char *name =3D xattr_full_name(handler, key);
--		return __ceph_getxattr(inode, name, buf, buflen);
--	}
-+	if (security_ismaclabel(args->name))
-+		return __ceph_getxattr(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->buffer, args->size);
- 	return  -EOPNOTSUPP;
- }
-=20
-diff --git a/fs/cifs/xattr.c b/fs/cifs/xattr.c
-index 9076150758d8..2506d12c7e5d 100644
---- a/fs/cifs/xattr.c
-+++ b/fs/cifs/xattr.c
-@@ -48,13 +48,11 @@
- enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT }=
-;
-=20
- static int cifs_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, const void *value,
--			  size_t size, int flags)
-+			  struct xattr_gs_args *args)
- {
- 	int rc =3D -EOPNOTSUPP;
- 	unsigned int xid;
--	struct super_block *sb =3D dentry->d_sb;
-+	struct super_block *sb =3D args->dentry->d_sb;
- 	struct cifs_sb_info *cifs_sb =3D CIFS_SB(sb);
- 	struct tcon_link *tlink;
- 	struct cifs_tcon *pTcon;
-@@ -67,7 +65,7 @@ static int cifs_xattr_set(const struct xattr_handler *h=
-andler,
-=20
- 	xid =3D get_xid();
-=20
--	full_path =3D build_path_from_dentry(dentry);
-+	full_path =3D build_path_from_dentry(args->dentry);
- 	if (full_path =3D=3D NULL) {
- 		rc =3D -ENOMEM;
- 		goto out;
-@@ -78,7 +76,7 @@ static int cifs_xattr_set(const struct xattr_handler *h=
-andler,
- 	/* if proc/fs/cifs/streamstoxattr is set then
- 		search server for EAs or streams to
- 		returns as xattrs */
--	if (size > MAX_EA_VALUE_SIZE) {
-+	if (args->size > MAX_EA_VALUE_SIZE) {
- 		cifs_dbg(FYI, "size of EA value too large\n");
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
-@@ -91,29 +89,30 @@ static int cifs_xattr_set(const struct xattr_handler =
-*handler,
-=20
- 		if (pTcon->ses->server->ops->set_EA)
- 			rc =3D pTcon->ses->server->ops->set_EA(xid, pTcon,
--				full_path, name, value, (__u16)size,
-+				full_path, args->name,
-+				args->value, (__u16)args->size,
- 				cifs_sb->local_nls, cifs_sb);
- 		break;
-=20
- 	case XATTR_CIFS_ACL: {
- 		struct cifs_ntsd *pacl;
-=20
--		if (!value)
-+		if (!args->value)
- 			goto out;
--		pacl =3D kmalloc(size, GFP_KERNEL);
-+		pacl =3D kmalloc(args->size, GFP_KERNEL);
- 		if (!pacl) {
- 			rc =3D -ENOMEM;
- 		} else {
--			memcpy(pacl, value, size);
--			if (value &&
-+			memcpy(pacl, args->value, args->size);
-+			if (args->value &&
- 			    pTcon->ses->server->ops->set_acl)
- 				rc =3D pTcon->ses->server->ops->set_acl(pacl,
--						size, inode,
-+						args->size, args->inode,
- 						full_path, CIFS_ACL_DACL);
- 			else
- 				rc =3D -EOPNOTSUPP;
- 			if (rc =3D=3D 0) /* force revalidate of the inode */
--				CIFS_I(inode)->time =3D 0;
-+				CIFS_I(args->inode)->time =3D 0;
- 			kfree(pacl);
- 		}
- 		break;
-@@ -121,11 +120,11 @@ static int cifs_xattr_set(const struct xattr_handle=
-r *handler,
-=20
- 	case XATTR_ACL_ACCESS:
- #ifdef CONFIG_CIFS_POSIX
--		if (!value)
-+		if (!args->value)
- 			goto out;
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBSetPosixACL(xid, pTcon, full_path,
--				value, (const int)size,
-+				args->value, (const int)args->size,
- 				ACL_TYPE_ACCESS, cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -133,11 +132,11 @@ static int cifs_xattr_set(const struct xattr_handle=
-r *handler,
-=20
- 	case XATTR_ACL_DEFAULT:
- #ifdef CONFIG_CIFS_POSIX
--		if (!value)
-+		if (!args->value)
- 			goto out;
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBSetPosixACL(xid, pTcon, full_path,
--				value, (const int)size,
-+				args->value, (const int)args->size,
- 				ACL_TYPE_DEFAULT, cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -198,12 +197,11 @@ static int cifs_creation_time_get(struct dentry *de=
-ntry, struct inode *inode,
-=20
-=20
- static int cifs_xattr_get(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, void *value, size_t size)
-+			  struct xattr_gs_args *args)
- {
- 	ssize_t rc =3D -EOPNOTSUPP;
- 	unsigned int xid;
--	struct super_block *sb =3D dentry->d_sb;
-+	struct super_block *sb =3D args->dentry->d_sb;
- 	struct cifs_sb_info *cifs_sb =3D CIFS_SB(sb);
- 	struct tcon_link *tlink;
- 	struct cifs_tcon *pTcon;
-@@ -216,7 +214,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
-=20
- 	xid =3D get_xid();
-=20
--	full_path =3D build_path_from_dentry(dentry);
-+	full_path =3D build_path_from_dentry(args->dentry);
- 	if (full_path =3D=3D NULL) {
- 		rc =3D -ENOMEM;
- 		goto out;
-@@ -225,14 +223,17 @@ static int cifs_xattr_get(const struct xattr_handle=
-r *handler,
- 	/* return alt name if available as pseudo attr */
- 	switch (handler->flags) {
- 	case XATTR_USER:
--		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
--		if ((strcmp(name, CIFS_XATTR_ATTRIB) =3D=3D 0) ||
--		    (strcmp(name, SMB3_XATTR_ATTRIB) =3D=3D 0)) {
--			rc =3D cifs_attrib_get(dentry, inode, value, size);
-+		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__,
-+			 args->name);
-+		if ((strcmp(args->name, CIFS_XATTR_ATTRIB) =3D=3D 0) ||
-+		    (strcmp(args->name, SMB3_XATTR_ATTRIB) =3D=3D 0)) {
-+			rc =3D cifs_attrib_get(args->dentry, args->inode,
-+					     args->buffer, args->size);
- 			break;
--		} else if ((strcmp(name, CIFS_XATTR_CREATETIME) =3D=3D 0) ||
--		    (strcmp(name, SMB3_XATTR_CREATETIME) =3D=3D 0)) {
--			rc =3D cifs_creation_time_get(dentry, inode, value, size);
-+		} else if ((strcmp(args->name, CIFS_XATTR_CREATETIME) =3D=3D 0) ||
-+		    (strcmp(args->name, SMB3_XATTR_CREATETIME) =3D=3D 0)) {
-+			rc =3D cifs_creation_time_get(args->dentry, args->inode,
-+						    args->buffer, args->size);
- 			break;
- 		}
-=20
-@@ -241,7 +242,8 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
-=20
- 		if (pTcon->ses->server->ops->query_all_EAs)
- 			rc =3D pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
--				full_path, name, value, size, cifs_sb);
-+				full_path, args->name,
-+				args->buffer, args->size, cifs_sb);
- 		break;
-=20
- 	case XATTR_CIFS_ACL: {
-@@ -252,17 +254,17 @@ static int cifs_xattr_get(const struct xattr_handle=
-r *handler,
- 			goto out; /* rc already EOPNOTSUPP */
-=20
- 		pacl =3D pTcon->ses->server->ops->get_acl(cifs_sb,
--				inode, full_path, &acllen);
-+				args->inode, full_path, &acllen);
- 		if (IS_ERR(pacl)) {
- 			rc =3D PTR_ERR(pacl);
- 			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
- 				 __func__, rc);
- 		} else {
--			if (value) {
--				if (acllen > size)
-+			if (args->buffer) {
-+				if (acllen > args->size)
- 					acllen =3D -ERANGE;
- 				else
--					memcpy(value, pacl, acllen);
-+					memcpy(args->buffer, pacl, acllen);
- 			}
- 			rc =3D acllen;
- 			kfree(pacl);
-@@ -274,7 +276,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
- #ifdef CONFIG_CIFS_POSIX
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBGetPosixACL(xid, pTcon, full_path,
--				value, size, ACL_TYPE_ACCESS,
-+				args->buffer, args->size, ACL_TYPE_ACCESS,
- 				cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-@@ -284,7 +286,7 @@ static int cifs_xattr_get(const struct xattr_handler =
-*handler,
- #ifdef CONFIG_CIFS_POSIX
- 		if (sb->s_flags & SB_POSIXACL)
- 			rc =3D CIFSSMBGetPosixACL(xid, pTcon, full_path,
--				value, size, ACL_TYPE_DEFAULT,
-+				args->buffer, args->size, ACL_TYPE_DEFAULT,
- 				cifs_sb->local_nls,
- 				cifs_remap(cifs_sb));
- #endif  /* CONFIG_CIFS_POSIX */
-diff --git a/fs/ecryptfs/crypto.c b/fs/ecryptfs/crypto.c
-index f91db24bbf3b..ebf12f43a6cc 100644
---- a/fs/ecryptfs/crypto.c
-+++ b/fs/ecryptfs/crypto.c
-@@ -1114,20 +1114,24 @@ ecryptfs_write_metadata_to_xattr(struct dentry *e=
-cryptfs_dentry,
- 				 char *page_virt, size_t size)
- {
- 	int rc;
--	struct dentry *lower_dentry =3D ecryptfs_dentry_to_lower(ecryptfs_dentr=
-y);
--	struct inode *lower_inode =3D d_inode(lower_dentry);
-+	struct xattr_gs_args lower =3D {};
-=20
--	if (!(lower_inode->i_opflags & IOP_XATTR)) {
-+	lower.dentry =3D ecryptfs_dentry_to_lower(ecryptfs_dentry);
-+	lower.inode =3D d_inode(lower.dentry);
-+
-+	if (!(lower.inode->i_opflags & IOP_XATTR)) {
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
- 	}
-=20
--	inode_lock(lower_inode);
--	rc =3D __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			    page_virt, size, 0);
-+	lower.name =3D ECRYPTFS_XATTR_NAME;
-+	lower.value =3D page_virt;
-+	lower.size =3D size;
-+	inode_lock(lower.inode);
-+	rc =3D __vfs_setxattr(&args);
- 	if (!rc && ecryptfs_inode)
--		fsstack_copy_attr_all(ecryptfs_inode, lower_inode);
--	inode_unlock(lower_inode);
-+		fsstack_copy_attr_all(ecryptfs_inode, lower.inode);
-+	inode_unlock(lower.inode);
- out:
- 	return rc;
- }
-diff --git a/fs/ecryptfs/inode.c b/fs/ecryptfs/inode.c
-index 18426f4855f1..fc4435847a45 100644
---- a/fs/ecryptfs/inode.c
-+++ b/fs/ecryptfs/inode.c
-@@ -1009,16 +1009,24 @@ ecryptfs_setxattr(struct dentry *dentry, struct i=
-node *inode,
-=20
- ssize_t
- ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower=
-_inode,
--			const char *name, void *value, size_t size)
-+			const char *name, void *buffer, size_t size)
- {
- 	int rc;
-+	struct xattr_gs_args args;
-=20
- 	if (!(lower_inode->i_opflags & IOP_XATTR)) {
- 		rc =3D -EOPNOTSUPP;
- 		goto out;
- 	}
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D lower_dentry;
-+	args.inode =3D lower_inode;
-+	args.name =3D name;
-+	args.buffer =3D buffer;
-+	args.size =3D size;
-+	args.flags =3D XATTR_NOSECURITY;
- 	inode_lock(lower_inode);
--	rc =3D __vfs_getxattr(lower_dentry, lower_inode, name, value, size);
-+	rc =3D __vfs_getxattr(&args);
- 	inode_unlock(lower_inode);
- out:
- 	return rc;
-@@ -1102,23 +1110,23 @@ const struct inode_operations ecryptfs_main_iops =
-=3D {
- };
-=20
- static int ecryptfs_xattr_get(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, void *buffer, size_t size)
-+			      struct xattr_gs_args *args)
- {
--	return ecryptfs_getxattr(dentry, inode, name, buffer, size);
-+	return ecryptfs_getxattr(args->dentry, args->inode, args->name,
-+				 args->buffer, args->size);
- }
-=20
- static int ecryptfs_xattr_set(const struct xattr_handler *handler,
--			      struct dentry *dentry, struct inode *inode,
--			      const char *name, const void *value, size_t size,
--			      int flags)
-+			      struct xattr_gs_args *args)
- {
--	if (value)
--		return ecryptfs_setxattr(dentry, inode, name, value, size, flags);
--	else {
--		BUG_ON(flags !=3D XATTR_REPLACE);
--		return ecryptfs_removexattr(dentry, inode, name);
--	}
-+	if (args->value)
-+		return ecryptfs_setxattr(args->dentry, args->inode, args->name,
-+					 args->value, args->size, args->flags);
-+	else if (args->flags !=3D XATTR_REPLACE)
-+		return -EINVAL;
-+	else
-+		return ecryptfs_removexattr(args->dentry, args->inode,
-+					    args->name);
- }
-=20
- static const struct xattr_handler ecryptfs_xattr_handler =3D {
-diff --git a/fs/ecryptfs/mmap.c b/fs/ecryptfs/mmap.c
-index cffa0c1ec829..90dc0354ec5e 100644
---- a/fs/ecryptfs/mmap.c
-+++ b/fs/ecryptfs/mmap.c
-@@ -402,37 +402,40 @@ struct kmem_cache *ecryptfs_xattr_cache;
-=20
- static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_ino=
-de)
- {
--	ssize_t size;
--	void *xattr_virt;
--	struct dentry *lower_dentry =3D
--		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
--	struct inode *lower_inode =3D d_inode(lower_dentry);
-+	struct xattr_gs_args args;
- 	int rc;
-=20
--	if (!(lower_inode->i_opflags & IOP_XATTR)) {
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D ecryptfs_inode_to_private(ecryptfs_inode)->
-+		lower_file->f_path.dentry;
-+	args.inode =3D d_inode(args.dentry);
-+	if (!(args.inode->i_opflags & IOP_XATTR)) {
- 		printk(KERN_WARNING
- 		       "No support for setting xattr in lower filesystem\n");
- 		rc =3D -ENOSYS;
- 		goto out;
- 	}
--	xattr_virt =3D kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
--	if (!xattr_virt) {
-+	args.buffer =3D kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
-+	if (!args.buffer) {
- 		rc =3D -ENOMEM;
- 		goto out;
- 	}
--	inode_lock(lower_inode);
--	size =3D __vfs_getxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			      xattr_virt, PAGE_SIZE);
--	if (size < 0)
--		size =3D 8;
--	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
--	rc =3D __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
--			    xattr_virt, size, 0);
--	inode_unlock(lower_inode);
-+	args.name =3D ECRYPTFS_XATTR_NAME;
-+	args.size =3D PAGE_SIZE;
-+	args.flags =3D XATTR_NOSECURITY;
-+	inode_lock(args.inode);
-+	args.size =3D __vfs_getxattr(&args);
-+	if (args.size < 0)
-+		args.size =3D 8;
-+	put_unaligned_be64(i_size_read(ecryptfs_inode), args.buffer);
-+	args.flags =3D 0;
-+	args.value =3D args.buffer;
-+	rc =3D __vfs_setxattr(&args);
-+	inode_unlock(args.inode);
- 	if (rc)
- 		printk(KERN_ERR "Error whilst attempting to write inode size "
- 		       "to lower file xattr; rc =3D [%d]\n", rc);
--	kmem_cache_free(ecryptfs_xattr_cache, xattr_virt);
-+	kmem_cache_free(ecryptfs_xattr_cache, args.buffer);
- out:
- 	return rc;
- }
-diff --git a/fs/ext2/xattr_security.c b/fs/ext2/xattr_security.c
-index 9a682e440acb..d651d4a7c9ca 100644
---- a/fs/ext2/xattr_security.c
-+++ b/fs/ext2/xattr_security.c
-@@ -10,21 +10,19 @@
-=20
- static int
- ext2_xattr_security_get(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_SECURITY, name,
--			      buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_SECURITY,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_security_set(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY, name,
--			      value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_SECURITY,
-+			      args->name, args->value, args->size,
-+			      args->flags);
- }
-=20
- static int ext2_initxattrs(struct inode *inode, const struct xattr *xatt=
-r_array,
-diff --git a/fs/ext2/xattr_trusted.c b/fs/ext2/xattr_trusted.c
-index 49add1107850..41390dd0386a 100644
---- a/fs/ext2/xattr_trusted.c
-+++ b/fs/ext2/xattr_trusted.c
-@@ -17,21 +17,18 @@ ext2_xattr_trusted_list(struct dentry *dentry)
-=20
- static int
- ext2_xattr_trusted_get(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, void *buffer, size_t size)
-+		       struct xattr_gs_args *args)
- {
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_TRUSTED, name,
--			      buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_TRUSTED, args->name=
-,
-+			      args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_trusted_set(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, const void *value,
--		       size_t size, int flags)
-+		       struct xattr_gs_args *args)
- {
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_TRUSTED, name,
--			      value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_TRUSTED, args->name=
-,
-+			      args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext2_xattr_trusted_handler =3D {
-diff --git a/fs/ext2/xattr_user.c b/fs/ext2/xattr_user.c
-index c243a3b4d69d..1ef881890dde 100644
---- a/fs/ext2/xattr_user.c
-+++ b/fs/ext2/xattr_user.c
-@@ -19,26 +19,23 @@ ext2_xattr_user_list(struct dentry *dentry)
-=20
- static int
- ext2_xattr_user_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *buffer, size_t size)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_USER,
--			      name, buffer, size);
-+	return ext2_xattr_get(args->inode, EXT2_XATTR_INDEX_USER, args->name,
-+			      args->buffer, args->size);
- }
-=20
- static int
- ext2_xattr_user_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
-=20
--	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_USER,
--			      name, value, size, flags);
-+	return ext2_xattr_set(args->inode, EXT2_XATTR_INDEX_USER, args->name,
-+			      args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext2_xattr_user_handler =3D {
-diff --git a/fs/ext4/xattr_security.c b/fs/ext4/xattr_security.c
-index 197a9d8a15ef..71ed703e01fe 100644
---- a/fs/ext4/xattr_security.c
-+++ b/fs/ext4/xattr_security.c
-@@ -14,21 +14,18 @@
-=20
- static int
- ext4_xattr_security_get(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_SECURITY,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_SECURITY,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_security_set(const struct xattr_handler *handler,
--			struct dentry *unused, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_SECURITY,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_SECURITY,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- static int
-diff --git a/fs/ext4/xattr_trusted.c b/fs/ext4/xattr_trusted.c
-index e9389e5d75c3..ed347a978102 100644
---- a/fs/ext4/xattr_trusted.c
-+++ b/fs/ext4/xattr_trusted.c
-@@ -21,21 +21,18 @@ ext4_xattr_trusted_list(struct dentry *dentry)
-=20
- static int
- ext4_xattr_trusted_get(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, void *buffer, size_t size)
-+		       struct xattr_gs_args *args)
- {
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_TRUSTED,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_trusted_set(const struct xattr_handler *handler,
--		       struct dentry *unused, struct inode *inode,
--		       const char *name, const void *value,
--		       size_t size, int flags)
-+		       struct xattr_gs_args *args)
- {
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_TRUSTED,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_TRUSTED,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext4_xattr_trusted_handler =3D {
-diff --git a/fs/ext4/xattr_user.c b/fs/ext4/xattr_user.c
-index d4546184b34b..86e9f5a9284d 100644
---- a/fs/ext4/xattr_user.c
-+++ b/fs/ext4/xattr_user.c
-@@ -20,25 +20,22 @@ ext4_xattr_user_list(struct dentry *dentry)
-=20
- static int
- ext4_xattr_user_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *buffer, size_t size)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_USER,
--			      name, buffer, size);
-+	return ext4_xattr_get(args->inode, EXT4_XATTR_INDEX_USER,
-+			      args->name, args->buffer, args->size);
- }
-=20
- static int
- ext4_xattr_user_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
--	if (!test_opt(inode->i_sb, XATTR_USER))
-+	if (!test_opt(args->inode->i_sb, XATTR_USER))
- 		return -EOPNOTSUPP;
--	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_USER,
--			      name, value, size, flags);
-+	return ext4_xattr_set(args->inode, EXT4_XATTR_INDEX_USER,
-+			      args->name, args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler ext4_xattr_user_handler =3D {
-diff --git a/fs/f2fs/xattr.c b/fs/f2fs/xattr.c
-index b32c45621679..4fd47b84616f 100644
---- a/fs/f2fs/xattr.c
-+++ b/fs/f2fs/xattr.c
-@@ -23,10 +23,9 @@
- #include "xattr.h"
-=20
- static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	struct f2fs_sb_info *sbi =3D F2FS_SB(inode->i_sb);
-+	struct f2fs_sb_info *sbi =3D F2FS_SB(args->inode->i_sb);
-=20
- 	switch (handler->flags) {
- 	case F2FS_XATTR_INDEX_USER:
-@@ -39,16 +38,14 @@ static int f2fs_xattr_generic_get(const struct xattr_=
-handler *handler,
- 	default:
- 		return -EINVAL;
- 	}
--	return f2fs_getxattr(inode, handler->flags, name,
--			     buffer, size, NULL);
-+	return f2fs_getxattr(args->inode, handler->flags, args->name,
-+			     args->buffer, args->size, NULL);
- }
-=20
- static int f2fs_xattr_generic_set(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, const void *value,
--		size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	struct f2fs_sb_info *sbi =3D F2FS_SB(inode->i_sb);
-+	struct f2fs_sb_info *sbi =3D F2FS_SB(args->inode->i_sb);
-=20
- 	switch (handler->flags) {
- 	case F2FS_XATTR_INDEX_USER:
-@@ -61,8 +58,8 @@ static int f2fs_xattr_generic_set(const struct xattr_ha=
-ndler *handler,
- 	default:
- 		return -EINVAL;
- 	}
--	return f2fs_setxattr(inode, handler->flags, name,
--					value, size, NULL, flags);
-+	return f2fs_setxattr(args->inode, handler->flags, args->name,
-+			     args->value, args->size, NULL, args->flags);
- }
-=20
- static bool f2fs_xattr_user_list(struct dentry *dentry)
-@@ -78,36 +75,33 @@ static bool f2fs_xattr_trusted_list(struct dentry *de=
-ntry)
- }
-=20
- static int f2fs_xattr_advise_get(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, void *buffer, size_t size)
-+				 struct xattr_gs_args *args)
- {
--	if (buffer)
--		*((char *)buffer) =3D F2FS_I(inode)->i_advise;
-+	if (args->buffer)
-+		*((char *)args->buffer) =3D F2FS_I(args->inode)->i_advise;
- 	return sizeof(char);
- }
-=20
- static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
--		struct dentry *unused, struct inode *inode,
--		const char *name, const void *value,
--		size_t size, int flags)
-+				 struct xattr_gs_args *args)
- {
--	unsigned char old_advise =3D F2FS_I(inode)->i_advise;
-+	unsigned char old_advise =3D F2FS_I(args->inode)->i_advise;
- 	unsigned char new_advise;
-=20
--	if (!inode_owner_or_capable(inode))
-+	if (!inode_owner_or_capable(args->inode))
- 		return -EPERM;
--	if (value =3D=3D NULL)
-+	if (args->value =3D=3D NULL)
- 		return -EINVAL;
-=20
--	new_advise =3D *(char *)value;
-+	new_advise =3D *(char *)args->value;
- 	if (new_advise & ~FADVISE_MODIFIABLE_BITS)
- 		return -EINVAL;
-=20
- 	new_advise =3D new_advise & FADVISE_MODIFIABLE_BITS;
- 	new_advise |=3D old_advise & ~FADVISE_MODIFIABLE_BITS;
-=20
--	F2FS_I(inode)->i_advise =3D new_advise;
--	f2fs_mark_inode_dirty_sync(inode, true);
-+	F2FS_I(args->inode)->i_advise =3D new_advise;
-+	f2fs_mark_inode_dirty_sync(args->inode, true);
- 	return 0;
- }
-=20
-diff --git a/fs/fuse/xattr.c b/fs/fuse/xattr.c
-index 433717640f78..8b8fb719d498 100644
---- a/fs/fuse/xattr.c
-+++ b/fs/fuse/xattr.c
-@@ -175,21 +175,19 @@ int fuse_removexattr(struct inode *inode, const cha=
-r *name)
- }
-=20
- static int fuse_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *dentry, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			  struct xattr_gs_args *args)
- {
--	return fuse_getxattr(inode, name, value, size);
-+	return fuse_getxattr(args->inode, args->name, args->buffer, args->size)=
-;
- }
-=20
- static int fuse_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *dentry, struct inode *inode,
--			  const char *name, const void *value, size_t size,
--			  int flags)
-+			  struct xattr_gs_args *args)
- {
--	if (!value)
--		return fuse_removexattr(inode, name);
-+	if (!args->value)
-+		return fuse_removexattr(args->inode, args->name);
-=20
--	return fuse_setxattr(inode, name, value, size, flags);
-+	return fuse_setxattr(args->inode, args->name,
-+			     args->value, args->size, args->flags);
- }
-=20
- static bool no_xattr_list(struct dentry *dentry)
-@@ -198,16 +196,13 @@ static bool no_xattr_list(struct dentry *dentry)
- }
-=20
- static int no_xattr_get(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, void *value, size_t size)
-+			struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int no_xattr_set(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *nodee,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-diff --git a/fs/gfs2/xattr.c b/fs/gfs2/xattr.c
-index bbe593d16bea..bf8e1bd17a29 100644
---- a/fs/gfs2/xattr.c
-+++ b/fs/gfs2/xattr.c
-@@ -587,10 +587,9 @@ static int __gfs2_xattr_get(struct inode *inode, con=
-st char *name,
- }
-=20
- static int gfs2_xattr_get(const struct xattr_handler *handler,
--			  struct dentry *unused, struct inode *inode,
--			  const char *name, void *buffer, size_t size)
-+			  struct xattr_gs_args *args)
- {
--	struct gfs2_inode *ip =3D GFS2_I(inode);
-+	struct gfs2_inode *ip =3D GFS2_I(args->inode);
- 	struct gfs2_holder gh;
- 	int ret;
-=20
-@@ -603,7 +602,8 @@ static int gfs2_xattr_get(const struct xattr_handler =
-*handler,
- 	} else {
- 		gfs2_holder_mark_uninitialized(&gh);
- 	}
--	ret =3D __gfs2_xattr_get(inode, name, buffer, size, handler->flags);
-+	ret =3D __gfs2_xattr_get(args->inode, args->name,
-+			       args->buffer, args->size, handler->flags);
- 	if (gfs2_holder_initialized(&gh))
- 		gfs2_glock_dq_uninit(&gh);
- 	return ret;
-@@ -1214,11 +1214,9 @@ int __gfs2_xattr_set(struct inode *inode, const ch=
-ar *name,
- }
-=20
- static int gfs2_xattr_set(const struct xattr_handler *handler,
--			  struct dentry *unused, struct inode *inode,
--			  const char *name, const void *value,
--			  size_t size, int flags)
-+			  struct xattr_gs_args *args)
- {
--	struct gfs2_inode *ip =3D GFS2_I(inode);
-+	struct gfs2_inode *ip =3D GFS2_I(args->inode);
- 	struct gfs2_holder gh;
- 	int ret;
-=20
-@@ -1237,7 +1235,9 @@ static int gfs2_xattr_set(const struct xattr_handle=
-r *handler,
- 			return -EIO;
- 		gfs2_holder_mark_uninitialized(&gh);
- 	}
--	ret =3D __gfs2_xattr_set(inode, name, value, size, flags, handler->flag=
-s);
-+	ret =3D __gfs2_xattr_set(args->inode, args->name,
-+			       args->value, args->size,
-+			       args->flags, handler->flags);
- 	if (gfs2_holder_initialized(&gh))
- 		gfs2_glock_dq_uninit(&gh);
- 	return ret;
-diff --git a/fs/hfs/attr.c b/fs/hfs/attr.c
-index 74fa62643136..b3355368dc58 100644
---- a/fs/hfs/attr.c
-+++ b/fs/hfs/attr.c
-@@ -114,21 +114,20 @@ static ssize_t __hfs_getxattr(struct inode *inode, =
-enum hfs_xattr_type type,
- }
-=20
- static int hfs_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			 struct xattr_gs_args *args)
- {
--	return __hfs_getxattr(inode, handler->flags, value, size);
-+	return __hfs_getxattr(args->inode, handler->flags,
-+			      args->buffer, args->size);
- }
-=20
- static int hfs_xattr_set(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, const void *value, size_t size,
--			 int flags)
-+			 struct xattr_gs_args *args)
- {
--	if (!value)
-+	if (!args->value)
- 		return -EOPNOTSUPP;
-=20
--	return __hfs_setxattr(inode, handler->flags, value, size, flags);
-+	return __hfs_setxattr(args->inode, handler->flags,
-+			      args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler hfs_creator_handler =3D {
-diff --git a/fs/hfsplus/xattr.c b/fs/hfsplus/xattr.c
-index bb0b27d88e50..b6cc7f18bce8 100644
---- a/fs/hfsplus/xattr.c
-+++ b/fs/hfsplus/xattr.c
-@@ -838,14 +838,13 @@ static int hfsplus_removexattr(struct inode *inode,=
- const char *name)
- }
-=20
- static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, void *buffer, size_t size)
-+				struct xattr_gs_args *args)
- {
- 	/*
- 	 * Don't allow retrieving properly prefixed attributes
- 	 * by prepending them with "osx."
- 	 */
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
-=20
- 	/*
-@@ -854,19 +853,18 @@ static int hfsplus_osx_getxattr(const struct xattr_=
-handler *handler,
- 	 * creates), so we pass the name through unmodified (after
- 	 * ensuring it doesn't conflict with another namespace).
- 	 */
--	return __hfsplus_getxattr(inode, name, buffer, size);
-+	return __hfsplus_getxattr(args->inode, args->name,
-+				  args->buffer, args->size);
- }
-=20
- static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, const void *buffer,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
- 	/*
- 	 * Don't allow setting properly prefixed attributes
- 	 * by prepending them with "osx."
- 	 */
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
-=20
- 	/*
-@@ -875,7 +873,8 @@ static int hfsplus_osx_setxattr(const struct xattr_ha=
-ndler *handler,
- 	 * creates), so we pass the name through unmodified (after
- 	 * ensuring it doesn't conflict with another namespace).
- 	 */
--	return __hfsplus_setxattr(inode, name, buffer, size, flags);
-+	return __hfsplus_setxattr(args->inode, args->name,
-+				  args->value, args->size, args->flags);
- }
-=20
- const struct xattr_handler hfsplus_xattr_osx_handler =3D {
-diff --git a/fs/hfsplus/xattr_security.c b/fs/hfsplus/xattr_security.c
-index cfbe6a3bfb1e..8a8185eca12e 100644
---- a/fs/hfsplus/xattr_security.c
-+++ b/fs/hfsplus/xattr_security.c
-@@ -14,20 +14,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_security_getxattr(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *name, void *buffer, size_t size)
-+				     struct xattr_gs_args *args)
- {
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN);
- }
-=20
- static int hfsplus_security_setxattr(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *name, const void *buffer,
--				     size_t size, int flags)
-+				     struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->value, args->size, args->flags,
- 				XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN);
- }
-diff --git a/fs/hfsplus/xattr_trusted.c b/fs/hfsplus/xattr_trusted.c
-index fbad91e1dada..a682a2e363e7 100644
---- a/fs/hfsplus/xattr_trusted.c
-+++ b/fs/hfsplus/xattr_trusted.c
-@@ -13,20 +13,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_trusted_getxattr(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, void *buffer, size_t size)
-+				    struct xattr_gs_args *args)
- {
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_TRUSTED_PREFIX,
- 				XATTR_TRUSTED_PREFIX_LEN);
- }
-=20
- static int hfsplus_trusted_setxattr(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, const void *buffer,
--				    size_t size, int flags)
-+				    struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->buffer, args->size, args->flags,
- 				XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
- }
-=20
-diff --git a/fs/hfsplus/xattr_user.c b/fs/hfsplus/xattr_user.c
-index 74d19faf255e..9b58d7ec263d 100644
---- a/fs/hfsplus/xattr_user.c
-+++ b/fs/hfsplus/xattr_user.c
-@@ -13,20 +13,19 @@
- #include "xattr.h"
-=20
- static int hfsplus_user_getxattr(const struct xattr_handler *handler,
--				 struct dentry *unused, struct inode *inode,
--				 const char *name, void *buffer, size_t size)
-+				 struct xattr_gs_args *args)
- {
-=20
--	return hfsplus_getxattr(inode, name, buffer, size,
-+	return hfsplus_getxattr(args->inode, args->name,
-+				args->buffer, args->size,
- 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
- }
-=20
- static int hfsplus_user_setxattr(const struct xattr_handler *handler,
--				 struct dentry *unused, struct inode *inode,
--				 const char *name, const void *buffer,
--				 size_t size, int flags)
-+				 struct xattr_gs_args *args)
- {
--	return hfsplus_setxattr(inode, name, buffer, size, flags,
-+	return hfsplus_setxattr(args->inode, args->name,
-+				args->value, args->size, args->flags,
- 				XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
- }
-=20
-diff --git a/fs/jffs2/security.c b/fs/jffs2/security.c
-index c2332e30f218..6aa552db3807 100644
---- a/fs/jffs2/security.c
-+++ b/fs/jffs2/security.c
-@@ -49,20 +49,18 @@ int jffs2_init_security(struct inode *inode, struct i=
-node *dir,
-=20
- /* ---- XATTR Handler for "security.*" ----------------- */
- static int jffs2_security_getxattr(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_SECURITY,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_SECURITY,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_security_setxattr(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *buffer,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_SECURITY,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_SECURITY,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- const struct xattr_handler jffs2_security_xattr_handler =3D {
-diff --git a/fs/jffs2/xattr_trusted.c b/fs/jffs2/xattr_trusted.c
-index 5d6030826c52..5d235175d6fd 100644
---- a/fs/jffs2/xattr_trusted.c
-+++ b/fs/jffs2/xattr_trusted.c
-@@ -17,20 +17,18 @@
- #include "nodelist.h"
-=20
- static int jffs2_trusted_getxattr(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, void *buffer, size_t size)
-+				  struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_TRUSTED,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_trusted_setxattr(const struct xattr_handler *handler,
--				  struct dentry *unused, struct inode *inode,
--				  const char *name, const void *buffer,
--				  size_t size, int flags)
-+				  struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_TRUSTED,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_TRUSTED,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- static bool jffs2_trusted_listxattr(struct dentry *dentry)
-diff --git a/fs/jffs2/xattr_user.c b/fs/jffs2/xattr_user.c
-index 9d027b4abcf9..a35a0785e72b 100644
---- a/fs/jffs2/xattr_user.c
-+++ b/fs/jffs2/xattr_user.c
-@@ -17,20 +17,18 @@
- #include "nodelist.h"
-=20
- static int jffs2_user_getxattr(const struct xattr_handler *handler,
--			       struct dentry *unused, struct inode *inode,
--			       const char *name, void *buffer, size_t size)
-+			       struct xattr_gs_args *args)
- {
--	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_USER,
--				 name, buffer, size);
-+	return do_jffs2_getxattr(args->inode, JFFS2_XPREFIX_USER,
-+				 args->name, args->buffer, args->size);
- }
-=20
- static int jffs2_user_setxattr(const struct xattr_handler *handler,
--			       struct dentry *unused, struct inode *inode,
--			       const char *name, const void *buffer,
--			       size_t size, int flags)
-+			       struct xattr_gs_args *args)
- {
--	return do_jffs2_setxattr(inode, JFFS2_XPREFIX_USER,
--				 name, buffer, size, flags);
-+	return do_jffs2_setxattr(args->inode, JFFS2_XPREFIX_USER,
-+				 args->name, args->value, args->size,
-+				 args->flags);
- }
-=20
- const struct xattr_handler jffs2_user_xattr_handler =3D {
-diff --git a/fs/jfs/xattr.c b/fs/jfs/xattr.c
-index db41e7803163..225fc440ff62 100644
---- a/fs/jfs/xattr.c
-+++ b/fs/jfs/xattr.c
-@@ -924,39 +924,36 @@ static int __jfs_xattr_set(struct inode *inode, con=
-st char *name,
- }
-=20
- static int jfs_xattr_get(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, void *value, size_t size)
-+			 struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return __jfs_getxattr(inode, name, value, size);
-+	return __jfs_getxattr(args->inode, xattr_full_name(handler, args->name)=
-,
-+			      args->buffer, args->size);
- }
-=20
- static int jfs_xattr_set(const struct xattr_handler *handler,
--			 struct dentry *unused, struct inode *inode,
--			 const char *name, const void *value,
--			 size_t size, int flags)
-+			 struct xattr_gs_args *args)
- {
--	name =3D xattr_full_name(handler, name);
--	return __jfs_xattr_set(inode, name, value, size, flags);
-+	return __jfs_xattr_set(args->inode,
-+			       xattr_full_name(handler, args->name),
-+			       args->value, args->size, args->flags);
- }
-=20
- static int jfs_xattr_get_os2(const struct xattr_handler *handler,
--			     struct dentry *unused, struct inode *inode,
--			     const char *name, void *value, size_t size)
-+			     struct xattr_gs_args *args)
- {
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
--	return __jfs_getxattr(inode, name, value, size);
-+	return __jfs_getxattr(args->inode, args->name,
-+			      args->buffer, args->size);
- }
-=20
- static int jfs_xattr_set_os2(const struct xattr_handler *handler,
--			     struct dentry *unused, struct inode *inode,
--			     const char *name, const void *value,
--			     size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
--	if (is_known_namespace(name))
-+	if (is_known_namespace(args->name))
- 		return -EOPNOTSUPP;
--	return __jfs_xattr_set(inode, name, value, size, flags);
-+	return __jfs_xattr_set(args->inode, args->name,
-+			       args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler jfs_user_xattr_handler =3D {
-diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
-index f3f3984cce80..1ae646a0b20b 100644
---- a/fs/kernfs/inode.c
-+++ b/fs/kernfs/inode.c
-@@ -288,13 +288,13 @@ int kernfs_iop_permission(struct inode *inode, int =
-mask)
- }
-=20
- int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
--		     void *value, size_t size)
-+		     void *buffer, size_t size)
- {
- 	struct kernfs_iattrs *attrs =3D kernfs_iattrs_noalloc(kn);
- 	if (!attrs)
- 		return -ENODATA;
-=20
--	return simple_xattr_get(&attrs->xattrs, name, value, size);
-+	return simple_xattr_get(&attrs->xattrs, name, buffer, size);
- }
-=20
- int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
-@@ -308,24 +308,21 @@ int kernfs_xattr_set(struct kernfs_node *kn, const =
-char *name,
- }
-=20
- static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *suffix, void *value, size_t size)
-+				struct xattr_gs_args *args)
- {
--	const char *name =3D xattr_full_name(handler, suffix);
--	struct kernfs_node *kn =3D inode->i_private;
-+	struct kernfs_node *kn =3D args->inode->i_private;
-=20
--	return kernfs_xattr_get(kn, name, value, size);
-+	return kernfs_xattr_get(kn, xattr_full_name(handler, args->name),
-+				args->buffer, args->size);
- }
-=20
- static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *suffix, const void *value,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
--	const char *name =3D xattr_full_name(handler, suffix);
--	struct kernfs_node *kn =3D inode->i_private;
-+	struct kernfs_node *kn =3D args->inode->i_private;
-=20
--	return kernfs_xattr_set(kn, name, value, size, flags);
-+	return kernfs_xattr_set(kn, xattr_full_name(handler, args->name),
-+				args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler kernfs_trusted_xattr_handler =3D {
-diff --git a/fs/nfs/nfs4proc.c b/fs/nfs/nfs4proc.c
-index 1406858bae6c..1f0388440ec9 100644
---- a/fs/nfs/nfs4proc.c
-+++ b/fs/nfs/nfs4proc.c
-@@ -7209,18 +7209,15 @@ nfs4_release_lockowner(struct nfs_server *server,=
- struct nfs4_lock_state *lsp)
- #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
-=20
- static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *key, const void *buf,
--				   size_t buflen, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return nfs4_proc_set_acl(inode, buf, buflen);
-+	return nfs4_proc_set_acl(args->inode, args->value, args->size);
- }
-=20
- static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *key, void *buf, size_t buflen)
-+				   struct xattr_gs_args *args)
- {
--	return nfs4_proc_get_acl(inode, buf, buflen);
-+	return nfs4_proc_get_acl(args->inode, args->buffer, args->size);
- }
-=20
- static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
-@@ -7231,22 +7228,21 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentr=
-y *dentry)
- #ifdef CONFIG_NFS_V4_SECURITY_LABEL
-=20
- static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *key, const void *buf,
--				     size_t buflen, int flags)
-+				     struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key))
--		return nfs4_set_security_label(inode, buf, buflen);
-+	if (security_ismaclabel(args->name))
-+		return nfs4_set_security_label(args->inode,
-+					       args->value, args->size);
-=20
- 	return -EOPNOTSUPP;
- }
-=20
- static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler=
-,
--				     struct dentry *unused, struct inode *inode,
--				     const char *key, void *buf, size_t buflen)
-+				     struct xattr_gs_args *args)
- {
--	if (security_ismaclabel(key))
--		return nfs4_get_security_label(inode, buf, buflen);
-+	if (security_ismaclabel(args->name))
-+		return nfs4_get_security_label(args->inode,
-+					       args->buffer, args->size);
- 	return -EOPNOTSUPP;
- }
-=20
-diff --git a/fs/ocfs2/xattr.c b/fs/ocfs2/xattr.c
-index 90c830e3758e..25ac1557e303 100644
---- a/fs/ocfs2/xattr.c
-+++ b/fs/ocfs2/xattr.c
-@@ -7241,20 +7241,18 @@ int ocfs2_init_security_and_acl(struct inode *dir=
-,
-  * 'security' attributes support
-  */
- static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, void *buffer, size_t size)
-+				    struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_SECURITY,
--			       name, buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_SECURITY,
-+			       args->name, args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_security_set(const struct xattr_handler *handler,
--				    struct dentry *unused, struct inode *inode,
--				    const char *name, const void *value,
--				    size_t size, int flags)
-+				    struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_SECURITY,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_SECURITY,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xat=
-tr_array,
-@@ -7313,20 +7311,18 @@ const struct xattr_handler ocfs2_xattr_security_h=
-andler =3D {
-  * 'trusted' attributes support
-  */
- static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_TRUSTED,
--			       name, buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
-+			       args->name, args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_trusted_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *value,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_TRUSTED,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_TRUSTED,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- const struct xattr_handler ocfs2_xattr_trusted_handler =3D {
-@@ -7339,29 +7335,27 @@ const struct xattr_handler ocfs2_xattr_trusted_ha=
-ndler =3D {
-  * 'user' attributes support
-  */
- static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, void *buffer, size_t size)
-+				struct xattr_gs_args *args)
- {
--	struct ocfs2_super *osb =3D OCFS2_SB(inode->i_sb);
-+	struct ocfs2_super *osb =3D OCFS2_SB(args->inode->i_sb);
-=20
- 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
- 		return -EOPNOTSUPP;
--	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_USER, name,
--			       buffer, size);
-+	return ocfs2_xattr_get(args->inode, OCFS2_XATTR_INDEX_USER, args->name,
-+			       args->buffer, args->size);
- }
-=20
- static int ocfs2_xattr_user_set(const struct xattr_handler *handler,
--				struct dentry *unused, struct inode *inode,
--				const char *name, const void *value,
--				size_t size, int flags)
-+				struct xattr_gs_args *args)
- {
--	struct ocfs2_super *osb =3D OCFS2_SB(inode->i_sb);
-+	struct ocfs2_super *osb =3D OCFS2_SB(args->inode->i_sb);
-=20
- 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
- 		return -EOPNOTSUPP;
-=20
--	return ocfs2_xattr_set(inode, OCFS2_XATTR_INDEX_USER,
--			       name, value, size, flags);
-+	return ocfs2_xattr_set(args->inode, OCFS2_XATTR_INDEX_USER,
-+			       args->name, args->value, args->size,
-+			       args->flags);
- }
-=20
- const struct xattr_handler ocfs2_xattr_user_handler =3D {
-diff --git a/fs/orangefs/xattr.c b/fs/orangefs/xattr.c
-index bdc285aea360..d222922af141 100644
---- a/fs/orangefs/xattr.c
-+++ b/fs/orangefs/xattr.c
-@@ -526,24 +526,17 @@ ssize_t orangefs_listxattr(struct dentry *dentry, c=
-har *buffer, size_t size)
- }
-=20
- static int orangefs_xattr_set_default(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      const void *buffer,
--				      size_t size,
--				      int flags)
-+				      struct xattr_gs_args *args)
- {
--	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
-+	return orangefs_inode_setxattr(args->inode, args->name,
-+				       args->value, args->size, args->flags);
- }
-=20
- static int orangefs_xattr_get_default(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      void *buffer,
--				      size_t size)
-+				      struct xattr_gs_args *args)
- {
--	return orangefs_inode_getxattr(inode, name, buffer, size);
-+	return orangefs_inode_getxattr(args->inode, args->name,
-+				       args->buffer, args->size);
-=20
- }
-=20
-diff --git a/fs/overlayfs/inode.c b/fs/overlayfs/inode.c
-index 7663aeb85fa3..a14d450b8564 100644
---- a/fs/overlayfs/inode.c
-+++ b/fs/overlayfs/inode.c
-@@ -318,60 +318,61 @@ bool ovl_is_private_xattr(const char *name)
- 		       sizeof(OVL_XATTR_PREFIX) - 1) =3D=3D 0;
- }
-=20
--int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  const void *value, size_t size, int flags)
-+int ovl_xattr_set(struct xattr_gs_args *args)
- {
- 	int err;
--	struct dentry *upperdentry =3D ovl_i_dentry_upper(inode);
--	struct dentry *realdentry =3D upperdentry ?: ovl_dentry_lower(dentry);
-+	struct dentry *upperdentry =3D ovl_i_dentry_upper(args->inode);
-+	struct dentry *realdentry =3D
-+		upperdentry ?: ovl_dentry_lower(args->dentry);
- 	const struct cred *old_cred;
-=20
--	err =3D ovl_want_write(dentry);
-+	err =3D ovl_want_write(args->dentry);
- 	if (err)
- 		goto out;
-=20
--	if (!value && !upperdentry) {
--		err =3D vfs_getxattr(realdentry, name, NULL, 0);
-+	if (!args->value && !upperdentry) {
-+		err =3D vfs_getxattr(realdentry, args->name, NULL, 0);
- 		if (err < 0)
- 			goto out_drop_write;
- 	}
-=20
- 	if (!upperdentry) {
--		err =3D ovl_copy_up(dentry);
-+		err =3D ovl_copy_up(args->dentry);
- 		if (err)
- 			goto out_drop_write;
-=20
--		realdentry =3D ovl_dentry_upper(dentry);
-+		realdentry =3D ovl_dentry_upper(args->dentry);
- 	}
-=20
--	old_cred =3D ovl_override_creds(dentry->d_sb);
--	if (value)
--		err =3D vfs_setxattr(realdentry, name, value, size, flags);
-+	old_cred =3D ovl_override_creds(args->dentry->d_sb);
-+	if (args->value)
-+		err =3D vfs_setxattr(realdentry, args->name,
-+				   args->value, args->size, args->flags);
- 	else {
--		WARN_ON(flags !=3D XATTR_REPLACE);
--		err =3D vfs_removexattr(realdentry, name);
-+		WARN_ON(args->flags !=3D XATTR_REPLACE);
-+		err =3D vfs_removexattr(realdentry, args->name);
- 	}
- 	revert_creds(old_cred);
-=20
- 	/* copy c/mtime */
--	ovl_copyattr(d_inode(realdentry), inode);
-+	ovl_copyattr(d_inode(realdentry), args->inode);
-=20
- out_drop_write:
--	ovl_drop_write(dentry);
-+	ovl_drop_write(args->dentry);
- out:
- 	return err;
- }
-=20
--int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  void *value, size_t size)
-+int ovl_xattr_get(struct xattr_gs_args *args)
- {
- 	ssize_t res;
- 	const struct cred *old_cred;
- 	struct dentry *realdentry =3D
--		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
-+		ovl_i_dentry_upper(args->inode) ?:
-+		ovl_dentry_lower(args->dentry);
-=20
--	old_cred =3D ovl_override_creds(dentry->d_sb);
--	res =3D vfs_getxattr(realdentry, name, value, size);
-+	old_cred =3D ovl_override_creds(args->dentry->d_sb);
-+	res =3D vfs_getxattr(realdentry, args->name, args->buffer, args->size);
- 	revert_creds(old_cred);
- 	return res;
- }
-diff --git a/fs/overlayfs/overlayfs.h b/fs/overlayfs/overlayfs.h
-index 6934bcf030f0..c6a8ec049099 100644
---- a/fs/overlayfs/overlayfs.h
-+++ b/fs/overlayfs/overlayfs.h
-@@ -353,10 +353,8 @@ int ovl_setattr(struct dentry *dentry, struct iattr =
-*attr);
- int ovl_getattr(const struct path *path, struct kstat *stat,
- 		u32 request_mask, unsigned int flags);
- int ovl_permission(struct inode *inode, int mask);
--int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  const void *value, size_t size, int flags);
--int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char=
- *name,
--		  void *value, size_t size);
-+int ovl_xattr_set(struct xattr_gs_args *args);
-+int ovl_xattr_get(struct xattr_gs_args *args);
- ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
- struct posix_acl *ovl_get_acl(struct inode *inode, int type);
- int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flag=
-s);
-diff --git a/fs/overlayfs/super.c b/fs/overlayfs/super.c
-index b368e2e102fa..e41359ba9159 100644
---- a/fs/overlayfs/super.c
-+++ b/fs/overlayfs/super.c
-@@ -853,26 +853,24 @@ static unsigned int ovl_split_lowerdirs(char *str)
-=20
- static int __maybe_unused
- ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, void *buffer, size_t size)
-+			struct xattr_gs_args *args)
- {
--	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
-+	return ovl_xattr_get(args);
- }
-=20
- static int __maybe_unused
- ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
--			struct dentry *dentry, struct inode *inode,
--			const char *name, const void *value,
--			size_t size, int flags)
-+			struct xattr_gs_args *args)
- {
--	struct dentry *workdir =3D ovl_workdir(dentry);
--	struct inode *realinode =3D ovl_inode_real(inode);
-+	struct dentry *workdir =3D ovl_workdir(args->dentry);
-+	struct inode *realinode =3D ovl_inode_real(args->inode);
- 	struct posix_acl *acl =3D NULL;
- 	int err;
-=20
- 	/* Check that everything is OK before copy-up */
--	if (value) {
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+	if (args->value) {
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 	}
-@@ -881,12 +879,13 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- 		goto out_acl_release;
- 	if (!realinode->i_op->set_acl)
- 		goto out_acl_release;
--	if (handler->flags =3D=3D ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode)) =
-{
-+	if (handler->flags =3D=3D ACL_TYPE_DEFAULT &&
-+	    !S_ISDIR(args->inode->i_mode)) {
- 		err =3D acl ? -EACCES : 0;
- 		goto out_acl_release;
- 	}
- 	err =3D -EPERM;
--	if (!inode_owner_or_capable(inode))
-+	if (!inode_owner_or_capable(args->inode))
- 		goto out_acl_release;
-=20
- 	posix_acl_release(acl);
-@@ -895,20 +894,20 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- 	 * Check if sgid bit needs to be cleared (actual setacl operation will
- 	 * be done with mounter's capabilities and so that won't do it for us).
- 	 */
--	if (unlikely(inode->i_mode & S_ISGID) &&
-+	if (unlikely(args->inode->i_mode & S_ISGID) &&
- 	    handler->flags =3D=3D ACL_TYPE_ACCESS &&
--	    !in_group_p(inode->i_gid) &&
--	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
-+	    !in_group_p(args->inode->i_gid) &&
-+	    !capable_wrt_inode_uidgid(args->inode, CAP_FSETID)) {
- 		struct iattr iattr =3D { .ia_valid =3D ATTR_KILL_SGID };
-=20
--		err =3D ovl_setattr(dentry, &iattr);
-+		err =3D ovl_setattr(args->dentry, &iattr);
- 		if (err)
- 			return err;
- 	}
-=20
--	err =3D ovl_xattr_set(dentry, inode, handler->name, value, size, flags)=
-;
-+	err =3D ovl_xattr_set(args);
- 	if (!err)
--		ovl_copyattr(ovl_inode_real(inode), inode);
-+		ovl_copyattr(ovl_inode_real(args->inode), args->inode);
-=20
- 	return err;
-=20
-@@ -918,33 +917,27 @@ ovl_posix_acl_xattr_set(const struct xattr_handler =
-*handler,
- }
-=20
- static int ovl_own_xattr_get(const struct xattr_handler *handler,
--			     struct dentry *dentry, struct inode *inode,
--			     const char *name, void *buffer, size_t size)
-+			     struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int ovl_own_xattr_set(const struct xattr_handler *handler,
--			     struct dentry *dentry, struct inode *inode,
--			     const char *name, const void *value,
--			     size_t size, int flags)
-+			     struct xattr_gs_args *args)
- {
- 	return -EOPNOTSUPP;
- }
-=20
- static int ovl_other_xattr_get(const struct xattr_handler *handler,
--			       struct dentry *dentry, struct inode *inode,
--			       const char *name, void *buffer, size_t size)
-+			       struct xattr_gs_args *args)
- {
--	return ovl_xattr_get(dentry, inode, name, buffer, size);
-+	return ovl_xattr_get(args);
- }
-=20
- static int ovl_other_xattr_set(const struct xattr_handler *handler,
--			       struct dentry *dentry, struct inode *inode,
--			       const char *name, const void *value,
--			       size_t size, int flags)
-+			       struct xattr_gs_args *args)
- {
--	return ovl_xattr_set(dentry, inode, name, value, size, flags);
-+	return ovl_xattr_set(args);
- }
-=20
- static const struct xattr_handler __maybe_unused
-diff --git a/fs/posix_acl.c b/fs/posix_acl.c
-index 84ad1c90d535..8cc7310386fe 100644
---- a/fs/posix_acl.c
-+++ b/fs/posix_acl.c
-@@ -831,24 +831,24 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
-=20
- static int
- posix_acl_xattr_get(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, void *value, size_t size)
-+		    struct xattr_gs_args *args)
- {
- 	struct posix_acl *acl;
- 	int error;
-=20
--	if (!IS_POSIXACL(inode))
-+	if (!IS_POSIXACL(args->inode))
- 		return -EOPNOTSUPP;
--	if (S_ISLNK(inode->i_mode))
-+	if (S_ISLNK(args->inode->i_mode))
- 		return -EOPNOTSUPP;
-=20
--	acl =3D get_acl(inode, handler->flags);
-+	acl =3D get_acl(args->inode, handler->flags);
- 	if (IS_ERR(acl))
- 		return PTR_ERR(acl);
- 	if (acl =3D=3D NULL)
- 		return -ENODATA;
-=20
--	error =3D posix_acl_to_xattr(&init_user_ns, acl, value, size);
-+	error =3D posix_acl_to_xattr(&init_user_ns, acl,
-+				   args->buffer, args->size);
- 	posix_acl_release(acl);
-=20
- 	return error;
-@@ -878,19 +878,18 @@ EXPORT_SYMBOL(set_posix_acl);
-=20
- static int
- posix_acl_xattr_set(const struct xattr_handler *handler,
--		    struct dentry *unused, struct inode *inode,
--		    const char *name, const void *value,
--		    size_t size, int flags)
-+		    struct xattr_gs_args *args)
- {
- 	struct posix_acl *acl =3D NULL;
- 	int ret;
-=20
--	if (value) {
--		acl =3D posix_acl_from_xattr(&init_user_ns, value, size);
-+	if (args->value) {
-+		acl =3D posix_acl_from_xattr(&init_user_ns,
-+					   args->value, args->size);
- 		if (IS_ERR(acl))
- 			return PTR_ERR(acl);
- 	}
--	ret =3D set_posix_acl(inode, handler->flags, acl);
-+	ret =3D set_posix_acl(args->inode, handler->flags, acl);
- 	posix_acl_release(acl);
- 	return ret;
- }
-diff --git a/fs/reiserfs/xattr.c b/fs/reiserfs/xattr.c
-index b5b26d8a192c..b949a55b95bd 100644
---- a/fs/reiserfs/xattr.c
-+++ b/fs/reiserfs/xattr.c
-@@ -765,7 +765,7 @@ reiserfs_xattr_get(struct inode *inode, const char *n=
-ame, void *buffer,
- /* This is the implementation for the xattr plugin infrastructure */
- static inline const struct xattr_handler *
- find_xattr_handler_prefix(const struct xattr_handler **handlers,
--			   const char *name)
-+			  const char *name)
- {
- 	const struct xattr_handler *xah;
-=20
-diff --git a/fs/reiserfs/xattr_security.c b/fs/reiserfs/xattr_security.c
-index 20be9a0e5870..6d436ef207d1 100644
---- a/fs/reiserfs/xattr_security.c
-+++ b/fs/reiserfs/xattr_security.c
-@@ -10,27 +10,25 @@
- #include <linux/uaccess.h>
-=20
- static int
--security_get(const struct xattr_handler *handler, struct dentry *unused,
--	     struct inode *inode, const char *name, void *buffer, size_t size)
-+security_get(const struct xattr_handler *handler, struct xattr_gs_args *=
-args)
- {
--	if (IS_PRIVATE(inode))
-+	if (IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--security_set(const struct xattr_handler *handler, struct dentry *unused,
--	     struct inode *inode, const char *name, const void *buffer,
--	     size_t size, int flags)
-+security_set(const struct xattr_handler *handler, struct xattr_gs_args *=
-args)
- {
--	if (IS_PRIVATE(inode))
-+	if (IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool security_list(struct dentry *dentry)
-diff --git a/fs/reiserfs/xattr_trusted.c b/fs/reiserfs/xattr_trusted.c
-index 5ed48da3d02b..46dfc6e2e150 100644
---- a/fs/reiserfs/xattr_trusted.c
-+++ b/fs/reiserfs/xattr_trusted.c
-@@ -9,27 +9,25 @@
- #include <linux/uaccess.h>
-=20
- static int
--trusted_get(const struct xattr_handler *handler, struct dentry *unused,
--	    struct inode *inode, const char *name, void *buffer, size_t size)
-+trusted_get(const struct xattr_handler *handler, struct xattr_gs_args *a=
-rgs)
- {
--	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
-+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--trusted_set(const struct xattr_handler *handler, struct dentry *unused,
--	    struct inode *inode, const char *name, const void *buffer,
--	    size_t size, int flags)
-+trusted_set(const struct xattr_handler *handler, struct xattr_gs_args *a=
-rgs)
- {
--	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
-+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(args->inode))
- 		return -EPERM;
-=20
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool trusted_list(struct dentry *dentry)
-diff --git a/fs/reiserfs/xattr_user.c b/fs/reiserfs/xattr_user.c
-index a573ca45bacc..4a0bafe62d05 100644
---- a/fs/reiserfs/xattr_user.c
-+++ b/fs/reiserfs/xattr_user.c
-@@ -8,25 +8,23 @@
- #include <linux/uaccess.h>
-=20
- static int
--user_get(const struct xattr_handler *handler, struct dentry *unused,
--	 struct inode *inode, const char *name, void *buffer, size_t size)
-+user_get(const struct xattr_handler *handler, struct xattr_gs_args *args=
-)
- {
--	if (!reiserfs_xattrs_user(inode->i_sb))
-+	if (!reiserfs_xattrs_user(args->inode->i_sb))
- 		return -EOPNOTSUPP;
--	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
--				  buffer, size);
-+	return reiserfs_xattr_get(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->buffer, args->size);
- }
-=20
- static int
--user_set(const struct xattr_handler *handler, struct dentry *unused,
--	 struct inode *inode, const char *name, const void *buffer,
--	 size_t size, int flags)
-+user_set(const struct xattr_handler *handler, struct xattr_gs_args *args=
-)
- {
--	if (!reiserfs_xattrs_user(inode->i_sb))
-+	if (!reiserfs_xattrs_user(args->inode->i_sb))
- 		return -EOPNOTSUPP;
--	return reiserfs_xattr_set(inode,
--				  xattr_full_name(handler, name),
--				  buffer, size, flags);
-+	return reiserfs_xattr_set(args->inode,
-+				  xattr_full_name(handler, args->name),
-+				  args->value, args->size, args->flags);
- }
-=20
- static bool user_list(struct dentry *dentry)
-diff --git a/fs/squashfs/xattr.c b/fs/squashfs/xattr.c
-index e1e3f3dd5a06..c6403f187ced 100644
---- a/fs/squashfs/xattr.c
-+++ b/fs/squashfs/xattr.c
-@@ -199,15 +199,11 @@ static int squashfs_xattr_get(struct inode *inode, =
-int name_index,
- 	return err;
- }
-=20
--
- static int squashfs_xattr_handler_get(const struct xattr_handler *handle=
-r,
--				      struct dentry *unused,
--				      struct inode *inode,
--				      const char *name,
--				      void *buffer, size_t size)
-+				      struct xattr_gs_args *args)
- {
--	return squashfs_xattr_get(inode, handler->flags, name,
--		buffer, size);
-+	return squashfs_xattr_get(args->inode, handler->flags, args->name,
-+				  args->buffer, args->size);
- }
-=20
- /*
-diff --git a/fs/ubifs/xattr.c b/fs/ubifs/xattr.c
-index 9aefbb60074f..cb9361299770 100644
---- a/fs/ubifs/xattr.c
-+++ b/fs/ubifs/xattr.c
-@@ -668,30 +668,29 @@ int ubifs_init_security(struct inode *dentry, struc=
-t inode *inode,
- #endif
-=20
- static int xattr_get(const struct xattr_handler *handler,
--			   struct dentry *dentry, struct inode *inode,
--			   const char *name, void *buffer, size_t size)
-+		     struct xattr_gs_args *args)
- {
--	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", name,
--		inode->i_ino, dentry, size);
-+	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", args->name,
-+		args->inode->i_ino, args->dentry, args->size);
-=20
--	name =3D xattr_full_name(handler, name);
--	return ubifs_xattr_get(inode, name, buffer, size);
-+	return ubifs_xattr_get(args->inode, xattr_full_name(handler, name),
-+			       args->buffer, args->size);
- }
-=20
- static int xattr_set(const struct xattr_handler *handler,
--			   struct dentry *dentry, struct inode *inode,
--			   const char *name, const void *value,
--			   size_t size, int flags)
-+		     struct xattr_gs_args *args)
- {
- 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
--		name, inode->i_ino, dentry, size);
--
--	name =3D xattr_full_name(handler, name);
-+		args->name, args->inode->i_ino, args->dentry, args->size);
-=20
- 	if (value)
--		return ubifs_xattr_set(inode, name, value, size, flags, true);
-+		return ubifs_xattr_set(args->inode,
-+				       xattr_full_name(handler, args->name),
-+				       args->value, args->size,
-+				       args->flags, true);
- 	else
--		return ubifs_xattr_remove(inode, name);
-+		return ubifs_xattr_remove(args->inode,
-+					  xattr_full_name(handler, args->name));
- }
-=20
- static const struct xattr_handler ubifs_user_xattr_handler =3D {
-diff --git a/fs/xattr.c b/fs/xattr.c
-index 90dd78f0eb27..dceb5afe79be 100644
---- a/fs/xattr.c
-+++ b/fs/xattr.c
-@@ -135,19 +135,18 @@ xattr_permission(struct inode *inode, const char *n=
-ame, int mask)
- }
-=20
- int
--__vfs_setxattr(struct dentry *dentry, struct inode *inode, const char *n=
-ame,
--	       const void *value, size_t size, int flags)
-+__vfs_setxattr(struct xattr_gs_args *args)
- {
- 	const struct xattr_handler *handler;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(args->inode, &args->name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->set)
- 		return -EOPNOTSUPP;
--	if (size =3D=3D 0)
--		value =3D "";  /* empty EA, do not remove */
--	return handler->set(handler, dentry, inode, name, value, size, flags);
-+	if (args->size =3D=3D 0)
-+		args->value =3D "";  /* empty EA, do not remove */
-+	return handler->set(handler, args);
- }
- EXPORT_SYMBOL(__vfs_setxattr);
-=20
-@@ -178,7 +177,16 @@ int __vfs_setxattr_noperm(struct dentry *dentry, con=
-st char *name,
- 	if (issec)
- 		inode->i_flags &=3D ~S_NOSEC;
- 	if (inode->i_opflags & IOP_XATTR) {
--		error =3D __vfs_setxattr(dentry, inode, name, value, size, flags);
-+		struct xattr_gs_args args =3D {
-+			.dentry =3D dentry,
-+			.inode =3D inode,
-+			.name =3D name,
-+			.value =3D value,
-+			.size =3D size,
-+			.flags =3D flags,
-+		};
-+
-+		error =3D __vfs_setxattr(&args);
- 		if (!error) {
- 			fsnotify_xattr(dentry);
- 			security_inode_post_setxattr(dentry, name, value,
-@@ -268,68 +276,61 @@ vfs_getxattr_alloc(struct dentry *dentry, const cha=
-r *name, char **xattr_value,
- 		   size_t xattr_size, gfp_t flags)
- {
- 	const struct xattr_handler *handler;
--	struct inode *inode =3D dentry->d_inode;
--	char *value =3D *xattr_value;
-+	struct xattr_gs_args args;
- 	int error;
-=20
--	error =3D xattr_permission(inode, name, MAY_READ);
-+	error =3D xattr_permission(dentry->d_inode, name, MAY_READ);
- 	if (error)
- 		return error;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(dentry->d_inode, &name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->get)
- 		return -EOPNOTSUPP;
--	error =3D handler->get(handler, dentry, inode, name, NULL, 0);
-+	memset(&args, 0, sizeof(args));
-+	args.inode =3D dentry->d_inode;
-+	args.dentry =3D dentry;
-+	args.name =3D name;
-+	error =3D handler->get(handler, &args);
- 	if (error < 0)
- 		return error;
-=20
--	if (!value || (error > xattr_size)) {
--		value =3D krealloc(*xattr_value, error + 1, flags);
--		if (!value)
-+	args.buffer =3D *xattr_value;
-+	if (!*xattr_value || (error > xattr_size)) {
-+		args.buffer =3D krealloc(*xattr_value, error + 1, flags);
-+		if (!args.buffer)
- 			return -ENOMEM;
--		memset(value, 0, error + 1);
-+		memset(args.buffer, 0, error + 1);
- 	}
-=20
--	error =3D handler->get(handler, dentry, inode, name, value, error);
--	*xattr_value =3D value;
-+	args.size =3D error;
-+	error =3D handler->get(handler, &args);
-+	*xattr_value =3D args.buffer;
- 	return error;
- }
-=20
- ssize_t
--__vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *n=
-ame,
--	       void *value, size_t size)
-+__vfs_getxattr(struct xattr_gs_args *args)
- {
- 	const struct xattr_handler *handler;
--
--	handler =3D xattr_resolve_name(inode, &name);
--	if (IS_ERR(handler))
--		return PTR_ERR(handler);
--	if (!handler->get)
--		return -EOPNOTSUPP;
--	return handler->get(handler, dentry, inode, name, value, size);
--}
--EXPORT_SYMBOL(__vfs_getxattr);
--
--ssize_t
--vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_=
-t size)
--{
--	struct inode *inode =3D dentry->d_inode;
- 	int error;
-=20
--	error =3D xattr_permission(inode, name, MAY_READ);
-+	if (args->flags & XATTR_NOSECURITY)
-+		goto nolsm;
-+	error =3D xattr_permission(args->inode, args->name, MAY_READ);
- 	if (error)
- 		return error;
-=20
--	error =3D security_inode_getxattr(dentry, name);
-+	error =3D security_inode_getxattr(args->dentry, args->name);
- 	if (error)
- 		return error;
-=20
--	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-+	if (!strncmp(args->name, XATTR_SECURITY_PREFIX,
- 				XATTR_SECURITY_PREFIX_LEN)) {
--		const char *suffix =3D name + XATTR_SECURITY_PREFIX_LEN;
--		int ret =3D xattr_getsecurity(inode, suffix, value, size);
-+		const char *suffix =3D args->name + XATTR_SECURITY_PREFIX_LEN;
-+		int ret =3D xattr_getsecurity(args->inode, suffix,
-+					    args->buffer, args->size);
- 		/*
- 		 * Only overwrite the return value if a security module
- 		 * is actually active.
-@@ -339,7 +340,27 @@ vfs_getxattr(struct dentry *dentry, const char *name=
-, void *value, size_t size)
- 		return ret;
- 	}
- nolsm:
--	return __vfs_getxattr(dentry, inode, name, value, size);
-+	handler =3D xattr_resolve_name(args->inode, &args->name);
-+	if (IS_ERR(handler))
-+		return PTR_ERR(handler);
-+	if (!handler->get)
-+		return -EOPNOTSUPP;
-+	return handler->get(handler, args);
-+}
-+EXPORT_SYMBOL(__vfs_getxattr);
-+
-+ssize_t
-+vfs_getxattr(struct dentry *dentry, const char *name, void *buffer, size=
-_t size)
-+{
-+	struct xattr_gs_args args =3D {
-+		.dentry =3D dentry,
-+		.inode =3D dentry->d_inode,
-+		.name =3D name,
-+		.buffer =3D buffer,
-+		.size =3D size,
-+	};
-+
-+	return __vfs_getxattr(&args);
- }
- EXPORT_SYMBOL_GPL(vfs_getxattr);
-=20
-@@ -366,15 +387,20 @@ EXPORT_SYMBOL_GPL(vfs_listxattr);
- int
- __vfs_removexattr(struct dentry *dentry, const char *name)
- {
--	struct inode *inode =3D d_inode(dentry);
- 	const struct xattr_handler *handler;
-+	struct xattr_gs_args args;
-=20
--	handler =3D xattr_resolve_name(inode, &name);
-+	handler =3D xattr_resolve_name(d_inode(dentry), &name);
- 	if (IS_ERR(handler))
- 		return PTR_ERR(handler);
- 	if (!handler->set)
- 		return -EOPNOTSUPP;
--	return handler->set(handler, dentry, inode, name, NULL, 0, XATTR_REPLAC=
-E);
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_inode(dentry);
-+	args.name =3D name;
-+	args.flags =3D XATTR_REPLACE;
-+	return handler->set(handler, &args);
- }
- EXPORT_SYMBOL(__vfs_removexattr);
-=20
-diff --git a/fs/xfs/libxfs/xfs_attr.c b/fs/xfs/libxfs/xfs_attr.c
-index d48fcf11cc35..759b3d83df82 100644
---- a/fs/xfs/libxfs/xfs_attr.c
-+++ b/fs/xfs/libxfs/xfs_attr.c
-@@ -305,7 +305,7 @@ int
- xfs_attr_set(
- 	struct xfs_inode	*dp,
- 	const unsigned char	*name,
--	unsigned char		*value,
-+	const unsigned char	*value,
- 	int			valuelen,
- 	int			flags)
- {
-diff --git a/fs/xfs/libxfs/xfs_attr.h b/fs/xfs/libxfs/xfs_attr.h
-index ff28ebf3b635..afe184e5fb01 100644
---- a/fs/xfs/libxfs/xfs_attr.h
-+++ b/fs/xfs/libxfs/xfs_attr.h
-@@ -145,7 +145,7 @@ int xfs_attr_get_ilocked(struct xfs_inode *ip, struct=
- xfs_da_args *args);
- int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
- 		 unsigned char *value, int *valuelenp, int flags);
- int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
--		 unsigned char *value, int valuelen, int flags);
-+		 const unsigned char *value, int valuelen, int flags);
- int xfs_attr_set_args(struct xfs_da_args *args);
- int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int=
- flags);
- int xfs_attr_remove_args(struct xfs_da_args *args);
-diff --git a/fs/xfs/xfs_xattr.c b/fs/xfs/xfs_xattr.c
-index 3123b5aaad2a..313a828a3d1f 100644
---- a/fs/xfs/xfs_xattr.c
-+++ b/fs/xfs/xfs_xattr.c
-@@ -17,20 +17,20 @@
-=20
-=20
- static int
--xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused=
-,
--		struct inode *inode, const char *name, void *value, size_t size)
-+xfs_xattr_get(const struct xattr_handler *handler, struct xattr_gs_args =
-*args)
- {
- 	int xflags =3D handler->flags;
--	struct xfs_inode *ip =3D XFS_I(inode);
--	int error, asize =3D size;
-+	struct xfs_inode *ip =3D XFS_I(args->inode);
-+	int error, asize =3D args->size;
-=20
- 	/* Convert Linux syscall to XFS internal ATTR flags */
--	if (!size) {
-+	if (!args->size) {
- 		xflags |=3D ATTR_KERNOVAL;
--		value =3D NULL;
-+		args->buffer =3D NULL;
- 	}
-=20
--	error =3D xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags=
-);
-+	error =3D xfs_attr_get(ip, (const unsigned char *)args->name,
-+			     args->buffer, &asize, xflags);
- 	if (error)
- 		return error;
- 	return asize;
-@@ -59,26 +59,25 @@ xfs_forget_acl(
- }
-=20
- static int
--xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused=
-,
--		struct inode *inode, const char *name, const void *value,
--		size_t size, int flags)
-+xfs_xattr_set(const struct xattr_handler *handler, struct xattr_gs_args =
-*args)
- {
- 	int			xflags =3D handler->flags;
--	struct xfs_inode	*ip =3D XFS_I(inode);
-+	struct xfs_inode	*ip =3D XFS_I(args->inode);
- 	int			error;
-=20
- 	/* Convert Linux syscall to XFS internal ATTR flags */
--	if (flags & XATTR_CREATE)
-+	if (args->flags & XATTR_CREATE)
- 		xflags |=3D ATTR_CREATE;
--	if (flags & XATTR_REPLACE)
-+	if (args->flags & XATTR_REPLACE)
- 		xflags |=3D ATTR_REPLACE;
-=20
--	if (!value)
--		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
--	error =3D xfs_attr_set(ip, (unsigned char *)name,
--				(void *)value, size, xflags);
-+	if (!args->value)
-+		return xfs_attr_remove(ip, (const unsigned char *)args->name,
-+				       xflags);
-+	error =3D xfs_attr_set(ip, (const unsigned char *)args->name,
-+			     args->value, args->size, xflags);
- 	if (!error)
--		xfs_forget_acl(inode, name, xflags);
-+		xfs_forget_acl(args->inode, args->name, xflags);
-=20
- 	return error;
- }
-diff --git a/include/linux/xattr.h b/include/linux/xattr.h
-index 6dad031be3c2..b2afbdcf000f 100644
---- a/include/linux/xattr.h
-+++ b/include/linux/xattr.h
-@@ -25,17 +25,27 @@ struct dentry;
-  * name.  When @prefix is set instead, match attributes with that prefix=
- and
-  * with a non-empty suffix.
-  */
-+struct xattr_gs_args {
-+	struct dentry *dentry;
-+	struct inode *inode;
-+	const char *name;
-+	union {
-+		void *buffer;
-+		const void *value;
-+	};
-+	size_t size;
-+	int flags;
-+};
-+
- struct xattr_handler {
- 	const char *name;
- 	const char *prefix;
- 	int flags;      /* fs private flags */
- 	bool (*list)(struct dentry *dentry);
--	int (*get)(const struct xattr_handler *, struct dentry *dentry,
--		   struct inode *inode, const char *name, void *buffer,
--		   size_t size);
--	int (*set)(const struct xattr_handler *, struct dentry *dentry,
--		   struct inode *inode, const char *name, const void *buffer,
--		   size_t size, int flags);
-+	int (*get)(const struct xattr_handler *handler,
-+		   struct xattr_gs_args *args);
-+	int (*set)(const struct xattr_handler *handler,
-+		   struct xattr_gs_args *args);
- };
-=20
- const char *xattr_full_name(const struct xattr_handler *, const char *);
-@@ -46,10 +56,10 @@ struct xattr {
- 	size_t value_len;
- };
-=20
--ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, vo=
-id *, size_t);
-+ssize_t __vfs_getxattr(struct xattr_gs_args *args);
- ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
- ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
--int __vfs_setxattr(struct dentry *, struct inode *, const char *, const =
-void *, size_t, int);
-+int __vfs_setxattr(struct xattr_gs_args *args);
- int __vfs_setxattr_noperm(struct dentry *, const char *, const void *, s=
-ize_t, int);
- int vfs_setxattr(struct dentry *, const char *, const void *, size_t, in=
-t);
- int __vfs_removexattr(struct dentry *, const char *);
-diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
-index c1395b5bd432..1eba02616274 100644
---- a/include/uapi/linux/xattr.h
-+++ b/include/uapi/linux/xattr.h
-@@ -17,8 +17,11 @@
- #if __UAPI_DEF_XATTR
- #define __USE_KERNEL_XATTR_DEFS
-=20
--#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
--#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
-+#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
-+#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
-+#ifdef __KERNEL__ /* following is kernel internal, colocated for mainten=
-ance */
-+#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check=
- */
-+#endif
- #endif
-=20
- /* Namespaces */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2bed4761f279..c84687f57e43 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3205,24 +3205,23 @@ static int shmem_initxattrs(struct inode *inode,
- }
-=20
- static int shmem_xattr_handler_get(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, void *buffer, size_t size)
-+				   struct xattr_gs_args *args)
- {
--	struct shmem_inode_info *info =3D SHMEM_I(inode);
-+	struct shmem_inode_info *info =3D SHMEM_I(args->inode);
-=20
--	name =3D xattr_full_name(handler, name);
--	return simple_xattr_get(&info->xattrs, name, buffer, size);
-+	return simple_xattr_get(&info->xattrs,
-+				xattr_full_name(handler, args->name),
-+				args->buffer, args->size);
- }
-=20
- static int shmem_xattr_handler_set(const struct xattr_handler *handler,
--				   struct dentry *unused, struct inode *inode,
--				   const char *name, const void *value,
--				   size_t size, int flags)
-+				   struct xattr_gs_args *args)
- {
--	struct shmem_inode_info *info =3D SHMEM_I(inode);
-+	struct shmem_inode_info *info =3D SHMEM_I(args->inode);
-=20
--	name =3D xattr_full_name(handler, name);
--	return simple_xattr_set(&info->xattrs, name, value, size, flags);
-+	return simple_xattr_set(&info->xattrs,
-+				xattr_full_name(handler, args->name),
-+				args->value, args->size, args->flags);
- }
-=20
- static const struct xattr_handler shmem_security_xattr_handler =3D {
-diff --git a/net/socket.c b/net/socket.c
-index 6a9ab7a8b1d2..7920caece7cc 100644
---- a/net/socket.c
-+++ b/net/socket.c
-@@ -299,15 +299,15 @@ static const struct dentry_operations sockfs_dentry=
-_operations =3D {
- };
-=20
- static int sockfs_xattr_get(const struct xattr_handler *handler,
--			    struct dentry *dentry, struct inode *inode,
--			    const char *suffix, void *value, size_t size)
-+			    struct xattr_gs_args *args)
- {
--	if (value) {
--		if (dentry->d_name.len + 1 > size)
-+	if (args->buffer) {
-+		if (args->dentry->d_name.len + 1 > args->size)
- 			return -ERANGE;
--		memcpy(value, dentry->d_name.name, dentry->d_name.len + 1);
-+		memcpy(args->buffer, args->dentry->d_name.name,
-+		       args->dentry->d_name.len + 1);
- 	}
--	return dentry->d_name.len + 1;
-+	return args->dentry->d_name.len + 1;
- }
-=20
- #define XATTR_SOCKPROTONAME_SUFFIX "sockprotoname"
-@@ -320,9 +320,7 @@ static const struct xattr_handler sockfs_xattr_handle=
-r =3D {
- };
-=20
- static int sockfs_security_xattr_set(const struct xattr_handler *handler=
-,
--				     struct dentry *dentry, struct inode *inode,
--				     const char *suffix, const void *value,
--				     size_t size, int flags)
-+				     struct xattr_gs_args *args)
- {
- 	/* Handled by LSM. */
- 	return -EAGAIN;
-diff --git a/security/commoncap.c b/security/commoncap.c
-index f4ee0ae106b2..c58b684d5d9a 100644
---- a/security/commoncap.c
-+++ b/security/commoncap.c
-@@ -294,11 +294,15 @@ int cap_capset(struct cred *new,
-  */
- int cap_inode_need_killpriv(struct dentry *dentry)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
--	int error;
-+	struct xattr_gs_args args;
-+
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_backing_inode(dentry);
-+	args.name =3D XATTR_NAME_CAPS;
-+	args.flags =3D XATTR_NOSECURITY;
-=20
--	error =3D __vfs_getxattr(dentry, inode, XATTR_NAME_CAPS, NULL, 0);
--	return error > 0;
-+	return __vfs_getxattr(&args) > 0;
- }
-=20
- /**
-@@ -570,7 +574,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_=
-vfs_cap_data *caps,
-  */
- int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_c=
-ap_data *cpu_caps)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
-+	struct xattr_gs_args args;
- 	__u32 magic_etc;
- 	unsigned tocopy, i;
- 	int size;
-@@ -580,13 +584,20 @@ int get_vfs_caps_from_disk(const struct dentry *den=
-try, struct cpu_vfs_cap_data
- 	struct user_namespace *fs_ns;
-=20
- 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
-+	memset(&args, 0, sizeof(args));
-=20
--	if (!inode)
-+	args.dentry =3D (struct dentry *)dentry;
-+	args.inode =3D d_backing_inode(args.dentry);
-+	if (!args.inode)
- 		return -ENODATA;
-=20
--	fs_ns =3D inode->i_sb->s_user_ns;
--	size =3D __vfs_getxattr((struct dentry *)dentry, inode,
--			      XATTR_NAME_CAPS, &data, XATTR_CAPS_SZ);
-+	fs_ns =3D args.inode->i_sb->s_user_ns;
-+
-+	args.name =3D XATTR_NAME_CAPS;
-+	args.buffer =3D &data;
-+	args.size =3D XATTR_CAPS_SZ;
-+	args.flags =3D XATTR_NOSECURITY;
-+	size =3D __vfs_getxattr(&args);
- 	if (size =3D=3D -ENODATA || size =3D=3D -EOPNOTSUPP)
- 		/* no data, that's ok */
- 		return -ENODATA;
-diff --git a/security/integrity/evm/evm_main.c b/security/integrity/evm/e=
-vm_main.c
-index f9a81b187fae..91e2c72575f5 100644
---- a/security/integrity/evm/evm_main.c
-+++ b/security/integrity/evm/evm_main.c
-@@ -91,16 +91,23 @@ static bool evm_key_loaded(void)
-=20
- static int evm_find_protected_xattrs(struct dentry *dentry)
- {
--	struct inode *inode =3D d_backing_inode(dentry);
-+	struct xattr_gs_args args;
- 	struct xattr_list *xattr;
- 	int error;
- 	int count =3D 0;
-=20
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D d_backing_inode(dentry);
-+
- 	if (!(inode->i_opflags & IOP_XATTR))
- 		return -EOPNOTSUPP;
-=20
-+	args.flags =3D XATTR_NOSECURITY;
-+
- 	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
--		error =3D __vfs_getxattr(dentry, inode, xattr->name, NULL, 0);
-+		args.flags =3D xattr->name;
-+		error =3D __vfs_getxattr(&args);
- 		if (error < 0) {
- 			if (error =3D=3D -ENODATA)
- 				continue;
-diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index 74dd46de01b6..23c3a2c468f7 100644
---- a/security/selinux/hooks.c
-+++ b/security/selinux/hooks.c
-@@ -540,6 +540,8 @@ static int sb_finish_set_opts(struct super_block *sb)
- 	int rc =3D 0;
-=20
- 	if (sbsec->behavior =3D=3D SECURITY_FS_USE_XATTR) {
-+		struct xattr_gs_args args;
-+
- 		/* Make sure that the xattr handler exists and that no
- 		   error other than -ENODATA is returned by getxattr on
- 		   the root directory.  -ENODATA is ok, as this may be
-@@ -552,7 +554,12 @@ static int sb_finish_set_opts(struct super_block *sb=
-)
- 			goto out;
- 		}
-=20
--		rc =3D __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
-+		memset(&args, 0, sizeof(args));
-+		args.dentry =3D root;
-+		args.inode =3D root_inode;
-+		args.name =3D XATTR_NAME_SELINUX;
-+		args.flags =3D XATTR_NOSECURITY;
-+		rc =3D __vfs_getxattr(&args);
- 		if (rc < 0 && rc !=3D -ENODATA) {
- 			if (rc =3D=3D -EOPNOTSUPP)
- 				pr_warn("SELinux: (dev %s, type "
-@@ -1371,6 +1378,7 @@ static int inode_doinit_use_xattr(struct inode *ino=
-de, struct dentry *dentry,
- 	char *context;
- 	unsigned int len;
- 	int rc;
-+	struct xattr_gs_args args;
-=20
- 	len =3D INITCONTEXTLEN;
- 	context =3D kmalloc(len + 1, GFP_NOFS);
-@@ -1378,12 +1386,21 @@ static int inode_doinit_use_xattr(struct inode *i=
-node, struct dentry *dentry,
- 		return -ENOMEM;
-=20
- 	context[len] =3D '\0';
--	rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, context, len);
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dentry;
-+	args.inode =3D inode;
-+	args.name =3D XATTR_NAME_SELINUX;
-+	args.buffer =3D context;
-+	args.size =3D len;
-+	args.flags =3D XATTR_NOSECURITY;
-+	rc =3D __vfs_getxattr(&args);
- 	if (rc =3D=3D -ERANGE) {
- 		kfree(context);
-=20
- 		/* Need a larger buffer.  Query for the right size. */
--		rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, NULL, 0);
-+		args.buffer =3D NULL;
-+		args.size =3D 0;
-+		rc =3D __vfs_getxattr(&args);
- 		if (rc < 0)
- 			return rc;
-=20
-@@ -1393,8 +1410,9 @@ static int inode_doinit_use_xattr(struct inode *ino=
-de, struct dentry *dentry,
- 			return -ENOMEM;
-=20
- 		context[len] =3D '\0';
--		rc =3D __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX,
--				    context, len);
-+		args.buffer =3D context;
-+		args.size =3D len;
-+		rc =3D __vfs_getxattr(&args);
- 	}
- 	if (rc < 0) {
- 		kfree(context);
-diff --git a/security/smack/smack_lsm.c b/security/smack/smack_lsm.c
-index 4c5e5a438f8b..bd12c4196faa 100644
---- a/security/smack/smack_lsm.c
-+++ b/security/smack/smack_lsm.c
-@@ -282,17 +282,24 @@ static struct smack_known *smk_fetch(const char *na=
-me, struct inode *ip,
- 					struct dentry *dp)
- {
- 	int rc;
--	char *buffer;
- 	struct smack_known *skp =3D NULL;
-+	struct xattr_gs_args args;
-=20
- 	if (!(ip->i_opflags & IOP_XATTR))
- 		return ERR_PTR(-EOPNOTSUPP);
-=20
--	buffer =3D kzalloc(SMK_LONGLABEL, GFP_KERNEL);
--	if (buffer =3D=3D NULL)
-+	memset(&args, 0, sizeof(args));
-+	args.dentry =3D dp;
-+	args.inode =3D ip;
-+	args.name =3D name;
-+	args.buffer =3D kzalloc(SMK_LONGLABEL, GFP_KERNEL);
-+	args.size =3D SMK_LONGLABEL;
-+	args.flags =3D XATTR_NOSECURITY;
-+
-+	if (args.buffer =3D=3D NULL)
- 		return ERR_PTR(-ENOMEM);
-=20
--	rc =3D __vfs_getxattr(dp, ip, name, buffer, SMK_LONGLABEL);
-+	rc =3D __vfs_getxattr(&args);
- 	if (rc < 0)
- 		skp =3D ERR_PTR(rc);
- 	else if (rc =3D=3D 0)
-@@ -3424,6 +3431,8 @@ static void smack_d_instantiate(struct dentry *opt_=
-dentry, struct inode *inode)
- 		 * Transmuting directory
- 		 */
- 		if (S_ISDIR(inode->i_mode)) {
-+			struct xattr_gs_args args;
-+
- 			/*
- 			 * If this is a new directory and the label was
- 			 * transmuted when the inode was initialized
-@@ -3433,16 +3442,19 @@ static void smack_d_instantiate(struct dentry *op=
-t_dentry, struct inode *inode)
- 			 * If there is a transmute attribute on the
- 			 * directory mark the inode.
- 			 */
-+			memset(&args, 0, sizeof(args));
-+			args.dentry =3D dp;
-+			args.inode =3D inode;
-+			args.name =3D XATTR_NAME_SMACKTRANSMUTE;
-+			args.size =3D TRANS_TRUE_SIZE;
- 			if (isp->smk_flags & SMK_INODE_CHANGED) {
- 				isp->smk_flags &=3D ~SMK_INODE_CHANGED;
--				rc =3D __vfs_setxattr(dp, inode,
--					XATTR_NAME_SMACKTRANSMUTE,
--					TRANS_TRUE, TRANS_TRUE_SIZE,
--					0);
-+				args.value =3D TRANS_TRUE;
-+				rc =3D __vfs_setxattr(&args);
- 			} else {
--				rc =3D __vfs_getxattr(dp, inode,
--					XATTR_NAME_SMACKTRANSMUTE, trattr,
--					TRANS_TRUE_SIZE);
-+				args.buffer =3D trattr;
-+				args.flags =3D XATTR_NOSECURITY;
-+				rc =3D __vfs_getxattr(&args);
- 				if (rc >=3D 0 && strncmp(trattr, TRANS_TRUE,
- 						       TRANS_TRUE_SIZE) !=3D 0)
- 					rc =3D -EINVAL;
 --=20
-2.23.0.rc1.153.gdeed80330f-goog
+~Randy
 
+--------------6CA7F6BDE76E739DB22D29FC
+Content-Type: text/plain; charset=UTF-8;
+ name="config-r7032"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="config-r7032"
+
+#
+# Automatically generated file; DO NOT EDIT.
+# Linux/i386 5.3.0-rc5 Kernel Configuration
+#
+
+#
+# Compiler: gcc (SUSE Linux) 7.4.0
+#
+CONFIG_CC_IS_GCC=y
+CONFIG_GCC_VERSION=70400
+CONFIG_CLANG_VERSION=0
+CONFIG_CC_CAN_LINK=y
+CONFIG_CC_HAS_ASM_GOTO=y
+CONFIG_CC_HAS_WARN_MAYBE_UNINITIALIZED=y
+CONFIG_IRQ_WORK=y
+CONFIG_BUILDTIME_EXTABLE_SORT=y
+CONFIG_THREAD_INFO_IN_TASK=y
+
+#
+# General setup
+#
+CONFIG_BROKEN_ON_SMP=y
+CONFIG_INIT_ENV_ARG_LIMIT=32
+# CONFIG_COMPILE_TEST is not set
+# CONFIG_HEADER_TEST is not set
+CONFIG_LOCALVERSION=""
+# CONFIG_LOCALVERSION_AUTO is not set
+CONFIG_BUILD_SALT=""
+CONFIG_HAVE_KERNEL_GZIP=y
+CONFIG_HAVE_KERNEL_BZIP2=y
+CONFIG_HAVE_KERNEL_LZMA=y
+CONFIG_HAVE_KERNEL_XZ=y
+CONFIG_HAVE_KERNEL_LZO=y
+CONFIG_HAVE_KERNEL_LZ4=y
+CONFIG_KERNEL_GZIP=y
+# CONFIG_KERNEL_BZIP2 is not set
+# CONFIG_KERNEL_LZMA is not set
+# CONFIG_KERNEL_XZ is not set
+# CONFIG_KERNEL_LZO is not set
+# CONFIG_KERNEL_LZ4 is not set
+CONFIG_DEFAULT_HOSTNAME="(none)"
+CONFIG_SWAP=y
+# CONFIG_SYSVIPC is not set
+# CONFIG_CROSS_MEMORY_ATTACH is not set
+CONFIG_USELIB=y
+CONFIG_HAVE_ARCH_AUDITSYSCALL=y
+
+#
+# IRQ subsystem
+#
+CONFIG_GENERIC_IRQ_PROBE=y
+CONFIG_GENERIC_IRQ_SHOW=y
+CONFIG_GENERIC_IRQ_CHIP=y
+CONFIG_IRQ_DOMAIN=y
+CONFIG_IRQ_SIM=y
+CONFIG_GENERIC_IRQ_RESERVATION_MODE=y
+CONFIG_IRQ_FORCED_THREADING=y
+CONFIG_SPARSE_IRQ=y
+# CONFIG_GENERIC_IRQ_DEBUGFS is not set
+# end of IRQ subsystem
+
+CONFIG_CLOCKSOURCE_WATCHDOG=y
+CONFIG_ARCH_CLOCKSOURCE_DATA=y
+CONFIG_ARCH_CLOCKSOURCE_INIT=y
+CONFIG_CLOCKSOURCE_VALIDATE_LAST_CYCLE=y
+CONFIG_GENERIC_TIME_VSYSCALL=y
+CONFIG_GENERIC_CLOCKEVENTS=y
+CONFIG_GENERIC_CLOCKEVENTS_MIN_ADJUST=y
+CONFIG_GENERIC_CMOS_UPDATE=y
+
+#
+# Timers subsystem
+#
+CONFIG_TICK_ONESHOT=y
+CONFIG_NO_HZ_COMMON=y
+# CONFIG_HZ_PERIODIC is not set
+CONFIG_NO_HZ_IDLE=y
+# CONFIG_NO_HZ is not set
+CONFIG_HIGH_RES_TIMERS=y
+# end of Timers subsystem
+
+CONFIG_PREEMPT_NONE=y
+# CONFIG_PREEMPT_VOLUNTARY is not set
+# CONFIG_PREEMPT is not set
+CONFIG_PREEMPT_COUNT=y
+
+#
+# CPU/Task time and stats accounting
+#
+CONFIG_TICK_CPU_ACCOUNTING=y
+CONFIG_IRQ_TIME_ACCOUNTING=y
+CONFIG_PSI=y
+CONFIG_PSI_DEFAULT_DISABLED=y
+# end of CPU/Task time and stats accounting
+
+#
+# RCU Subsystem
+#
+CONFIG_TINY_RCU=y
+CONFIG_RCU_EXPERT=y
+CONFIG_SRCU=y
+CONFIG_TINY_SRCU=y
+CONFIG_TASKS_RCU=y
+# end of RCU Subsystem
+
+# CONFIG_IKCONFIG is not set
+# CONFIG_IKHEADERS is not set
+CONFIG_LOG_BUF_SHIFT=17
+CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT=13
+CONFIG_HAVE_UNSTABLE_SCHED_CLOCK=y
+
+#
+# Scheduler features
+#
+# end of Scheduler features
+
+CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH=y
+CONFIG_CGROUPS=y
+CONFIG_PAGE_COUNTER=y
+CONFIG_MEMCG=y
+# CONFIG_MEMCG_SWAP is not set
+CONFIG_BLK_CGROUP=y
+CONFIG_CGROUP_WRITEBACK=y
+CONFIG_CGROUP_SCHED=y
+CONFIG_FAIR_GROUP_SCHED=y
+# CONFIG_CFS_BANDWIDTH is not set
+# CONFIG_RT_GROUP_SCHED is not set
+# CONFIG_CGROUP_PIDS is not set
+CONFIG_CGROUP_RDMA=y
+# CONFIG_CGROUP_FREEZER is not set
+CONFIG_CGROUP_DEVICE=y
+# CONFIG_CGROUP_CPUACCT is not set
+# CONFIG_CGROUP_PERF is not set
+CONFIG_CGROUP_BPF=y
+# CONFIG_CGROUP_DEBUG is not set
+CONFIG_SOCK_CGROUP_DATA=y
+# CONFIG_CHECKPOINT_RESTORE is not set
+CONFIG_SCHED_AUTOGROUP=y
+# CONFIG_SYSFS_DEPRECATED is not set
+# CONFIG_RELAY is not set
+# CONFIG_BLK_DEV_INITRD is not set
+CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+CONFIG_HAVE_UID16=y
+CONFIG_SYSCTL_EXCEPTION_TRACE=y
+CONFIG_HAVE_PCSPKR_PLATFORM=y
+CONFIG_BPF=y
+CONFIG_EXPERT=y
+# CONFIG_MULTIUSER is not set
+CONFIG_SGETMASK_SYSCALL=y
+# CONFIG_SYSFS_SYSCALL is not set
+# CONFIG_FHANDLE is not set
+# CONFIG_POSIX_TIMERS is not set
+CONFIG_PRINTK=y
+CONFIG_PRINTK_NMI=y
+CONFIG_BUG=y
+CONFIG_ELF_CORE=y
+CONFIG_PCSPKR_PLATFORM=y
+# CONFIG_BASE_FULL is not set
+# CONFIG_FUTEX is not set
+# CONFIG_EPOLL is not set
+CONFIG_SIGNALFD=y
+# CONFIG_TIMERFD is not set
+CONFIG_EVENTFD=y
+CONFIG_SHMEM=y
+# CONFIG_AIO is not set
+# CONFIG_IO_URING is not set
+CONFIG_ADVISE_SYSCALLS=y
+CONFIG_MEMBARRIER=y
+CONFIG_KALLSYMS=y
+CONFIG_KALLSYMS_ALL=y
+CONFIG_KALLSYMS_BASE_RELATIVE=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_USERFAULTFD=y
+CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE=y
+CONFIG_RSEQ=y
+CONFIG_DEBUG_RSEQ=y
+CONFIG_EMBEDDED=y
+CONFIG_HAVE_PERF_EVENTS=y
+CONFIG_PC104=y
+
+#
+# Kernel Performance Events And Counters
+#
+CONFIG_PERF_EVENTS=y
+# CONFIG_DEBUG_PERF_USE_VMALLOC is not set
+# end of Kernel Performance Events And Counters
+
+CONFIG_VM_EVENT_COUNTERS=y
+# CONFIG_COMPAT_BRK is not set
+# CONFIG_SLAB is not set
+# CONFIG_SLUB is not set
+CONFIG_SLOB=y
+CONFIG_SLAB_MERGE_DEFAULT=y
+# CONFIG_SHUFFLE_PAGE_ALLOCATOR is not set
+CONFIG_SYSTEM_DATA_VERIFICATION=y
+CONFIG_PROFILING=y
+# end of General setup
+
+CONFIG_X86_32=y
+CONFIG_X86=y
+CONFIG_INSTRUCTION_DECODER=y
+CONFIG_OUTPUT_FORMAT="elf32-i386"
+CONFIG_ARCH_DEFCONFIG="arch/x86/configs/i386_defconfig"
+CONFIG_LOCKDEP_SUPPORT=y
+CONFIG_STACKTRACE_SUPPORT=y
+CONFIG_MMU=y
+CONFIG_ARCH_MMAP_RND_BITS_MIN=8
+CONFIG_ARCH_MMAP_RND_BITS_MAX=16
+CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN=8
+CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX=16
+CONFIG_GENERIC_ISA_DMA=y
+CONFIG_GENERIC_BUG=y
+CONFIG_ARCH_MAY_HAVE_PC_FDC=y
+CONFIG_GENERIC_CALIBRATE_DELAY=y
+CONFIG_ARCH_HAS_CPU_RELAX=y
+CONFIG_ARCH_HAS_CACHE_LINE_SIZE=y
+CONFIG_ARCH_HAS_FILTER_PGPROT=y
+CONFIG_HAVE_SETUP_PER_CPU_AREA=y
+CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK=y
+CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK=y
+CONFIG_ARCH_HIBERNATION_POSSIBLE=y
+CONFIG_ARCH_SUSPEND_POSSIBLE=y
+CONFIG_ARCH_WANT_GENERAL_HUGETLB=y
+CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=y
+CONFIG_ARCH_SUPPORTS_UPROBES=y
+CONFIG_FIX_EARLYCON_MEM=y
+CONFIG_PGTABLE_LEVELS=3
+CONFIG_CC_HAS_SANE_STACKPROTECTOR=y
+
+#
+# Processor type and features
+#
+CONFIG_ZONE_DMA=y
+# CONFIG_SMP is not set
+# CONFIG_X86_FEATURE_NAMES is not set
+# CONFIG_GOLDFISH is not set
+# CONFIG_RETPOLINE is not set
+CONFIG_X86_CPU_RESCTRL=y
+# CONFIG_X86_EXTENDED_PLATFORM is not set
+# CONFIG_X86_AMD_PLATFORM_DEVICE is not set
+CONFIG_X86_SUPPORTS_MEMORY_FAILURE=y
+CONFIG_X86_32_IRIS=y
+CONFIG_SCHED_OMIT_FRAME_POINTER=y
+CONFIG_HYPERVISOR_GUEST=y
+# CONFIG_PARAVIRT is not set
+# CONFIG_ARCH_CPUIDLE_HALTPOLL is not set
+# CONFIG_PVH is not set
+# CONFIG_M486 is not set
+# CONFIG_M586 is not set
+# CONFIG_M586TSC is not set
+# CONFIG_M586MMX is not set
+# CONFIG_M686 is not set
+# CONFIG_MPENTIUMII is not set
+# CONFIG_MPENTIUMIII is not set
+# CONFIG_MPENTIUMM is not set
+# CONFIG_MPENTIUM4 is not set
+# CONFIG_MK6 is not set
+# CONFIG_MK7 is not set
+# CONFIG_MK8 is not set
+# CONFIG_MCRUSOE is not set
+# CONFIG_MEFFICEON is not set
+# CONFIG_MWINCHIPC6 is not set
+# CONFIG_MWINCHIP3D is not set
+# CONFIG_MELAN is not set
+# CONFIG_MGEODEGX1 is not set
+# CONFIG_MGEODE_LX is not set
+# CONFIG_MCYRIXIII is not set
+# CONFIG_MVIAC3_2 is not set
+CONFIG_MVIAC7=y
+# CONFIG_MCORE2 is not set
+# CONFIG_MATOM is not set
+# CONFIG_X86_GENERIC is not set
+CONFIG_X86_INTERNODE_CACHE_SHIFT=6
+CONFIG_X86_L1_CACHE_SHIFT=6
+CONFIG_X86_USE_PPRO_CHECKSUM=y
+CONFIG_X86_TSC=y
+CONFIG_X86_CMPXCHG64=y
+CONFIG_X86_CMOV=y
+CONFIG_X86_MINIMUM_CPU_FAMILY=6
+CONFIG_X86_DEBUGCTLMSR=y
+CONFIG_PROCESSOR_SELECT=y
+CONFIG_CPU_SUP_INTEL=y
+CONFIG_CPU_SUP_CYRIX_32=y
+CONFIG_CPU_SUP_AMD=y
+CONFIG_CPU_SUP_HYGON=y
+CONFIG_CPU_SUP_CENTAUR=y
+# CONFIG_CPU_SUP_TRANSMETA_32 is not set
+CONFIG_CPU_SUP_UMC_32=y
+CONFIG_CPU_SUP_ZHAOXIN=y
+CONFIG_HPET_TIMER=y
+CONFIG_DMI=y
+CONFIG_NR_CPUS_RANGE_BEGIN=1
+CONFIG_NR_CPUS_RANGE_END=1
+CONFIG_NR_CPUS_DEFAULT=1
+CONFIG_NR_CPUS=1
+# CONFIG_X86_UP_APIC is not set
+CONFIG_X86_MCE=y
+CONFIG_X86_MCELOG_LEGACY=y
+CONFIG_X86_ANCIENT_MCE=y
+
+#
+# Performance monitoring
+#
+# CONFIG_PERF_EVENTS_AMD_POWER is not set
+# end of Performance monitoring
+
+CONFIG_X86_LEGACY_VM86=y
+CONFIG_VM86=y
+# CONFIG_X86_16BIT is not set
+CONFIG_TOSHIBA=m
+CONFIG_I8K=m
+CONFIG_X86_REBOOTFIXUPS=y
+CONFIG_MICROCODE=y
+# CONFIG_MICROCODE_INTEL is not set
+CONFIG_MICROCODE_AMD=y
+# CONFIG_MICROCODE_OLD_INTERFACE is not set
+CONFIG_X86_MSR=m
+CONFIG_X86_CPUID=m
+CONFIG_NOHIGHMEM=y
+# CONFIG_HIGHMEM4G is not set
+# CONFIG_HIGHMEM64G is not set
+# CONFIG_VMSPLIT_3G is not set
+CONFIG_VMSPLIT_2G=y
+# CONFIG_VMSPLIT_1G is not set
+CONFIG_PAGE_OFFSET=0x80000000
+CONFIG_X86_PAE=y
+CONFIG_X86_CPA_STATISTICS=y
+CONFIG_ARCH_HAS_MEM_ENCRYPT=y
+CONFIG_ARCH_FLATMEM_ENABLE=y
+CONFIG_ARCH_SPARSEMEM_ENABLE=y
+CONFIG_ARCH_SELECT_MEMORY_MODEL=y
+CONFIG_ILLEGAL_POINTER_VALUE=0
+# CONFIG_X86_PMEM_LEGACY is not set
+# CONFIG_X86_CHECK_BIOS_CORRUPTION is not set
+CONFIG_X86_RESERVE_LOW=64
+CONFIG_MATH_EMULATION=y
+# CONFIG_MTRR is not set
+CONFIG_ARCH_RANDOM=y
+# CONFIG_X86_SMAP is not set
+# CONFIG_X86_INTEL_UMIP is not set
+# CONFIG_EFI is not set
+CONFIG_SECCOMP=y
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
+CONFIG_SCHED_HRTICK=y
+# CONFIG_KEXEC is not set
+CONFIG_PHYSICAL_START=0x1000000
+# CONFIG_RELOCATABLE is not set
+CONFIG_PHYSICAL_ALIGN=0x200000
+CONFIG_COMPAT_VDSO=y
+CONFIG_CMDLINE_BOOL=y
+CONFIG_CMDLINE=""
+# CONFIG_CMDLINE_OVERRIDE is not set
+CONFIG_MODIFY_LDT_SYSCALL=y
+# end of Processor type and features
+
+CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK=y
+
+#
+# Power management and ACPI options
+#
+# CONFIG_SUSPEND is not set
+# CONFIG_HIBERNATION is not set
+CONFIG_PM=y
+# CONFIG_PM_DEBUG is not set
+CONFIG_PM_CLK=y
+CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
+CONFIG_ARCH_SUPPORTS_ACPI=y
+CONFIG_ACPI=y
+CONFIG_ACPI_LEGACY_TABLES_LOOKUP=y
+CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC=y
+CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT=y
+# CONFIG_ACPI_DEBUGGER is not set
+# CONFIG_ACPI_SPCR_TABLE is not set
+# CONFIG_ACPI_REV_OVERRIDE_POSSIBLE is not set
+# CONFIG_ACPI_EC_DEBUGFS is not set
+# CONFIG_ACPI_AC is not set
+CONFIG_ACPI_BATTERY=m
+CONFIG_ACPI_BUTTON=m
+CONFIG_ACPI_VIDEO=m
+# CONFIG_ACPI_FAN is not set
+# CONFIG_ACPI_DOCK is not set
+CONFIG_ACPI_CPU_FREQ_PSS=y
+CONFIG_ACPI_PROCESSOR_CSTATE=y
+CONFIG_ACPI_PROCESSOR_IDLE=y
+CONFIG_ACPI_PROCESSOR=y
+# CONFIG_ACPI_PROCESSOR_AGGREGATOR is not set
+# CONFIG_ACPI_THERMAL is not set
+CONFIG_ARCH_HAS_ACPI_TABLE_UPGRADE=y
+CONFIG_ACPI_DEBUG=y
+CONFIG_ACPI_CONTAINER=y
+# CONFIG_ACPI_SBS is not set
+CONFIG_ACPI_HED=y
+CONFIG_ACPI_CUSTOM_METHOD=y
+CONFIG_ACPI_REDUCED_HARDWARE_ONLY=y
+CONFIG_HAVE_ACPI_APEI=y
+CONFIG_HAVE_ACPI_APEI_NMI=y
+# CONFIG_ACPI_APEI is not set
+# CONFIG_DPTF_POWER is not set
+CONFIG_PMIC_OPREGION=y
+CONFIG_ACPI_CONFIGFS=m
+# CONFIG_X86_PM_TIMER is not set
+# CONFIG_SFI is not set
+
+#
+# CPU Frequency scaling
+#
+CONFIG_CPU_FREQ=y
+CONFIG_CPU_FREQ_GOV_ATTR_SET=y
+CONFIG_CPU_FREQ_GOV_COMMON=y
+# CONFIG_CPU_FREQ_STAT is not set
+CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y
+# CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE is not set
+# CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE is not set
+# CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND is not set
+# CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE is not set
+CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
+CONFIG_CPU_FREQ_GOV_POWERSAVE=y
+# CONFIG_CPU_FREQ_GOV_USERSPACE is not set
+CONFIG_CPU_FREQ_GOV_ONDEMAND=m
+# CONFIG_CPU_FREQ_GOV_CONSERVATIVE is not set
+
+#
+# CPU frequency scaling drivers
+#
+# CONFIG_X86_INTEL_PSTATE is not set
+CONFIG_X86_PCC_CPUFREQ=y
+# CONFIG_X86_ACPI_CPUFREQ is not set
+CONFIG_X86_POWERNOW_K6=y
+# CONFIG_X86_POWERNOW_K7 is not set
+CONFIG_X86_SPEEDSTEP_CENTRINO=y
+CONFIG_X86_SPEEDSTEP_CENTRINO_TABLE=y
+# CONFIG_X86_SPEEDSTEP_ICH is not set
+# CONFIG_X86_SPEEDSTEP_SMI is not set
+CONFIG_X86_P4_CLOCKMOD=m
+# CONFIG_X86_CPUFREQ_NFORCE2 is not set
+# CONFIG_X86_LONGRUN is not set
+# CONFIG_X86_LONGHAUL is not set
+# CONFIG_X86_E_POWERSAVER is not set
+
+#
+# shared options
+#
+CONFIG_X86_SPEEDSTEP_LIB=m
+# end of CPU Frequency scaling
+
+#
+# CPU Idle
+#
+CONFIG_CPU_IDLE=y
+# CONFIG_CPU_IDLE_GOV_LADDER is not set
+CONFIG_CPU_IDLE_GOV_MENU=y
+# CONFIG_CPU_IDLE_GOV_TEO is not set
+# end of CPU Idle
+
+# CONFIG_INTEL_IDLE is not set
+# end of Power management and ACPI options
+
+#
+# Bus options (PCI etc.)
+#
+CONFIG_ISA_BUS=y
+CONFIG_ISA_DMA_API=y
+# CONFIG_ISA is not set
+# CONFIG_SCx200 is not set
+CONFIG_ALIX=y
+# CONFIG_NET5501 is not set
+# CONFIG_GEOS is not set
+# CONFIG_X86_SYSFB is not set
+# end of Bus options (PCI etc.)
+
+#
+# Binary Emulations
+#
+CONFIG_COMPAT_32=y
+# end of Binary Emulations
+
+CONFIG_HAVE_ATOMIC_IOMAP=y
+
+#
+# Firmware Drivers
+#
+# CONFIG_EDD is not set
+CONFIG_FIRMWARE_MEMMAP=y
+# CONFIG_DMIID is not set
+# CONFIG_DMI_SYSFS is not set
+CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK=y
+# CONFIG_FW_CFG_SYSFS is not set
+# CONFIG_GOOGLE_FIRMWARE is not set
+CONFIG_EFI_EARLYCON=y
+
+#
+# Tegra firmware driver
+#
+# end of Tegra firmware driver
+# end of Firmware Drivers
+
+CONFIG_HAVE_KVM=y
+# CONFIG_VIRTUALIZATION is not set
+
+#
+# General architecture-dependent options
+#
+CONFIG_OPROFILE=y
+# CONFIG_OPROFILE_EVENT_MULTIPLEX is not set
+CONFIG_HAVE_OPROFILE=y
+CONFIG_OPROFILE_NMI_TIMER=y
+CONFIG_KPROBES=y
+# CONFIG_JUMP_LABEL is not set
+CONFIG_OPTPROBES=y
+CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS=y
+CONFIG_ARCH_USE_BUILTIN_BSWAP=y
+CONFIG_KRETPROBES=y
+CONFIG_HAVE_IOREMAP_PROT=y
+CONFIG_HAVE_KPROBES=y
+CONFIG_HAVE_KRETPROBES=y
+CONFIG_HAVE_OPTPROBES=y
+CONFIG_HAVE_KPROBES_ON_FTRACE=y
+CONFIG_HAVE_FUNCTION_ERROR_INJECTION=y
+CONFIG_HAVE_NMI=y
+CONFIG_HAVE_ARCH_TRACEHOOK=y
+CONFIG_HAVE_DMA_CONTIGUOUS=y
+CONFIG_GENERIC_SMP_IDLE_THREAD=y
+CONFIG_ARCH_HAS_FORTIFY_SOURCE=y
+CONFIG_ARCH_HAS_SET_MEMORY=y
+CONFIG_ARCH_HAS_SET_DIRECT_MAP=y
+CONFIG_HAVE_ARCH_THREAD_STRUCT_WHITELIST=y
+CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT=y
+CONFIG_ARCH_32BIT_OFF_T=y
+CONFIG_HAVE_REGS_AND_STACK_ACCESS_API=y
+CONFIG_HAVE_RSEQ=y
+CONFIG_HAVE_FUNCTION_ARG_ACCESS_API=y
+CONFIG_HAVE_CLK=y
+CONFIG_HAVE_HW_BREAKPOINT=y
+CONFIG_HAVE_MIXED_BREAKPOINTS_REGS=y
+CONFIG_HAVE_USER_RETURN_NOTIFIER=y
+CONFIG_HAVE_PERF_EVENTS_NMI=y
+CONFIG_HAVE_HARDLOCKUP_DETECTOR_PERF=y
+CONFIG_HAVE_PERF_REGS=y
+CONFIG_HAVE_PERF_USER_STACK_DUMP=y
+CONFIG_HAVE_ARCH_JUMP_LABEL=y
+CONFIG_HAVE_ARCH_JUMP_LABEL_RELATIVE=y
+CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG=y
+CONFIG_HAVE_CMPXCHG_LOCAL=y
+CONFIG_HAVE_CMPXCHG_DOUBLE=y
+CONFIG_ARCH_WANT_IPC_PARSE_VERSION=y
+CONFIG_HAVE_ARCH_SECCOMP_FILTER=y
+CONFIG_HAVE_ARCH_STACKLEAK=y
+CONFIG_HAVE_STACKPROTECTOR=y
+CONFIG_CC_HAS_STACKPROTECTOR_NONE=y
+CONFIG_STACKPROTECTOR=y
+CONFIG_STACKPROTECTOR_STRONG=y
+CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES=y
+CONFIG_HAVE_IRQ_TIME_ACCOUNTING=y
+CONFIG_HAVE_MOVE_PMD=y
+CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE=y
+CONFIG_HAVE_ARCH_HUGE_VMAP=y
+CONFIG_ARCH_WANT_HUGE_PMD_SHARE=y
+CONFIG_HAVE_MOD_ARCH_SPECIFIC=y
+CONFIG_MODULES_USE_ELF_REL=y
+CONFIG_ARCH_HAS_ELF_RANDOMIZE=y
+CONFIG_HAVE_ARCH_MMAP_RND_BITS=y
+CONFIG_HAVE_EXIT_THREAD=y
+CONFIG_ARCH_MMAP_RND_BITS=8
+CONFIG_HAVE_COPY_THREAD_TLS=y
+CONFIG_ISA_BUS_API=y
+CONFIG_CLONE_BACKWARDS=y
+CONFIG_OLD_SIGSUSPEND3=y
+CONFIG_OLD_SIGACTION=y
+CONFIG_64BIT_TIME=y
+CONFIG_COMPAT_32BIT_TIME=y
+CONFIG_ARCH_HAS_STRICT_KERNEL_RWX=y
+CONFIG_STRICT_KERNEL_RWX=y
+CONFIG_ARCH_HAS_STRICT_MODULE_RWX=y
+CONFIG_STRICT_MODULE_RWX=y
+CONFIG_ARCH_HAS_REFCOUNT=y
+CONFIG_REFCOUNT_FULL=y
+CONFIG_HAVE_ARCH_PREL32_RELOCATIONS=y
+CONFIG_ARCH_USE_MEMREMAP_PROT=y
+# CONFIG_LOCK_EVENT_COUNTS is not set
+
+#
+# GCOV-based kernel profiling
+#
+# CONFIG_GCOV_KERNEL is not set
+CONFIG_ARCH_HAS_GCOV_PROFILE_ALL=y
+# end of GCOV-based kernel profiling
+
+CONFIG_PLUGIN_HOSTCC=""
+CONFIG_HAVE_GCC_PLUGINS=y
+# end of General architecture-dependent options
+
+CONFIG_RT_MUTEXES=y
+CONFIG_BASE_SMALL=1
+CONFIG_MODULE_SIG_FORMAT=y
+CONFIG_MODULES=y
+CONFIG_MODULE_FORCE_LOAD=y
+CONFIG_MODULE_UNLOAD=y
+CONFIG_MODULE_FORCE_UNLOAD=y
+# CONFIG_MODVERSIONS is not set
+CONFIG_MODULE_SRCVERSION_ALL=y
+CONFIG_MODULE_SIG=y
+CONFIG_MODULE_SIG_FORCE=y
+# CONFIG_MODULE_SIG_ALL is not set
+
+#
+# Do not forget to sign required modules with scripts/sign-file
+#
+# CONFIG_MODULE_SIG_SHA1 is not set
+# CONFIG_MODULE_SIG_SHA224 is not set
+# CONFIG_MODULE_SIG_SHA256 is not set
+# CONFIG_MODULE_SIG_SHA384 is not set
+CONFIG_MODULE_SIG_SHA512=y
+CONFIG_MODULE_SIG_HASH="sha512"
+# CONFIG_MODULE_COMPRESS is not set
+CONFIG_MODULES_TREE_LOOKUP=y
+CONFIG_BLOCK=y
+CONFIG_BLK_SCSI_REQUEST=y
+CONFIG_BLK_DEV_BSG=y
+CONFIG_BLK_DEV_BSGLIB=y
+# CONFIG_BLK_DEV_INTEGRITY is not set
+CONFIG_BLK_DEV_ZONED=y
+CONFIG_BLK_DEV_THROTTLING=y
+CONFIG_BLK_DEV_THROTTLING_LOW=y
+# CONFIG_BLK_CMDLINE_PARSER is not set
+# CONFIG_BLK_WBT is not set
+# CONFIG_BLK_CGROUP_IOLATENCY is not set
+# CONFIG_BLK_DEBUG_FS is not set
+CONFIG_BLK_SED_OPAL=y
+
+#
+# Partition Types
+#
+# CONFIG_PARTITION_ADVANCED is not set
+CONFIG_MSDOS_PARTITION=y
+CONFIG_EFI_PARTITION=y
+# end of Partition Types
+
+CONFIG_BLK_MQ_VIRTIO=y
+CONFIG_BLK_PM=y
+
+#
+# IO Schedulers
+#
+CONFIG_MQ_IOSCHED_DEADLINE=y
+# CONFIG_MQ_IOSCHED_KYBER is not set
+CONFIG_IOSCHED_BFQ=y
+CONFIG_BFQ_GROUP_IOSCHED=y
+CONFIG_BFQ_CGROUP_DEBUG=y
+# end of IO Schedulers
+
+CONFIG_ASN1=y
+CONFIG_UNINLINE_SPIN_UNLOCK=y
+CONFIG_ARCH_SUPPORTS_ATOMIC_RMW=y
+CONFIG_ARCH_USE_QUEUED_SPINLOCKS=y
+CONFIG_ARCH_USE_QUEUED_RWLOCKS=y
+CONFIG_ARCH_HAS_SYNC_CORE_BEFORE_USERMODE=y
+
+#
+# Executable file formats
+#
+CONFIG_BINFMT_ELF=y
+CONFIG_ELFCORE=y
+# CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
+CONFIG_BINFMT_SCRIPT=m
+CONFIG_BINFMT_MISC=y
+CONFIG_COREDUMP=y
+# end of Executable file formats
+
+#
+# Memory Management options
+#
+CONFIG_SELECT_MEMORY_MODEL=y
+CONFIG_FLATMEM_MANUAL=y
+# CONFIG_SPARSEMEM_MANUAL is not set
+CONFIG_FLATMEM=y
+CONFIG_FLAT_NODE_MEM_MAP=y
+CONFIG_SPARSEMEM_STATIC=y
+CONFIG_HAVE_MEMBLOCK_NODE_MAP=y
+CONFIG_HAVE_FAST_GUP=y
+CONFIG_MEMORY_ISOLATION=y
+CONFIG_SPLIT_PTLOCK_CPUS=4
+CONFIG_COMPACTION=y
+CONFIG_MIGRATION=y
+CONFIG_CONTIG_ALLOC=y
+CONFIG_PHYS_ADDR_T_64BIT=y
+# CONFIG_BOUNCE is not set
+CONFIG_VIRT_TO_BUS=y
+CONFIG_KSM=y
+CONFIG_DEFAULT_MMAP_MIN_ADDR=4096
+CONFIG_ARCH_SUPPORTS_MEMORY_FAILURE=y
+CONFIG_MEMORY_FAILURE=y
+CONFIG_TRANSPARENT_HUGEPAGE=y
+# CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+CONFIG_TRANSPARENT_HUGE_PAGECACHE=y
+CONFIG_NEED_PER_CPU_KM=y
+# CONFIG_CLEANCACHE is not set
+CONFIG_FRONTSWAP=y
+CONFIG_CMA=y
+# CONFIG_CMA_DEBUG is not set
+CONFIG_CMA_DEBUGFS=y
+CONFIG_CMA_AREAS=7
+# CONFIG_ZSWAP is not set
+CONFIG_ZPOOL=m
+CONFIG_ZBUD=y
+CONFIG_Z3FOLD=m
+CONFIG_ZSMALLOC=m
+# CONFIG_PGTABLE_MAPPING is not set
+# CONFIG_ZSMALLOC_STAT is not set
+CONFIG_GENERIC_EARLY_IOREMAP=y
+# CONFIG_IDLE_PAGE_TRACKING is not set
+CONFIG_PERCPU_STATS=y
+CONFIG_GUP_BENCHMARK=y
+CONFIG_GUP_GET_PTE_LOW_HIGH=y
+CONFIG_READ_ONLY_THP_FOR_FS=y
+CONFIG_ARCH_HAS_PTE_SPECIAL=y
+# end of Memory Management options
+
+# CONFIG_NET is not set
+CONFIG_HAVE_EBPF_JIT=y
+
+#
+# Device Drivers
+#
+CONFIG_HAVE_EISA=y
+# CONFIG_EISA is not set
+CONFIG_HAVE_PCI=y
+# CONFIG_PCI is not set
+# CONFIG_PCCARD is not set
+
+#
+# Generic Driver Options
+#
+CONFIG_UEVENT_HELPER=y
+CONFIG_UEVENT_HELPER_PATH=""
+# CONFIG_DEVTMPFS is not set
+CONFIG_STANDALONE=y
+CONFIG_PREVENT_FIRMWARE_BUILD=y
+
+#
+# Firmware loader
+#
+CONFIG_FW_LOADER=y
+CONFIG_FW_LOADER_PAGED_BUF=y
+CONFIG_EXTRA_FIRMWARE=""
+CONFIG_FW_LOADER_USER_HELPER=y
+# CONFIG_FW_LOADER_USER_HELPER_FALLBACK is not set
+CONFIG_FW_LOADER_COMPRESS=y
+# end of Firmware loader
+
+CONFIG_WANT_DEV_COREDUMP=y
+# CONFIG_ALLOW_DEV_COREDUMP is not set
+CONFIG_DEBUG_DRIVER=y
+CONFIG_DEBUG_DEVRES=y
+CONFIG_DEBUG_TEST_DRIVER_REMOVE=y
+CONFIG_TEST_ASYNC_DRIVER_PROBE=m
+CONFIG_GENERIC_CPU_AUTOPROBE=y
+CONFIG_GENERIC_CPU_VULNERABILITIES=y
+CONFIG_REGMAP=y
+CONFIG_REGMAP_I2C=y
+CONFIG_REGMAP_W1=m
+CONFIG_REGMAP_MMIO=y
+CONFIG_REGMAP_IRQ=y
+CONFIG_DMA_SHARED_BUFFER=y
+CONFIG_DMA_FENCE_TRACE=y
+# end of Generic Driver Options
+
+#
+# Bus devices
+#
+# end of Bus devices
+
+# CONFIG_GNSS is not set
+CONFIG_MTD=m
+CONFIG_MTD_TESTS=m
+CONFIG_MTD_CMDLINE_PARTS=m
+# CONFIG_MTD_AR7_PARTS is not set
+
+#
+# Partition parsers
+#
+# CONFIG_MTD_REDBOOT_PARTS is not set
+# end of Partition parsers
+
+#
+# User Modules And Translation Layers
+#
+CONFIG_MTD_BLKDEVS=m
+CONFIG_MTD_BLOCK=m
+CONFIG_MTD_BLOCK_RO=m
+CONFIG_FTL=m
+CONFIG_NFTL=m
+CONFIG_NFTL_RW=y
+CONFIG_INFTL=m
+CONFIG_RFD_FTL=m
+CONFIG_SSFDC=m
+# CONFIG_SM_FTL is not set
+# CONFIG_MTD_OOPS is not set
+CONFIG_MTD_SWAP=m
+# CONFIG_MTD_PARTITIONED_MASTER is not set
+
+#
+# RAM/ROM/Flash chip drivers
+#
+CONFIG_MTD_CFI=m
+# CONFIG_MTD_JEDECPROBE is not set
+CONFIG_MTD_GEN_PROBE=m
+# CONFIG_MTD_CFI_ADV_OPTIONS is not set
+CONFIG_MTD_MAP_BANK_WIDTH_1=y
+CONFIG_MTD_MAP_BANK_WIDTH_2=y
+CONFIG_MTD_MAP_BANK_WIDTH_4=y
+CONFIG_MTD_CFI_I1=y
+CONFIG_MTD_CFI_I2=y
+CONFIG_MTD_CFI_INTELEXT=m
+CONFIG_MTD_CFI_AMDSTD=m
+CONFIG_MTD_CFI_STAA=m
+CONFIG_MTD_CFI_UTIL=m
+CONFIG_MTD_RAM=m
+CONFIG_MTD_ROM=m
+# CONFIG_MTD_ABSENT is not set
+# end of RAM/ROM/Flash chip drivers
+
+#
+# Mapping drivers for chip access
+#
+CONFIG_MTD_COMPLEX_MAPPINGS=y
+# CONFIG_MTD_PHYSMAP is not set
+CONFIG_MTD_SBC_GXX=m
+CONFIG_MTD_PLATRAM=m
+# end of Mapping drivers for chip access
+
+#
+# Self-contained MTD device drivers
+#
+# CONFIG_MTD_SLRAM is not set
+# CONFIG_MTD_PHRAM is not set
+CONFIG_MTD_MTDRAM=m
+CONFIG_MTDRAM_TOTAL_SIZE=4096
+CONFIG_MTDRAM_ERASE_SIZE=128
+# CONFIG_MTD_BLOCK2MTD is not set
+
+#
+# Disk-On-Chip Device Drivers
+#
+CONFIG_MTD_DOCG3=m
+CONFIG_BCH_CONST_M=14
+CONFIG_BCH_CONST_T=4
+# end of Self-contained MTD device drivers
+
+CONFIG_MTD_ONENAND=m
+# CONFIG_MTD_ONENAND_VERIFY_WRITE is not set
+# CONFIG_MTD_ONENAND_GENERIC is not set
+# CONFIG_MTD_ONENAND_OTP is not set
+CONFIG_MTD_ONENAND_2X_PROGRAM=y
+# CONFIG_MTD_RAW_NAND is not set
+
+#
+# LPDDR & LPDDR2 PCM memory drivers
+#
+CONFIG_MTD_LPDDR=m
+CONFIG_MTD_QINFO_PROBE=m
+# end of LPDDR & LPDDR2 PCM memory drivers
+
+CONFIG_MTD_UBI=m
+CONFIG_MTD_UBI_WL_THRESHOLD=4096
+CONFIG_MTD_UBI_BEB_LIMIT=20
+# CONFIG_MTD_UBI_FASTMAP is not set
+# CONFIG_MTD_UBI_GLUEBI is not set
+CONFIG_MTD_UBI_BLOCK=y
+CONFIG_MTD_HYPERBUS=m
+# CONFIG_OF is not set
+CONFIG_ARCH_MIGHT_HAVE_PC_PARPORT=y
+CONFIG_PARPORT=m
+CONFIG_PARPORT_PC=m
+CONFIG_PARPORT_PC_FIFO=y
+# CONFIG_PARPORT_PC_SUPERIO is not set
+# CONFIG_PARPORT_AX88796 is not set
+CONFIG_PARPORT_1284=y
+CONFIG_PARPORT_NOT_PC=y
+CONFIG_PNP=y
+CONFIG_PNP_DEBUG_MESSAGES=y
+
+#
+# Protocols
+#
+CONFIG_PNPACPI=y
+CONFIG_BLK_DEV=y
+# CONFIG_BLK_DEV_NULL_BLK is not set
+CONFIG_BLK_DEV_FD=y
+CONFIG_CDROM=m
+CONFIG_PARIDE=m
+
+#
+# Parallel IDE high-level drivers
+#
+CONFIG_PARIDE_PD=m
+CONFIG_PARIDE_PCD=m
+CONFIG_PARIDE_PF=m
+CONFIG_PARIDE_PT=m
+# CONFIG_PARIDE_PG is not set
+
+#
+# Parallel IDE protocol modules
+#
+# CONFIG_PARIDE_ATEN is not set
+CONFIG_PARIDE_BPCK=m
+CONFIG_PARIDE_BPCK6=m
+CONFIG_PARIDE_COMM=m
+CONFIG_PARIDE_DSTR=m
+CONFIG_PARIDE_FIT2=m
+# CONFIG_PARIDE_FIT3 is not set
+CONFIG_PARIDE_EPAT=m
+# CONFIG_PARIDE_EPATC8 is not set
+# CONFIG_PARIDE_EPIA is not set
+CONFIG_PARIDE_FRIQ=m
+# CONFIG_PARIDE_FRPW is not set
+CONFIG_PARIDE_KBIC=m
+CONFIG_PARIDE_KTTI=m
+CONFIG_PARIDE_ON20=m
+# CONFIG_PARIDE_ON26 is not set
+CONFIG_ZRAM=m
+# CONFIG_ZRAM_WRITEBACK is not set
+CONFIG_ZRAM_MEMORY_TRACKING=y
+CONFIG_BLK_DEV_LOOP=y
+CONFIG_BLK_DEV_LOOP_MIN_COUNT=8
+CONFIG_BLK_DEV_CRYPTOLOOP=y
+
+#
+# DRBD disabled because PROC_FS or INET not selected
+#
+CONFIG_BLK_DEV_RAM=m
+CONFIG_BLK_DEV_RAM_COUNT=16
+CONFIG_BLK_DEV_RAM_SIZE=4096
+CONFIG_CDROM_PKTCDVD=m
+CONFIG_CDROM_PKTCDVD_BUFFERS=8
+CONFIG_CDROM_PKTCDVD_WCACHE=y
+CONFIG_VIRTIO_BLK=m
+CONFIG_VIRTIO_BLK_SCSI=y
+
+#
+# NVME Support
+#
+# CONFIG_NVME_FC is not set
+CONFIG_NVME_TARGET=m
+# CONFIG_NVME_TARGET_LOOP is not set
+CONFIG_NVME_TARGET_FC=m
+# end of NVME Support
+
+#
+# Misc devices
+#
+CONFIG_SENSORS_LIS3LV02D=m
+CONFIG_AD525X_DPOT=y
+CONFIG_AD525X_DPOT_I2C=m
+CONFIG_DUMMY_IRQ=y
+# CONFIG_ICS932S401 is not set
+CONFIG_ENCLOSURE_SERVICES=m
+CONFIG_APDS9802ALS=y
+CONFIG_ISL29003=y
+CONFIG_ISL29020=y
+CONFIG_SENSORS_TSL2550=m
+CONFIG_SENSORS_BH1770=m
+# CONFIG_SENSORS_APDS990X is not set
+CONFIG_HMC6352=m
+# CONFIG_DS1682 is not set
+# CONFIG_SRAM is not set
+CONFIG_XILINX_SDFEC=m
+CONFIG_PVPANIC=y
+CONFIG_C2PORT=m
+# CONFIG_C2PORT_DURAMAR_2150 is not set
+
+#
+# EEPROM support
+#
+# CONFIG_EEPROM_AT24 is not set
+CONFIG_EEPROM_LEGACY=y
+CONFIG_EEPROM_MAX6875=y
+# CONFIG_EEPROM_93CX6 is not set
+CONFIG_EEPROM_IDT_89HPESX=m
+CONFIG_EEPROM_EE1004=y
+# end of EEPROM support
+
+#
+# Texas Instruments shared transport line discipline
+#
+# end of Texas Instruments shared transport line discipline
+
+CONFIG_SENSORS_LIS3_I2C=m
+# CONFIG_ALTERA_STAPL is not set
+
+#
+# Intel MIC & related support
+#
+
+#
+# Intel MIC Bus Driver
+#
+
+#
+# SCIF Bus Driver
+#
+
+#
+# VOP Bus Driver
+#
+CONFIG_VOP_BUS=m
+
+#
+# Intel MIC Host Driver
+#
+
+#
+# Intel MIC Card Driver
+#
+
+#
+# SCIF Driver
+#
+
+#
+# Intel MIC Coprocessor State Management (COSM) Drivers
+#
+
+#
+# VOP Driver
+#
+CONFIG_VOP=m
+CONFIG_VHOST_RING=m
+# end of Intel MIC & related support
+
+# CONFIG_ECHO is not set
+# CONFIG_MISC_RTSX_USB is not set
+# end of Misc devices
+
+CONFIG_HAVE_IDE=y
+CONFIG_IDE=y
+
+#
+# Please see Documentation/ide/ide.rst for help/info on IDE drives
+#
+CONFIG_IDE_XFER_MODE=y
+CONFIG_IDE_TIMINGS=y
+CONFIG_IDE_ATAPI=y
+# CONFIG_BLK_DEV_IDE_SATA is not set
+CONFIG_IDE_GD=y
+# CONFIG_IDE_GD_ATA is not set
+# CONFIG_IDE_GD_ATAPI is not set
+# CONFIG_BLK_DEV_IDECD is not set
+CONFIG_BLK_DEV_IDETAPE=y
+# CONFIG_BLK_DEV_IDEACPI is not set
+# CONFIG_IDE_TASK_IOCTL is not set
+
+#
+# IDE chipset support/bugfixes
+#
+CONFIG_IDE_GENERIC=m
+CONFIG_BLK_DEV_PLATFORM=m
+CONFIG_BLK_DEV_CMD640=y
+CONFIG_BLK_DEV_CMD640_ENHANCED=y
+CONFIG_BLK_DEV_IDEPNP=y
+
+#
+# SCSI device support
+#
+CONFIG_SCSI_MOD=y
+# CONFIG_RAID_ATTRS is not set
+CONFIG_SCSI=y
+CONFIG_SCSI_DMA=y
+
+#
+# SCSI support type (disk, tape, CD-ROM)
+#
+CONFIG_BLK_DEV_SD=y
+# CONFIG_CHR_DEV_ST is not set
+# CONFIG_BLK_DEV_SR is not set
+CONFIG_CHR_DEV_SG=m
+CONFIG_CHR_DEV_SCH=y
+# CONFIG_SCSI_ENCLOSURE is not set
+# CONFIG_SCSI_CONSTANTS is not set
+# CONFIG_SCSI_LOGGING is not set
+# CONFIG_SCSI_SCAN_ASYNC is not set
+
+#
+# SCSI Transports
+#
+# CONFIG_SCSI_SPI_ATTRS is not set
+CONFIG_SCSI_SAS_ATTRS=m
+CONFIG_SCSI_SAS_LIBSAS=m
+# CONFIG_SCSI_SAS_ATA is not set
+# CONFIG_SCSI_SAS_HOST_SMP is not set
+CONFIG_SCSI_SRP_ATTRS=m
+# end of SCSI Transports
+
+# CONFIG_SCSI_LOWLEVEL is not set
+# CONFIG_SCSI_DH is not set
+# end of SCSI device support
+
+CONFIG_ATA=m
+# CONFIG_ATA_VERBOSE_ERROR is not set
+CONFIG_ATA_ACPI=y
+# CONFIG_SATA_ZPODD is not set
+# CONFIG_SATA_PMP is not set
+
+#
+# Controllers with non-SFF native interface
+#
+# CONFIG_SATA_AHCI_PLATFORM is not set
+CONFIG_ATA_SFF=y
+
+#
+# SFF controllers with custom DMA interface
+#
+CONFIG_ATA_BMDMA=y
+
+#
+# SATA SFF controllers with BMDMA
+#
+# CONFIG_SATA_DWC is not set
+
+#
+# PATA SFF controllers with BMDMA
+#
+
+#
+# PIO-only SFF controllers
+#
+CONFIG_PATA_PLATFORM=m
+
+#
+# Generic fallback / legacy drivers
+#
+CONFIG_MD=y
+# CONFIG_BLK_DEV_MD is not set
+CONFIG_BCACHE=y
+CONFIG_BCACHE_DEBUG=y
+# CONFIG_BCACHE_CLOSURES_DEBUG is not set
+# CONFIG_BLK_DEV_DM is not set
+CONFIG_TARGET_CORE=m
+# CONFIG_TCM_IBLOCK is not set
+CONFIG_TCM_FILEIO=m
+CONFIG_TCM_PSCSI=m
+CONFIG_LOOPBACK_TARGET=m
+# CONFIG_MACINTOSH_DRIVERS is not set
+# CONFIG_NVM is not set
+
+#
+# Input device support
+#
+CONFIG_INPUT=m
+CONFIG_INPUT_LEDS=m
+CONFIG_INPUT_FF_MEMLESS=m
+CONFIG_INPUT_POLLDEV=m
+CONFIG_INPUT_SPARSEKMAP=m
+CONFIG_INPUT_MATRIXKMAP=m
+
+#
+# Userland interfaces
+#
+CONFIG_INPUT_MOUSEDEV=m
+# CONFIG_INPUT_MOUSEDEV_PSAUX is not set
+CONFIG_INPUT_MOUSEDEV_SCREEN_X=1024
+CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
+CONFIG_INPUT_JOYDEV=m
+CONFIG_INPUT_EVDEV=m
+# CONFIG_INPUT_EVBUG is not set
+
+#
+# Input Device Drivers
+#
+# CONFIG_INPUT_KEYBOARD is not set
+# CONFIG_INPUT_MOUSE is not set
+# CONFIG_INPUT_JOYSTICK is not set
+CONFIG_INPUT_TABLET=y
+# CONFIG_TABLET_USB_ACECAD is not set
+CONFIG_TABLET_USB_AIPTEK=m
+CONFIG_TABLET_USB_GTCO=m
+# CONFIG_TABLET_USB_HANWANG is not set
+# CONFIG_TABLET_USB_KBTAB is not set
+# CONFIG_TABLET_USB_PEGASUS is not set
+CONFIG_TABLET_SERIAL_WACOM4=m
+CONFIG_INPUT_TOUCHSCREEN=y
+CONFIG_TOUCHSCREEN_PROPERTIES=m
+CONFIG_TOUCHSCREEN_AD7879=m
+CONFIG_TOUCHSCREEN_AD7879_I2C=m
+CONFIG_TOUCHSCREEN_ATMEL_MXT=m
+CONFIG_TOUCHSCREEN_AUO_PIXCIR=m
+CONFIG_TOUCHSCREEN_BU21013=m
+CONFIG_TOUCHSCREEN_BU21029=m
+CONFIG_TOUCHSCREEN_CHIPONE_ICN8505=m
+CONFIG_TOUCHSCREEN_CY8CTMG110=m
+# CONFIG_TOUCHSCREEN_CYTTSP_CORE is not set
+CONFIG_TOUCHSCREEN_CYTTSP4_CORE=m
+# CONFIG_TOUCHSCREEN_CYTTSP4_I2C is not set
+# CONFIG_TOUCHSCREEN_DA9034 is not set
+CONFIG_TOUCHSCREEN_DA9052=m
+# CONFIG_TOUCHSCREEN_DYNAPRO is not set
+CONFIG_TOUCHSCREEN_HAMPSHIRE=m
+CONFIG_TOUCHSCREEN_EETI=m
+CONFIG_TOUCHSCREEN_EGALAX_SERIAL=m
+CONFIG_TOUCHSCREEN_EXC3000=m
+# CONFIG_TOUCHSCREEN_FUJITSU is not set
+CONFIG_TOUCHSCREEN_GOODIX=m
+CONFIG_TOUCHSCREEN_HIDEEP=m
+CONFIG_TOUCHSCREEN_ILI210X=m
+CONFIG_TOUCHSCREEN_S6SY761=m
+CONFIG_TOUCHSCREEN_GUNZE=m
+CONFIG_TOUCHSCREEN_EKTF2127=m
+# CONFIG_TOUCHSCREEN_ELAN is not set
+CONFIG_TOUCHSCREEN_ELO=m
+CONFIG_TOUCHSCREEN_WACOM_W8001=m
+CONFIG_TOUCHSCREEN_WACOM_I2C=m
+CONFIG_TOUCHSCREEN_MAX11801=m
+# CONFIG_TOUCHSCREEN_MCS5000 is not set
+CONFIG_TOUCHSCREEN_MMS114=m
+CONFIG_TOUCHSCREEN_MELFAS_MIP4=m
+CONFIG_TOUCHSCREEN_MTOUCH=m
+CONFIG_TOUCHSCREEN_INEXIO=m
+CONFIG_TOUCHSCREEN_MK712=m
+CONFIG_TOUCHSCREEN_PENMOUNT=m
+CONFIG_TOUCHSCREEN_EDT_FT5X06=m
+CONFIG_TOUCHSCREEN_TOUCHRIGHT=m
+# CONFIG_TOUCHSCREEN_TOUCHWIN is not set
+CONFIG_TOUCHSCREEN_PIXCIR=m
+# CONFIG_TOUCHSCREEN_WDT87XX_I2C is not set
+CONFIG_TOUCHSCREEN_USB_COMPOSITE=m
+CONFIG_TOUCHSCREEN_MC13783=m
+# CONFIG_TOUCHSCREEN_USB_EGALAX is not set
+CONFIG_TOUCHSCREEN_USB_PANJIT=y
+CONFIG_TOUCHSCREEN_USB_3M=y
+CONFIG_TOUCHSCREEN_USB_ITM=y
+CONFIG_TOUCHSCREEN_USB_ETURBO=y
+CONFIG_TOUCHSCREEN_USB_GUNZE=y
+# CONFIG_TOUCHSCREEN_USB_DMC_TSC10 is not set
+CONFIG_TOUCHSCREEN_USB_IRTOUCH=y
+# CONFIG_TOUCHSCREEN_USB_IDEALTEK is not set
+# CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH is not set
+CONFIG_TOUCHSCREEN_USB_GOTOP=y
+CONFIG_TOUCHSCREEN_USB_JASTEC=y
+CONFIG_TOUCHSCREEN_USB_ELO=y
+CONFIG_TOUCHSCREEN_USB_E2I=y
+CONFIG_TOUCHSCREEN_USB_ZYTRONIC=y
+CONFIG_TOUCHSCREEN_USB_ETT_TC45USB=y
+CONFIG_TOUCHSCREEN_USB_NEXIO=y
+# CONFIG_TOUCHSCREEN_USB_EASYTOUCH is not set
+CONFIG_TOUCHSCREEN_TOUCHIT213=m
+CONFIG_TOUCHSCREEN_TSC_SERIO=m
+# CONFIG_TOUCHSCREEN_TSC2004 is not set
+CONFIG_TOUCHSCREEN_TSC2007=m
+CONFIG_TOUCHSCREEN_RM_TS=m
+# CONFIG_TOUCHSCREEN_SILEAD is not set
+# CONFIG_TOUCHSCREEN_SIS_I2C is not set
+# CONFIG_TOUCHSCREEN_ST1232 is not set
+# CONFIG_TOUCHSCREEN_STMFTS is not set
+CONFIG_TOUCHSCREEN_SX8654=m
+CONFIG_TOUCHSCREEN_TPS6507X=m
+# CONFIG_TOUCHSCREEN_ZET6223 is not set
+CONFIG_TOUCHSCREEN_ZFORCE=m
+CONFIG_TOUCHSCREEN_ROHM_BU21023=m
+CONFIG_TOUCHSCREEN_IQS5XX=m
+CONFIG_INPUT_MISC=y
+CONFIG_INPUT_AD714X=m
+# CONFIG_INPUT_AD714X_I2C is not set
+CONFIG_INPUT_BMA150=m
+# CONFIG_INPUT_E3X0_BUTTON is not set
+# CONFIG_INPUT_MSM_VIBRATOR is not set
+# CONFIG_INPUT_PCSPKR is not set
+CONFIG_INPUT_MAX8925_ONKEY=m
+CONFIG_INPUT_MC13783_PWRBUTTON=m
+CONFIG_INPUT_MMA8450=m
+# CONFIG_INPUT_APANEL is not set
+CONFIG_INPUT_GP2A=m
+CONFIG_INPUT_GPIO_BEEPER=m
+CONFIG_INPUT_GPIO_DECODER=m
+CONFIG_INPUT_GPIO_VIBRA=m
+CONFIG_INPUT_WISTRON_BTNS=m
+# CONFIG_INPUT_ATLAS_BTNS is not set
+CONFIG_INPUT_ATI_REMOTE2=m
+# CONFIG_INPUT_KEYSPAN_REMOTE is not set
+CONFIG_INPUT_KXTJ9=m
+CONFIG_INPUT_KXTJ9_POLLED_MODE=y
+CONFIG_INPUT_POWERMATE=m
+CONFIG_INPUT_YEALINK=m
+CONFIG_INPUT_CM109=m
+# CONFIG_INPUT_REGULATOR_HAPTIC is not set
+# CONFIG_INPUT_AXP20X_PEK is not set
+# CONFIG_INPUT_TWL6040_VIBRA is not set
+# CONFIG_INPUT_UINPUT is not set
+CONFIG_INPUT_PCF8574=m
+CONFIG_INPUT_PWM_BEEPER=m
+# CONFIG_INPUT_PWM_VIBRA is not set
+# CONFIG_INPUT_GPIO_ROTARY_ENCODER is not set
+# CONFIG_INPUT_DA9052_ONKEY is not set
+CONFIG_INPUT_DA9055_ONKEY=m
+CONFIG_INPUT_DA9063_ONKEY=m
+CONFIG_INPUT_ADXL34X=m
+# CONFIG_INPUT_ADXL34X_I2C is not set
+# CONFIG_INPUT_IMS_PCU is not set
+# CONFIG_INPUT_CMA3000 is not set
+CONFIG_INPUT_IDEAPAD_SLIDEBAR=m
+# CONFIG_INPUT_DRV260X_HAPTICS is not set
+CONFIG_INPUT_DRV2665_HAPTICS=m
+CONFIG_INPUT_DRV2667_HAPTICS=m
+CONFIG_RMI4_CORE=m
+# CONFIG_RMI4_I2C is not set
+CONFIG_RMI4_SMB=m
+CONFIG_RMI4_F03=y
+CONFIG_RMI4_F03_SERIO=m
+CONFIG_RMI4_2D_SENSOR=y
+CONFIG_RMI4_F11=y
+CONFIG_RMI4_F12=y
+CONFIG_RMI4_F30=y
+# CONFIG_RMI4_F34 is not set
+# CONFIG_RMI4_F55 is not set
+
+#
+# Hardware I/O ports
+#
+CONFIG_SERIO=y
+CONFIG_ARCH_MIGHT_HAVE_PC_SERIO=y
+CONFIG_SERIO_I8042=m
+CONFIG_SERIO_SERPORT=y
+CONFIG_SERIO_CT82C710=y
+CONFIG_SERIO_PARKBD=m
+CONFIG_SERIO_LIBPS2=m
+# CONFIG_SERIO_RAW is not set
+# CONFIG_SERIO_ALTERA_PS2 is not set
+# CONFIG_SERIO_PS2MULT is not set
+CONFIG_SERIO_ARC_PS2=m
+CONFIG_SERIO_GPIO_PS2=m
+CONFIG_USERIO=m
+CONFIG_GAMEPORT=y
+CONFIG_GAMEPORT_NS558=m
+CONFIG_GAMEPORT_L4=y
+# end of Hardware I/O ports
+# end of Input device support
+
+#
+# Character devices
+#
+CONFIG_TTY=y
+# CONFIG_VT is not set
+# CONFIG_UNIX98_PTYS is not set
+# CONFIG_LEGACY_PTYS is not set
+# CONFIG_SERIAL_NONSTANDARD is not set
+CONFIG_TRACE_ROUTER=y
+CONFIG_TRACE_SINK=y
+CONFIG_NULL_TTY=y
+# CONFIG_LDISC_AUTOLOAD is not set
+# CONFIG_DEVMEM is not set
+# CONFIG_DEVKMEM is not set
+
+#
+# Serial drivers
+#
+CONFIG_SERIAL_EARLYCON=y
+CONFIG_SERIAL_8250=m
+# CONFIG_SERIAL_8250_DEPRECATED_OPTIONS is not set
+CONFIG_SERIAL_8250_PNP=y
+# CONFIG_SERIAL_8250_FINTEK is not set
+CONFIG_SERIAL_8250_DMA=y
+CONFIG_SERIAL_8250_MEN_MCB=m
+CONFIG_SERIAL_8250_NR_UARTS=4
+CONFIG_SERIAL_8250_RUNTIME_UARTS=4
+# CONFIG_SERIAL_8250_EXTENDED is not set
+CONFIG_SERIAL_8250_DWLIB=y
+CONFIG_SERIAL_8250_DW=m
+# CONFIG_SERIAL_8250_RT288X is not set
+
+#
+# Non-8250 serial port support
+#
+# CONFIG_SERIAL_UARTLITE is not set
+CONFIG_SERIAL_CORE=y
+CONFIG_SERIAL_CORE_CONSOLE=y
+CONFIG_SERIAL_SCCNXP=m
+CONFIG_SERIAL_SC16IS7XX=y
+# CONFIG_SERIAL_SC16IS7XX_I2C is not set
+CONFIG_SERIAL_TIMBERDALE=m
+CONFIG_SERIAL_ALTERA_JTAGUART=y
+CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE=y
+# CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS is not set
+CONFIG_SERIAL_ALTERA_UART=m
+CONFIG_SERIAL_ALTERA_UART_MAXPORTS=4
+CONFIG_SERIAL_ALTERA_UART_BAUDRATE=115200
+CONFIG_SERIAL_ARC=m
+CONFIG_SERIAL_ARC_NR_PORTS=1
+# CONFIG_SERIAL_FSL_LPUART is not set
+CONFIG_SERIAL_FSL_LINFLEXUART=y
+# CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE is not set
+CONFIG_SERIAL_MEN_Z135=y
+# end of Serial drivers
+
+CONFIG_SERIAL_MCTRL_GPIO=m
+CONFIG_SERIAL_DEV_BUS=y
+# CONFIG_SERIAL_DEV_CTRL_TTYPORT is not set
+CONFIG_TTY_PRINTK=m
+CONFIG_TTY_PRINTK_LEVEL=6
+# CONFIG_PRINTER is not set
+CONFIG_PPDEV=m
+# CONFIG_VIRTIO_CONSOLE is not set
+# CONFIG_IPMI_HANDLER is not set
+# CONFIG_IPMB_DEVICE_INTERFACE is not set
+# CONFIG_HW_RANDOM is not set
+# CONFIG_NVRAM is not set
+CONFIG_MWAVE=m
+CONFIG_PC8736x_GPIO=m
+CONFIG_NSC_GPIO=m
+# CONFIG_RAW_DRIVER is not set
+# CONFIG_HPET is not set
+CONFIG_HANGCHECK_TIMER=y
+# CONFIG_TCG_TPM is not set
+CONFIG_TELCLOCK=m
+# end of Character devices
+
+CONFIG_RANDOM_TRUST_CPU=y
+
+#
+# I2C support
+#
+CONFIG_I2C=y
+# CONFIG_ACPI_I2C_OPREGION is not set
+CONFIG_I2C_BOARDINFO=y
+CONFIG_I2C_COMPAT=y
+# CONFIG_I2C_CHARDEV is not set
+# CONFIG_I2C_MUX is not set
+# CONFIG_I2C_HELPER_AUTO is not set
+CONFIG_I2C_SMBUS=m
+
+#
+# I2C Algorithms
+#
+CONFIG_I2C_ALGOBIT=y
+CONFIG_I2C_ALGOPCF=m
+CONFIG_I2C_ALGOPCA=y
+# end of I2C Algorithms
+
+#
+# I2C Hardware Bus support
+#
+
+#
+# ACPI drivers
+#
+CONFIG_I2C_SCMI=m
+
+#
+# I2C system bus drivers (mostly embedded / system-on-chip)
+#
+CONFIG_I2C_CBUS_GPIO=m
+# CONFIG_I2C_DESIGNWARE_PLATFORM is not set
+CONFIG_I2C_EMEV2=y
+CONFIG_I2C_GPIO=m
+# CONFIG_I2C_GPIO_FAULT_INJECTOR is not set
+CONFIG_I2C_KEMPLD=m
+# CONFIG_I2C_OCORES is not set
+CONFIG_I2C_PCA_PLATFORM=m
+CONFIG_I2C_SIMTEC=m
+# CONFIG_I2C_XILINX is not set
+
+#
+# External I2C/SMBus adapter drivers
+#
+# CONFIG_I2C_DIOLAN_U2C is not set
+# CONFIG_I2C_DLN2 is not set
+CONFIG_I2C_PARPORT=m
+# CONFIG_I2C_PARPORT_LIGHT is not set
+CONFIG_I2C_ROBOTFUZZ_OSIF=m
+# CONFIG_I2C_TAOS_EVM is not set
+CONFIG_I2C_TINY_USB=m
+CONFIG_I2C_VIPERBOARD=m
+
+#
+# Other I2C/SMBus bus drivers
+#
+CONFIG_I2C_CROS_EC_TUNNEL=y
+# end of I2C Hardware Bus support
+
+CONFIG_I2C_STUB=m
+CONFIG_I2C_SLAVE=y
+CONFIG_I2C_SLAVE_EEPROM=y
+# CONFIG_I2C_DEBUG_CORE is not set
+CONFIG_I2C_DEBUG_ALGO=y
+CONFIG_I2C_DEBUG_BUS=y
+# end of I2C support
+
+CONFIG_I3C=y
+# CONFIG_CDNS_I3C_MASTER is not set
+# CONFIG_DW_I3C_MASTER is not set
+# CONFIG_SPI is not set
+CONFIG_SPMI=y
+# CONFIG_HSI is not set
+CONFIG_PPS=y
+CONFIG_PPS_DEBUG=y
+
+#
+# PPS clients support
+#
+# CONFIG_PPS_CLIENT_KTIMER is not set
+CONFIG_PPS_CLIENT_LDISC=m
+CONFIG_PPS_CLIENT_PARPORT=m
+CONFIG_PPS_CLIENT_GPIO=y
+
+#
+# PPS generators support
+#
+
+#
+# PTP clock support
+#
+
+#
+# Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks.
+#
+# end of PTP clock support
+
+CONFIG_PINCTRL=y
+CONFIG_PINMUX=y
+CONFIG_PINCONF=y
+CONFIG_GENERIC_PINCONF=y
+CONFIG_DEBUG_PINCTRL=y
+# CONFIG_PINCTRL_AMD is not set
+CONFIG_PINCTRL_MCP23S08=m
+# CONFIG_PINCTRL_SX150X is not set
+CONFIG_PINCTRL_BAYTRAIL=y
+# CONFIG_PINCTRL_CHERRYVIEW is not set
+CONFIG_PINCTRL_INTEL=y
+CONFIG_PINCTRL_BROXTON=m
+CONFIG_PINCTRL_CANNONLAKE=m
+# CONFIG_PINCTRL_CEDARFORK is not set
+# CONFIG_PINCTRL_DENVERTON is not set
+CONFIG_PINCTRL_GEMINILAKE=y
+CONFIG_PINCTRL_ICELAKE=m
+# CONFIG_PINCTRL_LEWISBURG is not set
+CONFIG_PINCTRL_SUNRISEPOINT=m
+CONFIG_PINCTRL_MADERA=y
+CONFIG_PINCTRL_CS47L15=y
+CONFIG_PINCTRL_CS47L35=y
+CONFIG_GPIOLIB=y
+CONFIG_GPIOLIB_FASTPATH_LIMIT=512
+CONFIG_GPIO_ACPI=y
+CONFIG_GPIOLIB_IRQCHIP=y
+# CONFIG_DEBUG_GPIO is not set
+CONFIG_GPIO_SYSFS=y
+CONFIG_GPIO_GENERIC=y
+CONFIG_GPIO_MAX730X=m
+
+#
+# Memory mapped GPIO drivers
+#
+CONFIG_GPIO_AMDPT=m
+CONFIG_GPIO_DWAPB=y
+CONFIG_GPIO_GENERIC_PLATFORM=m
+# CONFIG_GPIO_LYNXPOINT is not set
+# CONFIG_GPIO_MB86S7X is not set
+CONFIG_GPIO_MENZ127=y
+CONFIG_GPIO_SIOX=m
+CONFIG_GPIO_XILINX=y
+# CONFIG_GPIO_AMD_FCH is not set
+# end of Memory mapped GPIO drivers
+
+#
+# Port-mapped I/O GPIO drivers
+#
+CONFIG_GPIO_104_DIO_48E=y
+# CONFIG_GPIO_104_IDIO_16 is not set
+# CONFIG_GPIO_104_IDI_48 is not set
+CONFIG_GPIO_F7188X=m
+CONFIG_GPIO_GPIO_MM=m
+CONFIG_GPIO_IT87=y
+# CONFIG_GPIO_SCH311X is not set
+CONFIG_GPIO_WINBOND=m
+CONFIG_GPIO_WS16C48=m
+# end of Port-mapped I/O GPIO drivers
+
+#
+# I2C GPIO expanders
+#
+CONFIG_GPIO_ADP5588=y
+# CONFIG_GPIO_ADP5588_IRQ is not set
+CONFIG_GPIO_MAX7300=m
+CONFIG_GPIO_MAX732X=m
+# CONFIG_GPIO_PCA953X is not set
+# CONFIG_GPIO_PCF857X is not set
+CONFIG_GPIO_TPIC2810=m
+# end of I2C GPIO expanders
+
+#
+# MFD GPIO expanders
+#
+# CONFIG_GPIO_ARIZONA is not set
+# CONFIG_GPIO_DA9052 is not set
+# CONFIG_GPIO_DA9055 is not set
+# CONFIG_GPIO_DLN2 is not set
+CONFIG_GPIO_KEMPLD=m
+# CONFIG_GPIO_LP873X is not set
+CONFIG_GPIO_MADERA=y
+CONFIG_GPIO_TPS65086=m
+CONFIG_GPIO_TPS65912=m
+CONFIG_GPIO_TQMX86=m
+# CONFIG_GPIO_TWL6040 is not set
+CONFIG_GPIO_WM8350=y
+# end of MFD GPIO expanders
+
+#
+# USB GPIO expanders
+#
+CONFIG_GPIO_VIPERBOARD=m
+# end of USB GPIO expanders
+
+CONFIG_GPIO_MOCKUP=m
+CONFIG_W1=m
+
+#
+# 1-wire Bus Masters
+#
+# CONFIG_W1_MASTER_DS2490 is not set
+CONFIG_W1_MASTER_DS2482=m
+# CONFIG_W1_MASTER_DS1WM is not set
+# CONFIG_W1_MASTER_GPIO is not set
+# end of 1-wire Bus Masters
+
+#
+# 1-wire Slaves
+#
+CONFIG_W1_SLAVE_THERM=m
+CONFIG_W1_SLAVE_SMEM=m
+CONFIG_W1_SLAVE_DS2405=m
+CONFIG_W1_SLAVE_DS2408=m
+CONFIG_W1_SLAVE_DS2408_READBACK=y
+# CONFIG_W1_SLAVE_DS2413 is not set
+CONFIG_W1_SLAVE_DS2406=m
+CONFIG_W1_SLAVE_DS2423=m
+CONFIG_W1_SLAVE_DS2805=m
+CONFIG_W1_SLAVE_DS2431=m
+CONFIG_W1_SLAVE_DS2433=m
+CONFIG_W1_SLAVE_DS2433_CRC=y
+# CONFIG_W1_SLAVE_DS2438 is not set
+CONFIG_W1_SLAVE_DS2780=m
+# CONFIG_W1_SLAVE_DS2781 is not set
+CONFIG_W1_SLAVE_DS28E04=m
+CONFIG_W1_SLAVE_DS28E17=m
+# end of 1-wire Slaves
+
+CONFIG_POWER_AVS=y
+# CONFIG_POWER_RESET is not set
+CONFIG_POWER_SUPPLY=y
+# CONFIG_POWER_SUPPLY_DEBUG is not set
+CONFIG_PDA_POWER=m
+CONFIG_MAX8925_POWER=y
+CONFIG_WM8350_POWER=y
+# CONFIG_TEST_POWER is not set
+# CONFIG_CHARGER_ADP5061 is not set
+CONFIG_BATTERY_DS2760=m
+# CONFIG_BATTERY_DS2780 is not set
+# CONFIG_BATTERY_DS2781 is not set
+# CONFIG_BATTERY_DS2782 is not set
+CONFIG_BATTERY_SBS=m
+CONFIG_CHARGER_SBS=y
+CONFIG_BATTERY_BQ27XXX=m
+# CONFIG_BATTERY_BQ27XXX_I2C is not set
+CONFIG_BATTERY_BQ27XXX_HDQ=m
+CONFIG_BATTERY_DA9030=y
+# CONFIG_BATTERY_DA9052 is not set
+# CONFIG_BATTERY_DA9150 is not set
+CONFIG_BATTERY_MAX17040=y
+# CONFIG_BATTERY_MAX17042 is not set
+CONFIG_BATTERY_MAX1721X=m
+CONFIG_CHARGER_ISP1704=m
+# CONFIG_CHARGER_MAX8903 is not set
+# CONFIG_CHARGER_LP8727 is not set
+CONFIG_CHARGER_GPIO=y
+CONFIG_CHARGER_MANAGER=y
+# CONFIG_CHARGER_LT3651 is not set
+CONFIG_CHARGER_MAX14577=m
+CONFIG_CHARGER_MAX8998=m
+CONFIG_CHARGER_BQ2415X=m
+# CONFIG_CHARGER_BQ24190 is not set
+CONFIG_CHARGER_BQ24257=y
+CONFIG_CHARGER_BQ24735=y
+# CONFIG_CHARGER_BQ25890 is not set
+CONFIG_CHARGER_SMB347=y
+CONFIG_CHARGER_TPS65090=y
+CONFIG_BATTERY_GAUGE_LTC2941=m
+CONFIG_BATTERY_RT5033=y
+CONFIG_CHARGER_RT9455=y
+CONFIG_CHARGER_CROS_USBPD=y
+CONFIG_HWMON=m
+CONFIG_HWMON_VID=m
+CONFIG_HWMON_DEBUG_CHIP=y
+
+#
+# Native drivers
+#
+CONFIG_SENSORS_ABITUGURU=m
+CONFIG_SENSORS_ABITUGURU3=m
+CONFIG_SENSORS_AD7414=m
+# CONFIG_SENSORS_AD7418 is not set
+# CONFIG_SENSORS_ADM1021 is not set
+CONFIG_SENSORS_ADM1025=m
+CONFIG_SENSORS_ADM1026=m
+# CONFIG_SENSORS_ADM1029 is not set
+CONFIG_SENSORS_ADM1031=m
+CONFIG_SENSORS_ADM9240=m
+# CONFIG_SENSORS_ADT7410 is not set
+CONFIG_SENSORS_ADT7411=m
+CONFIG_SENSORS_ADT7462=m
+CONFIG_SENSORS_ADT7470=m
+CONFIG_SENSORS_ADT7475=m
+CONFIG_SENSORS_ASC7621=m
+CONFIG_SENSORS_APPLESMC=m
+# CONFIG_SENSORS_ASB100 is not set
+# CONFIG_SENSORS_ASPEED is not set
+CONFIG_SENSORS_ATXP1=m
+# CONFIG_SENSORS_DS620 is not set
+# CONFIG_SENSORS_DS1621 is not set
+CONFIG_SENSORS_DELL_SMM=m
+CONFIG_SENSORS_DA9052_ADC=m
+# CONFIG_SENSORS_DA9055 is not set
+CONFIG_SENSORS_F71805F=m
+# CONFIG_SENSORS_F71882FG is not set
+# CONFIG_SENSORS_F75375S is not set
+CONFIG_SENSORS_MC13783_ADC=m
+# CONFIG_SENSORS_FSCHMD is not set
+CONFIG_SENSORS_GL518SM=m
+# CONFIG_SENSORS_GL520SM is not set
+CONFIG_SENSORS_G760A=m
+CONFIG_SENSORS_G762=m
+# CONFIG_SENSORS_HIH6130 is not set
+CONFIG_SENSORS_CORETEMP=m
+# CONFIG_SENSORS_IT87 is not set
+CONFIG_SENSORS_JC42=m
+CONFIG_SENSORS_POWR1220=m
+CONFIG_SENSORS_LINEAGE=m
+CONFIG_SENSORS_LTC2945=m
+CONFIG_SENSORS_LTC2990=m
+# CONFIG_SENSORS_LTC4151 is not set
+CONFIG_SENSORS_LTC4215=m
+# CONFIG_SENSORS_LTC4222 is not set
+CONFIG_SENSORS_LTC4245=m
+CONFIG_SENSORS_LTC4260=m
+CONFIG_SENSORS_LTC4261=m
+# CONFIG_SENSORS_MAX16065 is not set
+CONFIG_SENSORS_MAX1619=m
+# CONFIG_SENSORS_MAX1668 is not set
+CONFIG_SENSORS_MAX197=m
+CONFIG_SENSORS_MAX6621=m
+CONFIG_SENSORS_MAX6639=m
+CONFIG_SENSORS_MAX6642=m
+CONFIG_SENSORS_MAX6650=m
+CONFIG_SENSORS_MAX6697=m
+CONFIG_SENSORS_MAX31790=m
+# CONFIG_SENSORS_MCP3021 is not set
+CONFIG_SENSORS_TC654=m
+CONFIG_SENSORS_LM63=m
+CONFIG_SENSORS_LM73=m
+CONFIG_SENSORS_LM75=m
+# CONFIG_SENSORS_LM77 is not set
+CONFIG_SENSORS_LM78=m
+# CONFIG_SENSORS_LM80 is not set
+# CONFIG_SENSORS_LM83 is not set
+# CONFIG_SENSORS_LM85 is not set
+CONFIG_SENSORS_LM87=m
+CONFIG_SENSORS_LM90=m
+# CONFIG_SENSORS_LM92 is not set
+# CONFIG_SENSORS_LM93 is not set
+CONFIG_SENSORS_LM95234=m
+CONFIG_SENSORS_LM95241=m
+CONFIG_SENSORS_LM95245=m
+# CONFIG_SENSORS_PC87360 is not set
+# CONFIG_SENSORS_PC87427 is not set
+CONFIG_SENSORS_NTC_THERMISTOR=m
+# CONFIG_SENSORS_NCT6683 is not set
+CONFIG_SENSORS_NCT6775=m
+CONFIG_SENSORS_NCT7802=m
+# CONFIG_SENSORS_NCT7904 is not set
+# CONFIG_SENSORS_NPCM7XX is not set
+CONFIG_SENSORS_PCF8591=m
+# CONFIG_PMBUS is not set
+# CONFIG_SENSORS_SHT15 is not set
+# CONFIG_SENSORS_SHT21 is not set
+CONFIG_SENSORS_SHT3x=m
+# CONFIG_SENSORS_SHTC1 is not set
+CONFIG_SENSORS_DME1737=m
+CONFIG_SENSORS_EMC1403=m
+CONFIG_SENSORS_EMC2103=m
+CONFIG_SENSORS_EMC6W201=m
+CONFIG_SENSORS_SMSC47M1=m
+CONFIG_SENSORS_SMSC47M192=m
+# CONFIG_SENSORS_SMSC47B397 is not set
+# CONFIG_SENSORS_STTS751 is not set
+# CONFIG_SENSORS_SMM665 is not set
+CONFIG_SENSORS_ADC128D818=m
+CONFIG_SENSORS_ADS7828=m
+CONFIG_SENSORS_AMC6821=m
+CONFIG_SENSORS_INA209=m
+CONFIG_SENSORS_INA2XX=m
+CONFIG_SENSORS_INA3221=m
+# CONFIG_SENSORS_TC74 is not set
+CONFIG_SENSORS_THMC50=m
+CONFIG_SENSORS_TMP102=m
+# CONFIG_SENSORS_TMP103 is not set
+# CONFIG_SENSORS_TMP108 is not set
+CONFIG_SENSORS_TMP401=m
+CONFIG_SENSORS_TMP421=m
+CONFIG_SENSORS_VIA_CPUTEMP=m
+CONFIG_SENSORS_VT1211=m
+# CONFIG_SENSORS_W83773G is not set
+CONFIG_SENSORS_W83781D=m
+CONFIG_SENSORS_W83791D=m
+# CONFIG_SENSORS_W83792D is not set
+CONFIG_SENSORS_W83793=m
+CONFIG_SENSORS_W83795=m
+# CONFIG_SENSORS_W83795_FANCTRL is not set
+# CONFIG_SENSORS_W83L785TS is not set
+CONFIG_SENSORS_W83L786NG=m
+CONFIG_SENSORS_W83627HF=m
+CONFIG_SENSORS_W83627EHF=m
+CONFIG_SENSORS_WM8350=m
+
+#
+# ACPI drivers
+#
+CONFIG_SENSORS_ACPI_POWER=m
+CONFIG_SENSORS_ATK0110=m
+CONFIG_THERMAL=y
+# CONFIG_THERMAL_STATISTICS is not set
+CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS=0
+# CONFIG_THERMAL_WRITABLE_TRIPS is not set
+# CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE is not set
+# CONFIG_THERMAL_DEFAULT_GOV_FAIR_SHARE is not set
+# CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE is not set
+CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR=y
+# CONFIG_THERMAL_GOV_FAIR_SHARE is not set
+# CONFIG_THERMAL_GOV_STEP_WISE is not set
+CONFIG_THERMAL_GOV_BANG_BANG=y
+CONFIG_THERMAL_GOV_USER_SPACE=y
+CONFIG_THERMAL_GOV_POWER_ALLOCATOR=y
+CONFIG_CLOCK_THERMAL=y
+# CONFIG_DEVFREQ_THERMAL is not set
+# CONFIG_THERMAL_EMULATION is not set
+
+#
+# Intel thermal drivers
+#
+# CONFIG_INTEL_POWERCLAMP is not set
+
+#
+# ACPI INT340X thermal drivers
+#
+# end of ACPI INT340X thermal drivers
+# end of Intel thermal drivers
+
+# CONFIG_WATCHDOG is not set
+CONFIG_SSB_POSSIBLE=y
+# CONFIG_SSB is not set
+CONFIG_BCMA_POSSIBLE=y
+CONFIG_BCMA=y
+# CONFIG_BCMA_HOST_SOC is not set
+CONFIG_BCMA_DRIVER_GMAC_CMN=y
+CONFIG_BCMA_DRIVER_GPIO=y
+CONFIG_BCMA_DEBUG=y
+
+#
+# Multifunction device drivers
+#
+CONFIG_MFD_CORE=y
+# CONFIG_MFD_AS3711 is not set
+# CONFIG_PMIC_ADP5520 is not set
+CONFIG_MFD_AAT2870_CORE=y
+CONFIG_MFD_BCM590XX=y
+# CONFIG_MFD_BD9571MWV is not set
+CONFIG_MFD_AXP20X=y
+CONFIG_MFD_AXP20X_I2C=y
+CONFIG_MFD_CROS_EC=y
+# CONFIG_MFD_CROS_EC_CHARDEV is not set
+CONFIG_MFD_MADERA=y
+CONFIG_MFD_MADERA_I2C=m
+CONFIG_MFD_CS47L15=y
+CONFIG_MFD_CS47L35=y
+# CONFIG_MFD_CS47L85 is not set
+# CONFIG_MFD_CS47L90 is not set
+# CONFIG_MFD_CS47L92 is not set
+CONFIG_PMIC_DA903X=y
+CONFIG_PMIC_DA9052=y
+CONFIG_MFD_DA9052_I2C=y
+CONFIG_MFD_DA9055=y
+CONFIG_MFD_DA9062=m
+CONFIG_MFD_DA9063=m
+CONFIG_MFD_DA9150=y
+CONFIG_MFD_DLN2=m
+CONFIG_MFD_MC13XXX=y
+CONFIG_MFD_MC13XXX_I2C=y
+CONFIG_HTC_PASIC3=y
+# CONFIG_HTC_I2CPLD is not set
+# CONFIG_INTEL_SOC_PMIC_CHTDC_TI is not set
+CONFIG_MFD_INTEL_LPSS=y
+CONFIG_MFD_INTEL_LPSS_ACPI=y
+CONFIG_MFD_KEMPLD=m
+# CONFIG_MFD_88PM800 is not set
+CONFIG_MFD_88PM805=y
+# CONFIG_MFD_88PM860X is not set
+CONFIG_MFD_MAX14577=y
+# CONFIG_MFD_MAX77693 is not set
+# CONFIG_MFD_MAX77843 is not set
+CONFIG_MFD_MAX8907=m
+CONFIG_MFD_MAX8925=y
+# CONFIG_MFD_MAX8997 is not set
+CONFIG_MFD_MAX8998=y
+CONFIG_MFD_MT6397=m
+# CONFIG_MFD_MENF21BMC is not set
+CONFIG_MFD_VIPERBOARD=m
+# CONFIG_MFD_RETU is not set
+# CONFIG_MFD_PCF50633 is not set
+CONFIG_MFD_RT5033=y
+# CONFIG_MFD_RC5T583 is not set
+CONFIG_MFD_SEC_CORE=m
+CONFIG_MFD_SI476X_CORE=m
+# CONFIG_MFD_SM501 is not set
+CONFIG_MFD_SKY81452=y
+# CONFIG_MFD_SMSC is not set
+# CONFIG_ABX500_CORE is not set
+CONFIG_MFD_SYSCON=y
+# CONFIG_MFD_TI_AM335X_TSCADC is not set
+# CONFIG_MFD_LP3943 is not set
+# CONFIG_MFD_LP8788 is not set
+CONFIG_MFD_TI_LMU=m
+# CONFIG_MFD_PALMAS is not set
+# CONFIG_TPS6105X is not set
+CONFIG_TPS65010=y
+CONFIG_TPS6507X=y
+CONFIG_MFD_TPS65086=y
+CONFIG_MFD_TPS65090=y
+CONFIG_MFD_TI_LP873X=m
+# CONFIG_MFD_TPS6586X is not set
+# CONFIG_MFD_TPS65910 is not set
+CONFIG_MFD_TPS65912=y
+CONFIG_MFD_TPS65912_I2C=y
+# CONFIG_MFD_TPS80031 is not set
+# CONFIG_TWL4030_CORE is not set
+CONFIG_TWL6040_CORE=y
+CONFIG_MFD_WL1273_CORE=m
+# CONFIG_MFD_LM3533 is not set
+CONFIG_MFD_TQMX86=y
+CONFIG_MFD_ARIZONA=y
+CONFIG_MFD_ARIZONA_I2C=m
+# CONFIG_MFD_CS47L24 is not set
+# CONFIG_MFD_WM5102 is not set
+# CONFIG_MFD_WM5110 is not set
+# CONFIG_MFD_WM8997 is not set
+CONFIG_MFD_WM8998=y
+CONFIG_MFD_WM8400=y
+# CONFIG_MFD_WM831X_I2C is not set
+CONFIG_MFD_WM8350=y
+CONFIG_MFD_WM8350_I2C=y
+# CONFIG_MFD_WM8994 is not set
+# CONFIG_RAVE_SP_CORE is not set
+# end of Multifunction device drivers
+
+CONFIG_REGULATOR=y
+CONFIG_REGULATOR_DEBUG=y
+# CONFIG_REGULATOR_FIXED_VOLTAGE is not set
+CONFIG_REGULATOR_VIRTUAL_CONSUMER=m
+# CONFIG_REGULATOR_USERSPACE_CONSUMER is not set
+# CONFIG_REGULATOR_88PG86X is not set
+# CONFIG_REGULATOR_ACT8865 is not set
+# CONFIG_REGULATOR_AD5398 is not set
+CONFIG_REGULATOR_ANATOP=y
+CONFIG_REGULATOR_AAT2870=y
+CONFIG_REGULATOR_AXP20X=m
+# CONFIG_REGULATOR_BCM590XX is not set
+# CONFIG_REGULATOR_DA903X is not set
+CONFIG_REGULATOR_DA9052=y
+CONFIG_REGULATOR_DA9055=y
+CONFIG_REGULATOR_DA9062=m
+# CONFIG_REGULATOR_DA9210 is not set
+CONFIG_REGULATOR_DA9211=y
+CONFIG_REGULATOR_FAN53555=m
+CONFIG_REGULATOR_GPIO=m
+CONFIG_REGULATOR_ISL9305=y
+CONFIG_REGULATOR_ISL6271A=y
+CONFIG_REGULATOR_LM363X=m
+CONFIG_REGULATOR_LP3971=y
+CONFIG_REGULATOR_LP3972=y
+CONFIG_REGULATOR_LP872X=y
+# CONFIG_REGULATOR_LP8755 is not set
+CONFIG_REGULATOR_LTC3589=m
+CONFIG_REGULATOR_LTC3676=y
+# CONFIG_REGULATOR_MAX14577 is not set
+CONFIG_REGULATOR_MAX1586=m
+CONFIG_REGULATOR_MAX8649=y
+# CONFIG_REGULATOR_MAX8660 is not set
+CONFIG_REGULATOR_MAX8907=m
+# CONFIG_REGULATOR_MAX8925 is not set
+CONFIG_REGULATOR_MAX8952=y
+CONFIG_REGULATOR_MAX8998=y
+CONFIG_REGULATOR_MC13XXX_CORE=m
+CONFIG_REGULATOR_MC13783=m
+CONFIG_REGULATOR_MC13892=m
+# CONFIG_REGULATOR_MT6311 is not set
+# CONFIG_REGULATOR_MT6323 is not set
+CONFIG_REGULATOR_MT6397=m
+CONFIG_REGULATOR_PFUZE100=m
+CONFIG_REGULATOR_PV88060=m
+CONFIG_REGULATOR_PV88080=m
+CONFIG_REGULATOR_PV88090=y
+CONFIG_REGULATOR_PWM=m
+CONFIG_REGULATOR_QCOM_SPMI=m
+CONFIG_REGULATOR_RT5033=m
+# CONFIG_REGULATOR_S2MPA01 is not set
+# CONFIG_REGULATOR_S2MPS11 is not set
+CONFIG_REGULATOR_S5M8767=m
+# CONFIG_REGULATOR_SKY81452 is not set
+# CONFIG_REGULATOR_SLG51000 is not set
+CONFIG_REGULATOR_TPS51632=m
+# CONFIG_REGULATOR_TPS62360 is not set
+CONFIG_REGULATOR_TPS65023=y
+CONFIG_REGULATOR_TPS6507X=y
+# CONFIG_REGULATOR_TPS65086 is not set
+# CONFIG_REGULATOR_TPS65090 is not set
+CONFIG_REGULATOR_TPS65132=m
+CONFIG_REGULATOR_TPS65912=m
+CONFIG_REGULATOR_WM8350=m
+CONFIG_REGULATOR_WM8400=y
+CONFIG_CEC_CORE=y
+CONFIG_RC_CORE=m
+# CONFIG_RC_MAP is not set
+CONFIG_LIRC=y
+# CONFIG_RC_DECODERS is not set
+# CONFIG_RC_DEVICES is not set
+# CONFIG_MEDIA_SUPPORT is not set
+
+#
+# Graphics support
+#
+CONFIG_DRM=y
+# CONFIG_DRM_DP_AUX_CHARDEV is not set
+CONFIG_DRM_DEBUG_MM=y
+CONFIG_DRM_DEBUG_SELFTEST=y
+CONFIG_DRM_KMS_HELPER=y
+# CONFIG_DRM_FBDEV_EMULATION is not set
+# CONFIG_DRM_LOAD_EDID_FIRMWARE is not set
+CONFIG_DRM_DP_CEC=y
+CONFIG_DRM_TTM=m
+CONFIG_DRM_GEM_SHMEM_HELPER=y
+CONFIG_DRM_SCHED=m
+
+#
+# I2C encoder or helper chips
+#
+CONFIG_DRM_I2C_CH7006=m
+# CONFIG_DRM_I2C_SIL164 is not set
+# CONFIG_DRM_I2C_NXP_TDA998X is not set
+# CONFIG_DRM_I2C_NXP_TDA9950 is not set
+# end of I2C encoder or helper chips
+
+#
+# ARM devices
+#
+# end of ARM devices
+
+#
+# ACP (Audio CoProcessor) Configuration
+#
+# end of ACP (Audio CoProcessor) Configuration
+
+# CONFIG_DRM_VGEM is not set
+# CONFIG_DRM_VKMS is not set
+# CONFIG_DRM_UDL is not set
+CONFIG_DRM_VIRTIO_GPU=m
+CONFIG_DRM_PANEL=y
+
+#
+# Display Panels
+#
+# end of Display Panels
+
+CONFIG_DRM_BRIDGE=y
+CONFIG_DRM_PANEL_BRIDGE=y
+
+#
+# Display Interface Bridges
+#
+CONFIG_DRM_ANALOGIX_ANX78XX=y
+# end of Display Interface Bridges
+
+CONFIG_DRM_ETNAVIV=m
+CONFIG_DRM_ETNAVIV_THERMAL=y
+CONFIG_DRM_GM12U320=m
+# CONFIG_DRM_LEGACY is not set
+CONFIG_DRM_PANEL_ORIENTATION_QUIRKS=y
+CONFIG_DRM_LIB_RANDOM=y
+
+#
+# Frame buffer Devices
+#
+CONFIG_FB_CMDLINE=y
+# CONFIG_FB is not set
+# end of Frame buffer Devices
+
+#
+# Backlight & LCD device support
+#
+# CONFIG_LCD_CLASS_DEVICE is not set
+CONFIG_BACKLIGHT_CLASS_DEVICE=m
+# CONFIG_BACKLIGHT_GENERIC is not set
+CONFIG_BACKLIGHT_PWM=m
+CONFIG_BACKLIGHT_DA903X=m
+# CONFIG_BACKLIGHT_DA9052 is not set
+CONFIG_BACKLIGHT_MAX8925=m
+CONFIG_BACKLIGHT_APPLE=m
+CONFIG_BACKLIGHT_PM8941_WLED=m
+CONFIG_BACKLIGHT_SAHARA=m
+CONFIG_BACKLIGHT_ADP8860=m
+CONFIG_BACKLIGHT_ADP8870=m
+CONFIG_BACKLIGHT_AAT2870=m
+CONFIG_BACKLIGHT_LM3630A=m
+# CONFIG_BACKLIGHT_LM3639 is not set
+# CONFIG_BACKLIGHT_LP855X is not set
+# CONFIG_BACKLIGHT_SKY81452 is not set
+CONFIG_BACKLIGHT_GPIO=m
+# CONFIG_BACKLIGHT_LV5207LP is not set
+CONFIG_BACKLIGHT_BD6107=m
+CONFIG_BACKLIGHT_ARCXCNN=m
+# end of Backlight & LCD device support
+
+CONFIG_HDMI=y
+# end of Graphics support
+
+CONFIG_SOUND=y
+# CONFIG_SND is not set
+
+#
+# HID support
+#
+CONFIG_HID=m
+# CONFIG_HID_BATTERY_STRENGTH is not set
+CONFIG_HIDRAW=y
+# CONFIG_UHID is not set
+CONFIG_HID_GENERIC=m
+
+#
+# Special HID drivers
+#
+CONFIG_HID_A4TECH=m
+CONFIG_HID_ACRUX=m
+# CONFIG_HID_ACRUX_FF is not set
+CONFIG_HID_APPLE=m
+# CONFIG_HID_ASUS is not set
+# CONFIG_HID_AUREAL is not set
+CONFIG_HID_BELKIN=m
+# CONFIG_HID_CHERRY is not set
+# CONFIG_HID_CHICONY is not set
+CONFIG_HID_CORSAIR=m
+CONFIG_HID_COUGAR=m
+# CONFIG_HID_MACALLY is not set
+# CONFIG_HID_CMEDIA is not set
+CONFIG_HID_CYPRESS=m
+CONFIG_HID_DRAGONRISE=m
+# CONFIG_DRAGONRISE_FF is not set
+CONFIG_HID_EMS_FF=m
+CONFIG_HID_ELECOM=m
+# CONFIG_HID_EZKEY is not set
+# CONFIG_HID_GEMBIRD is not set
+CONFIG_HID_GFRM=m
+# CONFIG_HID_KEYTOUCH is not set
+CONFIG_HID_KYE=m
+# CONFIG_HID_WALTOP is not set
+# CONFIG_HID_VIEWSONIC is not set
+# CONFIG_HID_GYRATION is not set
+CONFIG_HID_ICADE=m
+# CONFIG_HID_ITE is not set
+CONFIG_HID_JABRA=m
+# CONFIG_HID_TWINHAN is not set
+CONFIG_HID_KENSINGTON=m
+CONFIG_HID_LCPOWER=m
+CONFIG_HID_LED=m
+CONFIG_HID_LENOVO=m
+# CONFIG_HID_LOGITECH is not set
+CONFIG_HID_MAGICMOUSE=m
+# CONFIG_HID_MALTRON is not set
+CONFIG_HID_MAYFLASH=m
+# CONFIG_HID_REDRAGON is not set
+CONFIG_HID_MICROSOFT=m
+CONFIG_HID_MONTEREY=m
+CONFIG_HID_MULTITOUCH=m
+CONFIG_HID_NTI=m
+# CONFIG_HID_ORTEK is not set
+# CONFIG_HID_PANTHERLORD is not set
+# CONFIG_HID_PETALYNX is not set
+# CONFIG_HID_PICOLCD is not set
+CONFIG_HID_PLANTRONICS=m
+CONFIG_HID_PRIMAX=m
+CONFIG_HID_SAITEK=m
+CONFIG_HID_SAMSUNG=m
+CONFIG_HID_SPEEDLINK=m
+CONFIG_HID_STEAM=m
+CONFIG_HID_STEELSERIES=m
+CONFIG_HID_SUNPLUS=m
+CONFIG_HID_RMI=m
+# CONFIG_HID_GREENASIA is not set
+# CONFIG_HID_SMARTJOYPLUS is not set
+# CONFIG_HID_TIVO is not set
+CONFIG_HID_TOPSEED=m
+CONFIG_HID_THINGM=m
+# CONFIG_HID_THRUSTMASTER is not set
+CONFIG_HID_UDRAW_PS3=m
+CONFIG_HID_WIIMOTE=m
+# CONFIG_HID_XINMO is not set
+# CONFIG_HID_ZEROPLUS is not set
+# CONFIG_HID_ZYDACRON is not set
+CONFIG_HID_SENSOR_HUB=m
+CONFIG_HID_SENSOR_CUSTOM_SENSOR=m
+CONFIG_HID_ALPS=m
+# end of Special HID drivers
+
+#
+# USB HID support
+#
+# CONFIG_USB_HID is not set
+# CONFIG_HID_PID is not set
+
+#
+# USB HID Boot Protocol drivers
+#
+CONFIG_USB_KBD=m
+# CONFIG_USB_MOUSE is not set
+# end of USB HID Boot Protocol drivers
+# end of USB HID support
+
+#
+# I2C HID support
+#
+CONFIG_I2C_HID=m
+# end of I2C HID support
+# end of HID support
+
+CONFIG_USB_OHCI_LITTLE_ENDIAN=y
+CONFIG_USB_SUPPORT=y
+CONFIG_USB_COMMON=m
+CONFIG_USB_ARCH_HAS_HCD=y
+CONFIG_USB=m
+# CONFIG_USB_ANNOUNCE_NEW_DEVICES is not set
+
+#
+# Miscellaneous USB options
+#
+CONFIG_USB_DEFAULT_PERSIST=y
+# CONFIG_USB_DYNAMIC_MINORS is not set
+# CONFIG_USB_OTG is not set
+CONFIG_USB_OTG_WHITELIST=y
+# CONFIG_USB_OTG_BLACKLIST_HUB is not set
+CONFIG_USB_AUTOSUSPEND_DELAY=2
+CONFIG_USB_MON=m
+
+#
+# USB Host Controller Drivers
+#
+CONFIG_USB_C67X00_HCD=m
+CONFIG_USB_XHCI_HCD=m
+# CONFIG_USB_XHCI_DBGCAP is not set
+CONFIG_USB_XHCI_PLATFORM=m
+CONFIG_USB_EHCI_HCD=m
+CONFIG_USB_EHCI_ROOT_HUB_TT=y
+# CONFIG_USB_EHCI_TT_NEWSCHED is not set
+# CONFIG_USB_EHCI_FSL is not set
+CONFIG_USB_EHCI_HCD_PLATFORM=m
+CONFIG_USB_OXU210HP_HCD=m
+CONFIG_USB_ISP116X_HCD=m
+# CONFIG_USB_FOTG210_HCD is not set
+CONFIG_USB_OHCI_HCD=m
+CONFIG_USB_OHCI_HCD_PLATFORM=m
+# CONFIG_USB_U132_HCD is not set
+CONFIG_USB_SL811_HCD=m
+CONFIG_USB_SL811_HCD_ISO=y
+# CONFIG_USB_R8A66597_HCD is not set
+CONFIG_USB_HCD_BCMA=m
+CONFIG_USB_HCD_TEST_MODE=y
+
+#
+# USB Device Class drivers
+#
+CONFIG_USB_ACM=m
+# CONFIG_USB_PRINTER is not set
+CONFIG_USB_WDM=m
+CONFIG_USB_TMC=m
+
+#
+# NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may
+#
+
+#
+# also be needed; see USB_STORAGE Help for more info
+#
+CONFIG_USB_STORAGE=m
+# CONFIG_USB_STORAGE_DEBUG is not set
+CONFIG_USB_STORAGE_REALTEK=m
+CONFIG_REALTEK_AUTOPM=y
+CONFIG_USB_STORAGE_DATAFAB=m
+CONFIG_USB_STORAGE_FREECOM=m
+# CONFIG_USB_STORAGE_ISD200 is not set
+# CONFIG_USB_STORAGE_USBAT is not set
+CONFIG_USB_STORAGE_SDDR09=m
+CONFIG_USB_STORAGE_SDDR55=m
+CONFIG_USB_STORAGE_JUMPSHOT=m
+# CONFIG_USB_STORAGE_ALAUDA is not set
+# CONFIG_USB_STORAGE_ONETOUCH is not set
+CONFIG_USB_STORAGE_KARMA=m
+CONFIG_USB_STORAGE_CYPRESS_ATACB=m
+# CONFIG_USB_STORAGE_ENE_UB6250 is not set
+CONFIG_USB_UAS=m
+
+#
+# USB Imaging devices
+#
+# CONFIG_USB_MDC800 is not set
+CONFIG_USB_MICROTEK=m
+CONFIG_USB_MUSB_HDRC=m
+CONFIG_USB_MUSB_HOST=y
+
+#
+# Platform Glue Layer
+#
+
+#
+# MUSB DMA mode
+#
+# CONFIG_MUSB_PIO_ONLY is not set
+# CONFIG_USB_DWC3 is not set
+# CONFIG_USB_DWC2 is not set
+CONFIG_USB_CHIPIDEA=m
+CONFIG_USB_CHIPIDEA_HOST=y
+CONFIG_USB_ISP1760=m
+CONFIG_USB_ISP1760_HCD=y
+CONFIG_USB_ISP1760_HOST_ROLE=y
+
+#
+# USB port drivers
+#
+CONFIG_USB_USS720=m
+CONFIG_USB_SERIAL=m
+# CONFIG_USB_SERIAL_GENERIC is not set
+# CONFIG_USB_SERIAL_SIMPLE is not set
+CONFIG_USB_SERIAL_AIRCABLE=m
+CONFIG_USB_SERIAL_ARK3116=m
+CONFIG_USB_SERIAL_BELKIN=m
+CONFIG_USB_SERIAL_CH341=m
+# CONFIG_USB_SERIAL_WHITEHEAT is not set
+CONFIG_USB_SERIAL_DIGI_ACCELEPORT=m
+CONFIG_USB_SERIAL_CP210X=m
+# CONFIG_USB_SERIAL_CYPRESS_M8 is not set
+CONFIG_USB_SERIAL_EMPEG=m
+CONFIG_USB_SERIAL_FTDI_SIO=m
+# CONFIG_USB_SERIAL_VISOR is not set
+# CONFIG_USB_SERIAL_IPAQ is not set
+CONFIG_USB_SERIAL_IR=m
+# CONFIG_USB_SERIAL_EDGEPORT is not set
+CONFIG_USB_SERIAL_EDGEPORT_TI=m
+CONFIG_USB_SERIAL_F81232=m
+CONFIG_USB_SERIAL_F8153X=m
+# CONFIG_USB_SERIAL_GARMIN is not set
+CONFIG_USB_SERIAL_IPW=m
+CONFIG_USB_SERIAL_IUU=m
+CONFIG_USB_SERIAL_KEYSPAN_PDA=m
+CONFIG_USB_SERIAL_KEYSPAN=m
+CONFIG_USB_SERIAL_KLSI=m
+CONFIG_USB_SERIAL_KOBIL_SCT=m
+# CONFIG_USB_SERIAL_MCT_U232 is not set
+# CONFIG_USB_SERIAL_METRO is not set
+CONFIG_USB_SERIAL_MOS7720=m
+# CONFIG_USB_SERIAL_MOS7715_PARPORT is not set
+CONFIG_USB_SERIAL_MOS7840=m
+# CONFIG_USB_SERIAL_MXUPORT is not set
+CONFIG_USB_SERIAL_NAVMAN=m
+CONFIG_USB_SERIAL_PL2303=m
+# CONFIG_USB_SERIAL_OTI6858 is not set
+# CONFIG_USB_SERIAL_QCAUX is not set
+# CONFIG_USB_SERIAL_QUALCOMM is not set
+# CONFIG_USB_SERIAL_SPCP8X5 is not set
+CONFIG_USB_SERIAL_SAFE=m
+# CONFIG_USB_SERIAL_SAFE_PADDED is not set
+CONFIG_USB_SERIAL_SIERRAWIRELESS=m
+CONFIG_USB_SERIAL_SYMBOL=m
+CONFIG_USB_SERIAL_TI=m
+# CONFIG_USB_SERIAL_CYBERJACK is not set
+CONFIG_USB_SERIAL_XIRCOM=m
+CONFIG_USB_SERIAL_WWAN=m
+CONFIG_USB_SERIAL_OPTION=m
+# CONFIG_USB_SERIAL_OMNINET is not set
+CONFIG_USB_SERIAL_OPTICON=m
+# CONFIG_USB_SERIAL_XSENS_MT is not set
+# CONFIG_USB_SERIAL_WISHBONE is not set
+CONFIG_USB_SERIAL_SSU100=m
+CONFIG_USB_SERIAL_QT2=m
+CONFIG_USB_SERIAL_UPD78F0730=m
+# CONFIG_USB_SERIAL_DEBUG is not set
+
+#
+# USB Miscellaneous drivers
+#
+# CONFIG_USB_EMI62 is not set
+# CONFIG_USB_EMI26 is not set
+CONFIG_USB_ADUTUX=m
+CONFIG_USB_SEVSEG=m
+CONFIG_USB_RIO500=m
+CONFIG_USB_LEGOTOWER=m
+# CONFIG_USB_LCD is not set
+# CONFIG_USB_CYPRESS_CY7C63 is not set
+CONFIG_USB_CYTHERM=m
+CONFIG_USB_IDMOUSE=m
+CONFIG_USB_FTDI_ELAN=m
+CONFIG_USB_APPLEDISPLAY=m
+CONFIG_USB_SISUSBVGA=m
+# CONFIG_USB_LD is not set
+# CONFIG_USB_TRANCEVIBRATOR is not set
+# CONFIG_USB_IOWARRIOR is not set
+CONFIG_USB_TEST=m
+# CONFIG_USB_EHSET_TEST_FIXTURE is not set
+CONFIG_USB_ISIGHTFW=m
+CONFIG_USB_YUREX=m
+CONFIG_USB_EZUSB_FX2=m
+CONFIG_USB_HUB_USB251XB=m
+CONFIG_USB_HSIC_USB3503=m
+# CONFIG_USB_HSIC_USB4604 is not set
+# CONFIG_USB_LINK_LAYER_TEST is not set
+
+#
+# USB Physical Layer drivers
+#
+CONFIG_USB_PHY=y
+CONFIG_NOP_USB_XCEIV=y
+CONFIG_USB_GPIO_VBUS=y
+# CONFIG_USB_ISP1301 is not set
+# end of USB Physical Layer drivers
+
+# CONFIG_USB_GADGET is not set
+CONFIG_TYPEC=y
+CONFIG_TYPEC_TCPM=m
+CONFIG_TYPEC_TCPCI=m
+CONFIG_TYPEC_RT1711H=m
+# CONFIG_TYPEC_FUSB302 is not set
+# CONFIG_TYPEC_UCSI is not set
+# CONFIG_TYPEC_TPS6598X is not set
+
+#
+# USB Type-C Multiplexer/DeMultiplexer Switch support
+#
+# CONFIG_TYPEC_MUX_PI3USB30532 is not set
+# end of USB Type-C Multiplexer/DeMultiplexer Switch support
+
+#
+# USB Type-C Alternate Mode drivers
+#
+CONFIG_TYPEC_DP_ALTMODE=m
+# CONFIG_TYPEC_NVIDIA_ALTMODE is not set
+# end of USB Type-C Alternate Mode drivers
+
+CONFIG_USB_ROLE_SWITCH=y
+CONFIG_USB_ROLES_INTEL_XHCI=m
+CONFIG_USB_ULPI_BUS=m
+CONFIG_MMC=m
+# CONFIG_MMC_BLOCK is not set
+CONFIG_SDIO_UART=m
+# CONFIG_MMC_TEST is not set
+
+#
+# MMC/SD/SDIO Host Controller Drivers
+#
+CONFIG_MMC_DEBUG=y
+# CONFIG_MMC_SDHCI is not set
+# CONFIG_MMC_WBSD is not set
+# CONFIG_MMC_VUB300 is not set
+CONFIG_MMC_USHC=m
+CONFIG_MMC_USDHI6ROL0=m
+CONFIG_MMC_CQHCI=m
+CONFIG_MMC_MTK=m
+# CONFIG_MEMSTICK is not set
+CONFIG_NEW_LEDS=y
+CONFIG_LEDS_CLASS=m
+CONFIG_LEDS_CLASS_FLASH=m
+CONFIG_LEDS_BRIGHTNESS_HW_CHANGED=y
+
+#
+# LED drivers
+#
+CONFIG_LEDS_APU=m
+CONFIG_LEDS_AS3645A=m
+CONFIG_LEDS_LM3530=m
+# CONFIG_LEDS_LM3532 is not set
+# CONFIG_LEDS_LM3642 is not set
+CONFIG_LEDS_LM3601X=m
+CONFIG_LEDS_MT6323=m
+CONFIG_LEDS_PCA9532=m
+CONFIG_LEDS_PCA9532_GPIO=y
+# CONFIG_LEDS_GPIO is not set
+CONFIG_LEDS_LP3944=m
+CONFIG_LEDS_LP3952=m
+CONFIG_LEDS_LP55XX_COMMON=m
+CONFIG_LEDS_LP5521=m
+CONFIG_LEDS_LP5523=m
+CONFIG_LEDS_LP5562=m
+CONFIG_LEDS_LP8501=m
+CONFIG_LEDS_CLEVO_MAIL=m
+CONFIG_LEDS_PCA955X=m
+CONFIG_LEDS_PCA955X_GPIO=y
+# CONFIG_LEDS_PCA963X is not set
+CONFIG_LEDS_WM8350=m
+# CONFIG_LEDS_DA903X is not set
+CONFIG_LEDS_DA9052=m
+# CONFIG_LEDS_PWM is not set
+CONFIG_LEDS_REGULATOR=m
+CONFIG_LEDS_BD2802=m
+# CONFIG_LEDS_MC13783 is not set
+CONFIG_LEDS_TCA6507=m
+CONFIG_LEDS_TLC591XX=m
+# CONFIG_LEDS_LM355x is not set
+CONFIG_LEDS_OT200=m
+
+#
+# LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)
+#
+# CONFIG_LEDS_BLINKM is not set
+CONFIG_LEDS_MLXCPLD=m
+CONFIG_LEDS_MLXREG=m
+CONFIG_LEDS_USER=m
+CONFIG_LEDS_NIC78BX=m
+# CONFIG_LEDS_TI_LMU_COMMON is not set
+
+#
+# LED Triggers
+#
+# CONFIG_LEDS_TRIGGERS is not set
+# CONFIG_ACCESSIBILITY is not set
+CONFIG_EDAC_ATOMIC_SCRUB=y
+CONFIG_EDAC_SUPPORT=y
+CONFIG_EDAC=y
+CONFIG_EDAC_LEGACY_SYSFS=y
+CONFIG_EDAC_DEBUG=y
+CONFIG_RTC_LIB=y
+CONFIG_RTC_MC146818_LIB=y
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_HCTOSYS=y
+CONFIG_RTC_HCTOSYS_DEVICE="rtc0"
+CONFIG_RTC_SYSTOHC=y
+CONFIG_RTC_SYSTOHC_DEVICE="rtc0"
+CONFIG_RTC_DEBUG=y
+CONFIG_RTC_NVMEM=y
+
+#
+# RTC interfaces
+#
+# CONFIG_RTC_INTF_SYSFS is not set
+CONFIG_RTC_INTF_DEV=y
+CONFIG_RTC_INTF_DEV_UIE_EMUL=y
+CONFIG_RTC_DRV_TEST=m
+
+#
+# I2C RTC drivers
+#
+CONFIG_RTC_DRV_ABB5ZES3=m
+CONFIG_RTC_DRV_ABEOZ9=m
+CONFIG_RTC_DRV_ABX80X=m
+CONFIG_RTC_DRV_DS1307=m
+CONFIG_RTC_DRV_DS1307_CENTURY=y
+# CONFIG_RTC_DRV_DS1374 is not set
+CONFIG_RTC_DRV_DS1672=y
+# CONFIG_RTC_DRV_MAX6900 is not set
+# CONFIG_RTC_DRV_MAX8907 is not set
+CONFIG_RTC_DRV_MAX8925=y
+CONFIG_RTC_DRV_MAX8998=m
+# CONFIG_RTC_DRV_RS5C372 is not set
+CONFIG_RTC_DRV_ISL1208=m
+CONFIG_RTC_DRV_ISL12022=y
+# CONFIG_RTC_DRV_X1205 is not set
+CONFIG_RTC_DRV_PCF8523=y
+CONFIG_RTC_DRV_PCF85063=y
+CONFIG_RTC_DRV_PCF85363=y
+CONFIG_RTC_DRV_PCF8563=y
+CONFIG_RTC_DRV_PCF8583=y
+# CONFIG_RTC_DRV_M41T80 is not set
+# CONFIG_RTC_DRV_BQ32K is not set
+CONFIG_RTC_DRV_S35390A=y
+# CONFIG_RTC_DRV_FM3130 is not set
+CONFIG_RTC_DRV_RX8010=y
+# CONFIG_RTC_DRV_RX8581 is not set
+CONFIG_RTC_DRV_RX8025=m
+# CONFIG_RTC_DRV_EM3027 is not set
+# CONFIG_RTC_DRV_RV3028 is not set
+CONFIG_RTC_DRV_RV8803=y
+CONFIG_RTC_DRV_S5M=m
+# CONFIG_RTC_DRV_SD3078 is not set
+
+#
+# SPI RTC drivers
+#
+CONFIG_RTC_I2C_AND_SPI=y
+
+#
+# SPI and I2C RTC drivers
+#
+CONFIG_RTC_DRV_DS3232=y
+# CONFIG_RTC_DRV_PCF2127 is not set
+CONFIG_RTC_DRV_RV3029C2=m
+# CONFIG_RTC_DRV_RV3029_HWMON is not set
+
+#
+# Platform RTC drivers
+#
+# CONFIG_RTC_DRV_CMOS is not set
+CONFIG_RTC_DRV_DS1286=m
+CONFIG_RTC_DRV_DS1511=m
+CONFIG_RTC_DRV_DS1553=m
+CONFIG_RTC_DRV_DS1685_FAMILY=m
+# CONFIG_RTC_DRV_DS1685 is not set
+# CONFIG_RTC_DRV_DS1689 is not set
+# CONFIG_RTC_DRV_DS17285 is not set
+CONFIG_RTC_DRV_DS17485=y
+# CONFIG_RTC_DRV_DS17885 is not set
+# CONFIG_RTC_DRV_DS1742 is not set
+# CONFIG_RTC_DRV_DS2404 is not set
+CONFIG_RTC_DRV_DA9052=y
+# CONFIG_RTC_DRV_DA9055 is not set
+CONFIG_RTC_DRV_DA9063=m
+CONFIG_RTC_DRV_STK17TA8=y
+CONFIG_RTC_DRV_M48T86=y
+# CONFIG_RTC_DRV_M48T35 is not set
+# CONFIG_RTC_DRV_M48T59 is not set
+# CONFIG_RTC_DRV_MSM6242 is not set
+CONFIG_RTC_DRV_BQ4802=m
+CONFIG_RTC_DRV_RP5C01=m
+CONFIG_RTC_DRV_V3020=y
+CONFIG_RTC_DRV_WM8350=m
+CONFIG_RTC_DRV_CROS_EC=y
+
+#
+# on-CPU RTC drivers
+#
+CONFIG_RTC_DRV_FTRTC010=m
+CONFIG_RTC_DRV_MC13XXX=m
+# CONFIG_RTC_DRV_MT6397 is not set
+
+#
+# HID Sensor RTC drivers
+#
+CONFIG_DMADEVICES=y
+# CONFIG_DMADEVICES_DEBUG is not set
+
+#
+# DMA Devices
+#
+CONFIG_DMA_ENGINE=y
+CONFIG_DMA_VIRTUAL_CHANNELS=y
+CONFIG_DMA_ACPI=y
+CONFIG_ALTERA_MSGDMA=y
+CONFIG_INTEL_IDMA64=y
+CONFIG_QCOM_HIDMA_MGMT=y
+CONFIG_QCOM_HIDMA=m
+# CONFIG_DW_DMAC is not set
+
+#
+# DMA Clients
+#
+CONFIG_ASYNC_TX_DMA=y
+CONFIG_DMATEST=y
+CONFIG_DMA_ENGINE_RAID=y
+
+#
+# DMABUF options
+#
+CONFIG_SYNC_FILE=y
+CONFIG_SW_SYNC=y
+CONFIG_UDMABUF=y
+CONFIG_DMABUF_SELFTESTS=y
+# end of DMABUF options
+
+CONFIG_AUXDISPLAY=y
+# CONFIG_HD44780 is not set
+# CONFIG_KS0108 is not set
+CONFIG_IMG_ASCII_LCD=y
+CONFIG_PARPORT_PANEL=m
+CONFIG_PANEL_PARPORT=0
+CONFIG_PANEL_PROFILE=5
+# CONFIG_PANEL_CHANGE_MESSAGE is not set
+CONFIG_CHARLCD_BL_OFF=y
+# CONFIG_CHARLCD_BL_ON is not set
+# CONFIG_CHARLCD_BL_FLASH is not set
+CONFIG_PANEL=m
+CONFIG_CHARLCD=m
+CONFIG_UIO=m
+# CONFIG_UIO_PDRV_GENIRQ is not set
+# CONFIG_UIO_DMEM_GENIRQ is not set
+CONFIG_UIO_PRUSS=m
+CONFIG_VIRT_DRIVERS=y
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_MENU=y
+# CONFIG_VIRTIO_BALLOON is not set
+CONFIG_VIRTIO_INPUT=m
+CONFIG_VIRTIO_MMIO=m
+# CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES is not set
+
+#
+# Microsoft Hyper-V guest support
+#
+# end of Microsoft Hyper-V guest support
+
+CONFIG_STAGING=y
+# CONFIG_COMEDI is not set
+
+#
+# Speakup console speech
+#
+# end of Speakup console speech
+
+# CONFIG_STAGING_MEDIA is not set
+
+#
+# Android
+#
+CONFIG_ASHMEM=y
+# CONFIG_ION is not set
+# end of Android
+
+CONFIG_GS_FPGABOOT=y
+# CONFIG_UNISYSSPAR is not set
+CONFIG_MOST=y
+CONFIG_MOST_CDEV=m
+CONFIG_MOST_I2C=y
+CONFIG_GREYBUS=m
+CONFIG_GREYBUS_ES2=m
+CONFIG_GREYBUS_AUDIO=m
+CONFIG_GREYBUS_BOOTROM=m
+CONFIG_GREYBUS_HID=m
+CONFIG_GREYBUS_LIGHT=m
+CONFIG_GREYBUS_LOG=m
+# CONFIG_GREYBUS_LOOPBACK is not set
+# CONFIG_GREYBUS_POWER is not set
+# CONFIG_GREYBUS_RAW is not set
+# CONFIG_GREYBUS_VIBRATOR is not set
+CONFIG_GREYBUS_BRIDGED_PHY=m
+CONFIG_GREYBUS_GPIO=m
+CONFIG_GREYBUS_I2C=m
+CONFIG_GREYBUS_PWM=m
+CONFIG_GREYBUS_SDIO=m
+CONFIG_GREYBUS_UART=m
+# CONFIG_GREYBUS_USB is not set
+
+#
+# Gasket devices
+#
+# end of Gasket devices
+
+CONFIG_EROFS_FS=y
+CONFIG_EROFS_FS_DEBUG=y
+CONFIG_EROFS_FAULT_INJECTION=y
+CONFIG_EROFS_FS_XATTR=y
+CONFIG_EROFS_FS_POSIX_ACL=y
+# CONFIG_EROFS_FS_SECURITY is not set
+# CONFIG_EROFS_FS_ZIP is not set
+CONFIG_FIELDBUS_DEV=y
+CONFIG_USB_WUSB_CBAF=m
+CONFIG_USB_WUSB_CBAF_DEBUG=y
+# CONFIG_UWB is not set
+# CONFIG_X86_PLATFORM_DEVICES is not set
+CONFIG_CHROME_PLATFORMS=y
+# CONFIG_CHROMEOS_LAPTOP is not set
+# CONFIG_CHROMEOS_PSTORE is not set
+# CONFIG_CHROMEOS_TBMC is not set
+CONFIG_CROS_EC_I2C=m
+CONFIG_CROS_EC_LPC=m
+CONFIG_CROS_EC_PROTO=y
+# CONFIG_CROS_KBD_LED_BACKLIGHT is not set
+# CONFIG_CROS_USBPD_LOGGER is not set
+# CONFIG_WILCO_EC is not set
+# CONFIG_MELLANOX_PLATFORM is not set
+CONFIG_CLKDEV_LOOKUP=y
+CONFIG_HAVE_CLK_PREPARE=y
+CONFIG_COMMON_CLK=y
+
+#
+# Common Clock Framework
+#
+CONFIG_COMMON_CLK_MAX9485=y
+# CONFIG_COMMON_CLK_SI5341 is not set
+CONFIG_COMMON_CLK_SI5351=y
+CONFIG_COMMON_CLK_SI544=m
+CONFIG_COMMON_CLK_CDCE706=m
+CONFIG_COMMON_CLK_CS2000_CP=m
+CONFIG_COMMON_CLK_S2MPS11=m
+CONFIG_CLK_TWL6040=m
+CONFIG_COMMON_CLK_PWM=y
+# end of Common Clock Framework
+
+CONFIG_HWSPINLOCK=y
+
+#
+# Clock Source drivers
+#
+CONFIG_CLKSRC_I8253=y
+CONFIG_CLKEVT_I8253=y
+CONFIG_I8253_LOCK=y
+CONFIG_CLKBLD_I8253=y
+# end of Clock Source drivers
+
+# CONFIG_MAILBOX is not set
+# CONFIG_IOMMU_SUPPORT is not set
+
+#
+# Remoteproc drivers
+#
+CONFIG_REMOTEPROC=y
+# end of Remoteproc drivers
+
+#
+# Rpmsg drivers
+#
+# CONFIG_RPMSG_VIRTIO is not set
+# end of Rpmsg drivers
+
+# CONFIG_SOUNDWIRE is not set
+
+#
+# SOC (System On Chip) specific Drivers
+#
+
+#
+# Amlogic SoC drivers
+#
+# end of Amlogic SoC drivers
+
+#
+# Aspeed SoC drivers
+#
+# end of Aspeed SoC drivers
+
+#
+# Broadcom SoC drivers
+#
+# end of Broadcom SoC drivers
+
+#
+# NXP/Freescale QorIQ SoC drivers
+#
+# end of NXP/Freescale QorIQ SoC drivers
+
+#
+# i.MX SoC drivers
+#
+# end of i.MX SoC drivers
+
+#
+# IXP4xx SoC drivers
+#
+CONFIG_IXP4XX_QMGR=y
+CONFIG_IXP4XX_NPE=m
+# end of IXP4xx SoC drivers
+
+#
+# Qualcomm SoC drivers
+#
+# end of Qualcomm SoC drivers
+
+CONFIG_SOC_TI=y
+
+#
+# Xilinx SoC drivers
+#
+CONFIG_XILINX_VCU=y
+# end of Xilinx SoC drivers
+# end of SOC (System On Chip) specific Drivers
+
+CONFIG_PM_DEVFREQ=y
+
+#
+# DEVFREQ Governors
+#
+CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND=y
+CONFIG_DEVFREQ_GOV_PERFORMANCE=m
+CONFIG_DEVFREQ_GOV_POWERSAVE=y
+CONFIG_DEVFREQ_GOV_USERSPACE=y
+# CONFIG_DEVFREQ_GOV_PASSIVE is not set
+
+#
+# DEVFREQ Drivers
+#
+CONFIG_PM_DEVFREQ_EVENT=y
+CONFIG_EXTCON=y
+
+#
+# Extcon Device Drivers
+#
+# CONFIG_EXTCON_AXP288 is not set
+# CONFIG_EXTCON_FSA9480 is not set
+CONFIG_EXTCON_GPIO=y
+CONFIG_EXTCON_INTEL_INT3496=m
+CONFIG_EXTCON_MAX14577=y
+CONFIG_EXTCON_MAX3355=m
+# CONFIG_EXTCON_PTN5150 is not set
+# CONFIG_EXTCON_RT8973A is not set
+CONFIG_EXTCON_SM5502=y
+CONFIG_EXTCON_USB_GPIO=m
+# CONFIG_EXTCON_USBC_CROS_EC is not set
+# CONFIG_MEMORY is not set
+# CONFIG_IIO is not set
+CONFIG_PWM=y
+CONFIG_PWM_SYSFS=y
+CONFIG_PWM_CROS_EC=y
+CONFIG_PWM_LPSS=m
+CONFIG_PWM_LPSS_PLATFORM=m
+CONFIG_PWM_PCA9685=y
+
+#
+# IRQ chip support
+#
+CONFIG_MADERA_IRQ=y
+# end of IRQ chip support
+
+CONFIG_IPACK_BUS=m
+CONFIG_SERIAL_IPOCTAL=m
+CONFIG_RESET_CONTROLLER=y
+CONFIG_RESET_TI_SYSCON=y
+
+#
+# PHY Subsystem
+#
+CONFIG_GENERIC_PHY=y
+CONFIG_BCM_KONA_USB2_PHY=m
+CONFIG_PHY_PXA_28NM_HSIC=y
+# CONFIG_PHY_PXA_28NM_USB2 is not set
+# CONFIG_PHY_QCOM_USB_HS is not set
+# CONFIG_PHY_QCOM_USB_HSIC is not set
+CONFIG_PHY_TUSB1210=m
+# end of PHY Subsystem
+
+CONFIG_POWERCAP=y
+# CONFIG_IDLE_INJECT is not set
+CONFIG_MCB=y
+CONFIG_MCB_LPC=m
+
+#
+# Performance monitor support
+#
+# end of Performance monitor support
+
+CONFIG_RAS=y
+# CONFIG_RAS_CEC is not set
+
+#
+# Android
+#
+CONFIG_ANDROID=y
+CONFIG_ANDROID_BINDER_IPC=y
+CONFIG_ANDROID_BINDERFS=y
+CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder"
+CONFIG_ANDROID_BINDER_IPC_SELFTEST=y
+# end of Android
+
+# CONFIG_LIBNVDIMM is not set
+CONFIG_DAX=y
+# CONFIG_DEV_DAX is not set
+CONFIG_NVMEM=y
+# CONFIG_NVMEM_SYSFS is not set
+
+#
+# HW tracing support
+#
+CONFIG_STM=y
+# CONFIG_STM_PROTO_BASIC is not set
+CONFIG_STM_PROTO_SYS_T=y
+# CONFIG_STM_DUMMY is not set
+# CONFIG_STM_SOURCE_CONSOLE is not set
+CONFIG_STM_SOURCE_HEARTBEAT=m
+CONFIG_INTEL_TH=m
+# CONFIG_INTEL_TH_ACPI is not set
+# CONFIG_INTEL_TH_GTH is not set
+# CONFIG_INTEL_TH_STH is not set
+CONFIG_INTEL_TH_MSU=m
+# CONFIG_INTEL_TH_PTI is not set
+CONFIG_INTEL_TH_DEBUG=y
+# end of HW tracing support
+
+CONFIG_FPGA=m
+# CONFIG_ALTERA_PR_IP_CORE is not set
+CONFIG_FPGA_BRIDGE=m
+CONFIG_ALTERA_FREEZE_BRIDGE=m
+# CONFIG_XILINX_PR_DECOUPLER is not set
+CONFIG_FPGA_REGION=m
+# CONFIG_FPGA_DFL is not set
+CONFIG_PM_OPP=y
+CONFIG_SIOX=m
+CONFIG_SIOX_BUS_GPIO=m
+# CONFIG_SLIMBUS is not set
+# CONFIG_INTERCONNECT is not set
+CONFIG_COUNTER=m
+# end of Device Drivers
+
+#
+# File systems
+#
+CONFIG_DCACHE_WORD_ACCESS=y
+CONFIG_VALIDATE_FS_PARSER=y
+CONFIG_FS_IOMAP=y
+CONFIG_EXT2_FS=m
+CONFIG_EXT2_FS_XATTR=y
+CONFIG_EXT2_FS_POSIX_ACL=y
+CONFIG_EXT2_FS_SECURITY=y
+CONFIG_EXT3_FS=y
+CONFIG_EXT3_FS_POSIX_ACL=y
+# CONFIG_EXT3_FS_SECURITY is not set
+CONFIG_EXT4_FS=y
+CONFIG_EXT4_FS_POSIX_ACL=y
+CONFIG_EXT4_FS_SECURITY=y
+CONFIG_EXT4_DEBUG=y
+CONFIG_JBD2=y
+# CONFIG_JBD2_DEBUG is not set
+CONFIG_FS_MBCACHE=y
+CONFIG_REISERFS_FS=y
+# CONFIG_REISERFS_CHECK is not set
+# CONFIG_REISERFS_FS_XATTR is not set
+CONFIG_JFS_FS=y
+CONFIG_JFS_POSIX_ACL=y
+CONFIG_JFS_SECURITY=y
+CONFIG_JFS_DEBUG=y
+# CONFIG_JFS_STATISTICS is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_GFS2_FS is not set
+CONFIG_BTRFS_FS=m
+CONFIG_BTRFS_FS_POSIX_ACL=y
+CONFIG_BTRFS_FS_CHECK_INTEGRITY=y
+# CONFIG_BTRFS_FS_RUN_SANITY_TESTS is not set
+# CONFIG_BTRFS_DEBUG is not set
+# CONFIG_BTRFS_ASSERT is not set
+CONFIG_BTRFS_FS_REF_VERIFY=y
+CONFIG_NILFS2_FS=m
+CONFIG_F2FS_FS=m
+CONFIG_F2FS_STAT_FS=y
+# CONFIG_F2FS_FS_XATTR is not set
+# CONFIG_F2FS_CHECK_FS is not set
+CONFIG_F2FS_FAULT_INJECTION=y
+CONFIG_FS_DAX=y
+CONFIG_FS_POSIX_ACL=y
+CONFIG_EXPORTFS=y
+CONFIG_EXPORTFS_BLOCK_OPS=y
+# CONFIG_FILE_LOCKING is not set
+# CONFIG_FS_ENCRYPTION is not set
+CONFIG_FS_VERITY=y
+# CONFIG_FS_VERITY_DEBUG is not set
+# CONFIG_FS_VERITY_BUILTIN_SIGNATURES is not set
+CONFIG_FSNOTIFY=y
+CONFIG_DNOTIFY=y
+CONFIG_INOTIFY_USER=y
+CONFIG_FANOTIFY=y
+CONFIG_QUOTA=y
+CONFIG_PRINT_QUOTA_WARNING=y
+CONFIG_QUOTA_DEBUG=y
+CONFIG_QUOTA_TREE=y
+CONFIG_QFMT_V1=y
+CONFIG_QFMT_V2=y
+CONFIG_QUOTACTL=y
+CONFIG_AUTOFS4_FS=m
+CONFIG_AUTOFS_FS=m
+# CONFIG_FUSE_FS is not set
+CONFIG_OVERLAY_FS=m
+CONFIG_OVERLAY_FS_REDIRECT_DIR=y
+# CONFIG_OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW is not set
+CONFIG_OVERLAY_FS_INDEX=y
+CONFIG_OVERLAY_FS_XINO_AUTO=y
+CONFIG_OVERLAY_FS_METACOPY=y
+
+#
+# Caches
+#
+CONFIG_FSCACHE=m
+# CONFIG_FSCACHE_DEBUG is not set
+# CONFIG_CACHEFILES is not set
+# end of Caches
+
+#
+# CD-ROM/DVD Filesystems
+#
+CONFIG_ISO9660_FS=m
+# CONFIG_JOLIET is not set
+# CONFIG_ZISOFS is not set
+# CONFIG_UDF_FS is not set
+# end of CD-ROM/DVD Filesystems
+
+#
+# DOS/FAT/NT Filesystems
+#
+CONFIG_FAT_FS=y
+CONFIG_MSDOS_FS=m
+CONFIG_VFAT_FS=y
+CONFIG_FAT_DEFAULT_CODEPAGE=437
+CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
+CONFIG_FAT_DEFAULT_UTF8=y
+CONFIG_NTFS_FS=m
+# CONFIG_NTFS_DEBUG is not set
+CONFIG_NTFS_RW=y
+# end of DOS/FAT/NT Filesystems
+
+#
+# Pseudo filesystems
+#
+# CONFIG_PROC_FS is not set
+# CONFIG_PROC_CHILDREN is not set
+CONFIG_KERNFS=y
+CONFIG_SYSFS=y
+CONFIG_TMPFS=y
+# CONFIG_TMPFS_POSIX_ACL is not set
+CONFIG_TMPFS_XATTR=y
+# CONFIG_HUGETLBFS is not set
+CONFIG_MEMFD_CREATE=y
+CONFIG_CONFIGFS_FS=y
+# end of Pseudo filesystems
+
+# CONFIG_MISC_FILESYSTEMS is not set
+CONFIG_NLS=y
+CONFIG_NLS_DEFAULT="iso8859-1"
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_CODEPAGE_737=m
+# CONFIG_NLS_CODEPAGE_775 is not set
+CONFIG_NLS_CODEPAGE_850=y
+CONFIG_NLS_CODEPAGE_852=m
+CONFIG_NLS_CODEPAGE_855=y
+CONFIG_NLS_CODEPAGE_857=y
+# CONFIG_NLS_CODEPAGE_860 is not set
+CONFIG_NLS_CODEPAGE_861=m
+# CONFIG_NLS_CODEPAGE_862 is not set
+CONFIG_NLS_CODEPAGE_863=y
+CONFIG_NLS_CODEPAGE_864=y
+CONFIG_NLS_CODEPAGE_865=y
+# CONFIG_NLS_CODEPAGE_866 is not set
+CONFIG_NLS_CODEPAGE_869=m
+CONFIG_NLS_CODEPAGE_936=y
+CONFIG_NLS_CODEPAGE_950=y
+CONFIG_NLS_CODEPAGE_932=y
+CONFIG_NLS_CODEPAGE_949=m
+# CONFIG_NLS_CODEPAGE_874 is not set
+CONFIG_NLS_ISO8859_8=y
+# CONFIG_NLS_CODEPAGE_1250 is not set
+CONFIG_NLS_CODEPAGE_1251=y
+CONFIG_NLS_ASCII=m
+CONFIG_NLS_ISO8859_1=y
+CONFIG_NLS_ISO8859_2=y
+CONFIG_NLS_ISO8859_3=y
+CONFIG_NLS_ISO8859_4=y
+CONFIG_NLS_ISO8859_5=y
+CONFIG_NLS_ISO8859_6=m
+# CONFIG_NLS_ISO8859_7 is not set
+CONFIG_NLS_ISO8859_9=m
+# CONFIG_NLS_ISO8859_13 is not set
+CONFIG_NLS_ISO8859_14=m
+CONFIG_NLS_ISO8859_15=m
+CONFIG_NLS_KOI8_R=m
+CONFIG_NLS_KOI8_U=m
+CONFIG_NLS_MAC_ROMAN=y
+CONFIG_NLS_MAC_CELTIC=m
+CONFIG_NLS_MAC_CENTEURO=m
+# CONFIG_NLS_MAC_CROATIAN is not set
+CONFIG_NLS_MAC_CYRILLIC=m
+CONFIG_NLS_MAC_GAELIC=y
+CONFIG_NLS_MAC_GREEK=m
+CONFIG_NLS_MAC_ICELAND=m
+CONFIG_NLS_MAC_INUIT=y
+CONFIG_NLS_MAC_ROMANIAN=y
+CONFIG_NLS_MAC_TURKISH=m
+# CONFIG_NLS_UTF8 is not set
+# CONFIG_UNICODE is not set
+# end of File systems
+
+#
+# Security options
+#
+CONFIG_KEYS=y
+CONFIG_KEYS_REQUEST_CACHE=y
+# CONFIG_PERSISTENT_KEYRINGS is not set
+CONFIG_BIG_KEYS=y
+CONFIG_ENCRYPTED_KEYS=m
+# CONFIG_KEY_DH_OPERATIONS is not set
+# CONFIG_SECURITY_DMESG_RESTRICT is not set
+CONFIG_SECURITYFS=y
+CONFIG_PAGE_TABLE_ISOLATION=y
+CONFIG_FORTIFY_SOURCE=y
+# CONFIG_STATIC_USERMODEHELPER is not set
+CONFIG_DEFAULT_SECURITY_DAC=y
+CONFIG_LSM="yama,loadpin,safesetid,integrity"
+
+#
+# Kernel hardening options
+#
+
+#
+# Memory initialization
+#
+CONFIG_INIT_STACK_NONE=y
+# CONFIG_INIT_ON_ALLOC_DEFAULT_ON is not set
+# CONFIG_INIT_ON_FREE_DEFAULT_ON is not set
+# end of Memory initialization
+# end of Kernel hardening options
+# end of Security options
+
+CONFIG_XOR_BLOCKS=m
+CONFIG_CRYPTO=y
+
+#
+# Crypto core or helper
+#
+# CONFIG_CRYPTO_FIPS is not set
+CONFIG_CRYPTO_ALGAPI=y
+CONFIG_CRYPTO_ALGAPI2=y
+CONFIG_CRYPTO_AEAD=y
+CONFIG_CRYPTO_AEAD2=y
+CONFIG_CRYPTO_BLKCIPHER=y
+CONFIG_CRYPTO_BLKCIPHER2=y
+CONFIG_CRYPTO_HASH=y
+CONFIG_CRYPTO_HASH2=y
+CONFIG_CRYPTO_RNG=y
+CONFIG_CRYPTO_RNG2=y
+CONFIG_CRYPTO_RNG_DEFAULT=y
+CONFIG_CRYPTO_AKCIPHER2=y
+CONFIG_CRYPTO_AKCIPHER=y
+CONFIG_CRYPTO_KPP2=y
+CONFIG_CRYPTO_KPP=m
+CONFIG_CRYPTO_ACOMP2=y
+CONFIG_CRYPTO_MANAGER=y
+CONFIG_CRYPTO_MANAGER2=y
+# CONFIG_CRYPTO_MANAGER_DISABLE_TESTS is not set
+CONFIG_CRYPTO_MANAGER_EXTRA_TESTS=y
+CONFIG_CRYPTO_GF128MUL=y
+CONFIG_CRYPTO_NULL=y
+CONFIG_CRYPTO_NULL2=y
+# CONFIG_CRYPTO_CRYPTD is not set
+CONFIG_CRYPTO_AUTHENC=y
+# CONFIG_CRYPTO_TEST is not set
+CONFIG_CRYPTO_ENGINE=y
+
+#
+# Public-key cryptography
+#
+CONFIG_CRYPTO_RSA=y
+# CONFIG_CRYPTO_DH is not set
+CONFIG_CRYPTO_ECC=m
+CONFIG_CRYPTO_ECDH=m
+# CONFIG_CRYPTO_ECRDSA is not set
+
+#
+# Authenticated Encryption with Associated Data
+#
+# CONFIG_CRYPTO_CCM is not set
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_CHACHA20POLY1305=m
+CONFIG_CRYPTO_AEGIS128=y
+CONFIG_CRYPTO_SEQIV=y
+CONFIG_CRYPTO_ECHAINIV=m
+
+#
+# Block modes
+#
+CONFIG_CRYPTO_CBC=y
+# CONFIG_CRYPTO_CFB is not set
+CONFIG_CRYPTO_CTR=y
+CONFIG_CRYPTO_CTS=m
+CONFIG_CRYPTO_ECB=m
+CONFIG_CRYPTO_LRW=y
+# CONFIG_CRYPTO_OFB is not set
+CONFIG_CRYPTO_PCBC=y
+# CONFIG_CRYPTO_XTS is not set
+# CONFIG_CRYPTO_KEYWRAP is not set
+CONFIG_CRYPTO_NHPOLY1305=m
+CONFIG_CRYPTO_ADIANTUM=m
+
+#
+# Hash modes
+#
+CONFIG_CRYPTO_CMAC=m
+CONFIG_CRYPTO_HMAC=y
+CONFIG_CRYPTO_XCBC=m
+CONFIG_CRYPTO_VMAC=m
+
+#
+# Digest
+#
+CONFIG_CRYPTO_CRC32C=y
+CONFIG_CRYPTO_CRC32C_INTEL=m
+CONFIG_CRYPTO_CRC32=y
+# CONFIG_CRYPTO_CRC32_PCLMUL is not set
+# CONFIG_CRYPTO_XXHASH is not set
+CONFIG_CRYPTO_CRCT10DIF=y
+CONFIG_CRYPTO_GHASH=y
+CONFIG_CRYPTO_POLY1305=m
+CONFIG_CRYPTO_MD4=y
+CONFIG_CRYPTO_MD5=m
+CONFIG_CRYPTO_MICHAEL_MIC=y
+# CONFIG_CRYPTO_RMD128 is not set
+CONFIG_CRYPTO_RMD160=m
+CONFIG_CRYPTO_RMD256=y
+CONFIG_CRYPTO_RMD320=m
+CONFIG_CRYPTO_SHA1=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_SHA512=y
+CONFIG_CRYPTO_SHA3=y
+CONFIG_CRYPTO_SM3=y
+CONFIG_CRYPTO_STREEBOG=y
+CONFIG_CRYPTO_TGR192=m
+CONFIG_CRYPTO_WP512=y
+
+#
+# Ciphers
+#
+CONFIG_CRYPTO_LIB_AES=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_AES_TI=y
+# CONFIG_CRYPTO_AES_NI_INTEL is not set
+CONFIG_CRYPTO_ANUBIS=y
+# CONFIG_CRYPTO_ARC4 is not set
+CONFIG_CRYPTO_BLOWFISH=m
+CONFIG_CRYPTO_BLOWFISH_COMMON=m
+CONFIG_CRYPTO_CAMELLIA=m
+CONFIG_CRYPTO_CAST_COMMON=y
+CONFIG_CRYPTO_CAST5=y
+CONFIG_CRYPTO_CAST6=y
+CONFIG_CRYPTO_DES=y
+CONFIG_CRYPTO_FCRYPT=m
+CONFIG_CRYPTO_KHAZAD=m
+CONFIG_CRYPTO_SALSA20=m
+CONFIG_CRYPTO_CHACHA20=y
+CONFIG_CRYPTO_SEED=m
+# CONFIG_CRYPTO_SERPENT is not set
+# CONFIG_CRYPTO_SERPENT_SSE2_586 is not set
+# CONFIG_CRYPTO_SM4 is not set
+# CONFIG_CRYPTO_TEA is not set
+# CONFIG_CRYPTO_TWOFISH is not set
+# CONFIG_CRYPTO_TWOFISH_586 is not set
+
+#
+# Compression
+#
+# CONFIG_CRYPTO_DEFLATE is not set
+CONFIG_CRYPTO_LZO=y
+CONFIG_CRYPTO_842=m
+# CONFIG_CRYPTO_LZ4 is not set
+CONFIG_CRYPTO_LZ4HC=m
+CONFIG_CRYPTO_ZSTD=y
+
+#
+# Random Number Generation
+#
+CONFIG_CRYPTO_ANSI_CPRNG=y
+CONFIG_CRYPTO_DRBG_MENU=y
+CONFIG_CRYPTO_DRBG_HMAC=y
+# CONFIG_CRYPTO_DRBG_HASH is not set
+CONFIG_CRYPTO_DRBG_CTR=y
+CONFIG_CRYPTO_DRBG=y
+CONFIG_CRYPTO_JITTERENTROPY=y
+CONFIG_CRYPTO_HASH_INFO=y
+CONFIG_CRYPTO_HW=y
+# CONFIG_CRYPTO_DEV_PADLOCK is not set
+CONFIG_CRYPTO_DEV_ATMEL_I2C=m
+CONFIG_CRYPTO_DEV_ATMEL_ECC=m
+# CONFIG_CRYPTO_DEV_ATMEL_SHA204A is not set
+CONFIG_CRYPTO_DEV_VIRTIO=y
+CONFIG_ASYMMETRIC_KEY_TYPE=y
+CONFIG_ASYMMETRIC_PUBLIC_KEY_SUBTYPE=y
+CONFIG_X509_CERTIFICATE_PARSER=y
+# CONFIG_PKCS8_PRIVATE_KEY_PARSER is not set
+CONFIG_PKCS7_MESSAGE_PARSER=y
+# CONFIG_PKCS7_TEST_KEY is not set
+CONFIG_SIGNED_PE_FILE_VERIFICATION=y
+
+#
+# Certificates for signature checking
+#
+CONFIG_MODULE_SIG_KEY="certs/signing_key.pem"
+CONFIG_SYSTEM_TRUSTED_KEYRING=y
+CONFIG_SYSTEM_TRUSTED_KEYS=""
+CONFIG_SYSTEM_EXTRA_CERTIFICATE=y
+CONFIG_SYSTEM_EXTRA_CERTIFICATE_SIZE=4096
+# CONFIG_SECONDARY_TRUSTED_KEYRING is not set
+# CONFIG_SYSTEM_BLACKLIST_KEYRING is not set
+# end of Certificates for signature checking
+
+#
+# Library routines
+#
+CONFIG_RAID6_PQ=m
+CONFIG_RAID6_PQ_BENCHMARK=y
+# CONFIG_PACKING is not set
+CONFIG_BITREVERSE=y
+CONFIG_GENERIC_STRNCPY_FROM_USER=y
+CONFIG_GENERIC_STRNLEN_USER=y
+CONFIG_GENERIC_FIND_FIRST_BIT=y
+CONFIG_CORDIC=m
+CONFIG_PRIME_NUMBERS=y
+CONFIG_RATIONAL=y
+CONFIG_GENERIC_PCI_IOMAP=y
+CONFIG_GENERIC_IOMAP=y
+CONFIG_ARCH_HAS_FAST_MULTIPLIER=y
+CONFIG_CRC_CCITT=y
+CONFIG_CRC16=y
+CONFIG_CRC_T10DIF=m
+CONFIG_CRC_ITU_T=y
+CONFIG_CRC32=y
+CONFIG_CRC32_SELFTEST=m
+# CONFIG_CRC32_SLICEBY8 is not set
+CONFIG_CRC32_SLICEBY4=y
+# CONFIG_CRC32_SARWATE is not set
+# CONFIG_CRC32_BIT is not set
+CONFIG_CRC64=y
+CONFIG_CRC4=m
+CONFIG_CRC7=y
+CONFIG_LIBCRC32C=m
+CONFIG_CRC8=m
+CONFIG_XXHASH=y
+# CONFIG_RANDOM32_SELFTEST is not set
+CONFIG_842_COMPRESS=m
+CONFIG_842_DECOMPRESS=m
+CONFIG_ZLIB_INFLATE=m
+CONFIG_ZLIB_DEFLATE=m
+CONFIG_LZO_COMPRESS=y
+CONFIG_LZO_DECOMPRESS=y
+CONFIG_LZ4HC_COMPRESS=m
+CONFIG_LZ4_DECOMPRESS=m
+CONFIG_ZSTD_COMPRESS=y
+CONFIG_ZSTD_DECOMPRESS=y
+CONFIG_XZ_DEC=y
+CONFIG_XZ_DEC_X86=y
+# CONFIG_XZ_DEC_POWERPC is not set
+CONFIG_XZ_DEC_IA64=y
+# CONFIG_XZ_DEC_ARM is not set
+CONFIG_XZ_DEC_ARMTHUMB=y
+CONFIG_XZ_DEC_SPARC=y
+CONFIG_XZ_DEC_BCJ=y
+CONFIG_XZ_DEC_TEST=m
+CONFIG_GENERIC_ALLOCATOR=y
+CONFIG_BCH=m
+CONFIG_BCH_CONST_PARAMS=y
+CONFIG_XARRAY_MULTI=y
+CONFIG_ASSOCIATIVE_ARRAY=y
+CONFIG_HAS_IOMEM=y
+CONFIG_HAS_IOPORT_MAP=y
+CONFIG_HAS_DMA=y
+CONFIG_NEED_SG_DMA_LENGTH=y
+CONFIG_NEED_DMA_MAP_STATE=y
+CONFIG_ARCH_DMA_ADDR_T_64BIT=y
+CONFIG_SWIOTLB=y
+CONFIG_DMA_CMA=y
+
+#
+# Default contiguous memory area size:
+#
+CONFIG_CMA_SIZE_MBYTES=0
+CONFIG_CMA_SIZE_SEL_MBYTES=y
+# CONFIG_CMA_SIZE_SEL_PERCENTAGE is not set
+# CONFIG_CMA_SIZE_SEL_MIN is not set
+# CONFIG_CMA_SIZE_SEL_MAX is not set
+CONFIG_CMA_ALIGNMENT=8
+# CONFIG_DMA_API_DEBUG is not set
+CONFIG_SGL_ALLOC=y
+CONFIG_CHECK_SIGNATURE=y
+CONFIG_GLOB=y
+CONFIG_GLOB_SELFTEST=m
+CONFIG_CLZ_TAB=y
+# CONFIG_IRQ_POLL is not set
+CONFIG_MPILIB=y
+# CONFIG_DIMLIB is not set
+CONFIG_OID_REGISTRY=y
+CONFIG_HAVE_GENERIC_VDSO=y
+CONFIG_GENERIC_GETTIMEOFDAY=y
+CONFIG_GENERIC_VDSO_32=y
+CONFIG_FONT_SUPPORT=y
+CONFIG_FONT_8x16=y
+CONFIG_FONT_AUTOSELECT=y
+CONFIG_SG_POOL=y
+CONFIG_ARCH_STACKWALK=y
+CONFIG_STACKDEPOT=y
+CONFIG_SBITMAP=y
+# CONFIG_STRING_SELFTEST is not set
+# end of Library routines
+
+#
+# Kernel hacking
+#
+
+#
+# printk and dmesg options
+#
+# CONFIG_PRINTK_TIME is not set
+# CONFIG_PRINTK_CALLER is not set
+CONFIG_CONSOLE_LOGLEVEL_DEFAULT=7
+CONFIG_CONSOLE_LOGLEVEL_QUIET=4
+CONFIG_MESSAGE_LOGLEVEL_DEFAULT=4
+# CONFIG_BOOT_PRINTK_DELAY is not set
+CONFIG_DYNAMIC_DEBUG=y
+# end of printk and dmesg options
+
+#
+# Compile-time checks and compiler options
+#
+# CONFIG_DEBUG_INFO is not set
+# CONFIG_ENABLE_MUST_CHECK is not set
+CONFIG_FRAME_WARN=1024
+CONFIG_STRIP_ASM_SYMS=y
+CONFIG_READABLE_ASM=y
+CONFIG_UNUSED_SYMBOLS=y
+CONFIG_DEBUG_FS=y
+# CONFIG_HEADERS_INSTALL is not set
+CONFIG_OPTIMIZE_INLINING=y
+CONFIG_DEBUG_SECTION_MISMATCH=y
+# CONFIG_SECTION_MISMATCH_WARN_ONLY is not set
+CONFIG_FRAME_POINTER=y
+CONFIG_DEBUG_FORCE_WEAK_PER_CPU=y
+# end of Compile-time checks and compiler options
+
+CONFIG_MAGIC_SYSRQ=y
+CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE=0x1
+CONFIG_MAGIC_SYSRQ_SERIAL=y
+CONFIG_DEBUG_KERNEL=y
+# CONFIG_DEBUG_MISC is not set
+
+#
+# Memory Debugging
+#
+CONFIG_PAGE_EXTENSION=y
+CONFIG_DEBUG_PAGEALLOC=y
+CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=y
+# CONFIG_PAGE_OWNER is not set
+CONFIG_PAGE_POISONING=y
+CONFIG_PAGE_POISONING_NO_SANITY=y
+CONFIG_PAGE_POISONING_ZERO=y
+# CONFIG_DEBUG_RODATA_TEST is not set
+# CONFIG_DEBUG_OBJECTS is not set
+CONFIG_HAVE_DEBUG_KMEMLEAK=y
+# CONFIG_DEBUG_KMEMLEAK is not set
+# CONFIG_DEBUG_STACK_USAGE is not set
+# CONFIG_DEBUG_VM is not set
+CONFIG_ARCH_HAS_DEBUG_VIRTUAL=y
+CONFIG_DEBUG_VIRTUAL=y
+# CONFIG_DEBUG_MEMORY_INIT is not set
+CONFIG_HAVE_DEBUG_STACKOVERFLOW=y
+# CONFIG_DEBUG_STACKOVERFLOW is not set
+CONFIG_CC_HAS_KASAN_GENERIC=y
+CONFIG_KASAN_STACK=1
+# end of Memory Debugging
+
+CONFIG_CC_HAS_SANCOV_TRACE_PC=y
+# CONFIG_DEBUG_SHIRQ is not set
+
+#
+# Debug Lockups and Hangs
+#
+CONFIG_LOCKUP_DETECTOR=y
+CONFIG_SOFTLOCKUP_DETECTOR=y
+CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
+CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE=1
+CONFIG_HARDLOCKUP_DETECTOR_PERF=y
+CONFIG_HARDLOCKUP_DETECTOR=y
+CONFIG_BOOTPARAM_HARDLOCKUP_PANIC=y
+CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE=1
+CONFIG_DETECT_HUNG_TASK=y
+CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=120
+CONFIG_BOOTPARAM_HUNG_TASK_PANIC=y
+CONFIG_BOOTPARAM_HUNG_TASK_PANIC_VALUE=1
+CONFIG_WQ_WATCHDOG=y
+# end of Debug Lockups and Hangs
+
+CONFIG_PANIC_ON_OOPS=y
+CONFIG_PANIC_ON_OOPS_VALUE=1
+CONFIG_PANIC_TIMEOUT=0
+# CONFIG_SCHED_STACK_END_CHECK is not set
+CONFIG_DEBUG_TIMEKEEPING=y
+
+#
+# Lock Debugging (spinlocks, mutexes, etc...)
+#
+CONFIG_LOCK_DEBUGGING_SUPPORT=y
+# CONFIG_PROVE_LOCKING is not set
+# CONFIG_LOCK_STAT is not set
+CONFIG_DEBUG_RT_MUTEXES=y
+CONFIG_DEBUG_SPINLOCK=y
+CONFIG_DEBUG_MUTEXES=y
+# CONFIG_DEBUG_WW_MUTEX_SLOWPATH is not set
+# CONFIG_DEBUG_RWSEMS is not set
+# CONFIG_DEBUG_LOCK_ALLOC is not set
+CONFIG_DEBUG_ATOMIC_SLEEP=y
+# CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
+# CONFIG_LOCK_TORTURE_TEST is not set
+# CONFIG_WW_MUTEX_SELFTEST is not set
+# end of Lock Debugging (spinlocks, mutexes, etc...)
+
+CONFIG_STACKTRACE=y
+# CONFIG_WARN_ALL_UNSEEDED_RANDOM is not set
+CONFIG_DEBUG_KOBJECT=y
+CONFIG_DEBUG_BUGVERBOSE=y
+CONFIG_DEBUG_LIST=y
+# CONFIG_DEBUG_PLIST is not set
+CONFIG_DEBUG_SG=y
+# CONFIG_DEBUG_NOTIFIERS is not set
+CONFIG_DEBUG_CREDENTIALS=y
+
+#
+# RCU Debugging
+#
+CONFIG_TORTURE_TEST=m
+CONFIG_RCU_PERF_TEST=m
+CONFIG_RCU_TORTURE_TEST=m
+CONFIG_RCU_TRACE=y
+# CONFIG_RCU_EQS_DEBUG is not set
+# end of RCU Debugging
+
+CONFIG_DEBUG_WQ_FORCE_RR_CPU=y
+# CONFIG_DEBUG_BLOCK_EXT_DEVT is not set
+# CONFIG_NOTIFIER_ERROR_INJECTION is not set
+CONFIG_FUNCTION_ERROR_INJECTION=y
+CONFIG_FAULT_INJECTION=y
+CONFIG_FAIL_PAGE_ALLOC=y
+# CONFIG_FAIL_MAKE_REQUEST is not set
+# CONFIG_FAIL_IO_TIMEOUT is not set
+CONFIG_FAULT_INJECTION_DEBUG_FS=y
+CONFIG_FAIL_FUNCTION=y
+# CONFIG_FAIL_MMC_REQUEST is not set
+# CONFIG_FAULT_INJECTION_STACKTRACE_FILTER is not set
+CONFIG_USER_STACKTRACE_SUPPORT=y
+CONFIG_HAVE_FUNCTION_TRACER=y
+CONFIG_HAVE_FUNCTION_GRAPH_TRACER=y
+CONFIG_HAVE_DYNAMIC_FTRACE=y
+CONFIG_HAVE_DYNAMIC_FTRACE_WITH_REGS=y
+CONFIG_HAVE_FTRACE_MCOUNT_RECORD=y
+CONFIG_HAVE_SYSCALL_TRACEPOINTS=y
+CONFIG_HAVE_C_RECORDMCOUNT=y
+CONFIG_TRACE_CLOCK=y
+CONFIG_RING_BUFFER=y
+CONFIG_RING_BUFFER_ALLOW_SWAP=y
+CONFIG_TRACING_SUPPORT=y
+# CONFIG_FTRACE is not set
+# CONFIG_RUNTIME_TESTING_MENU is not set
+# CONFIG_MEMTEST is not set
+CONFIG_BUG_ON_DATA_CORRUPTION=y
+# CONFIG_SAMPLES is not set
+CONFIG_HAVE_ARCH_KGDB=y
+# CONFIG_KGDB is not set
+CONFIG_ARCH_HAS_UBSAN_SANITIZE_ALL=y
+CONFIG_UBSAN=y
+# CONFIG_UBSAN_SANITIZE_ALL is not set
+# CONFIG_UBSAN_NO_ALIGNMENT is not set
+CONFIG_UBSAN_ALIGNMENT=y
+CONFIG_TEST_UBSAN=m
+CONFIG_ARCH_HAS_DEVMEM_IS_ALLOWED=y
+CONFIG_DEBUG_AID_FOR_SYZBOT=y
+CONFIG_TRACE_IRQFLAGS_SUPPORT=y
+CONFIG_X86_VERBOSE_BOOTUP=y
+CONFIG_EARLY_PRINTK=y
+CONFIG_X86_PTDUMP_CORE=y
+# CONFIG_X86_PTDUMP is not set
+CONFIG_DEBUG_WX=y
+CONFIG_DOUBLEFAULT=y
+# CONFIG_DEBUG_TLBFLUSH is not set
+CONFIG_HAVE_MMIOTRACE_SUPPORT=y
+# CONFIG_X86_DECODER_SELFTEST is not set
+# CONFIG_IO_DELAY_0X80 is not set
+# CONFIG_IO_DELAY_0XED is not set
+CONFIG_IO_DELAY_UDELAY=y
+# CONFIG_IO_DELAY_NONE is not set
+CONFIG_DEBUG_BOOT_PARAMS=y
+# CONFIG_CPA_DEBUG is not set
+# CONFIG_DEBUG_ENTRY is not set
+# CONFIG_X86_DEBUG_FPU is not set
+CONFIG_UNWINDER_FRAME_POINTER=y
+# end of Kernel hacking
+
+--------------6CA7F6BDE76E739DB22D29FC--
 
