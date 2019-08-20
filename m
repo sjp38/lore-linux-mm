@@ -2,206 +2,119 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CAA6C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:04:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1B09C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:08:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E5E122CF5
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:04:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MSyMxEDm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E5E122CF5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9A85A214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:08:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A85A214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B95F76B0007; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
+	id 2440F6B0007; Tue, 20 Aug 2019 03:08:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B465D6B0008; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
+	id 1F3066B0008; Tue, 20 Aug 2019 03:08:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A34496B000A; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
+	id 0E2516B000A; Tue, 20 Aug 2019 03:08:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DA186B0007
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E9CB583FA
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:04:26 +0000 (UTC)
-X-FDA: 75841917732.27.mine72_60f8c8b377c13
-X-HE-Tag: mine72_60f8c8b377c13
-X-Filterd-Recvd-Size: 9121
-Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:04:26 +0000 (UTC)
-Received: by mail-ot1-f65.google.com with SMTP id e12so4092872otp.10
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 00:04:26 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=k3Y+XVnvt7AU2ChE57m9qKA8qYR/u8KnDS7/D3UW/i8=;
-        b=MSyMxEDmu1xQEQx3124prJwr4JdGq2H8W7B48jktxsNQnPT6bD8qXsv0Tok2UvLD1W
-         Q42m23DCoxd51MypkIBVcTkxPZsW+g9LJpqN8x6rqV0SeAAaH0Jq6WP51nqP6nWb5rWS
-         1raP2Rn0zpkErnXrGzOm9WeaLVmPkOKBuw8siG+MOS5yo91EJjSu8U0cStknC+mo2sAO
-         rdKPGMqoR/wKV1QIwS/lDh17NZtrf9ZXT2M+HkIKqxZgRwE9DVsrCup+i2X8zXisA3xA
-         A51aqdjRhxw7hUL2JTfrl12KF2cqDtfS6abm0uZMIfOSOaxDCagcU7JY1OUIzfzbEPrO
-         AaDg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=k3Y+XVnvt7AU2ChE57m9qKA8qYR/u8KnDS7/D3UW/i8=;
-        b=SlzY1aXb/53+rzi9rhErGTzMWr80UYtuG9L0M5nalK3g2JglQAZauPurZnhhZWDw0F
-         9PXZ6F//opAAC8ZHNynQd1f4c8+miG/ZCfc4V5R1n6+Ra4Fuz20u6hGXKlkHy+qVtL3k
-         qNJ4byGZBu1ZQpuYFY11yAcZp3lItUS+Db8HM3X/XUNouM5ywVx78Vsd1aDAkyvq1pNV
-         DivAUw5XTvd42phA74CMMQEuDc8VMdq1rkkcq0F3BFALldMkSU0hqQhk7lNA0HfuxEDG
-         THFdY54H7s8pNQRhsVryffvic3RQzyxC3z8rbxEcOaN63KC+zXcHqHVknS25820/5o7F
-         6VoQ==
-X-Gm-Message-State: APjAAAVXjIrXHYQPOFfhP1PBv2r0NsQ6VuqpPDg5dtFeP8t4lVZPe6nV
-	8JwAhX3xOZQ6yMK+YwhcngKbzlrKRffp2PDEZQw=
-X-Google-Smtp-Source: APXvYqwh2RLHYfC/r3CQ5ANL6XPMrctZkkd1kU4tgIF2w9uJaOw61hzE0NHEecCsclPkWpxjBr5OeSiWhK0KkpXOZa4=
-X-Received: by 2002:a9d:674c:: with SMTP id w12mr17479137otm.118.1566284665544;
- Tue, 20 Aug 2019 00:04:25 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0210.hostedemail.com [216.40.44.210])
+	by kanga.kvack.org (Postfix) with ESMTP id E27956B0007
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 03:08:46 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 6BD298248AA7
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:08:46 +0000 (UTC)
+X-FDA: 75841928652.14.art24_86a71e6132727
+X-HE-Tag: art24_86a71e6132727
+X-Filterd-Recvd-Size: 3418
+Received: from mga09.intel.com (mga09.intel.com [134.134.136.24])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:08:45 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Aug 2019 00:08:43 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,407,1559545200"; 
+   d="scan'208";a="172364843"
+Received: from shao2-debian.sh.intel.com (HELO [10.239.13.6]) ([10.239.13.6])
+  by orsmga008.jf.intel.com with ESMTP; 20 Aug 2019 00:08:42 -0700
+Subject: Re: [kbuild-all] [rgushchin:fix_vmstats 21/221]
+ include/asm-generic/5level-fixup.h:14:18: error: unknown type name 'pgd_t';
+ did you mean 'pid_t'?
+To: Roman Gushchin <guro@fb.com>, Qian Cai <cai@lca.pw>
+Cc: Linux Memory Management List <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, kbuild test robot <lkp@intel.com>,
+ "kbuild-all@01.org" <kbuild-all@01.org>
+References: <201908131117.SThHOrZO%lkp@intel.com>
+ <1565707945.8572.10.camel@lca.pw>
+ <20190814004548.GA18813@tower.DHCP.thefacebook.com>
+From: Rong Chen <rong.a.chen@intel.com>
+Message-ID: <3edbc032-4cc3-a87c-03c9-2b2fcaec32e8@intel.com>
+Date: Tue, 20 Aug 2019 15:08:43 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
- <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com> <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
- <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com> <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
- <87wozhvc49.fsf@concordia.ellerman.id.au> <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
- <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
- <f79d828c-b0b4-8a20-c316-a13430cfb13c@oracle.com> <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
-From: Wanpeng Li <kernellwp@gmail.com>
-Date: Tue, 20 Aug 2019 15:03:55 +0800
-Message-ID: <CANRm+CwwPv52k7pWiErYwFHV=_6kCdiyXZkT3QT6ef_UJagt9A@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, 
-	Andrew Morton <akpm@linux-foundation.org>, Punit Agrawal <punit.agrawal@arm.com>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 
-	Anshuman Khandual <khandual@linux.vnet.ibm.com>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, 
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, kvm <kvm@vger.kernel.org>, 
-	Paolo Bonzini <pbonzini@redhat.com>, Xiao Guangrong <xiaoguangrong@tencent.com>, 
-	"lidongchen@tencent.com" <lidongchen@tencent.com>, "yongkaiwu@tencent.com" <yongkaiwu@tencent.com>, 
-	Mel Gorman <mgorman@techsingularity.net>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, 
-	Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190814004548.GA18813@tower.DHCP.thefacebook.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Cc Mel Gorman, Kirill, Dave Hansen,
-On Tue, 11 Jun 2019 at 07:51, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
->
-> On Wed, May 29, 2019 at 04:31:01PM -0700, Mike Kravetz wrote:
-> > On 5/28/19 2:49 AM, Wanpeng Li wrote:
-> > > Cc Paolo,
-> > > Hi all,
-> > > On Wed, 14 Feb 2018 at 06:34, Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> > >>
-> > >> On 02/12/2018 06:48 PM, Michael Ellerman wrote:
-> > >>> Andrew Morton <akpm@linux-foundation.org> writes:
-> > >>>
-> > >>>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
-> > >>>>
-> > >>>>>>
-> > >>>>>> So I don't think that the above test result means that errors are properly
-> > >>>>>> handled, and the proposed patch should help for arm64.
-> > >>>>>
-> > >>>>> Although, the deviation of pud_huge() avoids a kernel crash the code
-> > >>>>> would be easier to maintain and reason about if arm64 helpers are
-> > >>>>> consistent with expectations by core code.
-> > >>>>>
-> > >>>>> I'll look to update the arm64 helpers once this patch gets merged. But
-> > >>>>> it would be helpful if there was a clear expression of semantics for
-> > >>>>> pud_huge() for various cases. Is there any version that can be used as
-> > >>>>> reference?
-> > >>>>
-> > >>>> Is that an ack or tested-by?
-> > >>>>
-> > >>>> Mike keeps plaintively asking the powerpc developers to take a look,
-> > >>>> but they remain steadfastly in hiding.
-> > >>>
-> > >>> Cc'ing linuxppc-dev is always a good idea :)
-> > >>>
-> > >>
-> > >> Thanks Michael,
-> > >>
-> > >> I was mostly concerned about use cases for soft/hard offline of huge pages
-> > >> larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD_SIZE
-> > >> huge pages, and soft/hard offline support was specifically added for this.
-> > >> See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeTLB pages
-> > >> at PGD level"
-> > >>
-> > >> This patch will disable that functionality.  So, at a minimum this is a
-> > >> 'heads up'.  If there are actual use cases that depend on this, then more
-> > >> work/discussions will need to happen.  From the e-mail thread on PGD_SIZE
-> > >> support, I can not tell if there is a real use case or this is just a
-> > >> 'nice to have'.
-> > >
-> > > 1GB hugetlbfs pages are used by DPDK and VMs in cloud deployment, we
-> > > encounter gup_pud_range() panic several times in product environment.
-> > > Is there any plan to reenable and fix arch codes?
-> >
-> > I too am aware of slightly more interest in 1G huge pages.  Suspect that as
-> > Intel MMU capacity increases to handle more TLB entries there will be more
-> > and more interest.
-> >
-> > Personally, I am not looking at this issue.  Perhaps Naoya will comment as
-> > he know most about this code.
->
-> Thanks for forwarding this to me, I'm feeling that memory error handling
-> on 1GB hugepage is demanded as real use case.
->
-> >
-> > > In addition, https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kvm/mmu.c#n3213
-> > > The memory in guest can be 1GB/2MB/4K, though the host-backed memory
-> > > are 1GB hugetlbfs pages, after above PUD panic is fixed,
-> > > try_to_unmap() which is called in MCA recovery path will mark the PUD
-> > > hwpoison entry. The guest will vmexit and retry endlessly when
-> > > accessing any memory in the guest which is backed by this 1GB poisoned
-> > > hugetlbfs page. We have a plan to split this 1GB hugetblfs page by 2MB
-> > > hugetlbfs pages/4KB pages, maybe file remap to a virtual address range
-> > > which is 2MB/4KB page granularity, also split the KVM MMU 1GB SPTE
-> > > into 2MB/4KB and mark the offensive SPTE w/ a hwpoison flag, a sigbus
-> > > will be delivered to VM at page fault next time for the offensive
-> > > SPTE. Is this proposal acceptable?
-> >
-> > I am not sure of the error handling design, but this does sound reasonable.
->
-> I agree that that's better.
->
-> > That block of code which potentially dissolves a huge page on memory error
-> > is hard to understand and I'm not sure if that is even the 'normal'
-> > functionality.  Certainly, we would hate to waste/poison an entire 1G page
-> > for an error on a small subsection.
->
-> Yes, that's not practical, so we need at first establish the code base for
-> 2GB hugetlb splitting and then extending it to 1GB next.
 
-I found it is not easy to split. There is a unique hugetlb page size
-that is associated with a mounted hugetlbfs filesystem, file remap to
-2MB/4KB will break this. How about hard offline 1GB hugetlb page as
-what has already done in soft offline, replace the corrupted 1GB page
-by new 1GB page through page migration, the offending/corrupted area
-in the original 1GB page doesn't need to be copied into the new page,
-the offending/corrupted area in new page can keep full zero just as it
-is clear during hugetlb page fault, other sub-pages of the original
-1GB page can be freed to buddy system. The sigbus signal is sent to
-userspace w/ offending/corrupted virtual address, and signal code,
-userspace should take care this.
 
-Regards,
-Wanpeng Li
+On 8/14/19 8:45 AM, Roman Gushchin wrote:
+> On Tue, Aug 13, 2019 at 10:52:25AM -0400, Qian Cai wrote:
+>> On Tue, 2019-08-13 at 11:33 +0800, kbuild test robot wrote:
+>>> tree:=C2=A0=C2=A0=C2=A0https://github.com/rgushchin/linux.git fix_vms=
+tats
+>>> head:=C2=A0=C2=A0=C2=A04ec858b5201ae067607e82706b36588631c1b990
+>>> commit: 938dda772d9d05074bfe1baa0dc18873fbf4fedb [21/221] include/asm=
+-
+>>> generic/5level-fixup.h: fix variable 'p4d' set but not used
+>>> config: parisc-c3000_defconfig (attached as .config)
+>>> compiler: hppa-linux-gcc (GCC) 7.4.0
+>>> reproduce:
+>>>  =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0wget https://urldefe=
+nse.proofpoint.com/v2/url?u=3Dhttps-3A__raw.githubusercontent.com_intel_l=
+kp-2Dtests_master_sbin_mak&d=3DDwIFaQ&c=3D5VD0RTtNlTh3ycd41b3MUw&r=3DjJYg=
+tDM7QT-W-Fz_d29HYQ&m=3DTOir6b4wrmTSQpeaAQcpcHZUk9uWkTRUOJaNgbh4m-o&s=3D0I=
+eTTEfMlxl9cDI9YAz2Zji8QaiE8B29qreDUnvID5E&e=3D
+>>> e.cross -O ~/bin/make.cross
+>>>  =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0chmod +x ~/bin/make.=
+cross
+>>>  =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0git checkout 938dda7=
+72d9d05074bfe1baa0dc18873fbf4fedb
+>>>  =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0# save the attached =
+.config to linux build tree
+>>>  =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0GCC_VERSION=3D7.4.0 =
+make.cross ARCH=3Dparisc
+>> I am unable to reproduce this on today's linux-next tree. What's point=
+ of
+>> testing this particular personal git tree/branch?
+> I'm using it to test my patches before sending them to public mailing l=
+ists.
+> It really helps with reducing the number of trivial issues and upstream
+> iterations as a consequence. And not only trivial...
+>
+> If there is a way to prevent notifying anyone but me, please, let me kn=
+ow,
+> I'm happy to do it.
+>
+Hi Roman,
+
+The reports should only be sent to you now. please see=20
+https://github.com/intel/lkp-tests/blob/master/repo/linux/rgushchin
+
+Best Regards,
+Rong Chen
 
