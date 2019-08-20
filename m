@@ -2,85 +2,98 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8457C3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:02:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CAA6C3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:04:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A39E20C01
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:02:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2E5E122CF5
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 07:04:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vz4ljGDC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A39E20C01
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MSyMxEDm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E5E122CF5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F8FF6B0007; Tue, 20 Aug 2019 03:02:51 -0400 (EDT)
+	id B95F76B0007; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 183A46B0008; Tue, 20 Aug 2019 03:02:51 -0400 (EDT)
+	id B465D6B0008; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 024466B000A; Tue, 20 Aug 2019 03:02:50 -0400 (EDT)
+	id A34496B000A; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0229.hostedemail.com [216.40.44.229])
-	by kanga.kvack.org (Postfix) with ESMTP id D1A846B0007
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 03:02:50 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 6B409181AC9AE
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:02:50 +0000 (UTC)
-X-FDA: 75841913700.15.linen19_52f37fdeb8241
-X-HE-Tag: linen19_52f37fdeb8241
-X-Filterd-Recvd-Size: 5564
-Received: from mail-io1-f68.google.com (mail-io1-f68.google.com [209.85.166.68])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:02:49 +0000 (UTC)
-Received: by mail-io1-f68.google.com with SMTP id p12so7563465iog.5
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 00:02:49 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DA186B0007
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 03:04:27 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E9CB583FA
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:04:26 +0000 (UTC)
+X-FDA: 75841917732.27.mine72_60f8c8b377c13
+X-HE-Tag: mine72_60f8c8b377c13
+X-Filterd-Recvd-Size: 9121
+Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 07:04:26 +0000 (UTC)
+Received: by mail-ot1-f65.google.com with SMTP id e12so4092872otp.10
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 00:04:26 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=pLAKaINj6tTKQE7T3UElIj0dhAaNdogazL5oMORpg6M=;
-        b=Vz4ljGDCnmRTf7TiGKbbVBWe9EvMl9QWd4IqSQfUWXLfzjF2BFqVLiBI2ZiGsG/4MJ
-         Pqve1xoA336LZKOJTy6464+W88uxHdlYWdQZDlzg0mJ6bbDGw+ROEO8Sd/VhlhMeTiFo
-         L7x7RlwQnvQIjcIe9ki6O21cz5SpfOJci3dDQ1+X0PjXQ+/L1r/HhEpv/nzCcwdo14mt
-         dBVVn6+aHq6QzMUFSN0refd6O+frZkt5+Ppoljh5HTtTmDJhXvDjrkCRYkl7p4qarvIx
-         0yh2SniSDtEcCN2lzgJSUWMy33E1fpvhuc4C1f2i5doipDCih/y3eqodiI6TYv7Z+4MI
-         vRGQ==
+        bh=k3Y+XVnvt7AU2ChE57m9qKA8qYR/u8KnDS7/D3UW/i8=;
+        b=MSyMxEDmu1xQEQx3124prJwr4JdGq2H8W7B48jktxsNQnPT6bD8qXsv0Tok2UvLD1W
+         Q42m23DCoxd51MypkIBVcTkxPZsW+g9LJpqN8x6rqV0SeAAaH0Jq6WP51nqP6nWb5rWS
+         1raP2Rn0zpkErnXrGzOm9WeaLVmPkOKBuw8siG+MOS5yo91EJjSu8U0cStknC+mo2sAO
+         rdKPGMqoR/wKV1QIwS/lDh17NZtrf9ZXT2M+HkIKqxZgRwE9DVsrCup+i2X8zXisA3xA
+         A51aqdjRhxw7hUL2JTfrl12KF2cqDtfS6abm0uZMIfOSOaxDCagcU7JY1OUIzfzbEPrO
+         AaDg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=pLAKaINj6tTKQE7T3UElIj0dhAaNdogazL5oMORpg6M=;
-        b=kDsHx/ZGOK5MyluvFGb6CHN90f3Ajq/I1XWbC+/WtDa4sbB/J4TIGevfmMAYFq7kRB
-         x+zuJJQcOaHBzy3rNh78UTxyANKwymlKzfsOdZB3T3kLEagFBDKIC+602X1Vyv0uJAQO
-         ZPeCfLLzltRx8B7uGpb0IgrwLFITjjqUmIoLAW0Z4LEDfFKjT4FM/Q8pojS8EbD951lQ
-         LrCj9ldq6x1XY4OSMiIYa6b9S6Zx9lu+JipqAJCAxHy8zUZodsxltWHsmWM5468XJiRL
-         V7inO0D8twQgWM0+kdXQv5/ir3WmRhEz7NwfF4ymEf7DNHMIND7tHyZtowBmqe+abzqx
-         U6Gg==
-X-Gm-Message-State: APjAAAXgRdRSC++uxhnV1+bcYdwJ/AhCPlWLL/FxuKOnBzDJVfB9t2mL
-	TbsOpJ/lKjkUA9J0CaWIuuQGgdhfuup2VQfmkL8=
-X-Google-Smtp-Source: APXvYqzSQzdkr6B2OjlSUz7mi3rtuhrV5Yz0PhBe0T2TqzX5Ltl8PeLFuDk2r25qViTCJOq4rwyGTNPi9g853jNR2Bg=
-X-Received: by 2002:a02:4047:: with SMTP id n68mr2228411jaa.10.1566284569235;
- Tue, 20 Aug 2019 00:02:49 -0700 (PDT)
+        bh=k3Y+XVnvt7AU2ChE57m9qKA8qYR/u8KnDS7/D3UW/i8=;
+        b=SlzY1aXb/53+rzi9rhErGTzMWr80UYtuG9L0M5nalK3g2JglQAZauPurZnhhZWDw0F
+         9PXZ6F//opAAC8ZHNynQd1f4c8+miG/ZCfc4V5R1n6+Ra4Fuz20u6hGXKlkHy+qVtL3k
+         qNJ4byGZBu1ZQpuYFY11yAcZp3lItUS+Db8HM3X/XUNouM5ywVx78Vsd1aDAkyvq1pNV
+         DivAUw5XTvd42phA74CMMQEuDc8VMdq1rkkcq0F3BFALldMkSU0hqQhk7lNA0HfuxEDG
+         THFdY54H7s8pNQRhsVryffvic3RQzyxC3z8rbxEcOaN63KC+zXcHqHVknS25820/5o7F
+         6VoQ==
+X-Gm-Message-State: APjAAAVXjIrXHYQPOFfhP1PBv2r0NsQ6VuqpPDg5dtFeP8t4lVZPe6nV
+	8JwAhX3xOZQ6yMK+YwhcngKbzlrKRffp2PDEZQw=
+X-Google-Smtp-Source: APXvYqwh2RLHYfC/r3CQ5ANL6XPMrctZkkd1kU4tgIF2w9uJaOw61hzE0NHEecCsclPkWpxjBr5OeSiWhK0KkpXOZa4=
+X-Received: by 2002:a9d:674c:: with SMTP id w12mr17479137otm.118.1566284665544;
+ Tue, 20 Aug 2019 00:04:25 -0700 (PDT)
 MIME-Version: 1.0
-References: <1566102294-14803-1-git-send-email-laoar.shao@gmail.com>
- <20190819073128.GB3111@dhcp22.suse.cz> <CALOAHbAo2MLkavFZz_5f5hvXE8BzYW8R-yjw5acnwT315TxoMQ@mail.gmail.com>
- <20190820063120.GD3111@dhcp22.suse.cz>
-In-Reply-To: <20190820063120.GD3111@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 20 Aug 2019 15:02:13 +0800
-Message-ID: <CALOAHbCwqWeZ4JdXpOMm-y2UdZafrU6-efbuE4iiPEC8-7ncUg@mail.gmail.com>
-Subject: Re: [PATCH] mm, memcg: skip killing processes under memcg protection
- at first scan
-To: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Roman Gushchin <guro@fb.com>, Randy Dunlap <rdunlap@infradead.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+ <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com> <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+ <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com> <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
+ <87wozhvc49.fsf@concordia.ellerman.id.au> <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
+ <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
+ <f79d828c-b0b4-8a20-c316-a13430cfb13c@oracle.com> <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
+From: Wanpeng Li <kernellwp@gmail.com>
+Date: Tue, 20 Aug 2019 15:03:55 +0800
+Message-ID: <CANRm+CwwPv52k7pWiErYwFHV=_6kCdiyXZkT3QT6ef_UJagt9A@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, 
+	Andrew Morton <akpm@linux-foundation.org>, Punit Agrawal <punit.agrawal@arm.com>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, 
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 
+	Anshuman Khandual <khandual@linux.vnet.ibm.com>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, 
+	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, kvm <kvm@vger.kernel.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, Xiao Guangrong <xiaoguangrong@tencent.com>, 
+	"lidongchen@tencent.com" <lidongchen@tencent.com>, "yongkaiwu@tencent.com" <yongkaiwu@tencent.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, 
+	Hugh Dickins <hughd@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -88,73 +101,107 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 2:31 PM Michal Hocko <mhocko@suse.com> wrote:
+Cc Mel Gorman, Kirill, Dave Hansen,
+On Tue, 11 Jun 2019 at 07:51, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 >
-> [hmm the email got stuck on my send queue - sending again]
->
-> On Mon 19-08-19 16:15:08, Yafang Shao wrote:
-> > On Mon, Aug 19, 2019 at 3:31 PM Michal Hocko <mhocko@suse.com> wrote:
+> On Wed, May 29, 2019 at 04:31:01PM -0700, Mike Kravetz wrote:
+> > On 5/28/19 2:49 AM, Wanpeng Li wrote:
+> > > Cc Paolo,
+> > > Hi all,
+> > > On Wed, 14 Feb 2018 at 06:34, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+> > >>
+> > >> On 02/12/2018 06:48 PM, Michael Ellerman wrote:
+> > >>> Andrew Morton <akpm@linux-foundation.org> writes:
+> > >>>
+> > >>>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
+> > >>>>
+> > >>>>>>
+> > >>>>>> So I don't think that the above test result means that errors are properly
+> > >>>>>> handled, and the proposed patch should help for arm64.
+> > >>>>>
+> > >>>>> Although, the deviation of pud_huge() avoids a kernel crash the code
+> > >>>>> would be easier to maintain and reason about if arm64 helpers are
+> > >>>>> consistent with expectations by core code.
+> > >>>>>
+> > >>>>> I'll look to update the arm64 helpers once this patch gets merged. But
+> > >>>>> it would be helpful if there was a clear expression of semantics for
+> > >>>>> pud_huge() for various cases. Is there any version that can be used as
+> > >>>>> reference?
+> > >>>>
+> > >>>> Is that an ack or tested-by?
+> > >>>>
+> > >>>> Mike keeps plaintively asking the powerpc developers to take a look,
+> > >>>> but they remain steadfastly in hiding.
+> > >>>
+> > >>> Cc'ing linuxppc-dev is always a good idea :)
+> > >>>
+> > >>
+> > >> Thanks Michael,
+> > >>
+> > >> I was mostly concerned about use cases for soft/hard offline of huge pages
+> > >> larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD_SIZE
+> > >> huge pages, and soft/hard offline support was specifically added for this.
+> > >> See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeTLB pages
+> > >> at PGD level"
+> > >>
+> > >> This patch will disable that functionality.  So, at a minimum this is a
+> > >> 'heads up'.  If there are actual use cases that depend on this, then more
+> > >> work/discussions will need to happen.  From the e-mail thread on PGD_SIZE
+> > >> support, I can not tell if there is a real use case or this is just a
+> > >> 'nice to have'.
 > > >
-> > > On Sun 18-08-19 00:24:54, Yafang Shao wrote:
-> > > > In the current memory.min design, the system is going to do OOM instead
-> > > > of reclaiming the reclaimable pages protected by memory.min if the
-> > > > system is lack of free memory. While under this condition, the OOM
-> > > > killer may kill the processes in the memcg protected by memory.min.
-> > >
-> > > Could you be more specific about the configuration that leads to this
-> > > situation?
+> > > 1GB hugetlbfs pages are used by DPDK and VMs in cloud deployment, we
+> > > encounter gup_pud_range() panic several times in product environment.
+> > > Is there any plan to reenable and fix arch codes?
 > >
-> > When I did memory pressure test to verify memory.min I found that issue.
-> > This issue can be produced as bellow,
-> >     memcg setting,
-> >         memory.max: 1G
-> >         memory.min: 512M
-> >         some processes are running is this memcg, with both serveral
-> > hundreds MB  file mapping and serveral hundreds MB anon mapping.
-> >     system setting,
-> >          swap: off.
-> >          some memory pressure test are running on the system.
+> > I too am aware of slightly more interest in 1G huge pages.  Suspect that as
+> > Intel MMU capacity increases to handle more TLB entries there will be more
+> > and more interest.
 > >
-> > When the memory usage of this memcg is bellow the memory.min, the
-> > global reclaimers stop reclaiming pages in this memcg, and when
-> > there's no available memory, the OOM killer will be invoked.
-> > Unfortunately the OOM killer can chose the process running in the
-> > protected memcg.
+> > Personally, I am not looking at this issue.  Perhaps Naoya will comment as
+> > he know most about this code.
 >
-> Well, the memcg protection was designed to prevent from regular
-> memory reclaim.  It was not aimed at acting as a group wide oom
-> protection. The global oom killer (but memcg as well) simply cares only
-> about oom_score_adj when selecting a victim.
+> Thanks for forwarding this to me, I'm feeling that memory error handling
+> on 1GB hugepage is demanded as real use case.
 >
-
-OOM is a kind of memory reclaim, isn't it ?
-
-> Adding yet another oom protection is likely to complicate the oom
-> selection logic and make it more surprising. E.g. why should workload
-> fitting inside the min limit be so special? Do you have any real world
-> example?
->
-
-The problem here is we want to use it ini the real world, but the
-issuses we found  prevent us from using it in the real world.
-
-
-> > In order to produce it easy, you can incease the memroy.min and set
-> > -1000 to the oom_socre_adj of the processes outside of the protected
-> > memcg.
->
-> This sounds like a very dubious configuration to me. There is no other
-> option than chosing from the protected group.
->
-
-This is only an easy example to produce it.
-
-> > Is this setting proper ?
 > >
-> > Thanks
-> > Yafang
+> > > In addition, https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kvm/mmu.c#n3213
+> > > The memory in guest can be 1GB/2MB/4K, though the host-backed memory
+> > > are 1GB hugetlbfs pages, after above PUD panic is fixed,
+> > > try_to_unmap() which is called in MCA recovery path will mark the PUD
+> > > hwpoison entry. The guest will vmexit and retry endlessly when
+> > > accessing any memory in the guest which is backed by this 1GB poisoned
+> > > hugetlbfs page. We have a plan to split this 1GB hugetblfs page by 2MB
+> > > hugetlbfs pages/4KB pages, maybe file remap to a virtual address range
+> > > which is 2MB/4KB page granularity, also split the KVM MMU 1GB SPTE
+> > > into 2MB/4KB and mark the offensive SPTE w/ a hwpoison flag, a sigbus
+> > > will be delivered to VM at page fault next time for the offensive
+> > > SPTE. Is this proposal acceptable?
+> >
+> > I am not sure of the error handling design, but this does sound reasonable.
 >
-> --
-> Michal Hocko
-> SUSE Labs
+> I agree that that's better.
+>
+> > That block of code which potentially dissolves a huge page on memory error
+> > is hard to understand and I'm not sure if that is even the 'normal'
+> > functionality.  Certainly, we would hate to waste/poison an entire 1G page
+> > for an error on a small subsection.
+>
+> Yes, that's not practical, so we need at first establish the code base for
+> 2GB hugetlb splitting and then extending it to 1GB next.
+
+I found it is not easy to split. There is a unique hugetlb page size
+that is associated with a mounted hugetlbfs filesystem, file remap to
+2MB/4KB will break this. How about hard offline 1GB hugetlb page as
+what has already done in soft offline, replace the corrupted 1GB page
+by new 1GB page through page migration, the offending/corrupted area
+in the original 1GB page doesn't need to be copied into the new page,
+the offending/corrupted area in new page can keep full zero just as it
+is clear during hugetlb page fault, other sub-pages of the original
+1GB page can be freed to buddy system. The sigbus signal is sent to
+userspace w/ offending/corrupted virtual address, and signal code,
+userspace should take care this.
+
+Regards,
+Wanpeng Li
 
