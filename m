@@ -2,176 +2,161 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7B85C3A5A0
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:16:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A77EC3A5A0
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:21:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A3E22070B
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:16:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ei6ZMKFL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A3E22070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 451D12342E
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 01:21:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 451D12342E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1015F6B0007; Mon, 19 Aug 2019 21:16:39 -0400 (EDT)
+	id E69DC6B0007; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B32D6B0008; Mon, 19 Aug 2019 21:16:39 -0400 (EDT)
+	id E1B2C6B0008; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE4106B000A; Mon, 19 Aug 2019 21:16:38 -0400 (EDT)
+	id D303E6B000A; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
-	by kanga.kvack.org (Postfix) with ESMTP id CEF556B0007
-	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:16:38 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 8DC5740E6
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:16:38 +0000 (UTC)
-X-FDA: 75841041276.27.peace06_742611fccdf27
-X-HE-Tag: peace06_742611fccdf27
-X-Filterd-Recvd-Size: 6430
-Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:16:38 +0000 (UTC)
-Received: by mail-io1-f65.google.com with SMTP id q22so8602740iog.4
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 18:16:37 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0Dsoa8pkI2Xu6W+8rPAymR0htOwue4tUKHVfA28A/NY=;
-        b=Ei6ZMKFLyA1ACxo7AlgZT3jgCzdNPlcSE6BmWw9GYnhreJAzPsY92bF8xgJU/+ceJk
-         TWjYZZA/FpHT1i3z9Nir0uBZWDJO8Greq8V1WeRTBgicRaYnJtVjb51lOyUMRjZRnilM
-         bpl/zeeh7EoEhwrdoAI/+QNFuA8cLATcPzfYuP9+AbUteia1Kin+0Aw4ln/1IihrDaF8
-         w7dCDvQwBihhL+Q3UnLx68gZtMPkr7yvZ94/lJtpZvMpDA2RZ1MQ5D3llGCftkyDKaUD
-         +ZLMLPTsc/5DLxRz3v3RKiNiooScBJQ2kQXJQ0IUKdZidsRAi0vVYDbZHNsXhSrd6qxe
-         haxA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=0Dsoa8pkI2Xu6W+8rPAymR0htOwue4tUKHVfA28A/NY=;
-        b=tqnxtLzFdbaKylDSSqSv+ARworQF8EgBpuL1X22NK/XNm6Nd+DoDbErzArTzcvm4Zi
-         Q0s0eXfvKBuvH+BAeinzGD1caMZAmNaI5FI3Vvt7ARpDVbuRZ05mrJrRSXl9SMwi+lvB
-         JPj/GTFwpy0AI/9i6l4l1GrteUQwSTZlxbUyObZQp0h2iOij4bRAFTkAB5XpqG0Euaa3
-         HHW4ksvJsTfGwmcMBF/TYRaZMj6++4zqAHHcH40K6OOtAd8+0fqEK97f2G2sO1h5feaL
-         yed/dhQ2nosYmJMMOnZ2ISaAssmIpO0kcQ5AiRJ8j2ch4CYAafIINEC5GZjqX2UAbwk5
-         3EcQ==
-X-Gm-Message-State: APjAAAUMy3E0lzdz6aY03DFqsxeLqTn7/fAu9iIG5aLzn2nU1Rsb8WSF
-	r1HyfEGpLb2YVFyaIVzPvGkRpoWaAkVKDhwfWZA=
-X-Google-Smtp-Source: APXvYqy2gX8/EvePjsy3Z5Xr3iA9PdDDQx4HYrn6HE8zRxrK8/pHaC2wFoZpJAomjv9Wbvv9qSnHHu2D3zK7TbId5Sw=
-X-Received: by 2002:a5e:8a46:: with SMTP id o6mr15923626iom.36.1566263797445;
- Mon, 19 Aug 2019 18:16:37 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0173.hostedemail.com [216.40.44.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B16536B0007
+	for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:21:34 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 50759181AC9B6
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:21:34 +0000 (UTC)
+X-FDA: 75841053708.08.crack37_d9d286730a63
+X-HE-Tag: crack37_d9d286730a63
+X-Filterd-Recvd-Size: 5256
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au [211.29.132.249])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:21:33 +0000 (UTC)
+Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 484EE362204;
+	Tue, 20 Aug 2019 11:21:31 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hzsov-0001Ym-Er; Tue, 20 Aug 2019 11:20:21 +1000
+Date: Tue, 20 Aug 2019 11:20:21 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190820012021.GQ7777@dread.disaster.area>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190814101714.GA26273@quack2.suse.cz>
+ <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+ <20190815130558.GF14313@quack2.suse.cz>
+ <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
+ <20190819063412.GA20455@quack2.suse.cz>
+ <20190819092409.GM7777@dread.disaster.area>
+ <ae64491b-85f8-eeca-14e8-2f09caf8abd2@nvidia.com>
 MIME-Version: 1.0
-References: <1566177486-2649-1-git-send-email-laoar.shao@gmail.com> <20190819211200.GA24956@tower.dhcp.thefacebook.com>
-In-Reply-To: <20190819211200.GA24956@tower.dhcp.thefacebook.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 20 Aug 2019 09:16:01 +0800
-Message-ID: <CALOAHbBXoP9aypU+BzAX8cLAdYKrZ27X5JQxXBTO_oF7A4EAuA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm, memcg: skip killing processes under memcg
- protection at first scan
-To: Roman Gushchin <guro@fb.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	Randy Dunlap <rdunlap@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Yafang Shao <shaoyafang@didiglobal.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ae64491b-85f8-eeca-14e8-2f09caf8abd2@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=7-415B0cAAAA:8 a=rV-TrcAmjTgZ-WCYr6sA:9 a=T_cMid2Q6N9PW1nF:21
+	a=ZVtkOv0JeXpnhdDN:21 a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 5:12 AM Roman Gushchin <guro@fb.com> wrote:
->
-> On Sun, Aug 18, 2019 at 09:18:06PM -0400, Yafang Shao wrote:
-> > In the current memory.min design, the system is going to do OOM instead
-> > of reclaiming the reclaimable pages protected by memory.min if the
-> > system is lack of free memory. While under this condition, the OOM
-> > killer may kill the processes in the memcg protected by memory.min.
-> > This behavior is very weird.
-> > In order to make it more reasonable, I make some changes in the OOM
-> > killer. In this patch, the OOM killer will do two-round scan. It will
-> > skip the processes under memcg protection at the first scan, and if it
-> > can't kill any processes it will rescan all the processes.
-> >
-> > Regarding the overhead this change may takes, I don't think it will be a
-> > problem because this only happens under system  memory pressure and
-> > the OOM killer can't find any proper victims which are not under memcg
-> > protection.
->
-> Hi Yafang!
->
-> The idea makes sense at the first glance, but actually I'm worried
-> about mixing per-memcg and per-process characteristics.
-> Actually, it raises many questions:
-> 1) if we do respect memory.min, why not memory.low too?
+On Mon, Aug 19, 2019 at 05:05:53PM -0700, John Hubbard wrote:
+> On 8/19/19 2:24 AM, Dave Chinner wrote:
+> > On Mon, Aug 19, 2019 at 08:34:12AM +0200, Jan Kara wrote:
+> > > On Sat 17-08-19 12:26:03, Dave Chinner wrote:
+> > > > On Fri, Aug 16, 2019 at 12:05:28PM -0700, Ira Weiny wrote:
+> > > > > On Thu, Aug 15, 2019 at 03:05:58PM +0200, Jan Kara wrote:
+> > > > > > On Wed 14-08-19 11:08:49, Ira Weiny wrote:
+> > > > > > > On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
+> ...
+> > The last close is an interesting case because the __fput() call
+> > actually runs from task_work() context, not where the last reference
+> > is actually dropped. So it already has certain specific interactions
+> > with signals and task exit processing via task_add_work() and
+> > task_work_run().
+> > 
+> > task_add_work() calls set_notify_resume(task), so if nothing else
+> > triggers when returning to userspace we run this path:
+> > 
+> > exit_to_usermode_loop()
+> >    tracehook_notify_resume()
+> >      task_work_run()
+> >        __fput()
+> > 	locks_remove_file()
+> > 	  locks_remove_lease()
+> > 	    ....
+> > 
+> > It's worth noting that locks_remove_lease() does a
+> > percpu_down_read() which means we can already block in this context
+> > removing leases....
+> > 
+> > If there is a signal pending, the task work is run this way (before
+> > the above notify path):
+> > 
+> > exit_to_usermode_loop()
+> >    do_signal()
+> >      get_signal()
+> >        task_work_run()
+> >          __fput()
+> > 
+> > We can detect this case via signal_pending() and even SIGKILL via
+> > fatal_signal_pending(), and so we can decide not to block based on
+> > the fact the process is about to be reaped and so the lease largely
+> > doesn't matter anymore. I'd argue that it is close and we can't
+> > easily back out, so we'd only break the block on a fatal signal....
+> > 
+> > And then, of course, is the call path through do_exit(), which has
+> > the PF_EXITING task flag set:
+> > 
+> > do_exit()
+> >    exit_task_work()
+> >      task_work_run()
+> >        __fput()
+> > 
+> > and so it's easy to avoid blocking in this case, too.
+> 
+> Any thoughts about sockets? I'm looking at net/xdp/xdp_umem.c which pins
+> memory with FOLL_LONGTERM, and wondering how to make that work here.
 
-memroy.low is different with memory.min, as the OOM killer will not be
-invoked when it is reached.
-If memory.low should be considered as well, we can use
-mem_cgroup_protected() here to repclace task_under_memcg_protection()
-here.
+I'm not sure how this interacts with file mappings? I mean, this
+is just pinning anonymous pages for direct data placement into
+userspace, right?
 
-> 2) if the task is 200Gb large, does 10Mb memory protection make any
-> difference? if so, why would we respect it?
+Are you asking "what if this pinned memory was a file mapping?",
+or something else?
 
-Same with above, only consider it when the proctecion is enabled.
+> These are close to files, in how they're handled, but just different
+> enough that it's not clear to me how to make work with this system.
 
-> 3) if it works for global OOMs, why not memcg-level OOMs?
+I'm guessing that if they are pinning a file backed mapping, they
+are trying to dma direct to the file (zero copy into page cache?)
+and so they'll need to either play by ODP rules or take layout
+leases, too....
 
-memcg OOM is when the memory limit is reached and it can't find
-something to relcaim in the memcg and have to kill processes in this
-memcg.
-That is different with global OOM, because the global OOM can chose
-processes outside the memcg but the memcg OOM can't.
+Cheers,
 
-> 4) if the task is prioritized to be killed by OOM (via oom_score_adj),
-> why even small memory.protection prevents it completely?
-
-Would you pls. show me some examples that when we will set both
-memory.min(meaning the porcesses in this memcg is very important) and
-higher oom_score_adj(meaning the porcesses in this memcg is not
-improtant at all) ?
-Note that the memory.min don't know which processes is important,
-while it only knows is if this process in this memcg.
-
-> 5) if there are two tasks similar in size and both protected,
-> should we prefer one with the smaller protection?
-> etc.
-
-Same with the answer in 1).
-
->
-> Actually, I think that it makes more sense to build a completely
-> cgroup-aware OOM killer, which will select the OOM victim scanning
-> the memcg tree, not individual tasks. And then it can easily respect
-> memory.low/min in a reasonable way.
-
-
-I haven't taken a close look at the memcg-aware OOM killer, but even
-with cgroup-aware OOM killer I think it still can't answer your
-question 4).
-
-> But I failed to reach the upstream consensus on how it should work.
-> You can search for "memcg-aware OOM killer" in the lkml archive,
-> there was a ton of discussions and many many patchset versions.
->
-
-I will take a close look at it.  Thanks for your reference.
-
->
-> The code itself can be simplified a bit too, but I think it's
-> not that important now.
->
-> Thanks!
-
-
-Thanks
-Yafang
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
