@@ -2,99 +2,119 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6091CC3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 04:38:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF387C3A59E
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 05:38:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF03722CF4
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 04:38:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="haCfRM1m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF03722CF4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8CFC722CF4
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 05:38:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CFC722CF4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AFF76B0007; Tue, 20 Aug 2019 00:38:41 -0400 (EDT)
+	id 239306B0007; Tue, 20 Aug 2019 01:38:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45FFB6B0008; Tue, 20 Aug 2019 00:38:41 -0400 (EDT)
+	id 1E9756B0008; Tue, 20 Aug 2019 01:38:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3753A6B000A; Tue, 20 Aug 2019 00:38:41 -0400 (EDT)
+	id 0D82F6B000A; Tue, 20 Aug 2019 01:38:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
-	by kanga.kvack.org (Postfix) with ESMTP id 148356B0007
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 00:38:41 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 703158248ABA
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 04:38:40 +0000 (UTC)
-X-FDA: 75841550400.09.order84_85e3a65aa4c2b
-X-HE-Tag: order84_85e3a65aa4c2b
-X-Filterd-Recvd-Size: 3372
-Received: from mail-oi1-f195.google.com (mail-oi1-f195.google.com [209.85.167.195])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 04:38:39 +0000 (UTC)
-Received: by mail-oi1-f195.google.com with SMTP id a127so3106418oii.2
-        for <linux-mm@kvack.org>; Mon, 19 Aug 2019 21:38:39 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=pTsJc2XB2ULhT5btNfz5YqFDZzAMX4YrlKJzpdakKHA=;
-        b=haCfRM1mdP3nfX7azXTUWTkX4VYJbjwY4jc+E3ak3zb/Q1+VOGqLgRgEbsy3pyWICB
-         zvAYiCgBRK+8dAkVv4krDHbFmnRdtaPjhz4cpLHCAE65/wVsfPUFMFMcixGZheTPXPms
-         aafV2W8tyjSi4gBburO/Opb1eLDzEo0j/90LUSBXS17sLm1C/53R+92S1YUt8vUBzN+/
-         U4+YUiQZEu4DVvSOKNCDAYmdydy1ywzQLQF1LZnqZ2ysxAuQMGigKwXhAw4JExvC1809
-         LC3e0idPYuahq4WIZQeLES2Pzu3+u4NlHkHZDkmoTlbB8qQQWmc7sgdaCXV41prJKu5+
-         po5g==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=pTsJc2XB2ULhT5btNfz5YqFDZzAMX4YrlKJzpdakKHA=;
-        b=Xbqs+bZER2xZQjrsAMcCeAmw71ZodX0lF94D8EjdY42dufTFrYEGlnYndtL1gmurIP
-         +C/n5m19FFmed+hiHAgmxijhJdGhQjFXN5qvQFS31pSvWk/wnbLZ6MduSlWV+i6E57eY
-         NOy3zubeaWzdfHRN0IsAmhXdYVHcdAMgQF5EPJ5N6ktb/GIiI81jqcwXe4pMNVWXDTHb
-         VymMa9OgvT080WKjn5eCjKIwvVwQ+eWZzqeCfCZ7GUco5KoEHne0vL1PqS2hB+oSUKIq
-         c9qLRbzr67zJ2/X3Zva1oo03Fk6CJ0d1hgxgd6Z8eeAd6thu9tkYfrMZrW7/1LZ3Gk8M
-         PxaA==
-X-Gm-Message-State: APjAAAUBmrYVYkT/cPlrmv46FmyJGXvwWmSPE8AsC0+ytIMhR4t9yO8b
-	2gZLuwts/gRsCGocwvcwJR8SOTa+2u4ctypXFQ6kGw==
-X-Google-Smtp-Source: APXvYqwNAdmv8U/MMocqDHerUy4sI8jbpH839Mf4eiVmaYDc08GdXYIAOnJ1qD656K+Q7iTrImqncBEbLElGaGG5fV0=
-X-Received: by 2002:a05:6808:914:: with SMTP id w20mr15019903oih.73.1566275919132;
- Mon, 19 Aug 2019 21:38:39 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190818090557.17853-1-hch@lst.de> <20190818090557.17853-2-hch@lst.de>
- <CAPcyv4iaNtmvU5e8_8SV9XsmVCfnv8e7_YfMi46LfOF4W155zg@mail.gmail.com> <20190820022619.GA23225@lst.de>
-In-Reply-To: <20190820022619.GA23225@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 19 Aug 2019 21:38:25 -0700
-Message-ID: <CAPcyv4hUC5ReY9v=Lt0M=jPtg3V05suOgt4fVdT4niO_k4hN8Q@mail.gmail.com>
-Subject: Re: [PATCH 1/4] resource: add a not device managed
- request_free_mem_region variant
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, Bharata B Rao <bharata@linux.ibm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Ira Weiny <ira.weiny@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD186B0007
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 01:38:06 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7DEA08248AAF
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 05:38:06 +0000 (UTC)
+X-FDA: 75841700172.26.fan66_46a2615fb0e08
+X-HE-Tag: fan66_46a2615fb0e08
+X-Filterd-Recvd-Size: 3965
+Received: from mailgw02.mediatek.com (unknown [210.61.82.184])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 05:38:05 +0000 (UTC)
+X-UUID: 0758c9be4181404e9004a4f966717179-20190820
+X-UUID: 0758c9be4181404e9004a4f966717179-20190820
+Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw02.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
+	with ESMTP id 757742129; Tue, 20 Aug 2019 13:37:58 +0800
+Received: from mtkcas08.mediatek.inc (172.21.101.126) by
+ mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Tue, 20 Aug 2019 13:37:57 +0800
+Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Tue, 20 Aug 2019 13:37:57 +0800
+Message-ID: <1566279478.9993.21.camel@mtksdccf07>
+Subject: Re: [PATCH v4] kasan: add memory corruption identification for
+ software tag-based mode
+From: Walter Wu <walter-zh.wu@mediatek.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+CC: Alexander Potapenko <glider@google.com>, Dmitry Vyukov
+	<dvyukov@google.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Andrew
+ Morton" <akpm@linux-foundation.org>, Martin Schwidefsky
+	<schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner
+	<tglx@linutronix.de>, Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov
+	<andreyknvl@google.com>, Miles Chen <miles.chen@mediatek.com>,
+	<linux-kernel@vger.kernel.org>, <kasan-dev@googlegroups.com>,
+	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
+Date: Tue, 20 Aug 2019 13:37:58 +0800
+In-Reply-To: <20190806054340.16305-1-walter-zh.wu@mediatek.com>
+References: <20190806054340.16305-1-walter-zh.wu@mediatek.com>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 19, 2019 at 7:26 PM Christoph Hellwig <hch@lst.de> wrote:
->
-> On Mon, Aug 19, 2019 at 06:28:30PM -0700, Dan Williams wrote:
-> >
-> > Previously we would loudly crash if someone passed NULL to
-> > devm_request_free_mem_region(), but now it will silently work and the
-> > result will leak. Perhaps this wants a:
->
-> We'd still instantly crash due to the dev_name dereference, right?
+On Tue, 2019-08-06 at 13:43 +0800, Walter Wu wrote:
+> This patch adds memory corruption identification at bug report for
+> software tag-based mode, the report show whether it is "use-after-free"
+> or "out-of-bound" error instead of "invalid-access" error. This will make
+> it easier for programmers to see the memory corruption problem.
+> 
+> We extend the slab to store five old free pointer tag and free backtrace,
+> we can check if the tagged address is in the slab record and make a
+> good guess if the object is more like "use-after-free" or "out-of-bound".
+> therefore every slab memory corruption can be identified whether it's
+> "use-after-free" or "out-of-bound".
+> 
+> ====== Changes
+> Change since v1:
+> - add feature option CONFIG_KASAN_SW_TAGS_IDENTIFY.
+> - change QUARANTINE_FRACTION to reduce quarantine size.
+> - change the qlist order in order to find the newest object in quarantine
+> - reduce the number of calling kmalloc() from 2 to 1 time.
+> - remove global variable to use argument to pass it.
+> - correct the amount of qobject cache->size into the byes of qlist_head.
+> - only use kasan_cache_shrink() to shink memory.
+> 
+> Change since v2:
+> - remove the shinking memory function kasan_cache_shrink()
+> - modify the description of the CONFIG_KASAN_SW_TAGS_IDENTIFY
+> - optimize the quarantine_find_object() and qobject_free()
+> - fix the duplicating function name 3 times in the header.
+> - modify the function name set_track() to kasan_set_track()
+> 
+> Change since v3:
+> - change tag-based quarantine to extend slab to identify memory corruption
 
-Whoops, yes.
+Hi,Andrey,
+
+Would you review the patch,please?
+This patch is to pre-allocate slub record(tag and free backtrace) during
+create slub object. When kernel has memory corruption, it will print
+correct corruption type and free backtrace.
+
+Thanks.
+
+Walter
+
 
