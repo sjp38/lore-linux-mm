@@ -2,350 +2,161 @@ Return-Path: <SRS0=/Q+j=WQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A988AC3A589
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:08:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C338EC3A589
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:08:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 696E2205C9
-	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:08:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 696E2205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 85D6C22DA9
+	for <linux-mm@archiver.kernel.org>; Tue, 20 Aug 2019 16:08:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uP2JVhuM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85D6C22DA9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F2E486B026A; Tue, 20 Aug 2019 12:08:05 -0400 (EDT)
+	id 2F77F6B026C; Tue, 20 Aug 2019 12:08:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EDE7F6B026B; Tue, 20 Aug 2019 12:08:05 -0400 (EDT)
+	id 2A8BD6B026D; Tue, 20 Aug 2019 12:08:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DCC096B026C; Tue, 20 Aug 2019 12:08:05 -0400 (EDT)
+	id 171126B026E; Tue, 20 Aug 2019 12:08:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0001.hostedemail.com [216.40.44.1])
-	by kanga.kvack.org (Postfix) with ESMTP id B554B6B026A
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:08:05 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 69D798248AC2
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:08:05 +0000 (UTC)
-X-FDA: 75843287730.16.sea99_2948291125916
-X-HE-Tag: sea99_2948291125916
-X-Filterd-Recvd-Size: 11353
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com [115.124.30.130])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:08:03 +0000 (UTC)
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R541e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0Ta-x2cO_1566317271;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0Ta-x2cO_1566317271)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 21 Aug 2019 00:07:58 +0800
-Subject: Re: [v5 PATCH 3/4] mm: shrinker: make shrinker not depend on memcg
- kmem
-To: Kirill Tkhai <ktkhai@virtuozzo.com>, kirill.shutemov@linux.intel.com,
- hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
- rientjes@google.com, cai@lca.pw, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1565144277-36240-1-git-send-email-yang.shi@linux.alibaba.com>
- <1565144277-36240-4-git-send-email-yang.shi@linux.alibaba.com>
- <c70aefbf-6d38-db3d-c459-d835c64715f4@virtuozzo.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <2a90a68d-f495-c9c2-594c-c30d7c911d38@linux.alibaba.com>
-Date: Tue, 20 Aug 2019 09:07:49 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+Received: from forelay.hostedemail.com (smtprelay0018.hostedemail.com [216.40.44.18])
+	by kanga.kvack.org (Postfix) with ESMTP id EC58D6B026C
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 12:08:29 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id A7D58180AD809
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:08:29 +0000 (UTC)
+X-FDA: 75843288738.27.money44_2cfdb15e37e49
+X-HE-Tag: money44_2cfdb15e37e49
+X-Filterd-Recvd-Size: 5632
+Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com [209.85.214.196])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 16:08:29 +0000 (UTC)
+Received: by mail-pl1-f196.google.com with SMTP id go14so2985880plb.0
+        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 09:08:28 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=97QLXB8lHOGizWTCYqqOiIcONI9R+7mpmxz57KY9Srs=;
+        b=uP2JVhuMxV1h0sXuG8TvQSUvyglb+0aQSIs3DUtLpW5eW8SrbAiR2xrYLRnYY15NRj
+         q7D/4D25J8LlBz/C6RnMsXOsi13b2VaTivIQv0xUgPTDdqRtI1/gbHWsU45W5t960JkX
+         ER6IrkJKwIuuKomSFKipX7E8Pu8BN6Hvjx1HRbTbD4YpQyvsye3ZuhvFQGiuDkoin46H
+         7yLryJOOI5i3bfMei8EQoDk1b9GcBZCGbzn1B468uhFxvtJoCzQ5uA3v7LzGzS6EyG1d
+         nYOhHMr72jZUhvPxGgFoV2NWDh6cgV+MOa6cfqVowYpRB28/bylUGpZuGRr1fxx05AGB
+         4EPw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=97QLXB8lHOGizWTCYqqOiIcONI9R+7mpmxz57KY9Srs=;
+        b=t4mR/ZvANJFNjhCfrdFp2b5yC0CWQatiSxJ34jd3nIH+kQEED3VMGRX4d7iLJQZ4ic
+         rs5WYzGhHcsNuSgmQePG7493GGfejtMDHrjgGlYitQZXOCwOwoy21G/cZAPQldVaQ1/k
+         JHeiXVkI4AKCXPAMNMbWrcFK6Z0kq6QfQumSYGiVoSWXlyCEtq76qQZFjfdMDVW3eytK
+         at5BVlMLZUDOx2EBJcmqCFxK6URPk7UdqQRxp8QIrJo/zo7dFlkPhJyGnDa1K05UP1p2
+         0BQN/InZ2SxfQDhoeOujmBoNjhwc7siahnYsTee/z5yD/1c1ALsRiCmYJrx4tYXEenGd
+         6QVQ==
+X-Gm-Message-State: APjAAAUL2OLkb3oCfiXw/soLgTuTUIHC4xlnXTwSlIODDJPPG8IyBdu2
+	moD5DD4h1DIa4r+NwlPzE7zvveYK
+X-Google-Smtp-Source: APXvYqzms0bu0DnDtue04LyAMdXTKPIxc6JwRX9Jlbp2qQDU1kFArb7iW/pVQapNCXXK1A+YofHCdw==
+X-Received: by 2002:a17:902:2f05:: with SMTP id s5mr29240623plb.170.1566317308032;
+        Tue, 20 Aug 2019 09:08:28 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.36])
+        by smtp.gmail.com with ESMTPSA id e13sm21986232pff.181.2019.08.20.09.08.25
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Aug 2019 09:08:27 -0700 (PDT)
+Date: Tue, 20 Aug 2019 21:38:22 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Radim Krcmar <rkrcmar@redhat.com>, kvm <kvm@vger.kernel.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	khalid.aziz@oracle.com
+Subject: Re: [Question-kvm] Can hva_to_pfn_fast be executed in interrupt
+ context?
+Message-ID: <20190820160821.GA5153@bharath12345-Inspiron-5559>
+References: <20190813191435.GB10228@bharath12345-Inspiron-5559>
+ <54182261-88a4-9970-1c3c-8402e130dcda@redhat.com>
+ <20190815171834.GA14342@bharath12345-Inspiron-5559>
+ <CABgObfbQOS28cG_9Ca_2OXbLmDy_hwUkuqPnzJG5=FZ5sEYGfA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <c70aefbf-6d38-db3d-c459-d835c64715f4@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CABgObfbQOS28cG_9Ca_2OXbLmDy_hwUkuqPnzJG5=FZ5sEYGfA@mail.gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Aug 15, 2019 at 08:26:43PM +0200, Paolo Bonzini wrote:
+> Oh, I see. Sorry I didn't understand the question. In the case of KVM,
+> there's simply no code that runs in interrupt context and needs to use
+> virtual addresses.
+> 
+> In fact, there's no code that runs in interrupt context at all. The only
+> code that deals with host interrupts in a virtualization host is in VFIO,
+> but all it needs to do is signal an eventfd.
+> 
+> Paolo
+Great, answers my question. Thank you for your time.
 
-
-On 8/20/19 4:01 AM, Kirill Tkhai wrote:
-> On 07.08.2019 05:17, Yang Shi wrote:
->> Currently shrinker is just allocated and can work when memcg kmem is
->> enabled.  But, THP deferred split shrinker is not slab shrinker, it
->> doesn't make too much sense to have such shrinker depend on memcg kmem.
->> It should be able to reclaim THP even though memcg kmem is disabled.
->>
->> Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker.
->> When memcg kmem is disabled, just such shrinkers can be called in
->> shrinking memcg slab.
->>
->> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Shakeel Butt <shakeelb@google.com>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Qian Cai <cai@lca.pw>
->> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Looks OK for me. But some doubts about naming.
->
-> SHRINKER_NONSLAB. There are a lot of shrinkers, which are not
-> related to slab. For example, mmu_shrinker in arch/x86/kvm/mmu.c.
-> Intuitively and without mm knowledge, I assume, I would be surprised
-> why it's not masked as NONSLAB. Can we improve this in some way?
-
-Actually, SHRINKER_NONSLAB just makes sense when the shrinker is also 
-MEMCG_AWARE for now.
-
-I didn't think of a better name, any suggestion? I could add some 
-comment to explain this, non-MEMCG_AWARE shrinker should not care about 
-setting this flag even though it is non-slab.
-
-And, once this patch is in Linus's tree, I will double check if there is 
-any MEMCG_AWARE non-slab shrinker although my quick search didn't show 
-others except inode/dcache and workingset node.
-
->
-> The rest looks OK for me.
->
-> Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->
->> ---
->>   include/linux/memcontrol.h | 19 ++++++++-------
->>   include/linux/shrinker.h   |  3 ++-
->>   mm/memcontrol.c            |  9 +------
->>   mm/vmscan.c                | 60 ++++++++++++++++++++++++----------------------
->>   4 files changed, 45 insertions(+), 46 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 44c4146..5771816 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -128,9 +128,8 @@ struct mem_cgroup_per_node {
->>   
->>   	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
->>   
->> -#ifdef CONFIG_MEMCG_KMEM
->>   	struct memcg_shrinker_map __rcu	*shrinker_map;
->> -#endif
->> +
->>   	struct rb_node		tree_node;	/* RB tree node */
->>   	unsigned long		usage_in_excess;/* Set to the value by which */
->>   						/* the soft limit is exceeded*/
->> @@ -1253,6 +1252,11 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
->>   	} while ((memcg = parent_mem_cgroup(memcg)));
->>   	return false;
->>   }
->> +
->> +extern int memcg_expand_shrinker_maps(int new_id);
->> +
->> +extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
->> +				   int nid, int shrinker_id);
->>   #else
->>   #define mem_cgroup_sockets_enabled 0
->>   static inline void mem_cgroup_sk_alloc(struct sock *sk) { };
->> @@ -1261,6 +1265,11 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
->>   {
->>   	return false;
->>   }
->> +
->> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
->> +					  int nid, int shrinker_id)
->> +{
->> +}
->>   #endif
->>   
->>   struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
->> @@ -1332,10 +1341,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
->>   	return memcg ? memcg->kmemcg_id : -1;
->>   }
->>   
->> -extern int memcg_expand_shrinker_maps(int new_id);
->> -
->> -extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
->> -				   int nid, int shrinker_id);
->>   #else
->>   
->>   static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
->> @@ -1377,8 +1382,6 @@ static inline void memcg_put_cache_ids(void)
->>   {
->>   }
->>   
->> -static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
->> -					  int nid, int shrinker_id) { }
->>   #endif /* CONFIG_MEMCG_KMEM */
->>   
->>   #endif /* _LINUX_MEMCONTROL_H */
->> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
->> index 9443caf..9e112d6 100644
->> --- a/include/linux/shrinker.h
->> +++ b/include/linux/shrinker.h
->> @@ -69,7 +69,7 @@ struct shrinker {
->>   
->>   	/* These are for internal use */
->>   	struct list_head list;
->> -#ifdef CONFIG_MEMCG_KMEM
->> +#ifdef CONFIG_MEMCG
->>   	/* ID in shrinker_idr */
->>   	int id;
->>   #endif
->> @@ -81,6 +81,7 @@ struct shrinker {
->>   /* Flags */
->>   #define SHRINKER_NUMA_AWARE	(1 << 0)
->>   #define SHRINKER_MEMCG_AWARE	(1 << 1)
->> +#define SHRINKER_NONSLAB	(1 << 2)
->>   
->>   extern int prealloc_shrinker(struct shrinker *shrinker);
->>   extern void register_shrinker_prepared(struct shrinker *shrinker);
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index cdbb7a8..d90ded1 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -313,6 +313,7 @@ void memcg_put_cache_ids(void)
->>   EXPORT_SYMBOL(memcg_kmem_enabled_key);
->>   
->>   struct workqueue_struct *memcg_kmem_cache_wq;
->> +#endif
->>   
->>   static int memcg_shrinker_map_size;
->>   static DEFINE_MUTEX(memcg_shrinker_map_mutex);
->> @@ -436,14 +437,6 @@ void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
->>   	}
->>   }
->>   
->> -#else /* CONFIG_MEMCG_KMEM */
->> -static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
->> -{
->> -	return 0;
->> -}
->> -static void memcg_free_shrinker_maps(struct mem_cgroup *memcg) { }
->> -#endif /* CONFIG_MEMCG_KMEM */
->> -
->>   /**
->>    * mem_cgroup_css_from_page - css of the memcg associated with a page
->>    * @page: page of interest
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index b1b5e5f..093b76d 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -174,11 +174,22 @@ struct scan_control {
->>    */
->>   unsigned long vm_total_pages;
->>   
->> +static void set_task_reclaim_state(struct task_struct *task,
->> +				   struct reclaim_state *rs)
->> +{
->> +	/* Check for an overwrite */
->> +	WARN_ON_ONCE(rs && task->reclaim_state);
->> +
->> +	/* Check for the nulling of an already-nulled member */
->> +	WARN_ON_ONCE(!rs && !task->reclaim_state);
->> +
->> +	task->reclaim_state = rs;
->> +}
->> +
->>   static LIST_HEAD(shrinker_list);
->>   static DECLARE_RWSEM(shrinker_rwsem);
->>   
->> -#ifdef CONFIG_MEMCG_KMEM
->> -
->> +#ifdef CONFIG_MEMCG
->>   /*
->>    * We allow subsystems to populate their shrinker-related
->>    * LRU lists before register_shrinker_prepared() is called
->> @@ -230,30 +241,7 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
->>   	idr_remove(&shrinker_idr, id);
->>   	up_write(&shrinker_rwsem);
->>   }
->> -#else /* CONFIG_MEMCG_KMEM */
->> -static int prealloc_memcg_shrinker(struct shrinker *shrinker)
->> -{
->> -	return 0;
->> -}
->>   
->> -static void unregister_memcg_shrinker(struct shrinker *shrinker)
->> -{
->> -}
->> -#endif /* CONFIG_MEMCG_KMEM */
->> -
->> -static void set_task_reclaim_state(struct task_struct *task,
->> -				   struct reclaim_state *rs)
->> -{
->> -	/* Check for an overwrite */
->> -	WARN_ON_ONCE(rs && task->reclaim_state);
->> -
->> -	/* Check for the nulling of an already-nulled member */
->> -	WARN_ON_ONCE(!rs && !task->reclaim_state);
->> -
->> -	task->reclaim_state = rs;
->> -}
->> -
->> -#ifdef CONFIG_MEMCG
->>   static bool global_reclaim(struct scan_control *sc)
->>   {
->>   	return !sc->target_mem_cgroup;
->> @@ -308,6 +296,15 @@ static bool memcg_congested(pg_data_t *pgdat,
->>   
->>   }
->>   #else
->> +static int prealloc_memcg_shrinker(struct shrinker *shrinker)
->> +{
->> +	return 0;
->> +}
->> +
->> +static void unregister_memcg_shrinker(struct shrinker *shrinker)
->> +{
->> +}
->> +
->>   static bool global_reclaim(struct scan_control *sc)
->>   {
->>   	return true;
->> @@ -594,7 +591,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->>   	return freed;
->>   }
->>   
->> -#ifdef CONFIG_MEMCG_KMEM
->> +#ifdef CONFIG_MEMCG
->>   static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->>   			struct mem_cgroup *memcg, int priority)
->>   {
->> @@ -602,7 +599,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->>   	unsigned long ret, freed = 0;
->>   	int i;
->>   
->> -	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
->> +	if (!mem_cgroup_online(memcg))
->>   		return 0;
->>   
->>   	if (!down_read_trylock(&shrinker_rwsem))
->> @@ -628,6 +625,11 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->>   			continue;
->>   		}
->>   
->> +		/* Call non-slab shrinkers even though kmem is disabled */
->> +		if (!memcg_kmem_enabled() &&
->> +		    !(shrinker->flags & SHRINKER_NONSLAB))
->> +			continue;
->> +
->>   		ret = do_shrink_slab(&sc, shrinker, priority);
->>   		if (ret == SHRINK_EMPTY) {
->>   			clear_bit(i, map->map);
->> @@ -664,13 +666,13 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->>   	up_read(&shrinker_rwsem);
->>   	return freed;
->>   }
->> -#else /* CONFIG_MEMCG_KMEM */
->> +#else /* CONFIG_MEMCG */
->>   static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->>   			struct mem_cgroup *memcg, int priority)
->>   {
->>   	return 0;
->>   }
->> -#endif /* CONFIG_MEMCG_KMEM */
->> +#endif /* CONFIG_MEMCG */
->>   
->>   /**
->>    * shrink_slab - shrink slab caches
->>
-
+Thank you
+Bharath
+> 
+> Il gio 15 ago 2019, 19:18 Bharath Vedartham <linux.bhar@gmail.com> ha
+> scritto:
+> 
+> > On Tue, Aug 13, 2019 at 10:17:09PM +0200, Paolo Bonzini wrote:
+> > > On 13/08/19 21:14, Bharath Vedartham wrote:
+> > > > Hi all,
+> > > >
+> > > > I was looking at the function hva_to_pfn_fast(in virt/kvm/kvm_main)
+> > which is
+> > > > executed in an atomic context(even in non-atomic context, since
+> > > > hva_to_pfn_fast is much faster than hva_to_pfn_slow).
+> > > >
+> > > > My question is can this be executed in an interrupt context?
+> > >
+> > > No, it cannot for the reason you mention below.
+> > >
+> > > Paolo
+> > hmm.. Well I expected the answer to be kvm specific.
+> > Because I observed a similar use-case for a driver (sgi-gru) where
+> > we want to retrive the physical address of a virtual address. This was
+> > done in atomic and non-atomic context similar to hva_to_pfn_fast and
+> > hva_to_pfn_slow. __get_user_pages_fast(for atomic case)
+> > would not work as the driver could execute in interrupt context.
+> >
+> > The driver manually walked the page tables to handle this issue.
+> >
+> > Since kvm is a widely used piece of code, I asked this question to know
+> > how kvm handled this issue.
+> >
+> > Thank you for your time.
+> >
+> > Thank you
+> > Bharath
+> > > > The motivation for this question is that in an interrupt context, we
+> > cannot
+> > > > assume "current" to be the task_struct of the process of interest.
+> > > > __get_user_pages_fast assume current->mm when walking the process page
+> > > > tables.
+> > > >
+> > > > So if this function hva_to_pfn_fast can be executed in an
+> > > > interrupt context, it would not be safe to retrive the pfn with
+> > > > __get_user_pages_fast.
+> > > >
+> > > > Thoughts on this?
+> > > >
+> > > > Thank you
+> > > > Bharath
+> > > >
+> > >
+> >
 
