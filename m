@@ -2,110 +2,95 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77AC1C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:23:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B62CC3A589
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:49:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3BE6422DD6
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:23:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BE6422DD6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FB5F22D6D
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:49:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="MQBLmHoe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FB5F22D6D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8B816B0279; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
+	id C407E6B027B; Tue, 20 Aug 2019 21:49:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D15F36B027A; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
+	id BC9AE6B027C; Tue, 20 Aug 2019 21:49:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BDC2E6B027B; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
+	id A90586B027D; Tue, 20 Aug 2019 21:49:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0161.hostedemail.com [216.40.44.161])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C926B0279
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 4287255F93
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:23:12 +0000 (UTC)
-X-FDA: 75844686624.21.cord18_561de2c47584c
-X-HE-Tag: cord18_561de2c47584c
-X-Filterd-Recvd-Size: 3162
-Received: from mga09.intel.com (mga09.intel.com [134.134.136.24])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:23:11 +0000 (UTC)
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Aug 2019 18:23:10 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,410,1559545200"; 
-   d="scan'208";a="202863410"
-Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
-  by fmsmga004.fm.intel.com with ESMTP; 20 Aug 2019 18:23:08 -0700
-Date: Wed, 21 Aug 2019 09:22:44 +0800
-From: Wei Yang <richardw.yang@linux.intel.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Wei Yang <richardw.yang@linux.intel.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org,
-	mgorman@techsingularity.net, osalvador@suse.de, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 3/3] mm/mmap.c: extract __vma_unlink_list as counter part
- for __vma_link_list
-Message-ID: <20190821012244.GA13653@richard>
-Reply-To: Wei Yang <richardw.yang@linux.intel.com>
-References: <20190814021755.1977-1-richardw.yang@linux.intel.com>
- <20190814021755.1977-3-richardw.yang@linux.intel.com>
- <20190814051611.GA1958@infradead.org>
- <20190814065703.GA6433@richard>
- <2c5cdffd-f405-23b8-98f5-37b95ca9b027@suse.cz>
- <20190820172629.GB4949@bombadil.infradead.org>
- <20190821005234.GA5540@richard>
- <20190821005417.GC18776@bombadil.infradead.org>
+Received: from forelay.hostedemail.com (smtprelay0080.hostedemail.com [216.40.44.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 8122E6B027B
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 21:49:20 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 400318248ABE
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:49:20 +0000 (UTC)
+X-FDA: 75844752480.01.bait23_173e693997318
+X-HE-Tag: bait23_173e693997318
+X-Filterd-Recvd-Size: 3131
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:49:19 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=SGtyDfOk7ztf7e1zq8UPqa3xUIMnaYAeWahTWcEr7d4=; b=MQBLmHoexH6YgdK4vldQKz4da
+	8RAZW2Yi8DxJxQAlpwgczYaEaHM1c41vT1AnkpoCnNqXbGnGTNghSk0fVikznf0kIEi0v+5N5r8g1
+	/6oblkV7iXrJ3a45Axj84aDQZSNiq8kQRjY+HUCF8V1Py56nJy0hBCl9/lpFyn+yndcDaRZqJkzVt
+	bIi8Pv29Kk3FsfaRxdzwIJpj8AfPIsMMPyFdhswi9/+xmIhUaAbFj+F5czW5zAlG2znKGKTxCbpT/
+	UF3RHjXmL4RitId7QozMvfJ4mmRlqlKtKIA6x7b3LDsgzeXJblkyLmEfssdO0Km6aGAzq3az5/zkW
+	SJ4UIFkeA==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i0FkA-0003gm-R5; Wed, 21 Aug 2019 01:48:58 +0000
+Date: Tue, 20 Aug 2019 18:48:58 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, dsterba@suse.cz,
+	Christophe Leroy <christophe.leroy@c-s.fr>, erhard_f@mailbox.org,
+	Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
+	David Sterba <dsterba@suse.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	linux-btrfs@vger.kernel.org, linux-mm@kvack.org,
+	stable@vger.kernel.org, Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] btrfs: fix allocation of bitmap pages.
+Message-ID: <20190821014858.GA9158@infradead.org>
+References: <20190817074439.84C6C1056A3@localhost.localdomain>
+ <20190819174600.GN24086@twin.jikos.cz>
+ <20190820023031.GC9594@infradead.org>
+ <6f99b73c-db8f-8135-b827-0a135734d7da@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190821005417.GC18776@bombadil.infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <6f99b73c-db8f-8135-b827-0a135734d7da@suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 05:54:17PM -0700, Matthew Wilcox wrote:
->On Wed, Aug 21, 2019 at 08:52:34AM +0800, Wei Yang wrote:
->> On Tue, Aug 20, 2019 at 10:26:29AM -0700, Matthew Wilcox wrote:
->> >On Wed, Aug 14, 2019 at 11:19:37AM +0200, Vlastimil Babka wrote:
->> >> On 8/14/19 8:57 AM, Wei Yang wrote:
->> >> > On Tue, Aug 13, 2019 at 10:16:11PM -0700, Christoph Hellwig wrote:
->> >> >>Btw, is there any good reason we don't use a list_head for vma linkage?
->> >> > 
->> >> > Not sure, maybe there is some historical reason?
->> >> 
->> >> Seems it was single-linked until 2010 commit 297c5eee3724 ("mm: make the vma
->> >> list be doubly linked") and I guess it was just simpler to add the vm_prev link.
->> >> 
->> >> Conversion to list_head might be an interesting project for some "advanced
->> >> beginner" in the kernel :)
->> >
->> >I'm working to get rid of vm_prev and vm_next, so it would probably be
->> >wasted effort.
->> 
->> You mean replace it with list_head?
->
->No, replace the rbtree with a new tree.  https://lwn.net/Articles/787629/
+On Tue, Aug 20, 2019 at 01:06:25PM +0200, Vlastimil Babka wrote:
+> > The whole point of copy_page is to copy exactly one page and it makes
+> > sense to assume that is aligned.  A sane memcpy would use the same
+> > underlying primitives as well after checking they fit.  So I think the
+> > prime issue here is btrfs' use of copy_page instead of memcpy.  The
+> > secondary issue is slub fucking up alignments for no good reason.  We
+> > just got bitten by that crap again in XFS as well :(
+> 
+> Meh, I should finally get back to https://lwn.net/Articles/787740/ right
 
-Sounds interesting.
+Yes.  For now Dave came up with an idea for a workaround that will
+be forward-compatible with that:
 
-While I am not sure the plan is settled down, and how long it would take to
-replace the rb_tree with maple tree. I guess it would probably take some time
-to get merged upstream.
-
-IMHO, it would be good to have this cleanup in current kernel. Do you agree?
-
--- 
-Wei Yang
-Help you, Help me
+https://www.spinics.net/lists/linux-xfs/msg30521.html
 
