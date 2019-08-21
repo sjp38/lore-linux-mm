@@ -2,58 +2,58 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E75EDC3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:12:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65342C3A5A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:13:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B4115216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:12:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4115216F4
+	by mail.kernel.org (Postfix) with ESMTP id 2735F216F4
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:13:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2735F216F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4503B6B029A; Wed, 21 Aug 2019 15:12:41 -0400 (EDT)
+	id CDB696B029B; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4017F6B029B; Wed, 21 Aug 2019 15:12:41 -0400 (EDT)
+	id C8B626B029D; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F0A96B029C; Wed, 21 Aug 2019 15:12:41 -0400 (EDT)
+	id B547F6B029E; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0198.hostedemail.com [216.40.44.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2C26B029A
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:12:41 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id B51FD180AD801
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:12:40 +0000 (UTC)
-X-FDA: 75847381680.16.rock94_6e97291bcae0a
-X-HE-Tag: rock94_6e97291bcae0a
-X-Filterd-Recvd-Size: 8329
+Received: from forelay.hostedemail.com (smtprelay0252.hostedemail.com [216.40.44.252])
+	by kanga.kvack.org (Postfix) with ESMTP id 95F346B029B
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 56A14282A
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:13:43 +0000 (UTC)
+X-FDA: 75847384326.19.bikes76_77b516623df5b
+X-HE-Tag: bikes76_77b516623df5b
+X-Filterd-Recvd-Size: 6778
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:12:39 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:13:42 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AB93B3082128;
-	Wed, 21 Aug 2019 19:12:38 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 612CC30872DD;
+	Wed, 21 Aug 2019 19:13:41 +0000 (UTC)
 Received: from [10.36.118.29] (unknown [10.36.118.29])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 1086A46;
-	Wed, 21 Aug 2019 19:12:34 +0000 (UTC)
-Subject: Re: [PATCH v2] mm/balloon_compaction: Informative allocation warnings
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BD21C60BF3;
+	Wed, 21 Aug 2019 19:13:37 +0000 (UTC)
+Subject: Re: [PATCH] mm/balloon_compaction: suppress allocation warnings
 To: Nadav Amit <namit@vmware.com>
 Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
  "virtualization@lists.linux-foundation.org"
- <virtualization@lists.linux-foundation.org>, Linux-MM <linux-mm@kvack.org>,
+ <virtualization@lists.linux-foundation.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
  "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-References: <20190821094159.40795-1-namit@vmware.com>
- <75ff92c2-7ae2-c4a6-cd1f-44741e29d20e@redhat.com>
- <4E10A342-9A51-4C1F-8E5A-8005AACEF4CE@vmware.com>
- <497b1189-8e1d-2926-ee5e-9077fcceb04b@redhat.com>
- <36AC2460-9E88-4BAF-B793-A14A00E41617@vmware.com>
+References: <20190820091646.29642-1-namit@vmware.com>
+ <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
+ <5BBC6CB3-2DCD-4A95-90C9-7C23482F9B32@vmware.com>
+ <85c72875-278f-fbab-69c9-92dc1873d407@redhat.com>
+ <FC42B62F-167F-4D7D-ADC5-926B36347E82@vmware.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -100,107 +100,76 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <3873b6ab-de6d-cac2-90e8-541fe86e2005@redhat.com>
-Date: Wed, 21 Aug 2019 21:12:34 +0200
+Message-ID: <2aa52636-4ca7-0d47-c5bf-42408af3ea0f@redhat.com>
+Date: Wed, 21 Aug 2019 21:13:36 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <36AC2460-9E88-4BAF-B793-A14A00E41617@vmware.com>
+In-Reply-To: <FC42B62F-167F-4D7D-ADC5-926B36347E82@vmware.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 21 Aug 2019 19:12:38 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 21 Aug 2019 19:13:41 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21.08.19 21:10, Nadav Amit wrote:
->> On Aug 21, 2019, at 12:06 PM, David Hildenbrand <david@redhat.com> wrote:
+On 21.08.19 18:34, Nadav Amit wrote:
+>> On Aug 21, 2019, at 9:29 AM, David Hildenbrand <david@redhat.com> wrot=
+e:
 >>
->> On 21.08.19 20:59, Nadav Amit wrote:
->>>> On Aug 21, 2019, at 11:57 AM, David Hildenbrand <david@redhat.com> wrote:
+>> On 21.08.19 18:23, Nadav Amit wrote:
+>>>> On Aug 21, 2019, at 9:05 AM, David Hildenbrand <david@redhat.com> wr=
+ote:
 >>>>
->>>> On 21.08.19 11:41, Nadav Amit wrote:
->>>>> There is no reason to print generic warnings when balloon memory
->>>>> allocation fails, as failures are expected and can be handled
->>>>> gracefully. Since VMware balloon now uses balloon-compaction
->>>>> infrastructure, and suppressed these warnings before, it is also
->>>>> beneficial to suppress these warnings to keep the same behavior that the
->>>>> balloon had before.
->>>>>
->>>>> Since such warnings can still be useful to indicate that the balloon is
->>>>> over-inflated, print more informative and less frightening warning if
->>>>> allocation fails instead.
->>>>>
->>>>> Cc: David Hildenbrand <david@redhat.com>
->>>>> Cc: Jason Wang <jasowang@redhat.com>
->>>>> Signed-off-by: Nadav Amit <namit@vmware.com>
->>>>>
->>>>> ---
->>>>>
->>>>> v1->v2:
->>>>> * Print informative warnings instead suppressing [David]
->>>>> ---
->>>>> mm/balloon_compaction.c | 7 ++++++-
->>>>> 1 file changed, 6 insertions(+), 1 deletion(-)
->>>>>
->>>>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
->>>>> index 798275a51887..0c1d1f7689f0 100644
->>>>> --- a/mm/balloon_compaction.c
->>>>> +++ b/mm/balloon_compaction.c
->>>>> @@ -124,7 +124,12 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
->>>>> struct page *balloon_page_alloc(void)
->>>>> {
->>>>> 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
->>>>> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
->>>>> +				       __GFP_NOMEMALLOC | __GFP_NORETRY |
->>>>> +				       __GFP_NOWARN);
->>>>> +
->>>>> +	if (!page)
->>>>> +		pr_warn_ratelimited("memory balloon: memory allocation failed");
->>>>> +
->>>>> 	return page;
->>>>> }
->>>>> EXPORT_SYMBOL_GPL(balloon_page_alloc);
+>>>> On 20.08.19 11:16, Nadav Amit wrote:
+>>>>> There is no reason to print warnings when balloon page allocation f=
+ails,
+>>>>> as they are expected and can be handled gracefully.  Since VMware
+>>>>> balloon now uses balloon-compaction infrastructure, and suppressed =
+these
+>>>>> warnings before, it is also beneficial to suppress these warnings t=
+o
+>>>>> keep the same behavior that the balloon had before.
 >>>>
->>>> Not sure if "memory balloon" is the right wording. hmmm.
->>>>
->>>> Acked-by: David Hildenbrand <david@redhat.com>
+>>>> I am not sure if that's a good idea. The allocation warnings are usu=
+ally
+>>>> the only trace of "the user/admin did something bad because he/she t=
+ried
+>>>> to inflate the balloon to an unsafe value". Believe me, I processed =
+a
+>>>> couple of such bugreports related to virtio-balloon and the warning =
+were
+>>>> very helpful for that.
 >>>
->>> Do you have a better suggestion?
+>>> Ok, so a message is needed, but does it have to be a generic frighten=
+ing
+>>> warning?
+>>>
+>>> How about using __GFP_NOWARN, and if allocation do something like:
+>>>
+>>>  pr_warn(=E2=80=9CBalloon memory allocation failed=E2=80=9D);
+>>>
+>>> Or even something more informative? This would surely be less intimid=
+ating
+>>> for common users.
 >>
->> Not really - that's why I ack'ed :)
+>> ratelimit would make sense :)
 >>
->> However, thinking about it - what about moving the check + print to the
->> caller and then using dev_warn... or sth. like simple "virtio_balloon:
->> ..." ? You can then drop the warning for vmware balloon if you feel like
->> not needing it.
-> 
-> Actually, there is already a warning that is printed by the virtue_balloon
-> in fill_balloon():
-> 
->                 struct page *page = balloon_page_alloc();
-> 
->                 if (!page) {
->                         dev_info_ratelimited(&vb->vdev->dev,
->                                              "Out of puff! Can't get %u pages\n",
->                                              VIRTIO_BALLOON_PAGES_PER_PAGE);
->                         /* Sleep for at least 1/5 of a second before retry. */
->                         msleep(200);
->                         break;
->                 }
-> 
-> So are you ok with going back to v1?
-> 
+>> And yes, this would certainly be nicer.
+>=20
+> Thanks. I will post v2 of the patch.
+>=20
 
-Whoops, I missed that - sorry - usually the warnings scream louder at me :D
+As discussed in v2, we already print a warning in virtio-balloon, so I
+am fine with this patch.
 
-Yes, v1 is fine with me!
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
--- 
+--=20
 
 Thanks,
 
