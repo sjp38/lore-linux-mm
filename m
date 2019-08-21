@@ -2,190 +2,142 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 216E8C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:00:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4E63C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:02:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7DE62082F
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:00:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="HwUtvYoI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7DE62082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 98F8C2082F
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:02:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98F8C2082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BE986B0332; Wed, 21 Aug 2019 14:00:41 -0400 (EDT)
+	id 4FAD26B0334; Wed, 21 Aug 2019 14:02:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56FD26B0333; Wed, 21 Aug 2019 14:00:41 -0400 (EDT)
+	id 4AC486B0335; Wed, 21 Aug 2019 14:02:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45DD76B0334; Wed, 21 Aug 2019 14:00:41 -0400 (EDT)
+	id 373B16B0336; Wed, 21 Aug 2019 14:02:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0232.hostedemail.com [216.40.44.232])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FAC56B0332
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:00:41 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id BEBA883E6
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:00:40 +0000 (UTC)
-X-FDA: 75847200240.16.flame53_400c9a007ad36
-X-HE-Tag: flame53_400c9a007ad36
-X-Filterd-Recvd-Size: 7830
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:00:39 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7LHsXJu086567;
-	Wed, 21 Aug 2019 18:00:37 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=tmRGzebsdlR9sHASmyyyKPRbTYCSfFlnVG/zj++02Y4=;
- b=HwUtvYoInfaOTd1lpkEF2lXCkMMdX8CCXLFKikiq1tJTeuhrZIHbtyZt8T8CDAj/kJ49
- VnjSul33YJvV5jf+Uj9PtxaV5/CcI73/kU9ElXuNugL621Rk0AiI1I2oL79Mvf+xi36n
- 76vZRSktp24TmNIuHTXekZuGyRu1NjL3pw0YsEbJpb/vUWHsKQa9qEjZmm9AYUV4RSd2
- B/EJ0530GJxR6tkZmHGGcESAaXpcopGjSgNDdU8f26Xc2dkZ+WaruJgFG4B6bTZtEq7j
- s9K8k8QULrqN1tnEiUSa4SGco7jrEgYaenk4MeWWYscV6wZZTdubbQBpR3Nu+vQofrnT VQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2ue90tqk0m-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 21 Aug 2019 18:00:37 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7LHwho4092514;
-	Wed, 21 Aug 2019 18:00:37 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3030.oracle.com with ESMTP id 2uh2q4twq2-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 21 Aug 2019 18:00:36 +0000
-Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7LI0WiV009735;
-	Wed, 21 Aug 2019 18:00:32 GMT
-Received: from [192.168.1.218] (/98.229.125.203)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 21 Aug 2019 11:00:32 -0700
-Subject: Re: [PATCH 00/14] per memcg lru_lock
-To: Alex Shi <alex.shi@linux.alibaba.com>, cgroups@vger.kernel.org,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>,
-        Michal Hocko <mhocko@kernel.org>
-References: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <6ba1ffb0-fce0-c590-c373-7cbc516dbebd@oracle.com>
-Date: Wed, 21 Aug 2019 14:00:31 -0400
+Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
+	by kanga.kvack.org (Postfix) with ESMTP id 15BAA6B0334
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:02:04 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 80C5E181AC9D3
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:02:03 +0000 (UTC)
+X-FDA: 75847203726.23.grass52_4c0d697458660
+X-HE-Tag: grass52_4c0d697458660
+X-Filterd-Recvd-Size: 4381
+Received: from mga12.intel.com (mga12.intel.com [192.55.52.136])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:02:02 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Aug 2019 11:02:01 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,412,1559545200"; 
+   d="scan'208";a="178574892"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga008.fm.intel.com with ESMTP; 21 Aug 2019 11:02:01 -0700
+Date: Wed, 21 Aug 2019 11:02:00 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
+References: <20190814101714.GA26273@quack2.suse.cz>
+ <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+ <20190815130558.GF14313@quack2.suse.cz>
+ <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
+ <20190819063412.GA20455@quack2.suse.cz>
+ <20190819092409.GM7777@dread.disaster.area>
+ <20190819123841.GC5058@ziepe.ca>
+ <20190820011210.GP7777@dread.disaster.area>
+ <20190820115515.GA29246@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9355 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908210179
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9355 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908210179
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190820115515.GA29246@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Alex,
-
-On 8/20/19 5:48 AM, Alex Shi wrote:
-> In some data center, containers are used widely to deploy different kind
-> of services, then multiple memcgs share per node pgdat->lru_lock which
-> cause heavy lock contentions when doing lru operation.
+On Tue, Aug 20, 2019 at 08:55:15AM -0300, Jason Gunthorpe wrote:
+> On Tue, Aug 20, 2019 at 11:12:10AM +1000, Dave Chinner wrote:
+> > On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
+> > > On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
+> > > 
+> > > > So that leaves just the normal close() syscall exit case, where the
+> > > > application has full control of the order in which resources are
+> > > > released. We've already established that we can block in this
+> > > > context.  Blocking in an interruptible state will allow fatal signal
+> > > > delivery to wake us, and then we fall into the
+> > > > fatal_signal_pending() case if we get a SIGKILL while blocking.
+> > > 
+> > > The major problem with RDMA is that it doesn't always wait on close() for the
+> > > MR holding the page pins to be destoyed. This is done to avoid a
+> > > deadlock of the form:
+> > > 
+> > >    uverbs_destroy_ufile_hw()
+> > >       mutex_lock()
+> > >        [..]
+> > >         mmput()
+> > >          exit_mmap()
+> > >           remove_vma()
+> > >            fput();
+> > >             file_operations->release()
+> > 
+> > I think this is wrong, and I'm pretty sure it's an example of why
+> > the final __fput() call is moved out of line.
 > 
-> On my 2 socket * 6 cores E5-2630 platform, 24 containers run aim9
-> simultaneously with mmtests' config:
->          # AIM9
->          export AIM9_TESTTIME=180
->          export AIM9_TESTLIST=page_test,brk_test
+> Yes, I think so too, all I can say is this *used* to happen, as we
+> have special code avoiding it, which is the code that is messing up
+> Ira's lifetime model.
 > 
-> perf lock report show much contentions on lru_lock in 20 second snapshot:
->                          Name   acquired  contended   avg wait (ns) total wait (ns)   max wait (ns)   min wait (ns)
->          &(ptlock_ptr(pag...         22          0               0       0               0               0
->          ...
->          &(&pgdat->lru_lo...          9          7           12728       89096           26656            1597
+> Ira, you could try unraveling the special locking, that solves your
+> lifetime issues?
 
-This is system-wide right, not per container?  Even per container, 89 usec isn't much contention over 20 seconds.  You may want to give this a try:
+Yes I will try to prove this out...  But I'm still not sure this fully solves
+the problem.
 
-   https://git.kernel.org/pub/scm/linux/kernel/git/wfg/vm-scalability.git/tree/case-lru-file-readtwice
+This only ensures that the process which has the RDMA context (RDMA FD) is safe
+with regard to hanging the close for the "data file FD" (the file which has
+pinned pages) in that _same_ process.  But what about the scenario.
 
-It's also synthetic but it stresses lru_lock more than just anon alloc/free.  It hits the page activate path, which is where we see this lock in our database, and if enough memory is configured lru_lock also gets stressed during reclaim, similar to [1].
+Process A has the RDMA context FD and data file FD (with lease) open.
 
-It'd be better though, as Michal suggests, to use the real workload that's causing problems.  Where are you seeing contention?
+Process A uses SCM_RIGHTS to pass the RDMA context FD to Process B.
 
-> With this patch series, lruvec->lru_lock show no contentions
->          &(&lruvec->lru_l...          8          0               0       0               0               0
-> 
-> and aim9 page_test/brk_test performance increased 5%~50%.
+Process A attempts to exit (hangs because data file FD is pinned).
 
-Where does the 50% number come in?  The numbers below seem to only show ~4% boost.
+Admin kills process A.  kill works because we have allowed for it...
 
-> BTW, Detailed results in aim9-pft.compare.log if needed,
-> All containers data are increased and pretty steady.
-> 
-> $for i in Max Min Hmean Stddev CoeffVar BHmean-50 BHmean-95 BHmean-99; do echo "========= $i page_test ============"; cat aim9-pft.compare.log | grep "^$i.*page_test" | awk 'BEGIN {a=b=0;}  { a+=$3; b+=$6 } END { print "5.3-rc4          " a/24; print "5.3-rc4+lru_lock " b/24}' ; done
-> ========= Max page_test ============
-> 5.3-rc4          34729.6
-> 5.3-rc4+lru_lock 36128.3
-> ========= Min page_test ============
-> 5.3-rc4          33644.2
-> 5.3-rc4+lru_lock 35349.7
-> ========= Hmean page_test ============
-> 5.3-rc4          34355.4
-> 5.3-rc4+lru_lock 35810.9
-> ========= Stddev page_test ============
-> 5.3-rc4          319.757
-> 5.3-rc4+lru_lock 223.324
-> ========= CoeffVar page_test ============
-> 5.3-rc4          0.93125
-> 5.3-rc4+lru_lock 0.623333
-> ========= BHmean-50 page_test ============
-> 5.3-rc4          34579.2
-> 5.3-rc4+lru_lock 35977.1
-> ========= BHmean-95 page_test ============
-> 5.3-rc4          34421.7
-> 5.3-rc4+lru_lock 35853.6
-> ========= BHmean-99 page_test ============
-> 5.3-rc4          34421.7
-> 5.3-rc4+lru_lock 35853.6
-> 
-> $for i in Max Min Hmean Stddev CoeffVar BHmean-50 BHmean-95 BHmean-99; do echo "========= $i brk_test ============"; cat aim9-pft.compare.log | grep "^$i.*brk_test" | awk 'BEGIN {a=b=0;}  { a+=$3; b+=$6 } END { print "5.3-rc4          " a/24; print "5.3-rc4+lru_lock " b/24}' ; done
-> ========= Max brk_test ============
-> 5.3-rc4          96647.7
-> 5.3-rc4+lru_lock 98960.3
-> ========= Min brk_test ============
-> 5.3-rc4          91800.8
-> 5.3-rc4+lru_lock 96817.6
-> ========= Hmean brk_test ============
-> 5.3-rc4          95470
-> 5.3-rc4+lru_lock 97769.6
-> ========= Stddev brk_test ============
-> 5.3-rc4          1253.52
-> 5.3-rc4+lru_lock 596.593
-> ========= CoeffVar brk_test ============
-> 5.3-rc4          1.31375
-> 5.3-rc4+lru_lock 0.609583
-> ========= BHmean-50 brk_test ============
-> 5.3-rc4          96141.4
-> 5.3-rc4+lru_lock 98194
-> ========= BHmean-95 brk_test ============
-> 5.3-rc4          95818.5
-> 5.3-rc4+lru_lock 97857.2
-> ========= BHmean-99 brk_test ============
-> 5.3-rc4          95818.5
-> 5.3-rc4+lru_lock 97857.2
+Process B _still_ has the RDMA context FD open _and_ therefore still holds the
+file pins.
 
-[1] https://lore.kernel.org/linux-mm/CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com/
+Truncation still fails.
+
+Admin does not know which process is holding the pin.
+
+What am I missing?
+
+Ira
+
 
