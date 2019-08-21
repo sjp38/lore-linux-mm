@@ -2,120 +2,120 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FC67C41514
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:02:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AA81C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:28:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3DB2222DD3
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:02:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DB2222DD3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	by mail.kernel.org (Postfix) with ESMTP id 3885522D6D
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:28:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aczAAOYj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3885522D6D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB3E46B0325; Wed, 21 Aug 2019 13:02:53 -0400 (EDT)
+	id C407C6B0328; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8A6E6B0326; Wed, 21 Aug 2019 13:02:53 -0400 (EDT)
+	id BF0FE6B0329; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA0AD6B0327; Wed, 21 Aug 2019 13:02:53 -0400 (EDT)
+	id AE0166B032A; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0057.hostedemail.com [216.40.44.57])
-	by kanga.kvack.org (Postfix) with ESMTP id AA60D6B0325
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:02:53 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 3C3F1180AD803
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:02:53 +0000 (UTC)
-X-FDA: 75847054626.03.shop64_8d902dcc89a05
-X-HE-Tag: shop64_8d902dcc89a05
-X-Filterd-Recvd-Size: 3571
-Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com [209.85.214.195])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:02:52 +0000 (UTC)
-Received: by mail-pl1-f195.google.com with SMTP id f19so1654111plr.3
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 10:02:52 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC0B6B0328
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 29BC640F0
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:28:13 +0000 (UTC)
+X-FDA: 75847118466.04.owl24_47b0ced08090b
+X-HE-Tag: owl24_47b0ced08090b
+X-Filterd-Recvd-Size: 4109
+Received: from mail-vs1-f46.google.com (mail-vs1-f46.google.com [209.85.217.46])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:28:12 +0000 (UTC)
+Received: by mail-vs1-f46.google.com with SMTP id m62so1858498vsc.8
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 10:28:12 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=Pxcwkel5NwWC/EnzdY8s8ZGNQTQ4ddIIJy9odqHj+ng=;
+        b=aczAAOYj3EseHFh6Q04gpTCV7A1k6cB2ViZBvf2ywfgk/8BltmePw0QvCTQNRPBq8i
+         FjWDebo1Y2//nCx+m4oLmneLfQaKpakVAgu81I7X9Wpbw9eXjDGtgz9Tc5p38jgLd6Uy
+         Lg4ZOVqWEGL8IxNjBAUBxi9Py7nzMA8SmXr4a4Vc6k+4drO0a6NlYKqK28KrkmoMk0OF
+         co28kB8QyyAq02chi15B/nFp82jauaEjGxlF7Xol1+I7j2uwGrer/ud3xWyBDxxUfY9k
+         x+Y5KV5huY/SlDObDWMQIdIKSaVe1pbS+4lDO45nYXRXtJUh+AFoMKupx6GVjiK2td6m
+         35NA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id;
-        bh=U6z5UAUGFghdvzjH4C6pX/4JXep5tUCHLfsHPzlx9LA=;
-        b=Zd3fcP2qaH+sRUq4svcRztPmWz+nYQZFYyjBrNP9DwIyCQKaF53mxS5dNmykwopLf0
-         /9F2+yjb3uE9YEjrIi5FNNSnz4/gfIx1mT+2FlFAMKc1MS3IuIKPSQW1Y3V1+bsxtGGH
-         gaH7MNZjxymzjFmqCOJU8f4F3AUAxgGQC3WxuMbRlODNJl3mOzwphw63ufhsy6tOsIKT
-         193bWpp/vp5b+0zZg7QbvV0JOogwmuG6XmzFc1UVN2UiPVzHmvbZ3oH3hDVDIJzEXT4U
-         AC7ol/GF91qnT4XPiDfYknSKxhPX653Oz5j3hNv6nOtylGlnzmfJBseFXouCIA9K5oe3
-         Vxtw==
-X-Gm-Message-State: APjAAAU21y/EwUiNn+TRIlJT3FTLbav76hbclhSBfVxirtF5vugU6np7
-	lDgyFnCt4bOOa7JCvpY+o5U=
-X-Google-Smtp-Source: APXvYqwSHmzMs89oPrC2mo0cPIKVAkb2F9Ln2a5cPO2U0/JORRLOHxSXJwFKQGFE12cP6dDufj9BgA==
-X-Received: by 2002:a17:902:e407:: with SMTP id ci7mr20821703plb.326.1566406971488;
-        Wed, 21 Aug 2019 10:02:51 -0700 (PDT)
-Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id b18sm15151398pfi.128.2019.08.21.10.02.50
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 21 Aug 2019 10:02:50 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>,
-	virtualization@lists.linux-foundation.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Nadav Amit <namit@vmware.com>,
-	David Hildenbrand <david@redhat.com>
-Subject: [PATCH v2] mm/balloon_compaction: Informative allocation warnings
-Date: Wed, 21 Aug 2019 02:41:59 -0700
-Message-Id: <20190821094159.40795-1-namit@vmware.com>
-X-Mailer: git-send-email 2.17.1
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.010679, version=1.2.4
+        h=x-gm-message-state:mime-version:from:date:message-id:subject:to;
+        bh=Pxcwkel5NwWC/EnzdY8s8ZGNQTQ4ddIIJy9odqHj+ng=;
+        b=KhDbdNEe7yoWYrYwi+SzT5nu81W7/qRAA9bFOucZ0ihkaZWBA1fgfEy3J3wHbZBYOC
+         istJeXGgoPVNfjpkSmJ/AN6HryUI6hgsyFp0qgnuYOz0q9O1sZdeGl6t2DpLvJ183k8k
+         suuSfPiLOdH2LU2DrUtIXR0kT4forwpFAnakEbt/ocAmiEcGJ/4sc3jr7aJOpLD/6def
+         8EKrEL7ivsP+d6rd45BPBNdqDNlNbTrllz7Zvvf3kEb1b5e0L8j9ytuB5x3dz9IFFqhR
+         dBdNUcAnZv4IvfOI2bvtnj1pLGimFoSsM8Mh9pnGXnjexE0wq268WdVVg01rpwnXKcZ/
+         o5AQ==
+X-Gm-Message-State: APjAAAWWNbcn6Ltgn6a8lskhWrfaGmSMVUVn4pEzb7tYZi4HWccaeH4n
+	UME4O9MDoII47aKNhzbdsaa6lCujzaxz8jkldtjW5GjM
+X-Google-Smtp-Source: APXvYqyMzkhPzyCZLWHxOofE+fk8Owoq9XFGZcMw+ob35QeKDQqZ9+C3u7/Qy9+/seM1s+2aPgzbqWOx4vxXoC2FKis=
+X-Received: by 2002:a67:f450:: with SMTP id r16mr22270739vsn.119.1566408491894;
+ Wed, 21 Aug 2019 10:28:11 -0700 (PDT)
+MIME-Version: 1.0
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Wed, 21 Aug 2019 22:58:03 +0530
+Message-ID: <CACDBo56W1JGOc6w-NAf-hyWwJQ=vEDsAVAkO8MLLJBpQ0FTAcA@mail.gmail.com>
+Subject: How cma allocation works ?
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, pankaj.suryawanshi@einfochips.com
+Content-Type: multipart/alternative; boundary="000000000000bb8d2b0590a3e5a9"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.074812, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is no reason to print generic warnings when balloon memory
-allocation fails, as failures are expected and can be handled
-gracefully. Since VMware balloon now uses balloon-compaction
-infrastructure, and suppressed these warnings before, it is also
-beneficial to suppress these warnings to keep the same behavior that the
-balloon had before.
+--000000000000bb8d2b0590a3e5a9
+Content-Type: text/plain; charset="UTF-8"
 
-Since such warnings can still be useful to indicate that the balloon is
-over-inflated, print more informative and less frightening warning if
-allocation fails instead.
+Hello,
 
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>
-Signed-off-by: Nadav Amit <namit@vmware.com>
+Hard time to understand cma allocation how differs from normal allocation ?
 
----
+I know theoretically how cma works.
 
-v1->v2:
-  * Print informative warnings instead suppressing [David]
----
- mm/balloon_compaction.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+1. How it reserved the memory (start pfn to end pfn) ? what is bitmap_*
+functions ?
+2. How alloc_contig_range() works ? it isolate all the pages including
+unevictable pages, what is the practical work flow ? all this works with
+virtual pages or physical pages ?
+3.what start_isolate_page_range() does ?
+4. what alloc_contig_migrate_range does() ?
+5.what isolate_migratepages_range(), reclaim_clean_pages_from_list(),
+ migrate_pages() and shrink_page_list() is doing ?
 
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 798275a51887..0c1d1f7689f0 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -124,7 +124,12 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
- struct page *balloon_page_alloc(void)
- {
- 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
--				       __GFP_NOMEMALLOC | __GFP_NORETRY);
-+				       __GFP_NOMEMALLOC | __GFP_NORETRY |
-+				       __GFP_NOWARN);
-+
-+	if (!page)
-+		pr_warn_ratelimited("memory balloon: memory allocation failed");
-+
- 	return page;
- }
- EXPORT_SYMBOL_GPL(balloon_page_alloc);
--- 
-2.17.1
+Please let me know the flow with simple example.
 
+Regards,
+Pankaj
+
+--000000000000bb8d2b0590a3e5a9
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hello,<br><br>Hard time to understand cma allocation how d=
+iffers from normal allocation ?<br><br>I know theoretically how cma works.<=
+br>=C2=A0<br>1. How it reserved the memory (start pfn to end pfn) ? what is=
+ bitmap_* functions ?<br>2. How alloc_contig_range() works ? it isolate all=
+ the pages including unevictable pages, what is the practical work flow ? a=
+ll this works with virtual pages or physical pages ?<br>3.what start_isolat=
+e_page_range() does ?<br>4. what alloc_contig_migrate_range does() ?<br>5.w=
+hat isolate_migratepages_range(), reclaim_clean_pages_from_list(), =C2=A0mi=
+grate_pages() and shrink_page_list() is doing ?<br><br>Please let me know t=
+he flow with simple example.<br><br>Regards,<br>Pankaj</div>
+
+--000000000000bb8d2b0590a3e5a9--
 
