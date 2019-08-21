@@ -2,128 +2,108 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A00CC3A5A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:04:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75809C3A5A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:07:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E226822CF7
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:04:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2F7EE2332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:07:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ejyl/X8L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E226822CF7
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="d8Q/64LQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F7EE2332A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 93C546B0287; Wed, 21 Aug 2019 00:04:02 -0400 (EDT)
+	id D112A6B028D; Wed, 21 Aug 2019 00:07:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8DA1C6B028B; Wed, 21 Aug 2019 00:04:02 -0400 (EDT)
+	id CC25B6B028E; Wed, 21 Aug 2019 00:07:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C27F6B0289; Wed, 21 Aug 2019 00:04:02 -0400 (EDT)
+	id BFF336B028F; Wed, 21 Aug 2019 00:07:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
-	by kanga.kvack.org (Postfix) with ESMTP id 29EDF6B0288
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:04:02 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 71270877A
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:04:01 +0000 (UTC)
-X-FDA: 75845091882.08.dock18_22c481df94d2d
-X-HE-Tag: dock18_22c481df94d2d
-X-Filterd-Recvd-Size: 3979
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:03:58 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5cc2ad0002>; Tue, 20 Aug 2019 21:03:57 -0700
+Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
+	by kanga.kvack.org (Postfix) with ESMTP id A22306B028D
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:07:23 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 0E3D987CC
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:07:23 +0000 (UTC)
+X-FDA: 75845100366.22.badge68_4066fccd5c533
+X-HE-Tag: badge68_4066fccd5c533
+X-Filterd-Recvd-Size: 3345
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:07:22 +0000 (UTC)
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5cc3790000>; Tue, 20 Aug 2019 21:07:22 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Tue, 20 Aug 2019 21:03:57 -0700
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 20 Aug 2019 21:07:21 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Tue, 20 Aug 2019 21:03:57 -0700
-Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
- 2019 04:03:57 +0000
-Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Wed, 21 Aug 2019 04:03:57 +0000
-Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d5cc2ac0001>; Tue, 20 Aug 2019 21:03:56 -0700
-From: John Hubbard <jhubbard@nvidia.com>
+	by hqpgpgate101.nvidia.com on Tue, 20 Aug 2019 21:07:21 -0700
+Received: from DRHQMAIL107.nvidia.com (10.27.9.16) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
+ 2019 04:07:20 +0000
+Received: from [10.2.161.11] (172.20.13.39) by DRHQMAIL107.nvidia.com
+ (10.27.9.16) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
+ 2019 04:07:20 +0000
+Subject: disregard: [PATCH 1/4] checkpatch: revert broken NOTIFIER_HEAD check
 To: Andrew Morton <akpm@linux-foundation.org>
 CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
 	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
 	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
 	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
 	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH 2/4] For Ira: tiny formatting tweak to kerneldoc
-Date: Tue, 20 Aug 2019 21:03:53 -0700
-Message-ID: <20190821040355.19566-2-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.22.1
-In-Reply-To: <20190821040355.19566-1-jhubbard@nvidia.com>
+	<linux-rdma@vger.kernel.org>, Andy Whitcroft <apw@canonical.com>, Joe Perches
+	<joe@perches.com>, Gilad Ben-Yossef <gilad@benyossef.com>, Ofir Drang
+	<ofir.drang@arm.com>
 References: <20190821040355.19566-1-jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <7148f0a6-ee20-7c89-e11b-8ffe3053430b@nvidia.com>
+Date: Tue, 20 Aug 2019 21:05:28 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain
+In-Reply-To: <20190821040355.19566-1-jhubbard@nvidia.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ DRHQMAIL107.nvidia.com (10.27.9.16)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566360237; bh=N6ccyzf5PMKW+koaJVWa/WJ5yd4Gtcd+1v71ttVDCNg=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
-	 Content-Transfer-Encoding:Content-Type;
-	b=ejyl/X8LGp01d3V/HJlJwY+MWLCCvGZ39TTEg9R9pYbOpOmFI0ccB+jQnpnh9VgIH
-	 dhWOd9LD5FqATRk2iyAHYsquSGNX0Xo2wNigIAsNVWdBCRelcHUQQsxpIQxXl0Rs3j
-	 aJKpdDavlZNbpn9cPq29Qnxefgfefjf45gDj4mhxS9r1YIpIiIiRhBbZyOALotnhL/
-	 zCqK+dG9WRz+1OGythS2WTZ2NiWsRhGnj9KI4bY1dIRXHMU9RMxxX2OYaE9obDVejW
-	 OYakeTAaS4XHjrpRPDWfyhbjQJ5nbOyzY6cO75mhq/xJwCHEtDrt8CK+tNaRkhsIpa
-	 pEMwZF6ZD4oTQ==
+	t=1566360442; bh=U6dFw5Ws7lt4i7y6B6eLJLXyO1E1XavUXw1yA0J+5V0=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=d8Q/64LQQmKuu3Q/qqnYCaLIetEHHMn3CaRH8dQ+Dqtbyg3M2by6NErdaqlxzy9S3
+	 kb36YXBNUxf9kos4quc3VXSjz164OkNdfXhdyRA7zI0AsY31k1iC6v7pjxaW5GnRmF
+	 Qu3bihEc9KQZTRDK8FxQcpuhg+lzkLVUIk8C2oBCklzVIatxXjgWe7Xe/Sb4fVfkDp
+	 58QDCDYHT//I3TKAyic8P/sPKF9KVZRRfglG21DXObEiHYpQeUuibUs8GW0haa/87m
+	 1YAfOryUurxDfIocVUNq87rgMdYBeJsXkPxtHZcohRu1S3Ip2m29yWb8sEi9Fw0TnP
+	 BpZ4aPPEzaH3A==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For your vaddr_pin_pages() and vaddr_unpin_pages().
-Just merge it into wherever it goes please. Didn't want to
-cause merge problems so it's a separate patch-let.
+On 8/20/19 9:03 PM, John Hubbard wrote:
+> commit 1a47005dd5aa ("checkpatch: add *_NOTIFIER_HEAD as var
+> definition") causes the following warning when run on some
+> patches:
+> 
 
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- mm/gup.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Please disregard this series. It's stale.
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 56421b880325..e49096d012ea 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2465,7 +2465,7 @@ int get_user_pages_fast(unsigned long start, int nr_p=
-ages,
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
-=20
- /**
-- * vaddr_pin_pages pin pages by virtual address and return the pages to th=
-e
-+ * vaddr_pin_pages() - pin pages by virtual address and return the pages t=
-o the
-  * user.
-  *
-  * @addr: start address
-@@ -2505,7 +2505,7 @@ long vaddr_pin_pages(unsigned long addr, unsigned lon=
-g nr_pages,
- EXPORT_SYMBOL(vaddr_pin_pages);
-=20
- /**
-- * vaddr_unpin_pages - counterpart to vaddr_pin_pages
-+ * vaddr_unpin_pages() - counterpart to vaddr_pin_pages
-  *
-  * @pages: array of pages returned
-  * @nr_pages: number of pages in pages
---=20
-2.22.1
-
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
