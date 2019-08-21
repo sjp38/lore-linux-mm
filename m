@@ -7,69 +7,69 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46535C3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A906BC41514
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00EAB2339F
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6C9A32339E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="X2bYtpl7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00EAB2339F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="VGVxsXxZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C9A32339E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B4F96B000C; Wed, 21 Aug 2019 14:32:10 -0400 (EDT)
+	id 536C46B000D; Wed, 21 Aug 2019 14:32:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8436F6B000D; Wed, 21 Aug 2019 14:32:10 -0400 (EDT)
+	id 498236B0010; Wed, 21 Aug 2019 14:32:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 690D26B000E; Wed, 21 Aug 2019 14:32:10 -0400 (EDT)
+	id 2C3F66B0266; Wed, 21 Aug 2019 14:32:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0025.hostedemail.com [216.40.44.25])
-	by kanga.kvack.org (Postfix) with ESMTP id 45A8D6B000C
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:32:10 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 00214181AC9D3
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:09 +0000 (UTC)
-X-FDA: 75847279620.15.smoke58_2ffac37e06530
-X-HE-Tag: smoke58_2ffac37e06530
-X-Filterd-Recvd-Size: 5875
-Received: from mail-qk1-f195.google.com (mail-qk1-f195.google.com [209.85.222.195])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:09 +0000 (UTC)
-Received: by mail-qk1-f195.google.com with SMTP id w18so2748375qki.0
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:32:09 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
+	by kanga.kvack.org (Postfix) with ESMTP id 0273D6B000D
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:32:11 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id B03F255FB7
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:11 +0000 (UTC)
+X-FDA: 75847279662.02.land32_30373b24f7b43
+X-HE-Tag: land32_30373b24f7b43
+X-Filterd-Recvd-Size: 5472
+Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:11 +0000 (UTC)
+Received: by mail-qt1-f196.google.com with SMTP id q4so4284194qtp.1
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:32:10 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=from:to:subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sBcmTKCPArGqx1dLEuzw7dGqn3biKX2D2IdqnHxnWGU=;
-        b=X2bYtpl73i+ZQotUx4rPisykcv7elNg3338iVDx51XS8IAesuAET+FJOq1+cDPHG3r
-         9rXZdHhqVDL3/xQGl5vT6Oz1ojz+sochUryLWNC1UkgH72k4uApv4TU3RPAclgoyyqhi
-         PtlrcnmGLE9h7VsHDPnkFYU5m0ABJTH/PIiWiIwSHa0+lVdUA+kmwFkX7o0khAOFTlSO
-         mjutz0tdYRK2G5NUrq7EhUcZ2mAb37l6c2Nnbno0RHr3dhJsbHYDZXP896fB8kwPSIjI
-         1XE3mEsJ/pqIbN/NdSziIya/6qdVEfThdKypQFpVlOqjbOH3B1UilgXm0yfhqpBaYVAs
-         eABw==
+        bh=eQcqgkViU39lFjlil3M8Svf5iGtzpDKWpUSwhlO3OFw=;
+        b=VGVxsXxZVLgXe5xWt0w3J/cqZt4mPm3JCoyIMlx5/qCn3/rV+mpLZawysJ4O+rAw6f
+         rcWCltuXomYefOmYS9boAk8MlSKZLFLpez1T2eU5UAOqBtCk+eYnrncQN08lpCSdkGyf
+         PIsqybRE87/1zUPakM9BVxyUVwgSzcG8e5BR8hciBGCYtpef1hxwksC/bkTpUh63Nu1z
+         r0dkWmNaCt6fZ3R/kbEqGqQMcBBJJlmFx2gVi5g4eCZFia+JeGbvB2BJNqBqglpwB9Jf
+         fmNp4wajHEt1++t2qwnHfsKFYrMhCXmXUTxxMoR3CJGBHUqEsKoJ+KSJJuoJouAB+CBk
+         jgnw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=sBcmTKCPArGqx1dLEuzw7dGqn3biKX2D2IdqnHxnWGU=;
-        b=sxOOjn32+dr02PkBBv8amFmCJkfJbvnCYdfcWocnVMfDFYCPogFOTONeNoqAVXP6j8
-         dBrCKi2DyUpnxWYSnsOW6ri7QEEqvoEOUlN7Orn2VaKvAMGqDtsEdAdyyD5/bD9/69QU
-         iCG2uGRbYOlcqmVq69zXTpAVSF7wy0lYXScRMdbg0oZMnoL4rnJoHEvpQH9Nybme+sD/
-         ZRfMWgF7bD09Lqidyl1O3ZkGqNzBChsunb6nvmtWtGNUUVtjuVXNlOhyzn1jmxr6RNlS
-         vFrmWsreeCfIIpFxe4nAFwcmIuM8l0ycgf4//CJGglhqAZdX1QkYu2ie7Iu85PiwSZjJ
-         7dNw==
-X-Gm-Message-State: APjAAAUV6DdYhdfCh88jMPHEKTvrRrihnltlykmRYhpDpcFtOwS1J5kD
-	r6CPov5vHObRRUci9aT01v4k+A==
-X-Google-Smtp-Source: APXvYqwTD5jDmCNqAlhQx5bPMjXa8Ne5sUA8XkdytBk284LEJsuvSjr3IvAfqjwgKcf+e9prxBD89g==
-X-Received: by 2002:a37:6290:: with SMTP id w138mr31111453qkb.139.1566412329038;
-        Wed, 21 Aug 2019 11:32:09 -0700 (PDT)
+        bh=eQcqgkViU39lFjlil3M8Svf5iGtzpDKWpUSwhlO3OFw=;
+        b=qGjzQAO31ny4da07mv79yL7uIOZ7aU+O5VtwwSpvUDzw2NI0woAyfriBrbVH7f0yTf
+         MT8JyQUSA6M4+EZKhcnnoGrCLlAs+RXDl/vGhOU70+WS3iw0nexiIDa5BD5k99zrgLiI
+         vAaVpnUxz7+HEaT8oCoPOxfRcfJEJvvZA7wbJ3Ivo9x7+lYEHU1WkID/ZhORZ8jmSTkT
+         60DEPt3pkYTD111xI3m5OSHI3DKz3Qe7zpPr2NCWmZeM9H6n1TlBipLEADBqpXQZiR7q
+         /LJeRazYzN/ADHNX/KsHW0TNH8Ts005X3uXi/1sMHWZ9L+xKgoXCUXCxCfhwrq4ibKFM
+         RLEQ==
+X-Gm-Message-State: APjAAAU6ZMuYp9UGUTp3vx9odtdvkN66uIMGhOKBTmCWA2RNApVNhDp1
+	xRk4CemDseZTak0V2cNFL2NWwg==
+X-Google-Smtp-Source: APXvYqyiSUshBCv3Qv8uDRoW17fIP4H2R6mRVwcxyZZdx7O0GxR1GLWG+PqB5n8Xzz5Ldks8Zgr+lA==
+X-Received: by 2002:a0c:8910:: with SMTP id 16mr19279920qvp.55.1566412330418;
+        Wed, 21 Aug 2019 11:32:10 -0700 (PDT)
 Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
-        by smtp.gmail.com with ESMTPSA id q13sm10443332qkm.120.2019.08.21.11.32.07
+        by smtp.gmail.com with ESMTPSA id q13sm10443332qkm.120.2019.08.21.11.32.09
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 21 Aug 2019 11:32:08 -0700 (PDT)
+        Wed, 21 Aug 2019 11:32:09 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
 To: pasha.tatashin@soleen.com,
 	jmorris@namei.org,
@@ -88,9 +88,9 @@ To: pasha.tatashin@soleen.com,
 	bhsharma@redhat.com,
 	linux-mm@kvack.org,
 	mark.rutland@arm.com
-Subject: [PATCH v3 02/17] arm64, hibernate: use get_safe_page directly
-Date: Wed, 21 Aug 2019 14:31:49 -0400
-Message-Id: <20190821183204.23576-3-pasha.tatashin@soleen.com>
+Subject: [PATCH v3 03/17] arm64, hibernate: remove gotos in create_safe_exec_page
+Date: Wed, 21 Aug 2019 14:31:50 -0400
+Message-Id: <20190821183204.23576-4-pasha.tatashin@soleen.com>
 X-Mailer: git-send-email 2.23.0
 In-Reply-To: <20190821183204.23576-1-pasha.tatashin@soleen.com>
 References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
@@ -102,87 +102,91 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-create_safe_exec_page is a local function that uses the
-get_safe_page() to allocate page table and pages and one pages
-that is getting mapped.
-
-Remove the allocator related arguments, and use get_safe_page
-directly, as it is done in other local functions in this
-file.
+Usually, gotos are used to handle cleanup after exception, but
+in case of create_safe_exec_page there are no clean-ups. So,
+simply return the errors directly.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 ---
- arch/arm64/kernel/hibernate.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ arch/arm64/kernel/hibernate.c | 28 +++++++++-------------------
+ 1 file changed, 9 insertions(+), 19 deletions(-)
 
 diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.=
 c
-index 9341fcc6e809..4bb4d17a6a7c 100644
+index 4bb4d17a6a7c..c8211108ec11 100644
 --- a/arch/arm64/kernel/hibernate.c
 +++ b/arch/arm64/kernel/hibernate.c
-@@ -196,16 +196,14 @@ EXPORT_SYMBOL(arch_hibernation_header_restore);
-  */
- static int create_safe_exec_page(void *src_start, size_t length,
+@@ -198,17 +198,14 @@ static int create_safe_exec_page(void *src_start, s=
+ize_t length,
  				 unsigned long dst_addr,
--				 phys_addr_t *phys_dst_addr,
--				 void *(*allocator)(gfp_t mask),
--				 gfp_t mask)
-+				 phys_addr_t *phys_dst_addr)
+ 				 phys_addr_t *phys_dst_addr)
  {
- 	int rc =3D 0;
+-	int rc =3D 0;
  	pgd_t *pgdp;
  	pud_t *pudp;
  	pmd_t *pmdp;
  	pte_t *ptep;
--	unsigned long dst =3D (unsigned long)allocator(mask);
-+	unsigned long dst =3D get_safe_page(GFP_ATOMIC);
+ 	unsigned long dst =3D get_safe_page(GFP_ATOMIC);
 =20
- 	if (!dst) {
- 		rc =3D -ENOMEM;
-@@ -215,9 +213,9 @@ static int create_safe_exec_page(void *src_start, siz=
-e_t length,
+-	if (!dst) {
+-		rc =3D -ENOMEM;
+-		goto out;
+-	}
++	if (!dst)
++		return -ENOMEM;
+=20
  	memcpy((void *)dst, src_start, length);
  	__flush_icache_range(dst, dst + length);
-=20
--	pgdp =3D pgd_offset_raw(allocator(mask), dst_addr);
-+	pgdp =3D pgd_offset_raw((void *)get_safe_page(GFP_ATOMIC), dst_addr);
+@@ -216,30 +213,24 @@ static int create_safe_exec_page(void *src_start, s=
+ize_t length,
+ 	pgdp =3D pgd_offset_raw((void *)get_safe_page(GFP_ATOMIC), dst_addr);
  	if (pgd_none(READ_ONCE(*pgdp))) {
--		pudp =3D allocator(mask);
-+		pudp =3D (void *)get_safe_page(GFP_ATOMIC);
- 		if (!pudp) {
- 			rc =3D -ENOMEM;
- 			goto out;
-@@ -227,7 +225,7 @@ static int create_safe_exec_page(void *src_start, siz=
-e_t length,
+ 		pudp =3D (void *)get_safe_page(GFP_ATOMIC);
+-		if (!pudp) {
+-			rc =3D -ENOMEM;
+-			goto out;
+-		}
++		if (!pudp)
++			return -ENOMEM;
+ 		pgd_populate(&init_mm, pgdp, pudp);
+ 	}
 =20
  	pudp =3D pud_offset(pgdp, dst_addr);
  	if (pud_none(READ_ONCE(*pudp))) {
--		pmdp =3D allocator(mask);
-+		pmdp =3D (void *)get_safe_page(GFP_ATOMIC);
- 		if (!pmdp) {
- 			rc =3D -ENOMEM;
- 			goto out;
-@@ -237,7 +235,7 @@ static int create_safe_exec_page(void *src_start, siz=
-e_t length,
+ 		pmdp =3D (void *)get_safe_page(GFP_ATOMIC);
+-		if (!pmdp) {
+-			rc =3D -ENOMEM;
+-			goto out;
+-		}
++		if (!pmdp)
++			return -ENOMEM;
+ 		pud_populate(&init_mm, pudp, pmdp);
+ 	}
 =20
  	pmdp =3D pmd_offset(pudp, dst_addr);
  	if (pmd_none(READ_ONCE(*pmdp))) {
--		ptep =3D allocator(mask);
-+		ptep =3D (void *)get_safe_page(GFP_ATOMIC);
- 		if (!ptep) {
- 			rc =3D -ENOMEM;
- 			goto out;
-@@ -523,8 +521,7 @@ int swsusp_arch_resume(void)
- 	 */
- 	rc =3D create_safe_exec_page(__hibernate_exit_text_start, exit_size,
- 				   (unsigned long)hibernate_exit,
--				   &phys_hibernate_exit,
--				   (void *)get_safe_page, GFP_ATOMIC);
-+				   &phys_hibernate_exit);
- 	if (rc) {
- 		pr_err("Failed to create safe executable page for hibernate_exit code.=
-\n");
- 		goto out;
+ 		ptep =3D (void *)get_safe_page(GFP_ATOMIC);
+-		if (!ptep) {
+-			rc =3D -ENOMEM;
+-			goto out;
+-		}
++		if (!ptep)
++			return -ENOMEM;
+ 		pmd_populate_kernel(&init_mm, pmdp, ptep);
+ 	}
+=20
+@@ -265,8 +256,7 @@ static int create_safe_exec_page(void *src_start, siz=
+e_t length,
+=20
+ 	*phys_dst_addr =3D virt_to_phys((void *)dst);
+=20
+-out:
+-	return rc;
++	return 0;
+ }
+=20
+ #define dcache_clean_range(start, end)	__flush_dcache_area(start, (end -=
+ start))
 --=20
 2.23.0
 
