@@ -2,155 +2,137 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0727C3A5A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:06:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E44A3C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:16:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EA7522D6D
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:06:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EA7522D6D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9C41C22CE3
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:16:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lecystT5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C41C22CE3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37D096B0307; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
+	id 375216B0309; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32F1D6B0308; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
+	id 325C96B030A; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CFCD6B0309; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
+	id 1ED366B030B; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0209.hostedemail.com [216.40.44.209])
-	by kanga.kvack.org (Postfix) with ESMTP id EF17E6B0307
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:06:00 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 6F907BF05
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:06:00 +0000 (UTC)
-X-FDA: 75846911280.28.tooth04_5177b4d95f433
-X-HE-Tag: tooth04_5177b4d95f433
-X-Filterd-Recvd-Size: 6280
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 102D630832DC;
-	Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
-Received: from [10.36.118.29] (unknown [10.36.118.29])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7AAF460603;
-	Wed, 21 Aug 2019 16:05:55 +0000 (UTC)
-Subject: Re: [PATCH] mm/balloon_compaction: suppress allocation warnings
-To: Nadav Amit <namit@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>,
- virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190820091646.29642-1-namit@vmware.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
-Date: Wed, 21 Aug 2019 18:05:54 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0014.hostedemail.com [216.40.44.14])
+	by kanga.kvack.org (Postfix) with ESMTP id ECCBD6B0309
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:16:37 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 97B428248ABD
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:16:37 +0000 (UTC)
+X-FDA: 75846938034.01.earth80_1cad7df7d9f39
+X-HE-Tag: earth80_1cad7df7d9f39
+X-Filterd-Recvd-Size: 4976
+Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:16:36 +0000 (UTC)
+Received: by mail-qt1-f193.google.com with SMTP id x4so3707911qts.5
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 09:16:36 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=rSelPuss6Rio+zLxmeT3lHQjONOPz6ghCteSl79uvc4=;
+        b=lecystT5pa2A6yo8Axdj1KSsLU40VESQnnpU2Rk1L1SzDdZmYUbd4PsiNU+5iLOE7j
+         zbD6bbLCGebQwx9lcXa2B+HW9DoD5q7uBa/gZ7ygQPx77wQQIQ1GmTexMMrPCdK7kyCX
+         dcyjDO+jw/ZpT3eBIlbTDS/F9lvZmJkfsIhEr9N+LJxXNscIOIrGwF+RrgQg/pAcfw/v
+         C6mD6PK7XpC9IuEvG2lpMuOD0oHl5qpDhT5vYuAjCVMq7SKO6jJn1/Yli0UUb+PtB3VS
+         3uspvkistGavDwQta/lD1VQQk7IwUnquCu4OISrFvHvchWTZq1eeFmMkErGSgo9qyGp1
+         hN0Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=rSelPuss6Rio+zLxmeT3lHQjONOPz6ghCteSl79uvc4=;
+        b=WWTNIH8auNfuJDRDUXNAA1Q9mt9hEf1JxaUpcGMdhT1GdFVJJxmijYXcTKg2C3mlzL
+         68Kz6gCtPGSG+INWmc2HQ4/3mBMKdpDjMQ8+FEtlg5bMUjthtgFGqZMRp539KmcNzw2d
+         rbCCxx5UwLi383F5YNnS8ZBvgOHBQkg8iYr8mLgzU6x2MvjNwliRH0cHfSpHHbtjWbTY
+         B4hia7rDiTRCwS5yiTZLb6m3xCW2et1spDRzSG4O43loi073z2JRdXFO9VTjzjTpogzP
+         KDVMdDj4p68DvWE4u7UphTanitThh7PGiB1Ov3PI6kapn1L3TbX9Chq7wFnmabjIeeUg
+         NtwQ==
+X-Gm-Message-State: APjAAAVBXbHXkEhJjyw7UxyTXboMReRFmWAdLF/hCxbqJnbIejI3Qnh4
+	zbY7ACfDcodSHVg2Q6/geiFVnQ==
+X-Google-Smtp-Source: APXvYqypokR94+w8NKN6DkdxQ9oFTavnyiG1VlybQkUXWne93Jd3wfqkFsQtWY3s57Jl+U7ZTrZ3aQ==
+X-Received: by 2002:ac8:7696:: with SMTP id g22mr31568522qtr.208.1566404196241;
+        Wed, 21 Aug 2019 09:16:36 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id y194sm10143420qkb.111.2019.08.21.09.16.35
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 21 Aug 2019 09:16:35 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1i0THn-0008UM-3g; Wed, 21 Aug 2019 13:16:35 -0300
+Date: Wed, 21 Aug 2019 13:16:35 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 4/4] mm, notifier: Catch sleeping/blocking for !blockable
+Message-ID: <20190821161635.GC8653@ziepe.ca>
+References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
+ <20190820081902.24815-5-daniel.vetter@ffwll.ch>
+ <20190820133418.GG29246@ziepe.ca>
+ <20190820151810.GG11147@phenom.ffwll.local>
+ <20190821154151.GK11147@phenom.ffwll.local>
 MIME-Version: 1.0
-In-Reply-To: <20190820091646.29642-1-namit@vmware.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190821154151.GK11147@phenom.ffwll.local>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 20.08.19 11:16, Nadav Amit wrote:
-> There is no reason to print warnings when balloon page allocation fails,
-> as they are expected and can be handled gracefully.  Since VMware
-> balloon now uses balloon-compaction infrastructure, and suppressed these
-> warnings before, it is also beneficial to suppress these warnings to
-> keep the same behavior that the balloon had before.
+On Wed, Aug 21, 2019 at 05:41:51PM +0200, Daniel Vetter wrote:
 
-I am not sure if that's a good idea. The allocation warnings are usually
-the only trace of "the user/admin did something bad because he/she tried
-to inflate the balloon to an unsafe value". Believe me, I processed a
-couple of such bugreports related to virtio-balloon and the warning were
-very helpful for that.
-
+> > Hm, I thought the page table locks we're holding there already prevent any
+> > sleeping, so would be redundant? But reading through code I think that's
+> > not guaranteed, so yeah makes sense to add it for invalidate_range_end
+> > too. I'll respin once I have the ack/nack from scheduler people.
 > 
-> Cc: Jason Wang <jasowang@redhat.com>
-> Signed-off-by: Nadav Amit <namit@vmware.com>
-> ---
->  mm/balloon_compaction.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> index 798275a51887..26de020aae7b 100644
-> --- a/mm/balloon_compaction.c
-> +++ b/mm/balloon_compaction.c
-> @@ -124,7 +124,8 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
->  struct page *balloon_page_alloc(void)
->  {
->  	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
-> +				       __GFP_NOMEMALLOC | __GFP_NORETRY |
-> +				       __GFP_NOWARN);
->  	return page;
->  }
->  EXPORT_SYMBOL_GPL(balloon_page_alloc);
-> 
+> So I started to look into this, and I'm a bit confused. There's no
+> _nonblock version of this, so does this means blocking is never allowed,
+> or always allowed?
 
+RDMA has a mutex:
 
--- 
+ib_umem_notifier_invalidate_range_end
+  rbt_ib_umem_for_each_in_range
+   invalidate_range_start_trampoline
+    ib_umem_notifier_end_account
+      mutex_lock(&umem_odp->umem_mutex);
 
-Thanks,
+I'm working to delete this path though!
 
-David / dhildenb
+nonblocking or not follows the start, the same flag gets placed into
+the mmu_notifier_range struct passed to end.
+
+> From a quick look through implementations I've only seen spinlocks, and
+> one up_read. So I guess I should wrape this callback in some unconditional
+> non_block_start/end, but I'm not sure.
+
+For now, we should keep it the same as start, conditionally blocking.
+
+Hopefully before LPC I can send a RFC series that eliminates most
+invalidate_range_end users in favor of common locking..
+
+Jason
 
