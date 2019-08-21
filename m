@@ -2,182 +2,200 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84296C3A5A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:06:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69544C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:06:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5068622D6D
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:06:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5068622D6D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2AEFA22D6D
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:06:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AEFA22D6D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DCAF46B0292; Wed, 21 Aug 2019 15:06:16 -0400 (EDT)
+	id D7CAF6B0294; Wed, 21 Aug 2019 15:06:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7BF76B0293; Wed, 21 Aug 2019 15:06:16 -0400 (EDT)
+	id CDF896B0295; Wed, 21 Aug 2019 15:06:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6AAD6B0294; Wed, 21 Aug 2019 15:06:16 -0400 (EDT)
+	id BCE1A6B0296; Wed, 21 Aug 2019 15:06:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0072.hostedemail.com [216.40.44.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A987B6B0292
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:06:16 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 5E1008248AB8
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:06:16 +0000 (UTC)
-X-FDA: 75847365552.30.hair53_36a9804d0b203
-X-HE-Tag: hair53_36a9804d0b203
-X-Filterd-Recvd-Size: 7228
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:06:15 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 529B610F23EC;
-	Wed, 21 Aug 2019 19:06:14 +0000 (UTC)
-Received: from [10.36.118.29] (unknown [10.36.118.29])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5480310027B9;
-	Wed, 21 Aug 2019 19:06:08 +0000 (UTC)
-Subject: Re: [PATCH v2] mm/balloon_compaction: Informative allocation warnings
-To: Nadav Amit <namit@vmware.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
- "virtualization@lists.linux-foundation.org"
- <virtualization@lists.linux-foundation.org>, Linux-MM <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-References: <20190821094159.40795-1-namit@vmware.com>
- <75ff92c2-7ae2-c4a6-cd1f-44741e29d20e@redhat.com>
- <4E10A342-9A51-4C1F-8E5A-8005AACEF4CE@vmware.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <497b1189-8e1d-2926-ee5e-9077fcceb04b@redhat.com>
-Date: Wed, 21 Aug 2019 21:06:07 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0166.hostedemail.com [216.40.44.166])
+	by kanga.kvack.org (Postfix) with ESMTP id 937706B0294
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:06:29 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 53A7E8248AB8
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:06:29 +0000 (UTC)
+X-FDA: 75847366098.06.wire54_3880abe02f737
+X-HE-Tag: wire54_3880abe02f737
+X-Filterd-Recvd-Size: 6918
+Received: from mga05.intel.com (mga05.intel.com [192.55.52.43])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:06:28 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Aug 2019 12:06:26 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,412,1559545200"; 
+   d="scan'208";a="183631522"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga006.jf.intel.com with ESMTP; 21 Aug 2019 12:06:25 -0700
+Date: Wed, 21 Aug 2019 12:06:25 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190821190624.GC5965@iweiny-DESK2.sc.intel.com>
+References: <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
+ <20190819063412.GA20455@quack2.suse.cz>
+ <20190819092409.GM7777@dread.disaster.area>
+ <20190819123841.GC5058@ziepe.ca>
+ <20190820011210.GP7777@dread.disaster.area>
+ <20190820115515.GA29246@ziepe.ca>
+ <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
+ <20190821181343.GH8653@ziepe.ca>
+ <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <4E10A342-9A51-4C1F-8E5A-8005AACEF4CE@vmware.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.66]); Wed, 21 Aug 2019 19:06:14 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21.08.19 20:59, Nadav Amit wrote:
->> On Aug 21, 2019, at 11:57 AM, David Hildenbrand <david@redhat.com> wrote:
->>
->> On 21.08.19 11:41, Nadav Amit wrote:
->>> There is no reason to print generic warnings when balloon memory
->>> allocation fails, as failures are expected and can be handled
->>> gracefully. Since VMware balloon now uses balloon-compaction
->>> infrastructure, and suppressed these warnings before, it is also
->>> beneficial to suppress these warnings to keep the same behavior that the
->>> balloon had before.
->>>
->>> Since such warnings can still be useful to indicate that the balloon is
->>> over-inflated, print more informative and less frightening warning if
->>> allocation fails instead.
->>>
->>> Cc: David Hildenbrand <david@redhat.com>
->>> Cc: Jason Wang <jasowang@redhat.com>
->>> Signed-off-by: Nadav Amit <namit@vmware.com>
->>>
->>> ---
->>>
->>> v1->v2:
->>>  * Print informative warnings instead suppressing [David]
->>> ---
->>> mm/balloon_compaction.c | 7 ++++++-
->>> 1 file changed, 6 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
->>> index 798275a51887..0c1d1f7689f0 100644
->>> --- a/mm/balloon_compaction.c
->>> +++ b/mm/balloon_compaction.c
->>> @@ -124,7 +124,12 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
->>> struct page *balloon_page_alloc(void)
->>> {
->>> 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
->>> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
->>> +				       __GFP_NOMEMALLOC | __GFP_NORETRY |
->>> +				       __GFP_NOWARN);
->>> +
->>> +	if (!page)
->>> +		pr_warn_ratelimited("memory balloon: memory allocation failed");
->>> +
->>> 	return page;
->>> }
->>> EXPORT_SYMBOL_GPL(balloon_page_alloc);
->>
->> Not sure if "memory balloon" is the right wording. hmmm.
->>
->> Acked-by: David Hildenbrand <david@redhat.com>
+On Wed, Aug 21, 2019 at 11:57:03AM -0700, 'Ira Weiny' wrote:
+> On Wed, Aug 21, 2019 at 03:13:43PM -0300, Jason Gunthorpe wrote:
+> > On Wed, Aug 21, 2019 at 11:02:00AM -0700, Ira Weiny wrote:
+> > > On Tue, Aug 20, 2019 at 08:55:15AM -0300, Jason Gunthorpe wrote:
+> > > > On Tue, Aug 20, 2019 at 11:12:10AM +1000, Dave Chinner wrote:
+> > > > > On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
+> > > > > > On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
+> > > > > > 
+> > > > > > > So that leaves just the normal close() syscall exit case, where the
+> > > > > > > application has full control of the order in which resources are
+> > > > > > > released. We've already established that we can block in this
+> > > > > > > context.  Blocking in an interruptible state will allow fatal signal
+> > > > > > > delivery to wake us, and then we fall into the
+> > > > > > > fatal_signal_pending() case if we get a SIGKILL while blocking.
+> > > > > > 
+> > > > > > The major problem with RDMA is that it doesn't always wait on close() for the
+> > > > > > MR holding the page pins to be destoyed. This is done to avoid a
+> > > > > > deadlock of the form:
+> > > > > > 
+> > > > > >    uverbs_destroy_ufile_hw()
+> > > > > >       mutex_lock()
+> > > > > >        [..]
+> > > > > >         mmput()
+> > > > > >          exit_mmap()
+> > > > > >           remove_vma()
+> > > > > >            fput();
+> > > > > >             file_operations->release()
+> > > > > 
+> > > > > I think this is wrong, and I'm pretty sure it's an example of why
+> > > > > the final __fput() call is moved out of line.
+> > > > 
+> > > > Yes, I think so too, all I can say is this *used* to happen, as we
+> > > > have special code avoiding it, which is the code that is messing up
+> > > > Ira's lifetime model.
+> > > > 
+> > > > Ira, you could try unraveling the special locking, that solves your
+> > > > lifetime issues?
+> > > 
+> > > Yes I will try to prove this out...  But I'm still not sure this fully solves
+> > > the problem.
+> > > 
+> > > This only ensures that the process which has the RDMA context (RDMA FD) is safe
+> > > with regard to hanging the close for the "data file FD" (the file which has
+> > > pinned pages) in that _same_ process.  But what about the scenario.
+> > 
+> > Oh, I didn't think we were talking about that. Hanging the close of
+> > the datafile fd contingent on some other FD's closure is a recipe for
+> > deadlock..
 > 
-> Do you have a better suggestion?
+> The discussion between Jan and Dave was concerning what happens when a user
+> calls
 > 
+> fd = open()
+> fnctl(...getlease...)
+> addr = mmap(fd...)
+> ib_reg_mr() <pin>
+> munmap(addr...)
+> close(fd)
+> 
+> Dave suggested:
+> 
+> "I'm of a mind to make the last close() on a file block if there's an
+> active layout lease to prevent processes from zombie-ing layout
+> leases like this. i.e. you can't close the fd until resources that
+> pin the lease have been released."
+> 
+> 	-- Dave https://lkml.org/lkml/2019/8/16/994
 
-Not really - that's why I ack'ed :)
+I think this may all be easier if there was a way to block a dup() if it comes
+from an SCM_RIGHTS.  Does anyone know if that is easy?  I assume it would just
+mean passing some flag through the dup() call chain.
 
-However, thinking about it - what about moving the check + print to the
-caller and then using dev_warn... or sth. like simple "virtio_balloon:
-..." ? You can then drop the warning for vmware balloon if you feel like
-not needing it.
+Jason, if we did that would it break RDMA use cases?  I personally don't know
+of any.  We could pass data back from vaddr_pin indicating that a file pin has
+been taken and predicate the blocking of SCM_RIGHTS on that? 
 
--- 
+Of course if the user called:
 
-Thanks,
+fd = open()
+fnctl(...getlease...)
+addr = mmap(fd...)
+ib_reg_mr() <pin>
+munmap(addr...)
+close(fd)
+fork() <=== in another thread because close is hanging
 
-David / dhildenb
+Would that dup() "fd" above into the child?  Or maybe that would be part of the
+work to make close() hang?  Ensure the fd/file is still in the FD table so it
+gets dupped???
+
+Ira
+
+
+> 
+> > 
+> > IMHO the pin refcnt is held by the driver char dev FD, that is the
+> > object you need to make it visible against.
+> 
+> I'm sorry but what do you mean by "driver char dev FD"?
+> 
+> > 
+> > Why not just have a single table someplace of all the layout leases
+> > with the file they are held on and the FD/socket/etc that is holding
+> > the pin? Make it independent of processes and FDs?
+> 
+> If it is independent of processes how will we know which process is blocking
+> the truncate?  Using a global table is an interesting idea but I still believe
+> the users are going to want to track this to specific processes.  It's not
+> clear to me how that would be done with a global table.
+> 
+> I agree the XDP/socket case is bothersome...  I was thinking that somewhere the
+> fd of the socket could be hooked up in this case.  But taking a look at it
+> reveals that is not going to be easy.  And I assume XDP has the same issue WRT
+> SCM_RIGHTS and the ability to share the xdp context?
+> 
+> Ira
+> 
+> > 
+> > Jason
 
