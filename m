@@ -2,103 +2,554 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5469EC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:35:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 407E0C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:52:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15AD52332A
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:35:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="FDrCB6hT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15AD52332A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E44BA22CF7
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:52:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E44BA22CF7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A66326B032C; Wed, 21 Aug 2019 13:35:08 -0400 (EDT)
+	id 7E7A26B032E; Wed, 21 Aug 2019 13:52:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A17346B032D; Wed, 21 Aug 2019 13:35:08 -0400 (EDT)
+	id 798116B032F; Wed, 21 Aug 2019 13:52:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9546E6B032E; Wed, 21 Aug 2019 13:35:08 -0400 (EDT)
+	id 686BF6B0330; Wed, 21 Aug 2019 13:52:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
-	by kanga.kvack.org (Postfix) with ESMTP id 7543E6B032C
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:35:08 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 32CF252D6
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:35:08 +0000 (UTC)
-X-FDA: 75847135896.05.doll56_8417a5e0d2e25
-X-HE-Tag: doll56_8417a5e0d2e25
-X-Filterd-Recvd-Size: 2922
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:35:07 +0000 (UTC)
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 809FC22D6D;
-	Wed, 21 Aug 2019 17:35:04 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566408906;
-	bh=oft2b/XAnOccaMbScogNYg5GBmBHqqVhsI2dgxn3frk=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=FDrCB6hTk4MgsFW5L7cH0WWv1uq0GK+uo0eFZhYt9jal412Ps88auo95YKLoSijfw
-	 HgXtwtGGfReUWAThdTALJejBZ+lacbpBcnlBxqFlBEMEGabf9izZNNuhKMhIsGOvzd
-	 P1qQJpo7fn1vTibgT7BoACw5MlbTwJ5/UqLgXc4M=
-Date: Wed, 21 Aug 2019 18:35:01 +0100
-From: Will Deacon <will@kernel.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Szabolcs Nagy <szabolcs.nagy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Dave P Martin <Dave.Martin@arm.com>,
-	Dave Hansen <dave.hansen@intel.com>, linux-doc@vger.kernel.org,
-	linux-arch@vger.kernel.org, Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v9 2/3] arm64: Define
- Documentation/arm64/tagged-address-abi.rst
-Message-ID: <20190821173501.brvyn5mm5oh6m2s7@willie-the-truck>
-References: <20190821164730.47450-1-catalin.marinas@arm.com>
- <20190821164730.47450-3-catalin.marinas@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E47A6B032E
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:52:24 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id D959D181AC9D3
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:52:23 +0000 (UTC)
+X-FDA: 75847179366.07.son15_893ad2860b204
+X-HE-Tag: son15_893ad2860b204
+X-Filterd-Recvd-Size: 17056
+Received: from relay.sw.ru (relay.sw.ru [185.231.240.75])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:52:22 +0000 (UTC)
+Received: from [172.16.25.5]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1i0UmE-0003cz-Ms; Wed, 21 Aug 2019 20:52:06 +0300
+Subject: Re: [PATCH v4] kasan: add memory corruption identification for
+ software tag-based mode
+To: Walter Wu <walter-zh.wu@mediatek.com>
+Cc: Alexander Potapenko <glider@google.com>,
+ Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
+ <matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
+ Thomas Gleixner <tglx@linutronix.de>, Vasily Gorbik <gor@linux.ibm.com>,
+ Andrey Konovalov <andreyknvl@google.com>,
+ Miles Chen <miles.chen@mediatek.com>, linux-kernel@vger.kernel.org,
+ kasan-dev@googlegroups.com, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org, linux-mediatek@lists.infradead.org,
+ wsd_upstream@mediatek.com
+References: <20190806054340.16305-1-walter-zh.wu@mediatek.com>
+ <1566279478.9993.21.camel@mtksdccf07>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <3318f9d7-a760-3cc8-b700-f06108ae745f@virtuozzo.com>
+Date: Wed, 21 Aug 2019 20:52:15 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190821164730.47450-3-catalin.marinas@arm.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000184, version=1.2.4
+In-Reply-To: <1566279478.9993.21.camel@mtksdccf07>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 21, 2019 at 05:47:29PM +0100, Catalin Marinas wrote:
-> From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> 
-> On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
-> (EL0) to perform memory accesses through 64-bit pointers with a non-zero
-> top byte. Introduce the document describing the relaxation of the
-> syscall ABI that allows userspace to pass certain tagged pointers to
-> kernel syscalls.
-> 
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
-> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
-> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> ---
->  Documentation/arm64/tagged-address-abi.rst | 156 +++++++++++++++++++++
->  1 file changed, 156 insertions(+)
->  create mode 100644 Documentation/arm64/tagged-address-abi.rst
 
-Thanks, I'll pick this on up.
 
-Will
+On 8/20/19 8:37 AM, Walter Wu wrote:
+> On Tue, 2019-08-06 at 13:43 +0800, Walter Wu wrote:
+>> This patch adds memory corruption identification at bug report for
+>> software tag-based mode, the report show whether it is "use-after-free"
+>> or "out-of-bound" error instead of "invalid-access" error. This will make
+>> it easier for programmers to see the memory corruption problem.
+>>
+>> We extend the slab to store five old free pointer tag and free backtrace,
+>> we can check if the tagged address is in the slab record and make a
+>> good guess if the object is more like "use-after-free" or "out-of-bound".
+>> therefore every slab memory corruption can be identified whether it's
+>> "use-after-free" or "out-of-bound".
+>>
+>> ====== Changes
+>> Change since v1:
+>> - add feature option CONFIG_KASAN_SW_TAGS_IDENTIFY.
+>> - change QUARANTINE_FRACTION to reduce quarantine size.
+>> - change the qlist order in order to find the newest object in quarantine
+>> - reduce the number of calling kmalloc() from 2 to 1 time.
+>> - remove global variable to use argument to pass it.
+>> - correct the amount of qobject cache->size into the byes of qlist_head.
+>> - only use kasan_cache_shrink() to shink memory.
+>>
+>> Change since v2:
+>> - remove the shinking memory function kasan_cache_shrink()
+>> - modify the description of the CONFIG_KASAN_SW_TAGS_IDENTIFY
+>> - optimize the quarantine_find_object() and qobject_free()
+>> - fix the duplicating function name 3 times in the header.
+>> - modify the function name set_track() to kasan_set_track()
+>>
+>> Change since v3:
+>> - change tag-based quarantine to extend slab to identify memory corruption
+> 
+> Hi,Andrey,
+> 
+> Would you review the patch,please?
+
+
+I didn't notice anything fundamentally wrong, but I find there are some
+questionable implementation choices that makes code look weirder than necessary
+and harder to understand. So I ended up with cleaning it up, see the diff bellow.
+I'll send v5 with that diff folded.
+
+
+
+
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index 26cb3bcc9258..6c9682ce0254 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -140,7 +140,7 @@ config KASAN_SW_TAGS_IDENTIFY
+ 	help
+ 	  This option enables best-effort identification of bug type
+ 	  (use-after-free or out-of-bounds) at the cost of increased
+-	  memory consumption for slab extending.
++	  memory consumption.
+ 
+ config TEST_KASAN
+ 	tristate "Module for testing KASAN for bug detection"
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index 2cdcb16b9c2d..6814d6d6a023 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -71,7 +71,7 @@ static inline depot_stack_handle_t save_stack(gfp_t flags)
+ 	return stack_depot_save(entries, nr_entries, flags);
+ }
+ 
+-void kasan_set_track(struct kasan_track *track, gfp_t flags)
++static inline void set_track(struct kasan_track *track, gfp_t flags)
+ {
+ 	track->pid = current->pid;
+ 	track->stack = save_stack(flags);
+@@ -304,8 +304,6 @@ size_t kasan_metadata_size(struct kmem_cache *cache)
+ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+ 					const void *object)
+ {
+-	if (!IS_ENABLED(CONFIG_KASAN_SW_TAGS_IDENTIFY))
+-		BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
+ 	return (void *)object + cache->kasan_info.alloc_meta_offset;
+ }
+ 
+@@ -316,6 +314,24 @@ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 	return (void *)object + cache->kasan_info.free_meta_offset;
+ }
+ 
++
++static void kasan_set_free_info(struct kmem_cache *cache,
++		void *object, u8 tag)
++{
++	struct kasan_alloc_meta *alloc_meta;
++	u8 idx = 0;
++
++	alloc_meta = get_alloc_info(cache, object);
++
++#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
++	idx = alloc_meta->free_track_idx;
++	alloc_meta->free_pointer_tag[idx] = tag;
++	alloc_meta->free_track_idx = (idx + 1) % KASAN_NR_FREE_STACKS;
++#endif
++
++	set_track(&alloc_meta->free_track[idx], GFP_NOWAIT);
++}
++
+ void kasan_poison_slab(struct page *page)
+ {
+ 	unsigned long i;
+@@ -452,11 +468,8 @@ static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
+ 			unlikely(!(cache->flags & SLAB_KASAN)))
+ 		return false;
+ 
+-	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS_IDENTIFY))
+-		kasan_set_free_info(cache, object, tag);
+-	else
+-		kasan_set_track(&get_alloc_info(cache, object)->free_track,
+-						GFP_NOWAIT);
++	kasan_set_free_info(cache, object, tag);
++
+ 	quarantine_put(get_free_info(cache, object), cache);
+ 
+ 	return IS_ENABLED(CONFIG_KASAN_GENERIC);
+@@ -494,8 +507,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
+ 		KASAN_KMALLOC_REDZONE);
+ 
+ 	if (cache->flags & SLAB_KASAN)
+-		kasan_set_track(&get_alloc_info(cache, object)->alloc_track,
+-						flags);
++		set_track(&get_alloc_info(cache, object)->alloc_track, flags);
+ 
+ 	return set_tag(object, tag);
+ }
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 531a5823e8c6..35cff6bbb716 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -96,21 +96,17 @@ struct kasan_track {
+ };
+ 
+ #ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
+-#define KASAN_EXTRA_FREE_INFO_COUNT 4
+-#define KASAN_TOTAL_FREE_INFO_COUNT  (KASAN_EXTRA_FREE_INFO_COUNT + 1)
+-struct extra_free_info {
+-	/* Round-robin FIFO array. */
+-	struct kasan_track free_track[KASAN_EXTRA_FREE_INFO_COUNT];
+-	u8 free_pointer_tag[KASAN_TOTAL_FREE_INFO_COUNT];
+-	u8 free_track_tail;
+-};
++#define KASAN_NR_FREE_STACKS 5
++#else
++#define KASAN_NR_FREE_STACKS 1
+ #endif
+ 
+ struct kasan_alloc_meta {
+ 	struct kasan_track alloc_track;
+-	struct kasan_track free_track;
++	struct kasan_track free_track[KASAN_NR_FREE_STACKS];
+ #ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
+-	struct extra_free_info free_info;
++	u8 free_pointer_tag[KASAN_NR_FREE_STACKS];
++	u8 free_track_idx;
+ #endif
+ };
+ 
+@@ -160,28 +156,7 @@ void kasan_report(unsigned long addr, size_t size,
+ 		bool is_write, unsigned long ip);
+ void kasan_report_invalid_free(void *object, unsigned long ip);
+ 
+-struct page *addr_to_page(const void *addr);
+-
+-void kasan_set_track(struct kasan_track *track, gfp_t flags);
+-
+-#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
+-void kasan_set_free_info(struct kmem_cache *cache, void *object, u8 tag);
+-struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
+-		void *object, u8 tag);
+-char *kasan_get_corruption_type(void *addr);
+-#else
+-static inline void kasan_set_free_info(struct kmem_cache *cache,
+-		void *object, u8 tag) { }
+-static inline struct kasan_track *kasan_get_free_track(
+-		struct kmem_cache *cache, void *object, u8 tag)
+-{
+-	return NULL;
+-}
+-static inline char *kasan_get_corruption_type(void *addr)
+-{
+-	return NULL;
+-}
+-#endif
++struct page *kasan_addr_to_page(const void *addr);
+ 
+ #if defined(CONFIG_KASAN_GENERIC) && \
+ 	(defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 9ea7a4265b42..621782100eaa 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -111,6 +111,14 @@ static void print_track(struct kasan_track *track, const char *prefix)
+ 	}
+ }
+ 
++struct page *kasan_addr_to_page(const void *addr)
++{
++	if ((addr >= (void *)PAGE_OFFSET) &&
++			(addr < high_memory))
++		return virt_to_head_page(addr);
++	return NULL;
++}
++
+ static void describe_object_addr(struct kmem_cache *cache, void *object,
+ 				const void *addr)
+ {
+@@ -143,28 +151,42 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
+ 		(void *)(object_addr + cache->object_size));
+ }
+ 
++static struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
++		void *object, u8 tag)
++{
++	struct kasan_alloc_meta *alloc_meta;
++	int i = 0;
++
++	alloc_meta = get_alloc_info(cache, object);
++
++#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
++	for (i = 0; i < KASAN_NR_FREE_STACKS; i++) {
++		if (alloc_meta->free_pointer_tag[i] == tag)
++			break;
++	}
++	if (i == KASAN_NR_FREE_STACKS)
++		i = alloc_meta->free_track_idx;
++#endif
++
++	return &alloc_meta->free_track[i];
++}
++
+ static void describe_object(struct kmem_cache *cache, void *object,
+-				const void *tagged_addr)
++				const void *addr, u8 tag)
+ {
+-	void *untagged_addr = reset_tag(tagged_addr);
+ 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
+ 
+ 	if (cache->flags & SLAB_KASAN) {
++		struct kasan_track *free_track;
++
+ 		print_track(&alloc_info->alloc_track, "Allocated");
+ 		pr_err("\n");
+-		if (IS_ENABLED(CONFIG_KASAN_SW_TAGS_IDENTIFY)) {
+-			struct kasan_track *free_track;
+-			u8 tag = get_tag(tagged_addr);
+-
+-			free_track = kasan_get_free_track(cache, object, tag);
+-			print_track(free_track, "Freed");
+-		} else {
+-			print_track(&alloc_info->free_track, "Freed");
+-			pr_err("\n");
+-		}
++		free_track = kasan_get_free_track(cache, object, tag);
++		print_track(free_track, "Freed");
++		pr_err("\n");
+ 	}
+ 
+-	describe_object_addr(cache, object, untagged_addr);
++	describe_object_addr(cache, object, addr);
+ }
+ 
+ static inline bool kernel_or_module_addr(const void *addr)
+@@ -345,25 +367,23 @@ static void print_address_stack_frame(const void *addr)
+ 	print_decoded_frame_descr(frame_descr);
+ }
+ 
+-static void print_address_description(void *tagged_addr)
++static void print_address_description(void *addr, u8 tag)
+ {
+-	void *untagged_addr = reset_tag(tagged_addr);
+-	struct page *page = addr_to_page(untagged_addr);
++	struct page *page = kasan_addr_to_page(addr);
+ 
+ 	dump_stack();
+ 	pr_err("\n");
+ 
+ 	if (page && PageSlab(page)) {
+ 		struct kmem_cache *cache = page->slab_cache;
+-		void *object = nearest_obj(cache, page,	untagged_addr);
++		void *object = nearest_obj(cache, page,	addr);
+ 
+-		describe_object(cache, object, tagged_addr);
++		describe_object(cache, object, addr, tag);
+ 	}
+ 
+-	if (kernel_or_module_addr(untagged_addr) &&
+-			!init_task_stack_addr(untagged_addr)) {
++	if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
+ 		pr_err("The buggy address belongs to the variable:\n");
+-		pr_err(" %pS\n", tagged_addr);
++		pr_err(" %pS\n", addr);
+ 	}
+ 
+ 	if (page) {
+@@ -371,7 +391,7 @@ static void print_address_description(void *tagged_addr)
+ 		dump_page(page, "kasan: bad access detected");
+ 	}
+ 
+-	print_address_stack_frame(untagged_addr);
++	print_address_stack_frame(addr);
+ }
+ 
+ static bool row_is_guilty(const void *row, const void *guilty)
+@@ -435,25 +455,18 @@ static bool report_enabled(void)
+ 	return !test_and_set_bit(KASAN_BIT_REPORTED, &kasan_flags);
+ }
+ 
+-struct page *addr_to_page(const void *addr)
+-{
+-	if ((addr >= (void *)PAGE_OFFSET) &&
+-			(addr < high_memory))
+-		return virt_to_head_page(addr);
+-	return NULL;
+-}
+-
+ void kasan_report_invalid_free(void *object, unsigned long ip)
+ {
+ 	unsigned long flags;
++	u8 tag = get_tag(object);
+ 
++	object = reset_tag(object);
+ 	start_report(&flags);
+ 	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
+-	print_tags(get_tag(object), reset_tag(object));
++	print_tags(tag, object);
+ 	pr_err("\n");
+-	print_address_description(object);
++	print_address_description(object, tag);
+ 	pr_err("\n");
+-	object = reset_tag(object);
+ 	print_shadow_for_address(object);
+ 	end_report(&flags);
+ }
+@@ -490,7 +503,7 @@ void __kasan_report(unsigned long addr, size_t size, bool is_write, unsigned lon
+ 	pr_err("\n");
+ 
+ 	if (addr_has_shadow(untagged_addr)) {
+-		print_address_description(tagged_addr);
++		print_address_description(untagged_addr, get_tag(tagged_addr));
+ 		pr_err("\n");
+ 		print_shadow_for_address(info.first_bad_addr);
+ 	} else {
+diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
+index 05a11f1cfff7..0e987c9ca052 100644
+--- a/mm/kasan/tags.c
++++ b/mm/kasan/tags.c
+@@ -161,89 +161,3 @@ void __hwasan_tag_memory(unsigned long addr, u8 tag, unsigned long size)
+ 	kasan_poison_shadow((void *)addr, size, tag);
+ }
+ EXPORT_SYMBOL(__hwasan_tag_memory);
+-
+-#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
+-void kasan_set_free_info(struct kmem_cache *cache,
+-		void *object, u8 tag)
+-{
+-	struct kasan_alloc_meta *alloc_meta;
+-	struct extra_free_info *free_info;
+-	u8 idx;
+-
+-	alloc_meta = get_alloc_info(cache, object);
+-	free_info = &alloc_meta->free_info;
+-
+-	if (free_info->free_track_tail == 0)
+-		free_info->free_track_tail = KASAN_EXTRA_FREE_INFO_COUNT;
+-	else
+-		free_info->free_track_tail -= 1;
+-
+-	idx = free_info->free_track_tail;
+-	free_info->free_pointer_tag[idx] = tag;
+-
+-	if (idx == KASAN_EXTRA_FREE_INFO_COUNT)
+-		kasan_set_track(&alloc_meta->free_track, GFP_NOWAIT);
+-	else
+-		kasan_set_track(&free_info->free_track[idx], GFP_NOWAIT);
+-}
+-
+-struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
+-		void *object, u8 tag)
+-{
+-	struct kasan_alloc_meta *alloc_meta;
+-	struct extra_free_info *free_info;
+-	int idx, i;
+-
+-	alloc_meta = get_alloc_info(cache, object);
+-	free_info = &alloc_meta->free_info;
+-
+-	for (i = 0; i < KASAN_TOTAL_FREE_INFO_COUNT; i++) {
+-		idx = free_info->free_track_tail + i;
+-		if (idx >= KASAN_TOTAL_FREE_INFO_COUNT)
+-			idx -= KASAN_TOTAL_FREE_INFO_COUNT;
+-
+-		if (free_info->free_pointer_tag[idx] == tag) {
+-			if (idx == KASAN_EXTRA_FREE_INFO_COUNT)
+-				return &alloc_meta->free_track;
+-			else
+-				return &free_info->free_track[idx];
+-		}
+-	}
+-	if (free_info->free_track_tail == KASAN_EXTRA_FREE_INFO_COUNT)
+-		return &alloc_meta->free_track;
+-	else
+-		return &free_info->free_track[free_info->free_track_tail];
+-}
+-
+-char *kasan_get_corruption_type(void *addr)
+-{
+-	struct kasan_alloc_meta *alloc_meta;
+-	struct extra_free_info *free_info;
+-	struct page *page;
+-	struct kmem_cache *cache;
+-	void *object;
+-	u8 tag;
+-	int idx, i;
+-
+-	tag = get_tag(addr);
+-	addr = reset_tag(addr);
+-	page = addr_to_page(addr);
+-	if (page && PageSlab(page)) {
+-		cache = page->slab_cache;
+-		object = nearest_obj(cache, page, addr);
+-		alloc_meta = get_alloc_info(cache, object);
+-		free_info = &alloc_meta->free_info;
+-
+-		for (i = 0; i < KASAN_TOTAL_FREE_INFO_COUNT; i++) {
+-			idx = free_info->free_track_tail + i;
+-			if (idx >= KASAN_TOTAL_FREE_INFO_COUNT)
+-				idx -= KASAN_TOTAL_FREE_INFO_COUNT;
+-
+-			if (free_info->free_pointer_tag[idx] == tag)
+-				return "use-after-free";
+-		}
+-		return "out-of-bounds";
+-	}
+-	return "invalid-access";
+-}
+-#endif
+diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
+index 6d8cdb91c4b6..969ae08f59d7 100644
+--- a/mm/kasan/tags_report.c
++++ b/mm/kasan/tags_report.c
+@@ -36,10 +36,31 @@
+ 
+ const char *get_bug_type(struct kasan_access_info *info)
+ {
+-	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS_IDENTIFY))
+-		return(kasan_get_corruption_type((void *)info->access_addr));
+-	else
+-		return "invalid-access";
++#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
++	struct kasan_alloc_meta *alloc_meta;
++	struct kmem_cache *cache;
++	struct page *page;
++	const void *addr;
++	void *object;
++	u8 tag;
++	int i;
++
++	tag = get_tag(info->access_addr);
++	addr = reset_tag(info->access_addr);
++	page = kasan_addr_to_page(addr);
++	if (page && PageSlab(page)) {
++		cache = page->slab_cache;
++		object = nearest_obj(cache, page, (void *)addr);
++		alloc_meta = get_alloc_info(cache, object);
++
++		for (i = 0; i < KASAN_NR_FREE_STACKS; i++)
++			if (alloc_meta->free_pointer_tag[i] == tag)
++				return "use-after-free";
++		return "out-of-bounds";
++	}
++
++#endif
++	return "invalid-access";
+ }
+ 
+ void *find_first_bad_addr(void *addr, size_t size)
 
