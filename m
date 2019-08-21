@@ -2,172 +2,224 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6750DC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:24:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9667FC3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2888421655
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:24:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5A9D522DD3
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FVubjkvp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2888421655
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="HHJukI5c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A9D522DD3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC8CE6B0005; Wed, 21 Aug 2019 14:24:15 -0400 (EDT)
+	id E59C76B0008; Wed, 21 Aug 2019 14:32:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B539B6B0006; Wed, 21 Aug 2019 14:24:15 -0400 (EDT)
+	id DE4816B000A; Wed, 21 Aug 2019 14:32:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A19746B0007; Wed, 21 Aug 2019 14:24:15 -0400 (EDT)
+	id CAA676B000C; Wed, 21 Aug 2019 14:32:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0193.hostedemail.com [216.40.44.193])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BB356B0005
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:24:15 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 3AD97A2D4
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:24:15 +0000 (UTC)
-X-FDA: 75847259670.23.tramp50_7c5e5533ebb1e
-X-HE-Tag: tramp50_7c5e5533ebb1e
-X-Filterd-Recvd-Size: 6199
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
-	by imf44.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:24:14 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5d8c4d0000>; Wed, 21 Aug 2019 11:24:13 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Wed, 21 Aug 2019 11:24:13 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Wed, 21 Aug 2019 11:24:13 -0700
-Received: from DRHQMAIL107.nvidia.com (10.27.9.16) by HQMAIL105.nvidia.com
- (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
- 2019 18:24:12 +0000
-Received: from [10.2.161.131] (10.124.1.5) by DRHQMAIL107.nvidia.com
- (10.27.9.16) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
- 2019 18:24:12 +0000
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-To: Jason Gunthorpe <jgg@ziepe.ca>, Ira Weiny <ira.weiny@intel.com>
-CC: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton
-	<akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>,
-	"Matthew Wilcox" <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Michal
- Hocko <mhocko@suse.com>, <linux-xfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-nvdimm@lists.01.org>,
-	<linux-ext4@vger.kernel.org>, <linux-mm@kvack.org>
-References: <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
- <20190815130558.GF14313@quack2.suse.cz>
- <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
- <20190817022603.GW6129@dread.disaster.area>
- <20190819063412.GA20455@quack2.suse.cz>
- <20190819092409.GM7777@dread.disaster.area> <20190819123841.GC5058@ziepe.ca>
- <20190820011210.GP7777@dread.disaster.area> <20190820115515.GA29246@ziepe.ca>
- <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
- <20190821181343.GH8653@ziepe.ca>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <50905b73-b64a-2b02-f5d5-f66ba0d912ab@nvidia.com>
-Date: Wed, 21 Aug 2019 11:22:16 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0178.hostedemail.com [216.40.44.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A336E6B0008
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:32:07 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 61F0499AC
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:07 +0000 (UTC)
+X-FDA: 75847279494.30.verse22_2f96357c7852a
+X-HE-Tag: verse22_2f96357c7852a
+X-Filterd-Recvd-Size: 7603
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:06 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id u190so2736603qkh.5
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:32:06 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=3VISVZWuGNTiVd6JKqfbutJFN34lrqN05fvYPH9Kreg=;
+        b=HHJukI5cKFcu78i/O1Yn8iw05mYEjKQotNnDCY7uW/VDROaso248Cz4QQVCEUqJcRv
+         EBzDUyZOfUDX0OqfFfNYvmLzaOIniVyftuF2AgycrkM0czlodTpOiI5hsWSB3EmJ2IOF
+         Sdf0QIF5vjVVnt5v/fb4faCNkExE0O0J9E/u7OrVqBv3KwAkDQY25mF4NF6uZGiJmJaq
+         V5rSY+0126UdxSnVxgCpzdNP9IOeLPAdBIaRSaDqEYxUJRdmoxnf7zCcQdaMR1gPUppS
+         eit1DPkEzoQPfq6qmFm0NeeZa9yVUmAjXHBjiWUl8i01GTKsv8qd8JE2lN5bdfa1Jkf4
+         TRIg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=3VISVZWuGNTiVd6JKqfbutJFN34lrqN05fvYPH9Kreg=;
+        b=Y0N0BxXdNGjng/1myqfVBUrByjM1kjaDaKg5z1sImW5UmZinhdnjE/HE20nbgA7uWG
+         QDU/51nPGgupczmHNf5yjBCSL9Vd3qqgQkeswXZFPRGuw8xdX+ptXmTTzfmaGDAv/GPz
+         RmzKydWbJ3OF2+kdzDV1FvEhDh/yEMt9kBUIlLI7wQjffBYB3+ME+vTVeRUsdY8gRj7Y
+         GxSB+1AXsdyBz+CKj4I2Kyjx5cA1VxPoiplP6QTEHQVSZLtac3FJk0G4gIcKqr5bGnzC
+         GKDefr+6mApLjBgb3s0+al8/DtDi6AuITuYYAd3PNF7+S0int7WLM5mzkziG2PxGs6zh
+         t40g==
+X-Gm-Message-State: APjAAAVPg7rvwiG2GEEP5v4iY2DzMhNZwDDwivQ7dWtN8BABu1JQYjuX
+	GoiNeg9o2Wa2ZOlCfFw1y0Wiew==
+X-Google-Smtp-Source: APXvYqxQXpDqPyZwJQWEPUkusjd/UilDz4Mpzt+wUtcrvVVsDPsRqQ1Np6P1GcXQU3ssA/+pWMdUqw==
+X-Received: by 2002:a37:a9c6:: with SMTP id s189mr32305161qke.191.1566412326277;
+        Wed, 21 Aug 2019 11:32:06 -0700 (PDT)
+Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
+        by smtp.gmail.com with ESMTPSA id q13sm10443332qkm.120.2019.08.21.11.32.04
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 21 Aug 2019 11:32:05 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+To: pasha.tatashin@soleen.com,
+	jmorris@namei.org,
+	sashal@kernel.org,
+	ebiederm@xmission.com,
+	kexec@lists.infradead.org,
+	linux-kernel@vger.kernel.org,
+	corbet@lwn.net,
+	catalin.marinas@arm.com,
+	will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	marc.zyngier@arm.com,
+	james.morse@arm.com,
+	vladimir.murzin@arm.com,
+	matthias.bgg@gmail.com,
+	bhsharma@redhat.com,
+	linux-mm@kvack.org,
+	mark.rutland@arm.com
+Subject: [PATCH v3 00/17] arm64: MMU enabled kexec relocation
+Date: Wed, 21 Aug 2019 14:31:47 -0400
+Message-Id: <20190821183204.23576-1-pasha.tatashin@soleen.com>
+X-Mailer: git-send-email 2.23.0
 MIME-Version: 1.0
-In-Reply-To: <20190821181343.GH8653@ziepe.ca>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- DRHQMAIL107.nvidia.com (10.27.9.16)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566411853; bh=CfqY8aJja8VV7vQdQwO0ArJP7UGyxBQ9FeuFR1zQxF4=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=FVubjkvptshBNnluMQjtoEMnrXaPNCHMPCZ0L8jnjc9nEOnq6dqKhOe+TvOOP7K04
-	 6I4vM3+3IHlNz4bj4WEE6vv6H1xbLRU22hJWsYyts0CsqEAEIR1/WJf1Lql9ZCrDWW
-	 MJ6OCMA4rAS3PDporQJNy9PmW155jIzLu7SYKrtMZTMsGKDQqST56iTQpBp5eYgrOH
-	 blDrmpTbHWZKLDV2Mk2gFjrXf8+pUhWMvIfMwlN+z/T6aNEBdOocUohhXbkxa9euoz
-	 OtGAYEgIWVXbfAYV4A5vvnkWCH3bW4Gx4cxWy4g+M/67D1nmfmJlD3HcEd6W5ifcdA
-	 KEmZJENkYkOOg==
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/21/19 11:13 AM, Jason Gunthorpe wrote:
-> On Wed, Aug 21, 2019 at 11:02:00AM -0700, Ira Weiny wrote:
->> On Tue, Aug 20, 2019 at 08:55:15AM -0300, Jason Gunthorpe wrote:
->>> On Tue, Aug 20, 2019 at 11:12:10AM +1000, Dave Chinner wrote:
->>>> On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
->>>>> On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
->>>>>
->>>>>> So that leaves just the normal close() syscall exit case, where the
->>>>>> application has full control of the order in which resources are
->>>>>> released. We've already established that we can block in this
->>>>>> context.  Blocking in an interruptible state will allow fatal signal
->>>>>> delivery to wake us, and then we fall into the
->>>>>> fatal_signal_pending() case if we get a SIGKILL while blocking.
->>>>>
->>>>> The major problem with RDMA is that it doesn't always wait on close() for the
->>>>> MR holding the page pins to be destoyed. This is done to avoid a
->>>>> deadlock of the form:
->>>>>
->>>>>     uverbs_destroy_ufile_hw()
->>>>>        mutex_lock()
->>>>>         [..]
->>>>>          mmput()
->>>>>           exit_mmap()
->>>>>            remove_vma()
->>>>>             fput();
->>>>>              file_operations->release()
->>>>
->>>> I think this is wrong, and I'm pretty sure it's an example of why
->>>> the final __fput() call is moved out of line.
->>>
->>> Yes, I think so too, all I can say is this *used* to happen, as we
->>> have special code avoiding it, which is the code that is messing up
->>> Ira's lifetime model.
->>>
->>> Ira, you could try unraveling the special locking, that solves your
->>> lifetime issues?
->>
->> Yes I will try to prove this out...  But I'm still not sure this fully solves
->> the problem.
->>
->> This only ensures that the process which has the RDMA context (RDMA FD) is safe
->> with regard to hanging the close for the "data file FD" (the file which has
->> pinned pages) in that _same_ process.  But what about the scenario.
-> 
-> Oh, I didn't think we were talking about that. Hanging the close of
-> the datafile fd contingent on some other FD's closure is a recipe for
-> deadlock..
-> 
-> IMHO the pin refcnt is held by the driver char dev FD, that is the
-> object you need to make it visible against.
+Changelog:
+v3:
+	- Split changes to create_safe_exec_page() into several patches for
+	  easier review as request by Mark Rutland. This is why this series
+	  has 3 more patches.
+	- Renamed trans_table to tans_pgd as agreed with Mark. The header
+	  comment in trans_pgd.c explains that trans stands for
+	  transitional page tables. Meaning they are used in transition
+	  between two kernels.
+v2:
+	- Fixed hibernate bug reported by James Morse
+	- Addressed comments from James Morse:
+	  * More incremental changes to trans_table
+	  * Removed TRANS_FORCEMAP
+	  * Added kexec reboot data for image with 380M in size.
 
+Enable MMU during kexec relocation in order to improve reboot performance=
+.
 
-If you do that, it might make it a lot simpler to add lease support
-to drivers like XDP, which is otherwise looking pretty difficult to
-set up with an fd. (It's socket-based, and not immediately clear where
-to connect up the fd.)
+If kexec functionality is used for a fast system update, with a minimal
+downtime, the relocation of kernel + initramfs takes a significant portio=
+n
+of reboot.
 
+The reason for slow relocation is because it is done without MMU, and thu=
+s
+not benefiting from D-Cache.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+Performance data
+----------------
+For this experiment, the size of kernel plus initramfs is small, only 25M=
+.
+If initramfs was larger, than the improvements would be greater, as time
+spent in relocation is proportional to the size of relocation.
 
-> 
-> Why not just have a single table someplace of all the layout leases
-> with the file they are held on and the FD/socket/etc that is holding
-> the pin? Make it independent of processes and FDs?
-> 
-> Jason
-> 
+Previously:
+kernel shutdown	0.022131328s
+relocation	0.440510736s
+kernel startup	0.294706768s
+
+Relocation was taking: 58.2% of reboot time
+
+Now:
+kernel shutdown	0.032066576s
+relocation	0.022158152s
+kernel startup	0.296055880s
+
+Now: Relocation takes 6.3% of reboot time
+
+Total reboot is x2.16 times faster.
+
+With bigger userland (fitImage 380M), the reboot time is improved by 3.57=
+s,
+and is reduced from 3.9s down to 0.33s
+
+Previous approaches and discussions
+-----------------------------------
+https://lore.kernel.org/lkml/20190817024629.26611-1-pasha.tatashin@soleen=
+.com
+version 2 of this series
+
+https://lore.kernel.org/lkml/20190801152439.11363-1-pasha.tatashin@soleen=
+.com
+version 1 of this series
+
+https://lore.kernel.org/lkml/20190709182014.16052-1-pasha.tatashin@soleen=
+.com
+reserve space for kexec to avoid relocation, involves changes to generic =
+code
+to optimize a problem that exists on arm64 only:
+
+https://lore.kernel.org/lkml/20190716165641.6990-1-pasha.tatashin@soleen.=
+com
+The first attempt to enable MMU, some bugs that prevented performance
+improvement. The page tables unnecessary configured idmap for the whole
+physical space.
+
+https://lore.kernel.org/lkml/20190731153857.4045-1-pasha.tatashin@soleen.=
+com
+No linear copy, bug with EL2 reboots.
+
+Pavel Tatashin (17):
+  kexec: quiet down kexec reboot
+  arm64, hibernate: use get_safe_page directly
+  arm64, hibernate: remove gotos in create_safe_exec_page
+  arm64, hibernate: rename dst to page in create_safe_exec_page
+  arm64, hibernate: check pgd table allocation
+  arm64, hibernate: add trans_pgd public functions
+  arm64, hibernate: move page handling function to new trans_pgd.c
+  arm64, trans_pgd: make trans_pgd_map_page generic
+  arm64, trans_pgd: add trans_pgd_create_empty
+  arm64, trans_pgd: adjust trans_pgd_create_copy interface
+  arm64, trans_pgd: add PUD_SECT_RDONLY
+  arm64, trans_pgd: complete generalization of trans_pgds
+  kexec: add machine_kexec_post_load()
+  arm64, kexec: move relocation function setup and clean up
+  arm64, kexec: add expandable argument to relocation function
+  arm64, kexec: configure trans_pgd page table for kexec
+  arm64, kexec: enable MMU during kexec relocation
+
+ arch/arm64/Kconfig                     |   4 +
+ arch/arm64/include/asm/kexec.h         |  51 ++++-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/include/asm/trans_pgd.h     |  63 ++++++
+ arch/arm64/kernel/asm-offsets.c        |  14 ++
+ arch/arm64/kernel/cpu-reset.S          |   4 +-
+ arch/arm64/kernel/cpu-reset.h          |   8 +-
+ arch/arm64/kernel/hibernate.c          | 261 ++++++------------------
+ arch/arm64/kernel/machine_kexec.c      | 199 ++++++++++++++----
+ arch/arm64/kernel/relocate_kernel.S    | 196 +++++++++---------
+ arch/arm64/mm/Makefile                 |   1 +
+ arch/arm64/mm/trans_pgd.c              | 270 +++++++++++++++++++++++++
+ kernel/kexec.c                         |   4 +
+ kernel/kexec_core.c                    |   8 +-
+ kernel/kexec_file.c                    |   4 +
+ kernel/kexec_internal.h                |   2 +
+ 16 files changed, 750 insertions(+), 340 deletions(-)
+ create mode 100644 arch/arm64/include/asm/trans_pgd.h
+ create mode 100644 arch/arm64/mm/trans_pgd.c
+
+--=20
+2.23.0
+
 
