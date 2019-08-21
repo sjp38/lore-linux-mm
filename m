@@ -3,91 +3,109 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D634DC3A589
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:21:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77AC1C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:23:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FCD222DD6
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:21:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FCD222DD6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 3BE6422DD6
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 01:23:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BE6422DD6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 21B7B6B0277; Tue, 20 Aug 2019 21:21:25 -0400 (EDT)
+	id D8B816B0279; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1CCAF6B0278; Tue, 20 Aug 2019 21:21:25 -0400 (EDT)
+	id D15F36B027A; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0E2E86B0279; Tue, 20 Aug 2019 21:21:25 -0400 (EDT)
+	id BDC2E6B027B; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E036B0277
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 21:21:24 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 8BF01812D
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:21:24 +0000 (UTC)
-X-FDA: 75844682088.22.screw19_465d51ce6ba43
-X-HE-Tag: screw19_465d51ce6ba43
-X-Filterd-Recvd-Size: 2828
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com [115.124.30.42])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:21:23 +0000 (UTC)
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=alex.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0Ta0SZIU_1566350478;
-Received: from IT-FVFX43SYHV2H.local(mailfrom:alex.shi@linux.alibaba.com fp:SMTPD_---0Ta0SZIU_1566350478)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 21 Aug 2019 09:21:19 +0800
-Subject: Re: [PATCH 00/14] per memcg lru_lock
-To: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
- Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>,
- Shakeel Butt <shakeelb@google.com>, Yu Zhao <yuzhao@google.com>,
- Daniel Jordan <daniel.m.jordan@oracle.com>
-References: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
- <20190820104532.GP3111@dhcp22.suse.cz>
- <CALvZod7-dL90jwd2pywpaD8NfUByVU9Y809+RfvJABGdRASYUg@mail.gmail.com>
- <alpine.LSU.2.11.1908201038260.1286@eggly.anvils>
-From: Alex Shi <alex.shi@linux.alibaba.com>
-Message-ID: <319c7a6c-6f1a-64c5-4920-e8279eb1e80b@linux.alibaba.com>
-Date: Wed, 21 Aug 2019 09:21:18 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0161.hostedemail.com [216.40.44.161])
+	by kanga.kvack.org (Postfix) with ESMTP id 97C926B0279
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 21:23:12 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 4287255F93
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:23:12 +0000 (UTC)
+X-FDA: 75844686624.21.cord18_561de2c47584c
+X-HE-Tag: cord18_561de2c47584c
+X-Filterd-Recvd-Size: 3162
+Received: from mga09.intel.com (mga09.intel.com [134.134.136.24])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:23:11 +0000 (UTC)
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Aug 2019 18:23:10 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,410,1559545200"; 
+   d="scan'208";a="202863410"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga004.fm.intel.com with ESMTP; 20 Aug 2019 18:23:08 -0700
+Date: Wed, 21 Aug 2019 09:22:44 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org,
+	mgorman@techsingularity.net, osalvador@suse.de, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 3/3] mm/mmap.c: extract __vma_unlink_list as counter part
+ for __vma_link_list
+Message-ID: <20190821012244.GA13653@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190814021755.1977-1-richardw.yang@linux.intel.com>
+ <20190814021755.1977-3-richardw.yang@linux.intel.com>
+ <20190814051611.GA1958@infradead.org>
+ <20190814065703.GA6433@richard>
+ <2c5cdffd-f405-23b8-98f5-37b95ca9b027@suse.cz>
+ <20190820172629.GB4949@bombadil.infradead.org>
+ <20190821005234.GA5540@richard>
+ <20190821005417.GC18776@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1908201038260.1286@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190821005417.GC18776@bombadil.infradead.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Aug 20, 2019 at 05:54:17PM -0700, Matthew Wilcox wrote:
+>On Wed, Aug 21, 2019 at 08:52:34AM +0800, Wei Yang wrote:
+>> On Tue, Aug 20, 2019 at 10:26:29AM -0700, Matthew Wilcox wrote:
+>> >On Wed, Aug 14, 2019 at 11:19:37AM +0200, Vlastimil Babka wrote:
+>> >> On 8/14/19 8:57 AM, Wei Yang wrote:
+>> >> > On Tue, Aug 13, 2019 at 10:16:11PM -0700, Christoph Hellwig wrote:
+>> >> >>Btw, is there any good reason we don't use a list_head for vma linkage?
+>> >> > 
+>> >> > Not sure, maybe there is some historical reason?
+>> >> 
+>> >> Seems it was single-linked until 2010 commit 297c5eee3724 ("mm: make the vma
+>> >> list be doubly linked") and I guess it was just simpler to add the vm_prev link.
+>> >> 
+>> >> Conversion to list_head might be an interesting project for some "advanced
+>> >> beginner" in the kernel :)
+>> >
+>> >I'm working to get rid of vm_prev and vm_next, so it would probably be
+>> >wasted effort.
+>> 
+>> You mean replace it with list_head?
+>
+>No, replace the rbtree with a new tree.  https://lwn.net/Articles/787629/
 
+Sounds interesting.
 
-> 
-> Thanks for the Cc Michal.  As Shakeel says, Google prodkernel has been
-> using our per-memcg lru locks for 7 years or so.  Yes, we did not come
-> up with supporting performance data at the time of posting, nor since:
-> I see Alex has done much better on that (though I haven't even glanced
-> to see if +s are persuasive).
-> 
-> https://lkml.org/lkml/2012/2/20/434
-> was how ours was back then; some parts of that went in, then attached
-> lrulock417.tar is how it was the last time I rebased, to v4.17.
-> 
-> I'll set aside what I'm doing, and switch to rebasing ours to v5.3-rc
-> and/or mmotm.  Then compare with what Alex has, to see if there's any
-> good reason to prefer one to the other: if no good reason to prefer ours,
-> I doubt we shall bother to repost, but just use it as basis for helping
-> to review or improve Alex's.
-> 
+While I am not sure the plan is settled down, and how long it would take to
+replace the rb_tree with maple tree. I guess it would probably take some time
+to get merged upstream.
 
-Thanks for you all! Very glad to see we are trying on same point. :)
-Not only on per memcg lru_lock, there are much room on lru and page replacement
-tunings. Anyway Hope to see your update and more review comments soon.
+IMHO, it would be good to have this cleanup in current kernel. Do you agree?
 
-Thanks
-Alex
+-- 
+Wei Yang
+Help you, Help me
 
