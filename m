@@ -2,217 +2,271 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E667BC3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36CF2C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:06:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9DA9722DA7
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B5FC420870
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:05:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tkfoMKNl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DA9722DA7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="eod0gXNe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5FC420870
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 533E56B02E1; Wed, 21 Aug 2019 11:00:47 -0400 (EDT)
+	id 668BD6B02C1; Wed, 21 Aug 2019 11:05:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E4E66B02E2; Wed, 21 Aug 2019 11:00:47 -0400 (EDT)
+	id 61A586B02E4; Wed, 21 Aug 2019 11:05:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 422436B02E3; Wed, 21 Aug 2019 11:00:47 -0400 (EDT)
+	id 4E4A46B02E5; Wed, 21 Aug 2019 11:05:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0132.hostedemail.com [216.40.44.132])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C03C6B02E1
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:00:47 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id B7CC42C0C
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:00:46 +0000 (UTC)
-X-FDA: 75846746892.07.name31_5e0755865e628
-X-HE-Tag: name31_5e0755865e628
-X-Filterd-Recvd-Size: 8673
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:00:45 +0000 (UTC)
-Received: by mail-pl1-f194.google.com with SMTP id gn20so1481464plb.2
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:00:45 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=subject:from:to:cc:date:message-id:in-reply-to:references
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=R9EIePxtKgh7rutMNGBvqWvR/nyIQIv1yBQVlI6lc80=;
-        b=tkfoMKNl6R00u1CGr4goVFrz53AHxoV7hFxDcGeUp0tOZUCo+74t/zt8j+2QopIgxI
-         EZ3M3c24Jl9SrsJM+dTZwK8SGp7tO2O/0yx89/oESAn4+Y33U06VmjCAJUF8WYGRwZeO
-         eKjbkMOiSUf3GOoqrhSS+vgoRMpgqZeesnV5hVjONU4VcpdOzOxTu/6+rYJJelofQ2l3
-         KrIWCI8aXlUCizR5/hSFEMJ0SFD0wRsscqpCzcEa6q+HWASFrKQeuvC0VTIT8+HbR6/e
-         kIbuzlNFr7cnr7aQG0JZ89EPMqXTXef7jzZr4LRARx074pduHcDo0oZ2TTBh+XMIA1it
-         tJhw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:from:to:cc:date:message-id:in-reply-to
-         :references:user-agent:mime-version:content-transfer-encoding;
-        bh=R9EIePxtKgh7rutMNGBvqWvR/nyIQIv1yBQVlI6lc80=;
-        b=OsGNogLdVsd/leSvbtftGGoiPdjJb0W1wZ7eCwiZQVm+KFs45xJNFHR2Zup2SKf9Me
-         zw0X4MOg1UBzN4bUUblGtPKbcLpO6+DiqIGi6XhGtQzLxfv7et6zL9KM1WTlJgZX0bDo
-         /44a+yrCoGJOU7d8TIHK4u+2fOc0D/QfWYGqFeSGO2gul/GLNG2yKeyIkLJWHjfHGJv+
-         3dYroXCVsLhj/OWcJfk3tRw+bM8fMpjmfmHe+shTJ2QNqL5HjEMC8H1fj41fl3toB2KG
-         Uh75MpE1JW7xHYw+6u+NjCL5+jS8Q1hQ9528sxOv38qbbvCPDpYE51TLSIZPaw1pX47c
-         mQsQ==
-X-Gm-Message-State: APjAAAVfg0M2izAG/DbqV+lxohkqYbWveyLkRIkIrZmK6vnLSLtFrp28
-	JkTOZ0VQsrgkhmFjUY0l92k=
-X-Google-Smtp-Source: APXvYqzGZGBxE2Kux8cFfIoXPTej4Y3Rq0bhdauQWIpL/YOuwEUcP9xBJA0wE9MgWkUpeYVOa9xJ2g==
-X-Received: by 2002:a17:902:6843:: with SMTP id f3mr31726895pln.97.1566399645002;
-        Wed, 21 Aug 2019 08:00:45 -0700 (PDT)
-Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
-        by smtp.gmail.com with ESMTPSA id b19sm14248033pgs.10.2019.08.21.08.00.44
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Aug 2019 08:00:44 -0700 (PDT)
-Subject: [PATCH v6 QEMU 3/3] virtio-balloon: Provide a interface for unused
- page reporting
-From: Alexander Duyck <alexander.duyck@gmail.com>
-To: nitesh@redhat.com, kvm@vger.kernel.org, mst@redhat.com, david@redhat.com,
- dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
- konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com,
- wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
- dan.j.williams@intel.com, mhocko@kernel.org, alexander.h.duyck@linux.intel.com,
- osalvador@suse.de
-Date: Wed, 21 Aug 2019 08:00:43 -0700
-Message-ID: <20190821150043.21485.84756.stgit@localhost.localdomain>
-In-Reply-To: <20190821145806.20926.22448.stgit@localhost.localdomain>
-References: <20190821145806.20926.22448.stgit@localhost.localdomain>
-User-Agent: StGit/0.17.1-dirty
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C21B6B02C1
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:05:59 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CF867A2B4
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:05:58 +0000 (UTC)
+X-FDA: 75846759996.18.limit80_8b6e23e62033f
+X-HE-Tag: limit80_8b6e23e62033f
+X-Filterd-Recvd-Size: 10055
+Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:05:58 +0000 (UTC)
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 46D9w173vvz9v105;
+	Wed, 21 Aug 2019 17:05:53 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=eod0gXNe; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id Vwq00iVmMvOk; Wed, 21 Aug 2019 17:05:53 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 46D9w15r14z9v104;
+	Wed, 21 Aug 2019 17:05:53 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1566399953; bh=3s4/1CenBEAPpHpMM7UHacKq7H2XNGMGF2S+PN3leiU=;
+	h=From:Subject:To:Cc:Date:From;
+	b=eod0gXNeM5oGzFjPXNUjAIA1RD3BvyXSvJMJTUcjKbWG+w42bwDAKpyOi3QuTmk60
+	 SWcOdvzt3ngvKRJxOXN3IWwOzk4wdXXnJakVmo1Frd0nJlVjfZ9YfoMY/T/lmnlG//
+	 mlU48Eq1rhuhNMEnCbZ4cGR0/Xj2Ah39wwkAhSOs=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 1CDA08B7F6;
+	Wed, 21 Aug 2019 17:05:56 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id aA7bqXOM0T42; Wed, 21 Aug 2019 17:05:56 +0200 (CEST)
+Received: from pc16032vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.230.101])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id DF1C18B7EE;
+	Wed, 21 Aug 2019 17:05:55 +0200 (CEST)
+Received: by pc16032vm.idsi0.si.c-s.fr (Postfix, from userid 0)
+	id B50CC6B6EE; Wed, 21 Aug 2019 15:05:55 +0000 (UTC)
+Message-Id: <c3157c8e8e0e7588312b40c853f65c02fe6c957a.1566399731.git.christophe.leroy@c-s.fr>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Subject: [PATCH v2] btrfs: fix allocation of bitmap pages.
+To: erhard_f@mailbox.org, Chris Mason <clm@fb.com>,
+ Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>, 
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, stable@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, 
+ linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org
+Date: Wed, 21 Aug 2019 15:05:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Various notifications of type "BUG kmalloc-4096 () : Redzone
+overwritten" have been observed recently in various parts of
+the kernel. After some time, it has been made a relation with
+the use of BTRFS filesystem.
 
-Add support for what I am referring to as "unused page reporting".
-Basically the idea is to function very similar to how the balloon works
-in that we basically end up madvising the page as not being used. However
-we don't really need to bother with any deflate type logic since the page
-will be faulted back into the guest when it is read or written to.
+[   22.809700] BUG kmalloc-4096 (Tainted: G        W        ): Redzone overwritten
+[   22.809971] -----------------------------------------------------------------------------
 
-This is meant to be a simplification of the existing balloon interface
-to use for providing hints to what memory needs to be freed. I am assuming
-this is safe to do as the deflate logic does not actually appear to do very
-much other than tracking what subpages have been released and which ones
-haven't.
+[   22.810286] INFO: 0xbe1a5921-0xfbfc06cd. First byte 0x0 instead of 0xcc
+[   22.810866] INFO: Allocated in __load_free_space_cache+0x588/0x780 [btrfs] age=22 cpu=0 pid=224
+[   22.811193] 	__slab_alloc.constprop.26+0x44/0x70
+[   22.811345] 	kmem_cache_alloc_trace+0xf0/0x2ec
+[   22.811588] 	__load_free_space_cache+0x588/0x780 [btrfs]
+[   22.811848] 	load_free_space_cache+0xf4/0x1b0 [btrfs]
+[   22.812090] 	cache_block_group+0x1d0/0x3d0 [btrfs]
+[   22.812321] 	find_free_extent+0x680/0x12a4 [btrfs]
+[   22.812549] 	btrfs_reserve_extent+0xec/0x220 [btrfs]
+[   22.812785] 	btrfs_alloc_tree_block+0x178/0x5f4 [btrfs]
+[   22.813032] 	__btrfs_cow_block+0x150/0x5d4 [btrfs]
+[   22.813262] 	btrfs_cow_block+0x194/0x298 [btrfs]
+[   22.813484] 	commit_cowonly_roots+0x44/0x294 [btrfs]
+[   22.813718] 	btrfs_commit_transaction+0x63c/0xc0c [btrfs]
+[   22.813973] 	close_ctree+0xf8/0x2a4 [btrfs]
+[   22.814107] 	generic_shutdown_super+0x80/0x110
+[   22.814250] 	kill_anon_super+0x18/0x30
+[   22.814437] 	btrfs_kill_super+0x18/0x90 [btrfs]
+[   22.814590] INFO: Freed in proc_cgroup_show+0xc0/0x248 age=41 cpu=0 pid=83
+[   22.814841] 	proc_cgroup_show+0xc0/0x248
+[   22.814967] 	proc_single_show+0x54/0x98
+[   22.815086] 	seq_read+0x278/0x45c
+[   22.815190] 	__vfs_read+0x28/0x17c
+[   22.815289] 	vfs_read+0xa8/0x14c
+[   22.815381] 	ksys_read+0x50/0x94
+[   22.815475] 	ret_from_syscall+0x0/0x38
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Commit 69d2480456d1 ("btrfs: use copy_page for copying pages instead
+of memcpy") changed the way bitmap blocks are copied. But allthough
+bitmaps have the size of a page, they were allocated with kzalloc().
+
+Most of the time, kzalloc() allocates aligned blocks of memory, so
+copy_page() can be used. But when some debug options like SLAB_DEBUG
+are activated, kzalloc() may return unaligned pointer.
+
+On powerpc, memcpy(), copy_page() and other copying functions use
+'dcbz' instruction which provides an entire zeroed cacheline to avoid
+memory read when the intention is to overwrite a full line. Functions
+like memcpy() are writen to care about partial cachelines at the start
+and end of the destination, but copy_page() assumes it gets pages. As
+pages are naturally cache aligned, copy_page() doesn't care about
+partial lines. This means that when copy_page() is called with a
+misaligned pointer, a few leading bytes are zeroed.
+
+To fix it, allocate bitmaps through kmem_cache instead of using kzalloc()
+The cache pool is created with PAGE_SIZE alignment constraint.
+
+Reported-by: Erhard F. <erhard_f@mailbox.org>
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=204371
+Fixes: 69d2480456d1 ("btrfs: use copy_page for copying pages instead of memcpy")
+Cc: stable@vger.kernel.org
+Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- hw/virtio/virtio-balloon.c         |   46 ++++++++++++++++++++++++++++++++++--
- include/hw/virtio/virtio-balloon.h |    2 +-
- 2 files changed, 45 insertions(+), 3 deletions(-)
+v2: Using kmem_cache instead of get_zeroed_page() in order to benefit from SLAB debugging features like redzone.
+---
+ fs/btrfs/ctree.h            |  1 +
+ fs/btrfs/free-space-cache.c | 17 ++++++++++-------
+ fs/btrfs/inode.c            |  7 +++++++
+ 3 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index 003b3ebcfdfb..7a30df63bc77 100644
---- a/hw/virtio/virtio-balloon.c
-+++ b/hw/virtio/virtio-balloon.c
-@@ -320,6 +320,40 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
-     balloon_stats_change_timer(s, 0);
+diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
+index 299e11e6c554..26abb95becc9 100644
+--- a/fs/btrfs/ctree.h
++++ b/fs/btrfs/ctree.h
+@@ -43,6 +43,7 @@ extern struct kmem_cache *btrfs_trans_handle_cachep;
+ extern struct kmem_cache *btrfs_bit_radix_cachep;
+ extern struct kmem_cache *btrfs_path_cachep;
+ extern struct kmem_cache *btrfs_free_space_cachep;
++extern struct kmem_cache *btrfs_bitmap_cachep;
+ struct btrfs_ordered_sum;
+ struct btrfs_ref;
+ 
+diff --git a/fs/btrfs/free-space-cache.c b/fs/btrfs/free-space-cache.c
+index 062be9dde4c6..9a708e7920a0 100644
+--- a/fs/btrfs/free-space-cache.c
++++ b/fs/btrfs/free-space-cache.c
+@@ -764,7 +764,8 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
+ 		} else {
+ 			ASSERT(num_bitmaps);
+ 			num_bitmaps--;
+-			e->bitmap = kzalloc(PAGE_SIZE, GFP_NOFS);
++			e->bitmap = kmem_cache_zalloc(btrfs_bitmap_cachep,
++						      GFP_NOFS);
+ 			if (!e->bitmap) {
+ 				kmem_cache_free(
+ 					btrfs_free_space_cachep, e);
+@@ -1881,7 +1882,7 @@ static void free_bitmap(struct btrfs_free_space_ctl *ctl,
+ 			struct btrfs_free_space *bitmap_info)
+ {
+ 	unlink_free_space(ctl, bitmap_info);
+-	kfree(bitmap_info->bitmap);
++	kmem_cache_free(btrfs_bitmap_cachep, bitmap_info->bitmap);
+ 	kmem_cache_free(btrfs_free_space_cachep, bitmap_info);
+ 	ctl->total_bitmaps--;
+ 	ctl->op->recalc_thresholds(ctl);
+@@ -2135,7 +2136,7 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
+ 		}
+ 
+ 		/* allocate the bitmap */
+-		info->bitmap = kzalloc(PAGE_SIZE, GFP_NOFS);
++		info->bitmap = kmem_cache_zalloc(btrfs_bitmap_cachep, GFP_NOFS);
+ 		spin_lock(&ctl->tree_lock);
+ 		if (!info->bitmap) {
+ 			ret = -ENOMEM;
+@@ -2146,7 +2147,8 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
+ 
+ out:
+ 	if (info) {
+-		kfree(info->bitmap);
++		if (info->bitmap)
++			kmem_cache_free(btrfs_bitmap_cachep, info->bitmap);
+ 		kmem_cache_free(btrfs_free_space_cachep, info);
+ 	}
+ 
+@@ -2802,7 +2804,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
+ 	if (entry->bytes == 0) {
+ 		ctl->free_extents--;
+ 		if (entry->bitmap) {
+-			kfree(entry->bitmap);
++			kmem_cache_free(btrfs_bitmap_cachep, entry->bitmap);
+ 			ctl->total_bitmaps--;
+ 			ctl->op->recalc_thresholds(ctl);
+ 		}
+@@ -3606,7 +3608,7 @@ int test_add_free_space_entry(struct btrfs_block_group_cache *cache,
+ 	}
+ 
+ 	if (!map) {
+-		map = kzalloc(PAGE_SIZE, GFP_NOFS);
++		map = kmem_cache_zalloc(btrfs_bitmap_cachep, GFP_NOFS);
+ 		if (!map) {
+ 			kmem_cache_free(btrfs_free_space_cachep, info);
+ 			return -ENOMEM;
+@@ -3635,7 +3637,8 @@ int test_add_free_space_entry(struct btrfs_block_group_cache *cache,
+ 
+ 	if (info)
+ 		kmem_cache_free(btrfs_free_space_cachep, info);
+-	kfree(map);
++	if (map)
++		kmem_cache_free(btrfs_bitmap_cachep, map);
+ 	return 0;
  }
  
-+static void virtio_balloon_handle_report(VirtIODevice *vdev, VirtQueue *vq)
-+{
-+    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-+    VirtQueueElement *elem;
-+
-+    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
-+    	unsigned int i;
-+
-+        for (i = 0; i < elem->in_num; i++) {
-+            void *addr = elem->in_sg[i].iov_base;
-+            size_t size = elem->in_sg[i].iov_len;
-+            ram_addr_t ram_offset;
-+            size_t rb_page_size;
-+            RAMBlock *rb;
-+
-+            if (qemu_balloon_is_inhibited() || dev->poison_val)
-+                continue;
-+
-+            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
-+            rb_page_size = qemu_ram_pagesize(rb);
-+
-+            /* For now we will simply ignore unaligned memory regions */
-+            if ((ram_offset | size) & (rb_page_size - 1))
-+                continue;
-+
-+            ram_block_discard_range(rb, ram_offset, size);
-+        }
-+
-+        virtqueue_push(vq, elem, 0);
-+        virtio_notify(vdev, vq);
-+        g_free(elem);
-+    }
-+}
-+
- static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
- {
-     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-@@ -627,7 +661,8 @@ static size_t virtio_balloon_config_size(VirtIOBalloon *s)
-         return sizeof(struct virtio_balloon_config);
-     }
-     if (virtio_has_feature(features, VIRTIO_BALLOON_F_PAGE_POISON) ||
--        virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+        virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT) ||
-+        virtio_has_feature(features, VIRTIO_BALLOON_F_REPORTING)) {
-         return sizeof(struct virtio_balloon_config);
-     }
-     return offsetof(struct virtio_balloon_config, free_page_report_cmd_id);
-@@ -715,7 +750,8 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
-     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-     f |= dev->host_features;
-     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
--    if (virtio_has_feature(f, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+    if (virtio_has_feature(f, VIRTIO_BALLOON_F_FREE_PAGE_HINT) ||
-+        virtio_has_feature(f, VIRTIO_BALLOON_F_REPORTING)) {
-         virtio_add_feature(&f, VIRTIO_BALLOON_F_PAGE_POISON);
-     }
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index ee582a36653d..da470af9d328 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -74,6 +74,7 @@ static struct kmem_cache *btrfs_inode_cachep;
+ struct kmem_cache *btrfs_trans_handle_cachep;
+ struct kmem_cache *btrfs_path_cachep;
+ struct kmem_cache *btrfs_free_space_cachep;
++struct kmem_cache *btrfs_bitmap_cachep;
  
-@@ -805,6 +841,10 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
-     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+ static int btrfs_setsize(struct inode *inode, struct iattr *attr);
+ static int btrfs_truncate(struct inode *inode, bool skip_writeback);
+@@ -9380,6 +9381,7 @@ void __cold btrfs_destroy_cachep(void)
+ 	kmem_cache_destroy(btrfs_trans_handle_cachep);
+ 	kmem_cache_destroy(btrfs_path_cachep);
+ 	kmem_cache_destroy(btrfs_free_space_cachep);
++	kmem_cache_destroy(btrfs_bitmap_cachep);
+ }
  
-+    if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_REPORTING)) {
-+        s->rvq = virtio_add_queue(vdev, 32, virtio_balloon_handle_report);
-+    }
+ int __init btrfs_init_cachep(void)
+@@ -9409,6 +9411,11 @@ int __init btrfs_init_cachep(void)
+ 	if (!btrfs_free_space_cachep)
+ 		goto fail;
+ 
++	btrfs_bitmap_cachep = kmem_cache_create("btrfs_bitmap", PAGE_SIZE,
++						PAGE_SIZE, SLAB_RED_ZONE, NULL);
++	if (!btrfs_bitmap_cachep)
++		goto fail;
 +
-     if (virtio_has_feature(s->host_features,
-                            VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
-@@ -931,6 +971,8 @@ static Property virtio_balloon_properties[] = {
-      */
-     DEFINE_PROP_BOOL("qemu-4-0-config-size", VirtIOBalloon,
-                      qemu_4_0_config_size, false),
-+    DEFINE_PROP_BIT("unused-page-reporting", VirtIOBalloon, host_features,
-+                    VIRTIO_BALLOON_F_REPORTING, true),
-     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
-                      IOThread *),
-     DEFINE_PROP_END_OF_LIST(),
-diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
-index 7fe78e5c14d7..db5bf7127112 100644
---- a/include/hw/virtio/virtio-balloon.h
-+++ b/include/hw/virtio/virtio-balloon.h
-@@ -42,7 +42,7 @@ enum virtio_balloon_free_page_report_status {
- 
- typedef struct VirtIOBalloon {
-     VirtIODevice parent_obj;
--    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
-+    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *rvq;
-     uint32_t free_page_report_status;
-     uint32_t num_pages;
-     uint32_t actual;
+ 	return 0;
+ fail:
+ 	btrfs_destroy_cachep();
+-- 
+2.13.3
 
 
