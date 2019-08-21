@@ -2,153 +2,232 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-15.8 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=unavailable
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D85FC3A5A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 03:25:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DEB1C3A5A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:04:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4122B22DD6
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 03:25:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EBA3522DD3
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:04:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CI21+U4n"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4122B22DD6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="nhL1HSK2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBA3522DD3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6D346B0283; Tue, 20 Aug 2019 23:25:36 -0400 (EDT)
+	id 8A6806B0285; Wed, 21 Aug 2019 00:04:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF69C6B0284; Tue, 20 Aug 2019 23:25:36 -0400 (EDT)
+	id 8586F6B0286; Wed, 21 Aug 2019 00:04:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC00B6B0285; Tue, 20 Aug 2019 23:25:36 -0400 (EDT)
+	id 746E96B0287; Wed, 21 Aug 2019 00:04:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7556B0283
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 23:25:36 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 49DA38248ABD
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 03:25:36 +0000 (UTC)
-X-FDA: 75844995072.03.blade61_882c9bcbbde16
-X-HE-Tag: blade61_882c9bcbbde16
-X-Filterd-Recvd-Size: 5946
-Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 03:25:35 +0000 (UTC)
-Received: by mail-pl1-f193.google.com with SMTP id d3so538889plr.1
-        for <linux-mm@kvack.org>; Tue, 20 Aug 2019 20:25:35 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=FKWAkiDR5rSbbJHylgJX/d3UkhUAaJmc1tNEs5aP4JU=;
-        b=CI21+U4nsmf7wBi8MX/lwJOeIz5A1WSv9OwVMFI4pPUD57NxZftzFB7n+uG+jcdnap
-         7Glvco1VzzG0sp+eNaIgQJSrVEwLUhqbQQhap97rg2pMUAET36gee6KdYCFg+hSZsrh5
-         DlBUC9OgKHP+wv1njj0zDgd/l1ClTMK1YCNfVaHcXbmZispBCRtz1T4GZZTOfWUF8uIn
-         f9x/v79LEMyYOJbkz/rIiDtTMPzr4WgvI9M/kBI6/Tkz0PwTdmOQ4QIFDO07UsgUd0Wc
-         O/JDhZHow5uv5sEVcx1PPobeCrnB5L1jCRsiVC7sj2II3lJRMLwT8GV61PDrfxS3GhYY
-         crYQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
-         :references:user-agent:mime-version;
-        bh=FKWAkiDR5rSbbJHylgJX/d3UkhUAaJmc1tNEs5aP4JU=;
-        b=sNepE+hvuVKhrGUUI1EzMwSmGdPSTi7HsKPR9ZwPNkN4Bk5UBBtLHgmBuGLnKBiYyB
-         UijmQfob45BmxUFKVGBwKguMMuYSsyGbFzjFDakSroEH4yQy/rYW1jwaGzcO9CV+EEOb
-         pxBi8aywJs0pLDns59+80IzxyiZEAOZDl5mqLte3YON/NJcvKXd8OkFvfGjJl66Vhvwy
-         86TO351JFNLwqY1JCT1B4YsBD8TWG/SfLwvyp3MCpG8RLHdVu2KFhMOgYxIHmEWXQedb
-         iP5PhjTsHU9SZwTdXVwC+Dj01dNY+rPJZ+9z/HQUd1YM8O1CZ18np0L3s+U4SuBLY4xR
-         vY0A==
-X-Gm-Message-State: APjAAAW/EaNvrIPwKf7FFNnqpi0n8ZRzFpNDesZQUNRluJRgzrJk/MWa
-	sY3P5FXXpapi64pEqbkR7/q3CA==
-X-Google-Smtp-Source: APXvYqw7T3zbmDwzrqn0BLzf5Ac0Hjt+YjaptvIvR3GtFvAskUNeAmq+ZSMDpdGW6UVBL/ff7IiwZw==
-X-Received: by 2002:a17:902:5a42:: with SMTP id f2mr32046957plm.45.1566357934258;
-        Tue, 20 Aug 2019 20:25:34 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id e13sm26285977pfl.130.2019.08.20.20.25.33
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 20 Aug 2019 20:25:33 -0700 (PDT)
-Date: Tue, 20 Aug 2019 20:25:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Edward Chron <echron@arista.com>
-cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-    Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-    Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-    Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, colona@arista.com
-Subject: Re: [PATCH] mm/oom: Add oom_score_adj value to oom Killed process
- message
-In-Reply-To: <20190821001445.32114-1-echron@arista.com>
-Message-ID: <alpine.DEB.2.21.1908202024300.141379@chino.kir.corp.google.com>
-References: <20190821001445.32114-1-echron@arista.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+	by kanga.kvack.org (Postfix) with ESMTP id 542386B0285
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:04:00 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D238568BF
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:03:59 +0000 (UTC)
+X-FDA: 75845091798.23.trick05_22d0a61661703
+X-HE-Tag: trick05_22d0a61661703
+X-Filterd-Recvd-Size: 7966
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:03:59 +0000 (UTC)
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5cc2ad0004>; Tue, 20 Aug 2019 21:03:58 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 20 Aug 2019 21:03:58 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 20 Aug 2019 21:03:58 -0700
+Received: from HQMAIL110.nvidia.com (172.18.146.15) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
+ 2019 04:03:57 +0000
+Received: from HQMAIL111.nvidia.com (172.20.187.18) by hqmail110.nvidia.com
+ (172.18.146.15) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
+ 2019 04:03:57 +0000
+Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL111.nvidia.com
+ (172.20.187.18) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
+ Transport; Wed, 21 Aug 2019 04:03:57 +0000
+Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
+	id <B5d5cc2ad0000>; Tue, 20 Aug 2019 21:03:57 -0700
+From: John Hubbard <jhubbard@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
+	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH 4/4] mm/gup: introduce vaddr_pin_pages_remote(), and invoke it
+Date: Tue, 20 Aug 2019 21:03:55 -0700
+Message-ID: <20190821040355.19566-4-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.22.1
+In-Reply-To: <20190821040355.19566-1-jhubbard@nvidia.com>
+References: <20190821040355.19566-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+X-NVConfidentiality: public
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1566360238; bh=84bhj2PTobIrNB4qrJQexuzhd7TgFsVEFFO7B0hh5tU=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
+	 Content-Transfer-Encoding:Content-Type;
+	b=nhL1HSK2U4WrKC5vGw3005UMictu1E4EM+yEDzDmb6ZkyWfRgLvFtM7196fevI5sV
+	 GXmipG5tsboszbdoEPIJy0512aMsw78D+8KclfySfhJeY74wtgtdl9tzr9YvK03S0F
+	 d9PC4sNf31/PgrnlUlmK0M1k1S7zdRM39LPfT2OkKqrNba4Kewa1lGY2MxXQE16M9i
+	 yPtAlQWhCfrDDRKVlTvz3MH9E+1UzGRAevREc/6foOp3DNrMo31pgLtt+1Br8HvKPn
+	 RX4BTFbIm2RUzGmbp9kDWvkaiGUYHSV5AQ/XpeX0xE0Y3fOw18V/JdP7PqrECgIl86
+	 PeNFAAGpzLlNQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Aug 2019, Edward Chron wrote:
+vaddr_pin_user_pages_remote() is the "vaddr_pin_pages" corresponding
+variant to get_user_pages_remote(): it adds the ability to handle
+FOLL_PIN, FOLL_LONGTERM, or both.
 
-> For an OOM event: print oom_score_adj value for the OOM Killed process to
-> document what the oom score adjust value was at the time the process was
-> OOM Killed. The adjustment value can be set by user code and it affects
-> the resulting oom_score so it is used to influence kill process selection.
-> 
-> When eligible tasks are not printed (sysctl oom_dump_tasks = 0) printing
-> this value is the only documentation of the value for the process being
-> killed. Having this value on the Killed process message documents if a
-> miscconfiguration occurred or it can confirm that the oom_score_adj
-> value applies as expected.
-> 
-> An example which illustates both misconfiguration and validation that
-> the oom_score_adj was applied as expected is:
-> 
-> Aug 14 23:00:02 testserver kernel: Out of memory: Killed process 2692
->  (systemd-udevd) total-vm:1056800kB, anon-rss:1052760kB, file-rss:4kB,
->  shmem-rss:0kB oom_score_adj:1000
-> 
-> The systemd-udevd is a critical system application that should have an
-> oom_score_adj of -1000. Here it was misconfigured to have a adjustment
-> of 1000 making it a highly favored OOM kill target process. The output
-> documents both the misconfiguration and the fact that the process
-> was correctly targeted by OOM due to the miconfiguration. Having
-> the oom_score_adj on the Killed message ensures that it is documented.
-> 
-> Signed-off-by: Edward Chron <echron@arista.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+Note that the put_user_page*() requirement won't be truly required until
+all of the call sites have been converted, and the tracking of pages is
+activated.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Also, change process_vm_rw_single_vec() to invoke the new function.
 
-vm.oom_dump_tasks is pretty useful, however, so it's curious why you 
-haven't left it enabled :/
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+ include/linux/mm.h     |  5 +++++
+ mm/gup.c               | 33 +++++++++++++++++++++++++++++++++
+ mm/process_vm_access.c | 23 ++++++++++++++---------
+ 3 files changed, 52 insertions(+), 9 deletions(-)
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index eda2e2a0bdc6..c781f73b6cd6 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -884,12 +884,13 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  	 */
->  	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
->  	mark_oom_victim(victim);
-> -	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-> +	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB oom_score_adj:%ld\n",
->  		message, task_pid_nr(victim), victim->comm,
->  		K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-> -		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-> +		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-> +		(long)victim->signal->oom_score_adj);
->  	task_unlock(victim);
->  
->  	/*
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 6e7de424bf5e..849b509e9f89 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1606,6 +1606,11 @@ int __account_locked_vm(struct mm_struct *mm, unsign=
+ed long pages, bool inc,
+ long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+ 		     unsigned int gup_flags, struct page **pages,
+ 		     struct vaddr_pin *vaddr_pin);
++long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
+ *mm,
++				 unsigned long start, unsigned long nr_pages,
++				 unsigned int gup_flags, struct page **pages,
++				 struct vm_area_struct **vmas, int *locked,
++				 struct vaddr_pin *vaddr_pin);
+ void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
+ 		       struct vaddr_pin *vaddr_pin, bool make_dirty);
+ bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *pa=
+ge);
+diff --git a/mm/gup.c b/mm/gup.c
+index e49096d012ea..d7ce9b38178f 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -2522,3 +2522,36 @@ void vaddr_unpin_pages(struct page **pages, unsigned=
+ long nr_pages,
+ 	__put_user_pages_dirty_lock(pages, nr_pages, make_dirty, vaddr_pin);
+ }
+ EXPORT_SYMBOL(vaddr_unpin_pages);
++
++/**
++ * vaddr_pin_user_pages_remote() - pin pages by virtual address and return=
+ the
++ * pages to the user.
++ *
++ * @tsk:	the task_struct to use for page fault accounting, or
++ *		NULL if faults are not to be recorded.
++ * @mm:		mm_struct of target mm
++ * @addr:	start address
++ * @nr_pages:	number of pages to pin
++ * @gup_flags:	flags to use for the pin. Please see FOLL_* documentation i=
+n
++ *		mm.h.
++ * @pages:	array of pages returned
++ * @vaddr_pin:  If FOLL_LONGTERM is set, then vaddr_pin should point to an
++ * initialized struct that contains the owning mm and file. Otherwise, vad=
+dr_pin
++ * should be set to NULL.
++ *
++ * This is the "vaddr_pin_pages" corresponding variant to
++ * get_user_pages_remote(), but with the ability to handle FOLL_PIN,
++ * FOLL_LONGTERM, or both.
++ */
++long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
+ *mm,
++				 unsigned long start, unsigned long nr_pages,
++				 unsigned int gup_flags, struct page **pages,
++				 struct vm_area_struct **vmas, int *locked,
++				 struct vaddr_pin *vaddr_pin)
++{
++	gup_flags |=3D FOLL_TOUCH | FOLL_REMOTE;
++
++	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
++				       locked, gup_flags, vaddr_pin);
++}
++EXPORT_SYMBOL(vaddr_pin_user_pages_remote);
+diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+index 357aa7bef6c0..e08c1f760ad4 100644
+--- a/mm/process_vm_access.c
++++ b/mm/process_vm_access.c
+@@ -96,7 +96,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
+ 		flags |=3D FOLL_WRITE;
+=20
+ 	while (!rc && nr_pages && iov_iter_count(iter)) {
+-		int pages =3D min(nr_pages, max_pages_per_loop);
++		int pinned_pages =3D min(nr_pages, max_pages_per_loop);
+ 		int locked =3D 1;
+ 		size_t bytes;
+=20
+@@ -106,14 +106,18 @@ static int process_vm_rw_single_vec(unsigned long add=
+r,
+ 		 * current/current->mm
+ 		 */
+ 		down_read(&mm->mmap_sem);
+-		pages =3D get_user_pages_remote(task, mm, pa, pages, flags,
+-					      process_pages, NULL, &locked);
++
++		flags |=3D FOLL_PIN;
++		pinned_pages =3D vaddr_pin_user_pages_remote(task, mm, pa,
++							   pinned_pages, flags,
++							   process_pages, NULL,
++							   &locked, NULL);
+ 		if (locked)
+ 			up_read(&mm->mmap_sem);
+-		if (pages <=3D 0)
++		if (pinned_pages <=3D 0)
+ 			return -EFAULT;
+=20
+-		bytes =3D pages * PAGE_SIZE - start_offset;
++		bytes =3D pinned_pages * PAGE_SIZE - start_offset;
+ 		if (bytes > len)
+ 			bytes =3D len;
+=20
+@@ -122,10 +126,11 @@ static int process_vm_rw_single_vec(unsigned long add=
+r,
+ 					 vm_write);
+ 		len -=3D bytes;
+ 		start_offset =3D 0;
+-		nr_pages -=3D pages;
+-		pa +=3D pages * PAGE_SIZE;
+-		while (pages)
+-			put_page(process_pages[--pages]);
++		nr_pages -=3D pinned_pages;
++		pa +=3D pinned_pages * PAGE_SIZE;
++
++		/* If vm_write is set, the pages need to be made dirty: */
++		vaddr_unpin_pages(process_pages, pinned_pages, NULL, vm_write);
+ 	}
+=20
+ 	return rc;
+--=20
+2.22.1
 
-Nit: why not just use %hd and avoid the cast to long?
 
