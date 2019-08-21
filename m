@@ -4,72 +4,72 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4511DC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45669C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED793216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EF8F0233FE
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 18:32:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="J7ncVAC/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED793216F4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="Z9XdTfPQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF8F0233FE
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C5FA76B0270; Wed, 21 Aug 2019 14:32:20 -0400 (EDT)
+	id 3FBBB6B0272; Wed, 21 Aug 2019 14:32:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C11946B0271; Wed, 21 Aug 2019 14:32:20 -0400 (EDT)
+	id 35E1E6B0273; Wed, 21 Aug 2019 14:32:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB4C66B0272; Wed, 21 Aug 2019 14:32:20 -0400 (EDT)
+	id 1D6416B0274; Wed, 21 Aug 2019 14:32:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0057.hostedemail.com [216.40.44.57])
-	by kanga.kvack.org (Postfix) with ESMTP id 828266B0270
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:32:20 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 376DB55FB5
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:20 +0000 (UTC)
-X-FDA: 75847280040.21.pets05_3175927e95263
-X-HE-Tag: pets05_3175927e95263
-X-Filterd-Recvd-Size: 5484
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf40.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:19 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id 201so2707226qkm.9
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:32:19 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0149.hostedemail.com [216.40.44.149])
+	by kanga.kvack.org (Postfix) with ESMTP id E83006B0272
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:32:21 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id A48E955FB5
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:21 +0000 (UTC)
+X-FDA: 75847280082.29.ray10_31ac6c4d2874a
+X-HE-Tag: ray10_31ac6c4d2874a
+X-Filterd-Recvd-Size: 7534
+Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:32:21 +0000 (UTC)
+Received: by mail-qt1-f193.google.com with SMTP id j15so4201316qtl.13
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:32:21 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=from:to:subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=p2ZmPVW3GUksitLyy9jJ27m49TkI76nwQzxdL+NJyyg=;
-        b=J7ncVAC/Ks/EVDWP1J6BghzJOVmI27MTR8joZZ9iGqN0eTRjFtj/eaN0Or61tK1y/4
-         cpAOw5K8hLE3U5xetVDyi5wH1tGqXtzvQig9a2h9kkbrHAtcKIGjwURANE/QY+b8pvou
-         enG2wH3J21xePJ0Bvbz8TyQP3ccy4TUVnry1I2OhVy+vOCKmvac2ZH+UrNh+P9qPYwT2
-         UMFpaqOKsTMyOk2zzKuNIIRuWAHUxsJESpJ5QBAM77U0vMzOpdQFzb17OTpOcKe+muBB
-         EB/JFZ9nEpIu9UtWXT3FlFKU7k5VuIWmAx2Ui4GDgJaTUSlEIrYzNQZXiE6ikxkq1vtM
-         Hr9A==
+        bh=zx3wi4rxE69hFoeINMbvlrOQdd3v0rMCcWlwgMe+7ro=;
+        b=Z9XdTfPQsqrX+ihCr/4v6ItjEm2fTEBbeWz31i5BDIZiOLzaaHMtsuH2gtjkTF6ELA
+         7yXqP1MI/fSXDCZ14zn/alA5HSSTPmUHomhmG+JDDkx1iLsTl7o/Iqcn9rPRE3VmTc/X
+         /ox8ZTwPDgqdEsBMlW32tnbBoHwMhgBeTxLUP0uouGygQ/O3Fa5pNUVp9reQpI62FyCX
+         R3eJo+7FXskAW2/gAKFmeWDiSo7F5wlSMNy8J29CwUOFu7Obx7iEVrbyGTfDJ4oC7JZx
+         oOnvCDR8AxKmVTLp02PdeBuOzlYNu4WasPK9T7Aj8+N3bmKh30clQWsDfamV/Ov+aWlZ
+         y0Ow==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=p2ZmPVW3GUksitLyy9jJ27m49TkI76nwQzxdL+NJyyg=;
-        b=oAdyfLV8cWR2rXxPCsfaBI05NOMiXsU6dXJLIwVC7SKnohZggWYcAEmmFuqDbR9pBk
-         eiMu1Gmi+XskP0i2C5vHb2FNsoSCmh2f3fF1MT09luMvIkQRAw0gaKgfPaf4i/u5HVYk
-         OvyEWa0bpM3EVi+ki1vKQq7/0xK2jJfg5/FBEZDYwpyG3Yi6tvNfsVoZvoJ0psWOQjDb
-         ZsZbb3OFvSa/GIK/qpUW6rIWhy/CS/oLcZDnBwKPKlZdQdUsQ/T8aM+pFbvtryKGqmmd
-         SVKebmnMf2M1g2GyLk7KbV/pTi08Ff1eSXmFykM40asbqvuoNHbfBZ6oxiKUVGEI4pDZ
-         F18g==
-X-Gm-Message-State: APjAAAUfdTbN++01aQuxy/uIZyimWIVxZPmkHBPcRSfaQA+phc3w7xUT
-	tky1m8pgGtTv8CNZPXNTUxYJsA==
-X-Google-Smtp-Source: APXvYqw7OKOPFGZGP2ShGpR47tsdJdXKOSIYQ93+AeAvfCBSHBXQT7Xapz16QlTiFuqHRCuJi7i9nA==
-X-Received: by 2002:a37:9c0c:: with SMTP id f12mr33218821qke.442.1566412339244;
-        Wed, 21 Aug 2019 11:32:19 -0700 (PDT)
+        bh=zx3wi4rxE69hFoeINMbvlrOQdd3v0rMCcWlwgMe+7ro=;
+        b=e+GikIDbKOudmLKjEXvmiX/nrpzbXupNuAZ9nkjSv2z6xYOPKOMTt43ir7L9kE6xlc
+         Ejsk8E3zUBHjkhke5RTJ5wp6vc/nw0Uj5GI4zig69mbc5wKLZPpN+6R6VUy+yPgnLygO
+         J9VCuhinqP6Kwu5UgbLg8hIWAJNbyQl+fe6XAeJYym4e2Tps4imjpHHrOjtZBdUlFPmP
+         dJzWqn66muFfpTVXUfJKu7atVxLXsaNtr1bY+PVXQxKkChdZUzPFZz7xKOmXD+CYJJkW
+         h0I1AVd8UfJ8bGamllDA7oC2ASDl88MSyL8yeMAojvGnxMkmARFR5/N4rMijNKPb8kWE
+         wJRw==
+X-Gm-Message-State: APjAAAWTRxb0gLGxgYYhmG3JAef7Q+Yu9wWnPKY+KmCx6NPvAXfvbUNJ
+	kLn8PU4h7/gjZlwOjm7S52HV5w==
+X-Google-Smtp-Source: APXvYqwWbwptxQVbDLDq/ThfodFBbNa157DjIxH5pnCxaJLPGWLsptjdu2SMPi7VujUE6fDJ2uoQLg==
+X-Received: by 2002:ad4:45e3:: with SMTP id q3mr19092758qvu.140.1566412340641;
+        Wed, 21 Aug 2019 11:32:20 -0700 (PDT)
 Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
-        by smtp.gmail.com with ESMTPSA id q13sm10443332qkm.120.2019.08.21.11.32.17
+        by smtp.gmail.com with ESMTPSA id q13sm10443332qkm.120.2019.08.21.11.32.19
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 21 Aug 2019 11:32:18 -0700 (PDT)
+        Wed, 21 Aug 2019 11:32:20 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
 To: pasha.tatashin@soleen.com,
 	jmorris@namei.org,
@@ -88,9 +88,9 @@ To: pasha.tatashin@soleen.com,
 	bhsharma@redhat.com,
 	linux-mm@kvack.org,
 	mark.rutland@arm.com
-Subject: [PATCH v3 09/17] arm64, trans_pgd: add trans_pgd_create_empty
-Date: Wed, 21 Aug 2019 14:31:56 -0400
-Message-Id: <20190821183204.23576-10-pasha.tatashin@soleen.com>
+Subject: [PATCH v3 10/17] arm64, trans_pgd: adjust trans_pgd_create_copy interface
+Date: Wed, 21 Aug 2019 14:31:57 -0400
+Message-Id: <20190821183204.23576-11-pasha.tatashin@soleen.com>
 X-Mailer: git-send-email 2.23.0
 In-Reply-To: <20190821183204.23576-1-pasha.tatashin@soleen.com>
 References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
@@ -102,79 +102,129 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This functions returns a zeroed trans_pgd using the allocator that is
-specified in the info argument.
+Make trans_pgd_create_copy inline with the other functions in
+trans_pgd: use the trans_pgd_info argument, and also use the
+trans_pgd_create_empty.
 
-trans_pgds should be created by using this function.
+Note, that the functions that are called by trans_pgd_create_copy are
+not yet adjusted to be compliant with trans_pgd: they do not yet use
+the provided allocator, do not check for generic errors, and do not yet
+use the flags in info argument.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 ---
- arch/arm64/include/asm/trans_pgd.h |  3 +++
- arch/arm64/kernel/hibernate.c      |  6 +++---
- arch/arm64/mm/trans_pgd.c          | 12 ++++++++++++
- 3 files changed, 18 insertions(+), 3 deletions(-)
+ arch/arm64/include/asm/trans_pgd.h |  7 ++++++-
+ arch/arm64/kernel/hibernate.c      | 31 ++++++++++++++++++++++++++++--
+ arch/arm64/mm/trans_pgd.c          | 17 ++++++----------
+ 3 files changed, 41 insertions(+), 14 deletions(-)
 
 diff --git a/arch/arm64/include/asm/trans_pgd.h b/arch/arm64/include/asm/=
 trans_pgd.h
-index e3d022b1b526..26e5a63676b5 100644
+index 26e5a63676b5..f4a5f255d4a7 100644
 --- a/arch/arm64/include/asm/trans_pgd.h
 +++ b/arch/arm64/include/asm/trans_pgd.h
-@@ -40,6 +40,9 @@ struct trans_pgd_info {
- 	unsigned long trans_flags;
- };
-=20
-+/* Create and empty trans_pgd page table */
-+int trans_pgd_create_empty(struct trans_pgd_info *info, pgd_t **trans_pg=
+@@ -43,7 +43,12 @@ struct trans_pgd_info {
+ /* Create and empty trans_pgd page table */
+ int trans_pgd_create_empty(struct trans_pgd_info *info, pgd_t **trans_pg=
 d);
-+
- int trans_pgd_create_copy(pgd_t **dst_pgdp, unsigned long start,
+=20
+-int trans_pgd_create_copy(pgd_t **dst_pgdp, unsigned long start,
++/*
++ * Create trans_pgd and copy entries from from_table to trans_pgd in ran=
+ge
++ * [start, end)
++ */
++int trans_pgd_create_copy(struct trans_pgd_info *info, pgd_t **trans_pgd=
+,
++			  pgd_t *from_table, unsigned long start,
  			  unsigned long end);
 =20
+ /*
 diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.=
 c
-index 17426dc8cb54..8c2641a9bb09 100644
+index 8c2641a9bb09..8bb602e91065 100644
 --- a/arch/arm64/kernel/hibernate.c
 +++ b/arch/arm64/kernel/hibernate.c
-@@ -216,9 +216,9 @@ static int create_safe_exec_page(void *src_start, siz=
-e_t length,
- 	memcpy(page, src_start, length);
- 	__flush_icache_range((unsigned long)page, (unsigned long)page + length)=
-;
+@@ -323,15 +323,42 @@ int swsusp_arch_resume(void)
+ 	phys_addr_t phys_hibernate_exit;
+ 	void __noreturn (*hibernate_exit)(phys_addr_t, phys_addr_t, void *,
+ 					  void *, phys_addr_t, phys_addr_t);
++	struct trans_pgd_info trans_info =3D {
++		.trans_alloc_page	=3D hibernate_page_alloc,
++		.trans_alloc_arg	=3D (void *)GFP_ATOMIC,
++		/*
++		 * Resume will overwrite areas that may be marked read only
++		 * (code, rodata). Clear the RDONLY bit from the temporary
++		 * mappings we use during restore.
++		 */
++		.trans_flags		=3D TRANS_MKWRITE,
++	};
++
++	/*
++	 * debug_pagealloc will removed the PTE_VALID bit if the page isn't in
++	 * use by the resume kernel. It may have been in use by the original
++	 * kernel, in which case we need to put it back in our copy to do the
++	 * restore.
++	 *
++	 * Before marking this entry valid, check the pfn should be mapped.
++	 */
++	if (debug_pagealloc_enabled())
++		trans_info.trans_flags |=3D (TRANS_MKVALID | TRANS_CHECKPFN);
 =20
--	trans_pgd =3D (void *)get_safe_page(GFP_ATOMIC);
--	if (!trans_pgd)
--		return -ENOMEM;
-+	rc =3D trans_pgd_create_empty(&trans_info, &trans_pgd);
-+	if (rc)
-+		return rc;
+ 	/*
+ 	 * Restoring the memory image will overwrite the ttbr1 page tables.
+ 	 * Create a second copy of just the linear map, and use this when
+ 	 * restoring.
+ 	 */
+-	rc =3D trans_pgd_create_copy(&tmp_pg_dir, PAGE_OFFSET, 0);
+-	if (rc)
++	rc =3D trans_pgd_create_copy(&trans_info, &tmp_pg_dir, init_mm.pgd,
++				   PAGE_OFFSET, 0);
++	if (rc) {
++		if (rc =3D=3D -ENOMEM)
++			pr_err("Failed to allocate memory for temporary page tables.\n");
++		else if (rc =3D=3D -ENXIO)
++			pr_err("Tried to set PTE for PFN that does not exist\n");
+ 		goto out;
++	}
 =20
- 	rc =3D trans_pgd_map_page(&trans_info, trans_pgd, page, dst_addr,
- 				PAGE_KERNEL_EXEC);
+ 	/*
+ 	 * We need a zero page that is zero before & after resume in order to
 diff --git a/arch/arm64/mm/trans_pgd.c b/arch/arm64/mm/trans_pgd.c
-index dbabccd78cc4..ece797aa1841 100644
+index ece797aa1841..7d8734709b61 100644
 --- a/arch/arm64/mm/trans_pgd.c
 +++ b/arch/arm64/mm/trans_pgd.c
-@@ -164,6 +164,18 @@ static int copy_page_tables(pgd_t *dst_pgdp, unsigne=
-d long start,
+@@ -176,22 +176,17 @@ int trans_pgd_create_empty(struct trans_pgd_info *i=
+nfo, pgd_t **trans_pgd)
  	return 0;
  }
 =20
-+int trans_pgd_create_empty(struct trans_pgd_info *info, pgd_t **trans_pg=
-d)
-+{
-+	pgd_t *dst_pgdp =3D trans_alloc(info);
-+
-+	if (!dst_pgdp)
-+		return -ENOMEM;
-+
-+	*trans_pgd =3D dst_pgdp;
-+
-+	return 0;
-+}
-+
- int trans_pgd_create_copy(pgd_t **dst_pgdp, unsigned long start,
+-int trans_pgd_create_copy(pgd_t **dst_pgdp, unsigned long start,
++int trans_pgd_create_copy(struct trans_pgd_info *info, pgd_t **trans_pgd=
+,
++			  pgd_t *from_table, unsigned long start,
  			  unsigned long end)
  {
+ 	int rc;
+-	pgd_t *trans_pgd =3D (pgd_t *)get_safe_page(GFP_ATOMIC);
+=20
+-	if (!trans_pgd) {
+-		pr_err("Failed to allocate memory for temporary page tables.\n");
+-		return -ENOMEM;
+-	}
+-
+-	rc =3D copy_page_tables(trans_pgd, start, end);
+-	if (!rc)
+-		*dst_pgdp =3D trans_pgd;
++	rc =3D trans_pgd_create_empty(info, trans_pgd);
++	if (rc)
++		return rc;
+=20
+-	return rc;
++	return copy_page_tables(*trans_pgd, start, end);
+ }
+=20
+ int trans_pgd_map_page(struct trans_pgd_info *info, pgd_t *trans_pgd,
 --=20
 2.23.0
 
