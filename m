@@ -2,201 +2,269 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21327C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:12:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0A4BC3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:24:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A37A42332A
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:12:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 559DB22DD3
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:24:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="eDrUlZ1s"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A37A42332A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="AWZWF9nT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 559DB22DD3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17BE56B02B7; Wed, 21 Aug 2019 19:12:23 -0400 (EDT)
+	id E43286B02B9; Wed, 21 Aug 2019 19:24:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 106006B02B8; Wed, 21 Aug 2019 19:12:23 -0400 (EDT)
+	id DF3486B02BA; Wed, 21 Aug 2019 19:24:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F0F946B02B9; Wed, 21 Aug 2019 19:12:22 -0400 (EDT)
+	id CBAA56B02BB; Wed, 21 Aug 2019 19:24:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0094.hostedemail.com [216.40.44.94])
-	by kanga.kvack.org (Postfix) with ESMTP id C93716B02B7
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:12:22 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 5BF358787
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:12:22 +0000 (UTC)
-X-FDA: 75847985724.11.alley55_149c11e507b3b
-X-HE-Tag: alley55_149c11e507b3b
-X-Filterd-Recvd-Size: 7530
-Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:12:21 +0000 (UTC)
-Received: by mail-io1-f65.google.com with SMTP id l7so8104393ioj.6
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:12:21 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=arista.com; s=googlenew;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0KVJzgs8EgORbeJXXQubNPgw1WiUGBr9OYGA7l6xlcE=;
-        b=eDrUlZ1sAmJkYbQSimlYWKmC1dUR+CGjg15fVmd1/JPfkySdGgd52llMp900L9A9hQ
-         xYCXspJbD486cUNWl0/vHQefQh4ROBps1vwmCGTQrj0xn4lK2BmEmSjR4zqihmxL0Vmv
-         v7SpuHz+28jBLO5xIB1jvjKV/0SjBjvjJG+fvcoP8THQk3rqzGv9l3FAHn1QHRoXwLPI
-         hJK4Zj3oUmIFYSV9I78tLqwFRk0/xZpZj76fvCFuDkXwwgXho67oM3Ir9m0oawERpcIJ
-         tjAwoiHFgGoi+9brArrSyzUTwbjpy9F5g9otqjnxC5V64fO44nqxNWscO/6okRf9PX0K
-         eq7A==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=0KVJzgs8EgORbeJXXQubNPgw1WiUGBr9OYGA7l6xlcE=;
-        b=pxSOSyxiYl1tczlC5G3N5CO76eZXKb5u0P8oYBnJcuFD7Aq7OrACvSxZPSnDt9Sa0J
-         SkjW4MmC6AI8eNK+qZgi3/aAn0OkQlRT3xQkqMMq8FV2vpbvtaM6NioWtKJVO6nfQyvq
-         2NgidMKG0Y9x8BpQfvl7wRrVKhpobbJBVq9aBfsZbIk95NkQvZp2lYwqhTjSTBZn53iu
-         sY7dF+CxUjbTykpeROc5czIIQsAKFGW/qOnTBJ20vg6XkVhJhwxDRiC1N4wRL2AnHi/z
-         ihILGbGJhUrzX0OgfJFPD9/efE7VmfaIDhAoImyFWyi1cBE3SjwOVeAgJ2RfwkgD0Izl
-         M+Dw==
-X-Gm-Message-State: APjAAAWWBfvM1Br4Z2iwizHrsBnAt2Pf4+dj0Qcu5bHcedEN9KWQZbRr
-	d1RxY8go7yKI7aPjfNgt8h2qCdcBn9jv5n9mfgsNFQ==
-X-Google-Smtp-Source: APXvYqyloKzz7NgWTchmsnc7qXwItkNgE6mhmz6hYsrxditmjwnLHbvLORRpP5EyOywTjcrApKlY50azf7yp8TQmbak=
-X-Received: by 2002:a02:390c:: with SMTP id l12mr4178791jaa.76.1566429140549;
- Wed, 21 Aug 2019 16:12:20 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0011.hostedemail.com [216.40.44.11])
+	by kanga.kvack.org (Postfix) with ESMTP id A66AD6B02B9
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:24:13 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 1469D8248AAF
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:24:13 +0000 (UTC)
+X-FDA: 75848015586.07.women72_7bc5b60195b01
+X-HE-Tag: women72_7bc5b60195b01
+X-Filterd-Recvd-Size: 12957
+Received: from nat-hk.nvidia.com (nat-hk.nvidia.com [203.18.50.4])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:24:10 +0000 (UTC)
+Received: from hkpgpgate102.nvidia.com (Not Verified[10.18.92.100]) by nat-hk.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d5dd2920000>; Thu, 22 Aug 2019 07:24:03 +0800
+Received: from HKMAIL104.nvidia.com ([10.18.16.13])
+  by hkpgpgate102.nvidia.com (PGP Universal service);
+  Wed, 21 Aug 2019 16:24:02 -0700
+X-PGP-Universal: processed;
+	by hkpgpgate102.nvidia.com on Wed, 21 Aug 2019 16:24:02 -0700
+Received: from HKMAIL102.nvidia.com (10.18.16.11) by HKMAIL104.nvidia.com
+ (10.18.16.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
+ 2019 23:24:02 +0000
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (104.47.41.55) by
+ HKMAIL102.nvidia.com (10.18.16.11) with Microsoft SMTP Server (TLS) id
+ 15.0.1473.3 via Frontend Transport; Wed, 21 Aug 2019 23:24:02 +0000
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=b/VFJLtNlxlNwsAhyqLh0QR8R8V7ugguZUdlrg/BBQUZLkKlTE7e++zRxe85GuO9s4mgHlcYL/31LKlYNuyRLjlMMZ2Y8JoyaEDPCU8cWHCrIwj6NAkEncurTxkTukTdhj3AZJoUNLD+dfwDmFa4us5xPpve9ksb8sl3X0aM/briPnpRmK4yLqrl47SoZQHAgDut1cba2dd6+4QVLOItNrhQ5Xruj1AOBXQgqAorS5qQiLbg+q2kqK+M6xihpvUZsszOO4eGxWoal+HjJ9+n2eCanyOFt2fX0G1nUJ59jyQ+OA2jcarMAtKWX6vm9QDjb9fvGvnNZEryAds+WN1BMg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Ql+aqOwMM6SSITAe+zRaZNVJoxvLQftDPEGPlB447JA=;
+ b=O9r9IAKC57CXB8xjzda1nPGDQwfoZlGhWBYmLGhkR7dnC/jYIOfz8ikU4YBracePUpZZhvDME850+D4z4GnFrom2gP0OJ6LFOVw6PjgxHGY2jjmq1s66Rn9s5d6BtJEcjArkM11oYpJaRIcvit/RzJtgbkeanIdim6Lp+7/3BflJ42aQm7XGkb4w9LrM+PV3tCng5U1tICUcukt8GSWeWv567MbRlW/xuZVMGvLO5igA1Of3NT1+2bWXkcwivCwRXh1vuBxhruOoCOTWKM8EAlBasS3b2WJ08Ssi1vZ1wceU+uMXJhDexCN8V9oNd3JpjXGIhzd5XAKFU3uq8h0kTQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=nvidia.com; dmarc=pass action=none header.from=nvidia.com;
+ dkim=pass header.d=nvidia.com; arc=none
+Received: from BYAPR12MB3015.namprd12.prod.outlook.com (20.178.53.140) by
+ BYAPR12MB3333.namprd12.prod.outlook.com (20.178.55.94) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2178.18; Wed, 21 Aug 2019 23:23:57 +0000
+Received: from BYAPR12MB3015.namprd12.prod.outlook.com
+ ([fe80::8d38:5355:e2aa:c1aa]) by BYAPR12MB3015.namprd12.prod.outlook.com
+ ([fe80::8d38:5355:e2aa:c1aa%7]) with mapi id 15.20.2178.020; Wed, 21 Aug 2019
+ 23:23:57 +0000
+From: Nitin Gupta <nigupta@nvidia.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz"
+	<vbabka@suse.cz>, "mgorman@techsingularity.net"
+	<mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>,
+	"dan.j.williams@intel.com" <dan.j.williams@intel.com>, Yu Zhao
+	<yuzhao@google.com>, Qian Cai <cai@lca.pw>, Andrey Ryabinin
+	<aryabinin@virtuozzo.com>, Roman Gushchin <guro@fb.com>, Greg Kroah-Hartman
+	<gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, Jann Horn
+	<jannh@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Arun KS
+	<arunks@codeaurora.org>, Janne Huttunen <janne.huttunen@nokia.com>,
+	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: RE: [RFC] mm: Proactive compaction
+Thread-Topic: [RFC] mm: Proactive compaction
+Thread-Index: AQHVVHvSPOoT6GjwikqO8JNrunJOkacEogGAgAGdSZA=
+Date: Wed, 21 Aug 2019 23:23:56 +0000
+Message-ID: <BYAPR12MB3015726BEF236D567FCFB29CD8AA0@BYAPR12MB3015.namprd12.prod.outlook.com>
+References: <20190816214413.15006-1-nigupta@nvidia.com>
+ <20190820222035.GC4949@bombadil.infradead.org>
+In-Reply-To: <20190820222035.GC4949@bombadil.infradead.org>
+Accept-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+msip_labels: MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_Enabled=True;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_SiteId=43083d15-7273-40c1-b7db-39efd9ccc17a;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_Owner=nigupta@nvidia.com;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_SetDate=2019-08-21T23:23:54.4134724Z;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_Name=Unrestricted;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_Application=Microsoft Azure
+ Information Protection;
+ MSIP_Label_6b558183-044c-4105-8d9c-cea02a2a3d86_Extended_MSFT_Method=Automatic;
+ Sensitivity=Unrestricted
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=nigupta@nvidia.com; 
+x-originating-ip: [216.228.112.22]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: f549518d-fd12-4fd4-2bc2-08d7268ea3cc
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR12MB3333;
+x-ms-traffictypediagnostic: BYAPR12MB3333:
+x-microsoft-antispam-prvs: <BYAPR12MB33336101ABF09C823DF6A02ED8AA0@BYAPR12MB3333.namprd12.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 0136C1DDA4
+x-forefront-antispam-report: SFV:NSPM;SFS:(10009020)(376002)(366004)(136003)(39860400002)(346002)(396003)(189003)(199004)(13464003)(52536014)(5660300002)(14444005)(256004)(26005)(64756008)(66446008)(102836004)(66946007)(6506007)(229853002)(7736002)(66556008)(66476007)(305945005)(66066001)(9686003)(76116006)(186003)(53546011)(55016002)(478600001)(8936002)(99286004)(54906003)(446003)(25786009)(11346002)(476003)(7416002)(2906002)(76176011)(14454004)(316002)(4326008)(53936002)(6246003)(7696005)(33656002)(74316002)(86362001)(6436002)(6916009)(486006)(71190400001)(3846002)(6116002)(8676002)(71200400001)(81156014)(81166006);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR12MB3333;H:BYAPR12MB3015.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: nvidia.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: z3ZO8slvvrI05UDd6GOWIbhrYksH6tuPpwBOH90BxjSMi+xQ8FWg00AwOrZEk6JINx53yNJI9KISL2VfTKKV4vty6ycfG2fe2vuDRr3OcaPHy+n+C1Fm21AJpeAXAdumJbXXaGz/oEplmZmFWzPiKLIqGRLR2ssZUth+PXf8GPuMI6ExeWNKUyIr63RO9VLw3iB7PhFwRBCnuFK8Z9pzKgh1TmIITxjj20xzS2zRY6KrA7O8xSNyPzpcH5IhzGN97E2SL4cHjUcKp8VW91lfwEapoR91U64rUeZrb8E3aaDC21q64MclChvH/S6bC+tDYH2FUJb0idyhQpXM/C05NWAO47uKbV5DpzTLQ0omiyEaUhWVH27dW8G9FX1cMQ6Jl+jQfaekyVFMtAZQvPJfu23b8YlKeIrCsb3koQ1ql48=
+x-ms-exchange-transport-forked: True
 MIME-Version: 1.0
-References: <20190821001445.32114-1-echron@arista.com> <alpine.DEB.2.21.1908202024300.141379@chino.kir.corp.google.com>
- <20190821064732.GW3111@dhcp22.suse.cz> <alpine.DEB.2.21.1908210017320.177871@chino.kir.corp.google.com>
- <20190821074721.GY3111@dhcp22.suse.cz>
-In-Reply-To: <20190821074721.GY3111@dhcp22.suse.cz>
-From: Edward Chron <echron@arista.com>
-Date: Wed, 21 Aug 2019 16:12:08 -0700
-Message-ID: <CAM3twVR5Z1LG4+pqMF94mCw8R0sJ3VJtnggQnu+047c7jxJVug@mail.gmail.com>
-Subject: Re: [PATCH] mm/oom: Add oom_score_adj value to oom Killed process message
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shakeel Butt <shakeelb@google.com>, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Ivan Delalande <colona@arista.com>
-Content-Type: text/plain; charset="UTF-8"
+X-MS-Exchange-CrossTenant-Network-Message-Id: f549518d-fd12-4fd4-2bc2-08d7268ea3cc
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Aug 2019 23:23:56.9294
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 43083d15-7273-40c1-b7db-39efd9ccc17a
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: C+78dX2Daz6ruM9ErANKoBlh1O4u+LjUrHRKcxxfBNxaRxDdEFaZ3ehxjCkhhZRp8vTOcSyZUvquh/oT/k5yZg==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR12MB3333
+X-OriginatorOrg: Nvidia.com
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1566429843; bh=Ql+aqOwMM6SSITAe+zRaZNVJoxvLQftDPEGPlB447JA=;
+	h=X-PGP-Universal:ARC-Seal:ARC-Message-Signature:
+	 ARC-Authentication-Results:From:To:CC:Subject:Thread-Topic:
+	 Thread-Index:Date:Message-ID:References:In-Reply-To:
+	 Accept-Language:X-MS-Has-Attach:X-MS-TNEF-Correlator:msip_labels:
+	 authentication-results:x-originating-ip:x-ms-publictraffictype:
+	 x-ms-office365-filtering-correlation-id:x-microsoft-antispam:
+	 x-ms-traffictypediagnostic:x-microsoft-antispam-prvs:
+	 x-ms-oob-tlc-oobclassifiers:x-forefront-prvs:
+	 x-forefront-antispam-report:received-spf:
+	 x-ms-exchange-senderadcheck:x-microsoft-antispam-message-info:
+	 x-ms-exchange-transport-forked:MIME-Version:
+	 X-MS-Exchange-CrossTenant-Network-Message-Id:
+	 X-MS-Exchange-CrossTenant-originalarrivaltime:
+	 X-MS-Exchange-CrossTenant-fromentityheader:
+	 X-MS-Exchange-CrossTenant-id:X-MS-Exchange-CrossTenant-mailboxtype:
+	 X-MS-Exchange-CrossTenant-userprincipalname:
+	 X-MS-Exchange-Transport-CrossTenantHeadersStamped:X-OriginatorOrg:
+	 Content-Language:Content-Type:Content-Transfer-Encoding;
+	b=AWZWF9nTdOFDTDB0uybE7BRZm+FSlhElpszlpbQbr1JwfWdz/BIDaYW//57Q97XOU
+	 0uRMZZIkzEc4pyo/k9KZ5IirhRyqRqIC1c++wKNzAPUfSOf/GBFinlMvu8E3nAZVLj
+	 dCc2QLHLvQRRqpUP4o4bn+T6+xOjbsdQOqaMSZXvBBNvU/bVpZeZao54eTQaHq0IAX
+	 sHrijzS8lUc24J3Cxqzi0YfRVqtrQpTwNN/5TzNEPYRYVjNF7GyA6CWzSXTxlzyluG
+	 4micAtWNe4/TBH7BBrG7MVhnds/nWp3m+1kdjr61j3UqaMJGLEF+6qdQ32XC+tSa1I
+	 YPtYcoZHAhQOg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 21, 2019 at 12:47 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Wed 21-08-19 00:19:37, David Rientjes wrote:
-> > On Wed, 21 Aug 2019, Michal Hocko wrote:
-> >
-> > > > vm.oom_dump_tasks is pretty useful, however, so it's curious why you
-> > > > haven't left it enabled :/
-> > >
-> > > Because it generates a lot of output potentially. Think of a workload
-> > > with too many tasks which is not uncommon.
-> >
-> > Probably better to always print all the info for the victim so we don't
-> > need to duplicate everything between dump_tasks() and dump_oom_summary().
->
-> I believe that the motivation was to have a one line summary that is already
-> parsed by log consumers. And that is in __oom_kill_process one.
->
 
-Yes the motivation was one line summary that the OOM Killed Process
-message supplies along
-with the fact it is error priority as I mentioned. It is a very
-desirable place to put summarized
-information.
 
-> Also I do not think this patch improves things much for two reasons
-> at leasts a) it doesn't really give you the whole list of killed tasks
-> (this might be the whole memcg) and b) we already do have most important
-> information in __oom_kill_process. If something is missing there I do
-> not see a strong reason we cannot add it there. Like in this case.
->
+> -----Original Message-----
+> From: owner-linux-mm@kvack.org <owner-linux-mm@kvack.org> On Behalf
+> Of Matthew Wilcox
+> Sent: Tuesday, August 20, 2019 3:21 PM
+> To: Nitin Gupta <nigupta@nvidia.com>
+> Cc: akpm@linux-foundation.org; vbabka@suse.cz;
+> mgorman@techsingularity.net; mhocko@suse.com;
+> dan.j.williams@intel.com; Yu Zhao <yuzhao@google.com>; Qian Cai
+> <cai@lca.pw>; Andrey Ryabinin <aryabinin@virtuozzo.com>; Roman
+> Gushchin <guro@fb.com>; Greg Kroah-Hartman
+> <gregkh@linuxfoundation.org>; Kees Cook <keescook@chromium.org>; Jann
+> Horn <jannh@google.com>; Johannes Weiner <hannes@cmpxchg.org>; Arun
+> KS <arunks@codeaurora.org>; Janne Huttunen
+> <janne.huttunen@nokia.com>; Konstantin Khlebnikov
+> <khlebnikov@yandex-team.ru>; linux-kernel@vger.kernel.org; linux-
+> mm@kvack.org
+> Subject: Re: [RFC] mm: Proactive compaction
+>=20
+> On Fri, Aug 16, 2019 at 02:43:30PM -0700, Nitin Gupta wrote:
+> > Testing done (on x86):
+> >  - Set /sys/kernel/mm/compaction/order-9/extfrag_{low,high} =3D {25, 30=
+}
+> > respectively.
+> >  - Use a test program to fragment memory: the program allocates all
+> > memory  and then for each 2M aligned section, frees 3/4 of base pages
+> > using  munmap.
+> >  - kcompactd0 detects fragmentation for order-9 > extfrag_high and
+> > starts  compaction till extfrag < extfrag_low for order-9.
+>=20
+> Your test program is a good idea, but I worry it may produce unrealistica=
+lly
+> optimistic outcomes.  Page cache is readily reclaimable, so you're settin=
+g up
+> a situation where 2MB pages can once again be produced.
+>=20
+> How about this:
+>=20
+> One program which creates a file several times the size of memory (or
+> several files which total the same amount).  Then read the file(s).  Mayb=
+e by
+> mmap(), and just do nice easy sequential accesses.
+>=20
+> A second program which causes slab allocations.  eg
+>=20
+> for (;;) {
+> 	for (i =3D 0; i < n * 1000 * 1000; i++) {
+> 		char fname[64];
+>=20
+> 		sprintf(fname, "/tmp/missing.%d", i);
+> 		open(fname, O_RDWR);
+> 	}
+> }
+>=20
+> The first program should thrash the pagecache, causing pages to
+> continuously be allocated, reclaimed and freed.  The second will create
+> millions of dentries, causing the slab allocator to allocate a lot of
+> order-0 pages which are harder to free.  If you really want to make it wo=
+rk
+> hard, mix in opening some files whihc actually exist, preventing the page=
+s
+> which contain those dentries from being evicted.
+>=20
+> This feels like it's simulating a more normal workload than your test.
+> What do you think?
 
-This is a good point.
+This combination of workloads for mixing movable and unmovable
+pages sounds good.   I coded up these two and here's what I observed:
 
-Additionally (which you know, but mentioning for reference) the OOM
-output used to look like this:
+- kernel: 5.3.0-rc5 + this patch, x86_64, 32G RAM.
+- Set extfrag_{low,high} =3D {25,30} for order-9
+- Run pagecache and dentry thrash test programs as you described
+    - for pagecache test: mmap and sequentially read 128G file on a 32G sys=
+tem.
+    - for dentry test: set n=3D100. I created /tmp/missing.[0-10000] so the=
+se dentries stay allocated..
+- Start linux kernel compile for further pagecache thrashing.
 
-Nov 14 15:23:48 oldserver kernel: [337631.991218] Out of memory: Kill
-process 19961 (python) score 17 or sacrifice child
-Nov 14 15:23:48 oldserver kernel: [337631.991237] Killed process 31357
-(sh) total-vm:5400kB, anon-rss:252kB, file-rss:4kB, shmem-rss:0kB
+With above workload fragmentation for order-9 stayed 80-90% which kept
+kcompactd0 working but it couldn't make progress due to unmovable pages
+from dentries.  As expected, we keep hitting compaction_deferred() as
+compaction attempts fail.
 
-It now looks like this with 5.3.0-rc5 (minus the oom_score_adj):
+After a manual `echo 3 | /proc/sys/vm/drop_caches` and stopping dentry thra=
+sher,
+kcompactd succeded in bringing extfrag below set thresholds.
 
-Jul 22 10:42:40 newserver kernel:
-oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/user.slice/user-10383.slice/user@10383.service,task=oomprocs,pid=3035,uid=10383
-Jul 22 10:42:40 newserver kernel: Out of memory: Killed process 3035
-(oomprocs) total-vm:1056800kB, anon-rss:8kB, file-rss:4kB,
-shmem-rss:0kB
-Jul 22 10:42:40 newserver kernel: oom_reaper: reaped process 3035
-(oomprocs), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 
-The old output did explain that a oom_score of 17 must have either
-tied for highest or was the highest.
-This did document why OOM selected the process it did, even if ends up
-killing the related sh process.
+With unmovable pages spread across memory, there is little compaction
+can do. Maybe we should have a knob like 'compactness' (like swapiness) whi=
+ch
+defines how aggressive compaction can be. For high values, maybe allow
+freeing dentries too? This way hugepage sensitive applications can trade
+with higher I/O latencies.
 
-With the newer format that added constraint message, it does provide
-uid which can be helpful and
-the oom_reaper showing that the memory was reclaimed is certainly reassuring.
+Thanks,
+Nitin
 
-My understanding now is that printing the oom_score is discouraged.
-This seems unfortunate.  The oom_score_adj can be adjusted
-appropriately if oom_score is known.
-So It would be useful to have both.
 
-But at least if oom_score_adj is printed you can confirm the value at
-the time of the OOM event.
 
-Thank-you,
--Edward Chron
-Arista Networks
 
-> > Edward, how about this?
-> >
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -420,11 +420,17 @@ static int dump_task(struct task_struct *p, void *arg)
-> >   * State information includes task's pid, uid, tgid, vm size, rss,
-> >   * pgtables_bytes, swapents, oom_score_adj value, and name.
-> >   */
-> > -static void dump_tasks(struct oom_control *oc)
-> > +static void dump_tasks(struct oom_control *oc, struct task_struct *victim)
-> >  {
-> >       pr_info("Tasks state (memory values in pages):\n");
-> >       pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
-> >
-> > +     /* If vm.oom_dump_tasks is disabled, only show the victim */
-> > +     if (!sysctl_oom_dump_tasks) {
-> > +             dump_task(victim, oc);
-> > +             return;
-> > +     }
-> > +
-> >       if (is_memcg_oom(oc))
-> >               mem_cgroup_scan_tasks(oc->memcg, dump_task, oc);
-> >       else {
-> > @@ -465,8 +471,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
-> >               if (is_dump_unreclaim_slabs())
-> >                       dump_unreclaimable_slab();
-> >       }
-> > -     if (sysctl_oom_dump_tasks)
-> > -             dump_tasks(oc);
-> > +     if (p || sysctl_oom_dump_tasks)
-> > +             dump_tasks(oc, p);
-> >       if (p)
-> >               dump_oom_summary(oc, p);
-> >  }
->
-> --
-> Michal Hocko
-> SUSE Labs
+
+
 
