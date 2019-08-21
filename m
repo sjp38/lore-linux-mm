@@ -2,122 +2,171 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10328C3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:00:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB1B1C41514
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:02:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8A742339F
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:00:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PfRGf7dJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8A742339F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9FC36233A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:02:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FC36233A0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B9E46B0301; Wed, 21 Aug 2019 12:00:42 -0400 (EDT)
+	id 3A7096B0303; Wed, 21 Aug 2019 12:02:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 469F16B0302; Wed, 21 Aug 2019 12:00:42 -0400 (EDT)
+	id 357E36B0304; Wed, 21 Aug 2019 12:02:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 380B66B0303; Wed, 21 Aug 2019 12:00:42 -0400 (EDT)
+	id 21FC36B0305; Wed, 21 Aug 2019 12:02:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0031.hostedemail.com [216.40.44.31])
-	by kanga.kvack.org (Postfix) with ESMTP id 195BA6B0301
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:00:42 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id BA1BD8248AAA
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:00:41 +0000 (UTC)
-X-FDA: 75846897882.15.land68_23172ac2ee357
-X-HE-Tag: land68_23172ac2ee357
-X-Filterd-Recvd-Size: 4435
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:00:41 +0000 (UTC)
-Received: by mail-qk1-f196.google.com with SMTP id 125so2274041qkl.6
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 09:00:41 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=SkQ1iRQmedFusEhYknXF0m0szFVCfve43ayyHL3P7UE=;
-        b=PfRGf7dJmGlq/vFV6Y+jNfBdQj9FXFXpgr4U2sqHZkOOzikZqcKARWfm/Ay9cjoDSU
-         SCX+h5EJLGStrV2y6/OzsiFWSydoRDIB8xs/LthT66NJMLZAYtyRP5nrnZgOEeHiNyJk
-         1bf35F88LlY3ZL6xZzCIEGGOZVVSZr2saC2AonVkeLUBSZKclxcjROkdE6IhiIiZK18A
-         z1eW4eMKnZKE5uALGEnUQyOrqFkSKIT6AjOY4D73Eu6oZ+ZkI6UO+7WVtIvPOc7iPQV5
-         aAxUr8psXAumVPPm2Vln5wKADn3tcXCg2XrJ+MksLKbdQw0SqjF2hpb4xY0Ud7EO5OH2
-         B8bg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=SkQ1iRQmedFusEhYknXF0m0szFVCfve43ayyHL3P7UE=;
-        b=RnDkoDpByKq6rX+ZPerTBpP1HLwiKFNGwu+4VbVDiC2LtPB7LUEG5W/+PApH9MECxP
-         ZhjwdRbLJ3NDVkCHKOlBeNizQTpghWjmBrvdegsEX5WFaV03P6LmcN6Ix8igxBqVdJxm
-         H/dBx9rW84RWD7tg4DeEQeENF3DTiLBH8j7YPXvUULHn8Ty0jt1rVWFeAsxNJc+zUcZD
-         Rkqr798A8upr4Nd6MEg7peiDctFAB/94K+gvbpcdg/QzP+9hrXBr8V2gyx5ckqMkG8qp
-         Fjmp26hr5RanHLOBlioGOZxXgScOEbt+l/J/EVNE70it5yq9PknIezIZRFn0GFYAXktC
-         GdBA==
-X-Gm-Message-State: APjAAAWqZFvYKIbtcgTNpDyxqPPqKQ8v6Zzkc0bWl35saSFR6YBnwa/O
-	Adoy8sIacp3BAB10MAvN0DA=
-X-Google-Smtp-Source: APXvYqygD4G25/4+1lbrU9OJUBtreiUUAzC3687HWTZ5HRPAeIzC0XOf19SJJBxuWv+Hi3cQWG/YHA==
-X-Received: by 2002:a37:395:: with SMTP id 143mr32776745qkd.317.1566403240448;
-        Wed, 21 Aug 2019 09:00:40 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:1f05])
-        by smtp.gmail.com with ESMTPSA id s58sm11388981qth.59.2019.08.21.09.00.38
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Aug 2019 09:00:39 -0700 (PDT)
-Date: Wed, 21 Aug 2019 09:00:37 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Jan Kara <jack@suse.cz>
-Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 5/5] writeback, memcg: Implement foreign dirty flushing
-Message-ID: <20190821160037.GK2263813@devbig004.ftw2.facebook.com>
-References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
- <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
- <20190816160256.GI3041@quack2.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0067.hostedemail.com [216.40.44.67])
+	by kanga.kvack.org (Postfix) with ESMTP id 02AC66B0303
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:02:12 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 8A6B3180AD808
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:02:12 +0000 (UTC)
+X-FDA: 75846901704.20.woman18_3045553fdd716
+X-HE-Tag: woman18_3045553fdd716
+X-Filterd-Recvd-Size: 5792
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:02:11 +0000 (UTC)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7LFvcCf127625
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:02:10 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uh91er9sp-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:02:09 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 21 Aug 2019 17:02:07 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 21 Aug 2019 17:02:03 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7LG22In48693276
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 21 Aug 2019 16:02:02 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 1ABF0AE053;
+	Wed, 21 Aug 2019 16:02:02 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4C708AE04D;
+	Wed, 21 Aug 2019 16:02:01 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.59])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 21 Aug 2019 16:02:01 +0000 (GMT)
+Date: Wed, 21 Aug 2019 19:01:59 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Will Deacon <will@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Borislav Petkov <bp@alien8.de>, x86@kernel.org,
+        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: consolidate pgtable_cache_init() and pgd_cache_init()
+References: <1566400018-15607-1-git-send-email-rppt@linux.ibm.com>
+ <20190821154942.js4u466rolnekwmq@willie-the-truck>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190816160256.GI3041@quack2.suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190821154942.js4u466rolnekwmq@willie-the-truck>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19082116-0016-0000-0000-000002A129E4
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19082116-0017-0000-0000-000033015F04
+Message-Id: <20190821160159.GG26713@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-21_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908210166
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, Aug 21, 2019 at 04:49:42PM +0100, Will Deacon wrote:
+> On Wed, Aug 21, 2019 at 06:06:58PM +0300, Mike Rapoport wrote:
+> > Both pgtable_cache_init() and pgd_cache_init() are used to initialize kmem
+> > cache for page table allocations on several architectures that do not use
+> > PAGE_SIZE tables for one or more levels of the page table hierarchy.
+> > 
+> > Most architectures do not implement these functions and use __week default
+> > NOP implementation of pgd_cache_init(). Since there is no such default for
+> > pgtable_cache_init(), its empty stub is duplicated among most
+> > architectures.
+> > 
+> > Rename the definitions of pgd_cache_init() to pgtable_cache_init() and drop
+> > empty stubs of pgtable_cache_init().
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > ---
+> 
+> [...]
+> 
+> > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+> > index 7548f9c..4a64089 100644
+> > --- a/arch/arm64/mm/pgd.c
+> > +++ b/arch/arm64/mm/pgd.c
+> > @@ -35,7 +35,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+> >  		kmem_cache_free(pgd_cache, pgd);
+> >  }
+> >  
+> > -void __init pgd_cache_init(void)
+> > +void __init pgtable_cache_init(void)
+> >  {
+> >  	if (PGD_SIZE == PAGE_SIZE)
+> >  		return;
+> 
+> [...]
+> 
+> > diff --git a/init/main.c b/init/main.c
+> > index b90cb5f..2fa8038 100644
+> > --- a/init/main.c
+> > +++ b/init/main.c
+> > @@ -507,7 +507,7 @@ void __init __weak mem_encrypt_init(void) { }
+> >  
+> >  void __init __weak poking_init(void) { }
+> >  
+> > -void __init __weak pgd_cache_init(void) { }
+> > +void __init __weak pgtable_cache_init(void) { }
+> >  
+> >  bool initcall_debug;
+> >  core_param(initcall_debug, initcall_debug, bool, 0644);
+> > @@ -565,7 +565,6 @@ static void __init mm_init(void)
+> >  	init_espfix_bsp();
+> >  	/* Should be run after espfix64 is set up. */
+> >  	pti_init();
+> > -	pgd_cache_init();
+> >  }
+> 
+> AFAICT, this change means we now initialise our pgd cache before
+> debug_objects_mem_init() has run.
 
-On Fri, Aug 16, 2019 at 06:02:56PM +0200, Jan Kara wrote:
-> 1) You ask to writeback LONG_MAX pages. That means that you give up any
-> livelock avoidance for the flusher work and you can writeback almost
-> forever if someone is busily dirtying pages in the wb. I think you need to
-> pick something like amount of dirty pages in the given wb (that would have
-> to be fetched after everything is looked up) or just some arbitrary
-> reasonably small constant like 1024 (but then I guess there's no guarantee
-> stuck memcg will make any progress and you've invalidated the frn entry
-> here).
+Right.
 
-I see.  Yeah, I think the right thing to do would be feeding the
-number of dirty pages or limiting it to one full sweep.  I'll look
-into it.
+> Is that going to cause fireworks with CONFIG_DEBUG_OBJECTS when we later
+> free a pgd?
 
-> 2) When you invalidate frn entry here by writing 0 to 'at', it's likely to get
-> reused soon. Possibly while the writeback is still running. And then you
-> won't start any writeback for the new entry because of the
-> atomic_read(&frn->done.cnt) == 1 check. This seems like it could happen
-> pretty frequently?
+We don't allocate a pgd at that time, we only create the kmem cache for the
+future allocations. And that cache is never destroyed anyway.
 
-Hmm... yeah, the clearing might not make sense.  I'll remove that.
-
-Thanks.
+> Will
 
 -- 
-tejun
+Sincerely yours,
+Mike.
+
 
