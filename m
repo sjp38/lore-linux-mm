@@ -2,238 +2,252 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1144DC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:07:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53486C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 05:42:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5906206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 04:07:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="qUOBGoJI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5906206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id DF9F32087E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 05:42:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF9F32087E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1C836B0292; Wed, 21 Aug 2019 00:07:36 -0400 (EDT)
+	id 3CAFB6B0297; Wed, 21 Aug 2019 01:42:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C00776B0293; Wed, 21 Aug 2019 00:07:36 -0400 (EDT)
+	id 37AA86B0298; Wed, 21 Aug 2019 01:42:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC7776B0294; Wed, 21 Aug 2019 00:07:36 -0400 (EDT)
+	id 26A9B6B0299; Wed, 21 Aug 2019 01:42:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0193.hostedemail.com [216.40.44.193])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B0B6B0290
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:07:36 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 1CED68248AA3
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:07:36 +0000 (UTC)
-X-FDA: 75845100912.08.jar75_4248b535ccc26
-X-HE-Tag: jar75_4248b535ccc26
-X-Filterd-Recvd-Size: 8197
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
-	by imf22.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:07:35 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5cc3860002>; Tue, 20 Aug 2019 21:07:34 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Tue, 20 Aug 2019 21:07:34 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Tue, 20 Aug 2019 21:07:34 -0700
-Received: from HQMAIL109.nvidia.com (172.20.187.15) by HQMAIL105.nvidia.com
- (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
- 2019 04:07:34 +0000
-Received: from HQMAIL111.nvidia.com (172.20.187.18) by HQMAIL109.nvidia.com
- (172.20.187.15) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 21 Aug
- 2019 04:07:33 +0000
-Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL111.nvidia.com
- (172.20.187.18) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Wed, 21 Aug 2019 04:07:34 +0000
-Received: from blueforge.nvidia.com (Not Verified[10.110.48.28]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d5cc3850005>; Tue, 20 Aug 2019 21:07:33 -0700
-From: John Hubbard <jhubbard@nvidia.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ira Weiny
-	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH v2 3/3] mm/gup: introduce vaddr_pin_pages_remote(), and invoke it
-Date: Tue, 20 Aug 2019 21:07:27 -0700
-Message-ID: <20190821040727.19650-4-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.22.1
-In-Reply-To: <20190821040727.19650-1-jhubbard@nvidia.com>
-References: <20190821040727.19650-1-jhubbard@nvidia.com>
-MIME-Version: 1.0
-X-NVConfidentiality: public
+Received: from forelay.hostedemail.com (smtprelay0240.hostedemail.com [216.40.44.240])
+	by kanga.kvack.org (Postfix) with ESMTP id 039126B0297
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 01:42:11 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id A4CA1180AD803
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 05:42:11 +0000 (UTC)
+X-FDA: 75845339262.18.ghost29_12fd4e382ec5d
+X-HE-Tag: ghost29_12fd4e382ec5d
+X-Filterd-Recvd-Size: 9556
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp [114.179.232.161])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 05:42:10 +0000 (UTC)
+Received: from mailgate01.nec.co.jp ([114.179.233.122])
+	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x7L5fP8t013248
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 21 Aug 2019 14:41:25 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x7L5fPie027570;
+	Wed, 21 Aug 2019 14:41:25 +0900
+Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x7L5fPMY031987;
+	Wed, 21 Aug 2019 14:41:25 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.151] [10.38.151.151]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-7746119; Wed, 21 Aug 2019 14:39:05 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC23GP.gisp.nec.co.jp ([10.38.151.151]) with mapi id 14.03.0439.000; Wed,
+ 21 Aug 2019 14:39:04 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Wanpeng Li <kernellwp@gmail.com>
+CC: Mike Kravetz <mike.kravetz@oracle.com>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "Punit Agrawal" <punit.agrawal@arm.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Michal Hocko <mhocko@kernel.org>,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>,
+        Anshuman Khandual <khandual@linux.vnet.ibm.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+        kvm <kvm@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>,
+        Xiao Guangrong <xiaoguangrong@tencent.com>,
+        "lidongchen@tencent.com" <lidongchen@tencent.com>,
+        "yongkaiwu@tencent.com" <yongkaiwu@tencent.com>,
+        Mel Gorman <mgorman@techsingularity.net>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        "Hansen, Dave" <dave.hansen@intel.com>,
+        Hugh Dickins <hughd@google.com>
+Subject: Re: ##freemail## Re: [PATCH v2] mm: hwpoison: disable memory error
+ handling on 1GB hugepage
+Thread-Topic: ##freemail## Re: [PATCH v2] mm: hwpoison: disable memory error
+ handling on 1GB hugepage
+Thread-Index: AQHVFnaoUuMkT7+k5kKGu78GtXiXKKaVCtaAgG58OYCAAXqfAA==
+Date: Wed, 21 Aug 2019 05:39:04 +0000
+Message-ID: <20190821053904.GA23349@hori.linux.bs1.fc.nec.co.jp>
+References: <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+ <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+ <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+ <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
+ <87wozhvc49.fsf@concordia.ellerman.id.au>
+ <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
+ <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
+ <f79d828c-b0b4-8a20-c316-a13430cfb13c@oracle.com>
+ <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
+ <CANRm+CwwPv52k7pWiErYwFHV=_6kCdiyXZkT3QT6ef_UJagt9A@mail.gmail.com>
+In-Reply-To: <CANRm+CwwPv52k7pWiErYwFHV=_6kCdiyXZkT3QT6ef_UJagt9A@mail.gmail.com>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.150]
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <44D254A2BDC35E41B1EA6CD19B17F3BF@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1566360454; bh=yaS48N2o2CPvqMWzUWhpSpOm4JNtAfActS1Th7wctzE=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
-	 Content-Transfer-Encoding:Content-Type;
-	b=qUOBGoJIEf/YL08oCTcD4iSkBMJKo16mo4WSO2uW9Tcw8WKfd/nCAvDlVcUPKWCNP
-	 Z8ZgbCOK0B2mKWctwfX3z0PsDzknh2dJF+WCT+ZUaDmv055HjoS1XzCjVmsC6tOxq+
-	 cm/0B4U9iyKnl+GKGAAYdhgqzxvQju0MNYSprL2O16ZJrKl9ELPyKIyrjzVtIy73eB
-	 /SCUMKsMJVqoEMLZGyud5/rFqD2njRVbT+8DSl9Za/uWEWrDvphikno0VX7t4VZx4U
-	 PNsDCO0gp7taqzGYS1hizU+vuZMc2c+h7C+EDcp9KG8QhNUiIZEt/1ppoCRsXfGzJH
-	 1EdKGW5PtlAbw==
+MIME-Version: 1.0
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-vaddr_pin_user_pages_remote() is the "vaddr_pin_pages" corresponding
-variant to get_user_pages_remote(), except that:
-   a) it sets FOLL_PIN, and
-   b) it can handle FOLL_LONGTERM (and the associated vaddr_pin arg).
+On Tue, Aug 20, 2019 at 03:03:55PM +0800, Wanpeng Li wrote:
+> Cc Mel Gorman, Kirill, Dave Hansen,
+> On Tue, 11 Jun 2019 at 07:51, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+ wrote:
+> >
+> > On Wed, May 29, 2019 at 04:31:01PM -0700, Mike Kravetz wrote:
+> > > On 5/28/19 2:49 AM, Wanpeng Li wrote:
+> > > > Cc Paolo,
+> > > > Hi all,
+> > > > On Wed, 14 Feb 2018 at 06:34, Mike Kravetz <mike.kravetz@oracle.com=
+> wrote:
+> > > >>
+> > > >> On 02/12/2018 06:48 PM, Michael Ellerman wrote:
+> > > >>> Andrew Morton <akpm@linux-foundation.org> writes:
+> > > >>>
+> > > >>>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@=
+arm.com> wrote:
+> > > >>>>
+> > > >>>>>>
+> > > >>>>>> So I don't think that the above test result means that errors =
+are properly
+> > > >>>>>> handled, and the proposed patch should help for arm64.
+> > > >>>>>
+> > > >>>>> Although, the deviation of pud_huge() avoids a kernel crash the=
+ code
+> > > >>>>> would be easier to maintain and reason about if arm64 helpers a=
+re
+> > > >>>>> consistent with expectations by core code.
+> > > >>>>>
+> > > >>>>> I'll look to update the arm64 helpers once this patch gets merg=
+ed. But
+> > > >>>>> it would be helpful if there was a clear expression of semantic=
+s for
+> > > >>>>> pud_huge() for various cases. Is there any version that can be =
+used as
+> > > >>>>> reference?
+> > > >>>>
+> > > >>>> Is that an ack or tested-by?
+> > > >>>>
+> > > >>>> Mike keeps plaintively asking the powerpc developers to take a l=
+ook,
+> > > >>>> but they remain steadfastly in hiding.
+> > > >>>
+> > > >>> Cc'ing linuxppc-dev is always a good idea :)
+> > > >>>
+> > > >>
+> > > >> Thanks Michael,
+> > > >>
+> > > >> I was mostly concerned about use cases for soft/hard offline of hu=
+ge pages
+> > > >> larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD=
+_SIZE
+> > > >> huge pages, and soft/hard offline support was specifically added f=
+or this.
+> > > >> See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeT=
+LB pages
+> > > >> at PGD level"
+> > > >>
+> > > >> This patch will disable that functionality.  So, at a minimum this=
+ is a
+> > > >> 'heads up'.  If there are actual use cases that depend on this, th=
+en more
+> > > >> work/discussions will need to happen.  From the e-mail thread on P=
+GD_SIZE
+> > > >> support, I can not tell if there is a real use case or this is jus=
+t a
+> > > >> 'nice to have'.
+> > > >
+> > > > 1GB hugetlbfs pages are used by DPDK and VMs in cloud deployment, w=
+e
+> > > > encounter gup_pud_range() panic several times in product environmen=
+t.
+> > > > Is there any plan to reenable and fix arch codes?
+> > >
+> > > I too am aware of slightly more interest in 1G huge pages.  Suspect t=
+hat as
+> > > Intel MMU capacity increases to handle more TLB entries there will be=
+ more
+> > > and more interest.
+> > >
+> > > Personally, I am not looking at this issue.  Perhaps Naoya will comme=
+nt as
+> > > he know most about this code.
+> >
+> > Thanks for forwarding this to me, I'm feeling that memory error handlin=
+g
+> > on 1GB hugepage is demanded as real use case.
+> >
+> > >
+> > > > In addition, https://git.kernel.org/pub/scm/linux/kernel/git/torval=
+ds/linux.git/tree/arch/x86/kvm/mmu.c#n3213
+> > > > The memory in guest can be 1GB/2MB/4K, though the host-backed memor=
+y
+> > > > are 1GB hugetlbfs pages, after above PUD panic is fixed,
+> > > > try_to_unmap() which is called in MCA recovery path will mark the P=
+UD
+> > > > hwpoison entry. The guest will vmexit and retry endlessly when
+> > > > accessing any memory in the guest which is backed by this 1GB poiso=
+ned
+> > > > hugetlbfs page. We have a plan to split this 1GB hugetblfs page by =
+2MB
+> > > > hugetlbfs pages/4KB pages, maybe file remap to a virtual address ra=
+nge
+> > > > which is 2MB/4KB page granularity, also split the KVM MMU 1GB SPTE
+> > > > into 2MB/4KB and mark the offensive SPTE w/ a hwpoison flag, a sigb=
+us
+> > > > will be delivered to VM at page fault next time for the offensive
+> > > > SPTE. Is this proposal acceptable?
+> > >
+> > > I am not sure of the error handling design, but this does sound reaso=
+nable.
+> >
+> > I agree that that's better.
+> >
+> > > That block of code which potentially dissolves a huge page on memory =
+error
+> > > is hard to understand and I'm not sure if that is even the 'normal'
+> > > functionality.  Certainly, we would hate to waste/poison an entire 1G=
+ page
+> > > for an error on a small subsection.
+> >
+> > Yes, that's not practical, so we need at first establish the code base =
+for
+> > 2GB hugetlb splitting and then extending it to 1GB next.
+>=20
+> I found it is not easy to split. There is a unique hugetlb page size
+> that is associated with a mounted hugetlbfs filesystem, file remap to
+> 2MB/4KB will break this. How about hard offline 1GB hugetlb page as
+> what has already done in soft offline, replace the corrupted 1GB page
+> by new 1GB page through page migration, the offending/corrupted area
+> in the original 1GB page doesn't need to be copied into the new page,
+> the offending/corrupted area in new page can keep full zero just as it
+> is clear during hugetlb page fault, other sub-pages of the original
+> 1GB page can be freed to buddy system. The sigbus signal is sent to
+> userspace w/ offending/corrupted virtual address, and signal code,
+> userspace should take care this.
 
-Change process_vm_rw_single_vec() to invoke the new function.
+Splitting hugetlb is simply hard, IMHO. THP splitting is done by years
+of effort by many great kernel develpers, and I don't think doing similar
+development on hugetlb is a good idea.  I thought of converting hugetlb
+into thp, but maybe it's not an easy task either.
+"Hard offlining via soft offlining" approach sounds new and promising to me=
+.
+I guess we don't need a large patchset to do this. So, thanks for the idea!
 
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Cc: Ira Weiny <ira.weiny@intel.com>
----
- include/linux/mm.h     |  5 +++++
- mm/gup.c               | 34 ++++++++++++++++++++++++++++++++++
- mm/process_vm_access.c | 23 +++++++++++++----------
- 3 files changed, 52 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6e7de424bf5e..849b509e9f89 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1606,6 +1606,11 @@ int __account_locked_vm(struct mm_struct *mm, unsign=
-ed long pages, bool inc,
- long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
- 		     unsigned int gup_flags, struct page **pages,
- 		     struct vaddr_pin *vaddr_pin);
-+long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
- *mm,
-+				 unsigned long start, unsigned long nr_pages,
-+				 unsigned int gup_flags, struct page **pages,
-+				 struct vm_area_struct **vmas, int *locked,
-+				 struct vaddr_pin *vaddr_pin);
- void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
- 		       struct vaddr_pin *vaddr_pin, bool make_dirty);
- bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *pa=
-ge);
-diff --git a/mm/gup.c b/mm/gup.c
-index ba316d960d7a..d713ed9d4b9a 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2522,3 +2522,37 @@ void vaddr_unpin_pages(struct page **pages, unsigned=
- long nr_pages,
- 	__put_user_pages_dirty_lock(pages, nr_pages, make_dirty, vaddr_pin);
- }
- EXPORT_SYMBOL(vaddr_unpin_pages);
-+
-+/**
-+ * vaddr_pin_user_pages_remote() - pin pages by virtual address and return=
- the
-+ * pages to the user.
-+ *
-+ * @tsk:	the task_struct to use for page fault accounting, or
-+ *		NULL if faults are not to be recorded.
-+ * @mm:		mm_struct of target mm
-+ * @addr:	start address
-+ * @nr_pages:	number of pages to pin
-+ * @gup_flags:	flags to use for the pin. Please see FOLL_* documentation i=
-n
-+ *		mm.h.
-+ * @pages:	array of pages returned
-+ * @vaddr_pin:  If FOLL_LONGTERM is set, then vaddr_pin should point to an
-+ * initialized struct that contains the owning mm and file. Otherwise, vad=
-dr_pin
-+ * should be set to NULL.
-+ *
-+ * This is the "vaddr_pin_pages" corresponding variant to
-+ * get_user_pages_remote(), except that:
-+ *    a) it sets FOLL_PIN, and
-+ *    b) it can handle FOLL_LONGTERM (and the associated vaddr_pin arg).
-+ */
-+long vaddr_pin_user_pages_remote(struct task_struct *tsk, struct mm_struct=
- *mm,
-+				 unsigned long start, unsigned long nr_pages,
-+				 unsigned int gup_flags, struct page **pages,
-+				 struct vm_area_struct **vmas, int *locked,
-+				 struct vaddr_pin *vaddr_pin)
-+{
-+	gup_flags |=3D FOLL_TOUCH | FOLL_REMOTE | FOLL_PIN;
-+
-+	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
-+				       locked, gup_flags, vaddr_pin);
-+}
-+EXPORT_SYMBOL(vaddr_pin_user_pages_remote);
-diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
-index 357aa7bef6c0..28e0a17b6080 100644
---- a/mm/process_vm_access.c
-+++ b/mm/process_vm_access.c
-@@ -44,7 +44,6 @@ static int process_vm_rw_pages(struct page **pages,
-=20
- 		if (vm_write) {
- 			copied =3D copy_page_from_iter(page, offset, copy, iter);
--			set_page_dirty_lock(page);
- 		} else {
- 			copied =3D copy_page_to_iter(page, offset, copy, iter);
- 		}
-@@ -96,7 +95,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
- 		flags |=3D FOLL_WRITE;
-=20
- 	while (!rc && nr_pages && iov_iter_count(iter)) {
--		int pages =3D min(nr_pages, max_pages_per_loop);
-+		int pinned_pages =3D min(nr_pages, max_pages_per_loop);
- 		int locked =3D 1;
- 		size_t bytes;
-=20
-@@ -106,14 +105,17 @@ static int process_vm_rw_single_vec(unsigned long add=
-r,
- 		 * current/current->mm
- 		 */
- 		down_read(&mm->mmap_sem);
--		pages =3D get_user_pages_remote(task, mm, pa, pages, flags,
--					      process_pages, NULL, &locked);
-+
-+		pinned_pages =3D vaddr_pin_user_pages_remote(task, mm, pa,
-+							   pinned_pages, flags,
-+							   process_pages, NULL,
-+							   &locked, NULL);
- 		if (locked)
- 			up_read(&mm->mmap_sem);
--		if (pages <=3D 0)
-+		if (pinned_pages <=3D 0)
- 			return -EFAULT;
-=20
--		bytes =3D pages * PAGE_SIZE - start_offset;
-+		bytes =3D pinned_pages * PAGE_SIZE - start_offset;
- 		if (bytes > len)
- 			bytes =3D len;
-=20
-@@ -122,10 +124,11 @@ static int process_vm_rw_single_vec(unsigned long add=
-r,
- 					 vm_write);
- 		len -=3D bytes;
- 		start_offset =3D 0;
--		nr_pages -=3D pages;
--		pa +=3D pages * PAGE_SIZE;
--		while (pages)
--			put_page(process_pages[--pages]);
-+		nr_pages -=3D pinned_pages;
-+		pa +=3D pinned_pages * PAGE_SIZE;
-+
-+		/* If vm_write is set, the pages need to be made dirty: */
-+		vaddr_unpin_pages(process_pages, pinned_pages, NULL, vm_write);
- 	}
-=20
- 	return rc;
---=20
-2.22.1
+- Naoya=
 
 
