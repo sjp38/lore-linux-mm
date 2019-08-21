@@ -6,40 +6,40 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F27A8C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:47:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC2F0C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:47:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BCC742332A
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:47:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCC742332A
+	by mail.kernel.org (Postfix) with ESMTP id 6A82C2332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:47:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A82C2332A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 27B3F6B0319; Wed, 21 Aug 2019 12:47:47 -0400 (EDT)
+	id D72F16B031A; Wed, 21 Aug 2019 12:47:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D9C96B031C; Wed, 21 Aug 2019 12:47:47 -0400 (EDT)
+	id CD4AE6B031B; Wed, 21 Aug 2019 12:47:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DE34C6B031A; Wed, 21 Aug 2019 12:47:46 -0400 (EDT)
+	id B9A3C6B031C; Wed, 21 Aug 2019 12:47:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id B13486B0319
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:47:46 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 5B0C5181AC9C4
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:47:46 +0000 (UTC)
-X-FDA: 75847016532.12.move58_9942f54ff345
-X-HE-Tag: move58_9942f54ff345
-X-Filterd-Recvd-Size: 3410
+Received: from forelay.hostedemail.com (smtprelay0156.hostedemail.com [216.40.44.156])
+	by kanga.kvack.org (Postfix) with ESMTP id 871BC6B031A
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:47:48 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 359E5181AC9BF
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:47:48 +0000 (UTC)
+X-FDA: 75847016616.02.flock72_9d15592b121c
+X-HE-Tag: flock72_9d15592b121c
+X-Filterd-Recvd-Size: 8179
 Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:47:45 +0000 (UTC)
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:47:47 +0000 (UTC)
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9CAA91576;
-	Wed, 21 Aug 2019 09:47:44 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9D6CA1596;
+	Wed, 21 Aug 2019 09:47:46 -0700 (PDT)
 Received: from arrakis.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id ECACE3F718;
-	Wed, 21 Aug 2019 09:47:42 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id D2C3D3F718;
+	Wed, 21 Aug 2019 09:47:44 -0700 (PDT)
 From: Catalin Marinas <catalin.marinas@arm.com>
 To: linux-arm-kernel@lists.infradead.org,
 	linux-mm@kvack.org
@@ -52,10 +52,11 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Dave P Martin <Dave.Martin@arm.com>,
 	Dave Hansen <dave.hansen@intel.com>,
 	linux-doc@vger.kernel.org,
-	linux-arch@vger.kernel.org
-Subject: [PATCH v9 1/3] mm: untag user pointers in mmap/munmap/mremap/brk
-Date: Wed, 21 Aug 2019 17:47:28 +0100
-Message-Id: <20190821164730.47450-2-catalin.marinas@arm.com>
+	linux-arch@vger.kernel.org,
+	Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v9 2/3] arm64: Define Documentation/arm64/tagged-address-abi.rst
+Date: Wed, 21 Aug 2019 17:47:29 +0100
+Message-Id: <20190821164730.47450-3-catalin.marinas@arm.com>
 X-Mailer: git-send-email 2.23.0.rc0
 In-Reply-To: <20190821164730.47450-1-catalin.marinas@arm.com>
 References: <20190821164730.47450-1-catalin.marinas@arm.com>
@@ -67,67 +68,190 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There isn't a good reason to differentiate between the user address
-space layout modification syscalls and the other memory
-permission/attributes ones (e.g. mprotect, madvise) w.r.t. the tagged
-address ABI. Untag the user addresses on entry to these functions.
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
 
-Acked-by: Will Deacon <will@kernel.org>
-Acked-by: Andrey Konovalov <andreyknvl@google.com>
+On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
+(EL0) to perform memory accesses through 64-bit pointers with a non-zero
+top byte. Introduce the document describing the relaxation of the
+syscall ABI that allows userspace to pass certain tagged pointers to
+kernel syscalls.
+
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>
+Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Cc: Kevin Brodsky <kevin.brodsky@arm.com>
+Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
 Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- mm/mmap.c   | 5 +++++
- mm/mremap.c | 6 +-----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ Documentation/arm64/tagged-address-abi.rst | 156 +++++++++++++++++++++
+ 1 file changed, 156 insertions(+)
+ create mode 100644 Documentation/arm64/tagged-address-abi.rst
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7e8c3e8ae75f..b766b633b7ae 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -201,6 +201,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- 	bool downgraded =3D false;
- 	LIST_HEAD(uf);
-=20
-+	brk =3D untagged_addr(brk);
+diff --git a/Documentation/arm64/tagged-address-abi.rst b/Documentation/a=
+rm64/tagged-address-abi.rst
+new file mode 100644
+index 000000000000..d4a85d535bf9
+--- /dev/null
++++ b/Documentation/arm64/tagged-address-abi.rst
+@@ -0,0 +1,156 @@
++=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
++AArch64 TAGGED ADDRESS ABI
++=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D
 +
- 	if (down_write_killable(&mm->mmap_sem))
- 		return -EINTR;
-=20
-@@ -1573,6 +1575,8 @@ unsigned long ksys_mmap_pgoff(unsigned long addr, u=
-nsigned long len,
- 	struct file *file =3D NULL;
- 	unsigned long retval;
-=20
-+	addr =3D untagged_addr(addr);
++Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
++         Catalin Marinas <catalin.marinas@arm.com>
 +
- 	if (!(flags & MAP_ANONYMOUS)) {
- 		audit_mmap_fd(fd, flags);
- 		file =3D fget(fd);
-@@ -2874,6 +2878,7 @@ EXPORT_SYMBOL(vm_munmap);
-=20
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
-+	addr =3D untagged_addr(addr);
- 	profile_munmap(addr);
- 	return __vm_munmap(addr, len, true);
- }
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 64c9a3b8be0a..1fc8a29fbe3f 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -606,12 +606,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigne=
-d long, old_len,
- 	LIST_HEAD(uf_unmap_early);
- 	LIST_HEAD(uf_unmap);
-=20
--	/*
--	 * Architectures may interpret the tag passed to mmap as a background
--	 * colour for the corresponding vma. For mremap we don't allow tagged
--	 * new_addr to preserve similar behaviour to mmap.
--	 */
- 	addr =3D untagged_addr(addr);
-+	new_addr =3D untagged_addr(new_addr);
-=20
- 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
- 		return ret;
++Date: 21 August 2019
++
++This document describes the usage and semantics of the Tagged Address
++ABI on AArch64 Linux.
++
++1. Introduction
++---------------
++
++On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
++userspace (EL0) to perform memory accesses through 64-bit pointers with
++a non-zero top byte. This document describes the relaxation of the
++syscall ABI that allows userspace to pass certain tagged pointers to
++kernel syscalls.
++
++2. AArch64 Tagged Address ABI
++-----------------------------
++
++From the kernel syscall interface perspective and for the purposes of
++this document, a "valid tagged pointer" is a pointer with a potentially
++non-zero top-byte that references an address in the user process address
++space obtained in one of the following ways:
++
++- ``mmap()`` syscall where either:
++
++  - flags have the ``MAP_ANONYMOUS`` bit set or
++  - the file descriptor refers to a regular file (including those
++    returned by ``memfd_create()``) or ``/dev/zero``
++
++- ``brk()`` syscall (i.e. the heap area between the initial location of
++  the program break at process creation and its current location).
++
++- any memory mapped by the kernel in the address space of the process
++  during creation and with the same restrictions as for ``mmap()`` above
++  (e.g. data, bss, stack).
++
++The AArch64 Tagged Address ABI has two stages of relaxation depending
++how the user addresses are used by the kernel:
++
++1. User addresses not accessed by the kernel but used for address space
++   management (e.g. ``mmap()``, ``mprotect()``, ``madvise()``). The use
++   of valid tagged pointers in this context is always allowed.
++
++2. User addresses accessed by the kernel (e.g. ``write()``). This ABI
++   relaxation is disabled by default and the application thread needs to
++   explicitly enable it via ``prctl()`` as follows:
++
++   - ``PR_SET_TAGGED_ADDR_CTRL``: enable or disable the AArch64 Tagged
++     Address ABI for the calling thread.
++
++     The ``(unsigned int) arg2`` argument is a bit mask describing the
++     control mode used:
++
++     - ``PR_TAGGED_ADDR_ENABLE``: enable AArch64 Tagged Address ABI.
++       Default status is disabled.
++
++     Arguments ``arg3``, ``arg4``, and ``arg5`` must be 0.
++
++   - ``PR_GET_TAGGED_ADDR_CTRL``: get the status of the AArch64 Tagged
++     Address ABI for the calling thread.
++
++     Arguments ``arg2``, ``arg3``, ``arg4``, and ``arg5`` must be 0.
++
++   The ABI properties described above are thread-scoped, inherited on
++   clone() and fork() and cleared on exec().
++
++   Calling ``prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0,=
+ 0)``
++   returns ``-EINVAL`` if the AArch64 Tagged Address ABI is globally
++   disabled by ``sysctl abi.tagged_addr_disabled=3D1``. The default
++   ``sysctl abi.tagged_addr_disabled`` configuration is 0.
++
++When the AArch64 Tagged Address ABI is enabled for a thread, the
++following behaviours are guaranteed:
++
++- All syscalls except the cases mentioned in section 3 can accept any
++  valid tagged pointer.
++
++- The syscall behaviour is undefined for invalid tagged pointers: it may
++  result in an error code being returned, a (fatal) signal being raised,
++  or other modes of failure.
++
++- The syscall behaviour for a valid tagged pointer is the same as for
++  the corresponding untagged pointer.
++
++
++A definition of the meaning of tagged pointers on AArch64 can be found
++in Documentation/arm64/tagged-pointers.rst.
++
++3. AArch64 Tagged Address ABI Exceptions
++-----------------------------------------
++
++The following system call parameters must be untagged regardless of the
++ABI relaxation:
++
++- ``prctl()`` other than pointers to user data either passed directly or
++  indirectly as arguments to be accessed by the kernel.
++
++- ``ioctl()`` other than pointers to user data either passed directly or
++  indirectly as arguments to be accessed by the kernel.
++
++- ``shmat()`` and ``shmdt()``.
++
++Any attempt to use non-zero tagged pointers may result in an error code
++being returned, a (fatal) signal being raised, or other modes of
++failure.
++
++4. Example of correct usage
++---------------------------
++.. code-block:: c
++
++   #include <stdlib.h>
++   #include <string.h>
++   #include <unistd.h>
++   #include <sys/mman.h>
++   #include <sys/prctl.h>
++  =20
++   #define PR_SET_TAGGED_ADDR_CTRL	55
++   #define PR_TAGGED_ADDR_ENABLE	(1UL << 0)
++  =20
++   #define TAG_SHIFT		56
++  =20
++   int main(void)
++   {
++   	int tbi_enabled =3D 0;
++   	unsigned long tag =3D 0;
++   	char *ptr;
++  =20
++   	/* check/enable the tagged address ABI */
++   	if (!prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0))
++   		tbi_enabled =3D 1;
++  =20
++   	/* memory allocation */
++   	ptr =3D mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
++   		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++   	if (ptr =3D=3D MAP_FAILED)
++   		return 1;
++  =20
++   	/* set a non-zero tag if the ABI is available */
++   	if (tbi_enabled)
++   		tag =3D rand() & 0xff;
++   	ptr =3D (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
++  =20
++   	/* memory access to a tagged address */
++   	strcpy(ptr, "tagged pointer\n");
++  =20
++   	/* syscall with a tagged pointer */
++   	write(1, ptr, strlen(ptr));
++  =20
++   	return 0;
++   }
 
