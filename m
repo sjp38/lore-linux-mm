@@ -2,155 +2,201 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68A3CC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 22:38:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21327C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:12:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C1D020856
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 22:38:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C1D020856
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id A37A42332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 23:12:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="eDrUlZ1s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A37A42332A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B80A66B02B5; Wed, 21 Aug 2019 18:38:10 -0400 (EDT)
+	id 17BE56B02B7; Wed, 21 Aug 2019 19:12:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B31B86B02B6; Wed, 21 Aug 2019 18:38:10 -0400 (EDT)
+	id 106006B02B8; Wed, 21 Aug 2019 19:12:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F99B6B02B7; Wed, 21 Aug 2019 18:38:10 -0400 (EDT)
+	id F0F946B02B9; Wed, 21 Aug 2019 19:12:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C1F76B02B5
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 18:38:10 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 30C118248AA7
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 22:38:10 +0000 (UTC)
-X-FDA: 75847899540.09.vein14_d12d04492046
-X-HE-Tag: vein14_d12d04492046
-X-Filterd-Recvd-Size: 6105
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 22:38:09 +0000 (UTC)
-Received: by mail-io1-f69.google.com with SMTP id e20so4171864ioe.12
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:38:09 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0094.hostedemail.com [216.40.44.94])
+	by kanga.kvack.org (Postfix) with ESMTP id C93716B02B7
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:12:22 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 5BF358787
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:12:22 +0000 (UTC)
+X-FDA: 75847985724.11.alley55_149c11e507b3b
+X-HE-Tag: alley55_149c11e507b3b
+X-Filterd-Recvd-Size: 7530
+Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
+	by imf46.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 23:12:21 +0000 (UTC)
+Received: by mail-io1-f65.google.com with SMTP id l7so8104393ioj.6
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:12:21 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=arista.com; s=googlenew;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=0KVJzgs8EgORbeJXXQubNPgw1WiUGBr9OYGA7l6xlcE=;
+        b=eDrUlZ1sAmJkYbQSimlYWKmC1dUR+CGjg15fVmd1/JPfkySdGgd52llMp900L9A9hQ
+         xYCXspJbD486cUNWl0/vHQefQh4ROBps1vwmCGTQrj0xn4lK2BmEmSjR4zqihmxL0Vmv
+         v7SpuHz+28jBLO5xIB1jvjKV/0SjBjvjJG+fvcoP8THQk3rqzGv9l3FAHn1QHRoXwLPI
+         hJK4Zj3oUmIFYSV9I78tLqwFRk0/xZpZj76fvCFuDkXwwgXho67oM3Ir9m0oawERpcIJ
+         tjAwoiHFgGoi+9brArrSyzUTwbjpy9F5g9otqjnxC5V64fO44nqxNWscO/6okRf9PX0K
+         eq7A==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:date:message-id:subject:from:to;
-        bh=jBsYp09/cLeBSkbIbxHgzYI7ddEGG6UPk+vEQ8x/yJE=;
-        b=mHKppFnQZbvsC0hVyB/02wrS3z56MaLWpHjua2qasaqdmrPESKXarNs0zybi33RiJA
-         DK0mD+SNKQ+u7GR6oM/ffyiCg2W90uUwdLIWxEPaNBmmlxa6cU73vl8oDnTWPZ/RpJOK
-         afRkxs1pUeETDLDMdeatPhFCq2j6/mjBm7kEhh+T6HMsFGO7HOa2GxsoqQH24CQ/YC4a
-         CrvvjVh+A3jxMCbx9jsGvZcopLOMbqGSeP56r+ITAM8Cg2RxKRk+CgVFhVfKsNHwbrMO
-         uJVIPEXbgJrvWY1qx9g4NVA6i0QFovFpfnVRXWeqhTlRUolvcMvTp9liRpYdJsgeiFzg
-         4aNg==
-X-Gm-Message-State: APjAAAX40FI2JPaFnjP9zYRf8JEIZFw96mztuJiaqOUj7SNFk1lJT4T+
-	0iFSU12hZwvUBv7SjpiRD3ZQGkMp1irafkQKrMA7WhGT9xrm
-X-Google-Smtp-Source: APXvYqzavPFlUWhnFmdpVUObRjYgw6MY/e5tU+JIj+9wrZ+1vCE20RJd43jMnxmak3ET8Jl7AtG2e2W+aGjEDZ9eNa/+0s/Sas+4
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=0KVJzgs8EgORbeJXXQubNPgw1WiUGBr9OYGA7l6xlcE=;
+        b=pxSOSyxiYl1tczlC5G3N5CO76eZXKb5u0P8oYBnJcuFD7Aq7OrACvSxZPSnDt9Sa0J
+         SkjW4MmC6AI8eNK+qZgi3/aAn0OkQlRT3xQkqMMq8FV2vpbvtaM6NioWtKJVO6nfQyvq
+         2NgidMKG0Y9x8BpQfvl7wRrVKhpobbJBVq9aBfsZbIk95NkQvZp2lYwqhTjSTBZn53iu
+         sY7dF+CxUjbTykpeROc5czIIQsAKFGW/qOnTBJ20vg6XkVhJhwxDRiC1N4wRL2AnHi/z
+         ihILGbGJhUrzX0OgfJFPD9/efE7VmfaIDhAoImyFWyi1cBE3SjwOVeAgJ2RfwkgD0Izl
+         M+Dw==
+X-Gm-Message-State: APjAAAWWBfvM1Br4Z2iwizHrsBnAt2Pf4+dj0Qcu5bHcedEN9KWQZbRr
+	d1RxY8go7yKI7aPjfNgt8h2qCdcBn9jv5n9mfgsNFQ==
+X-Google-Smtp-Source: APXvYqyloKzz7NgWTchmsnc7qXwItkNgE6mhmz6hYsrxditmjwnLHbvLORRpP5EyOywTjcrApKlY50azf7yp8TQmbak=
+X-Received: by 2002:a02:390c:: with SMTP id l12mr4178791jaa.76.1566429140549;
+ Wed, 21 Aug 2019 16:12:20 -0700 (PDT)
 MIME-Version: 1.0
-X-Received: by 2002:a6b:c8cf:: with SMTP id y198mr10240574iof.202.1566427089150;
- Wed, 21 Aug 2019 15:38:09 -0700 (PDT)
-Date: Wed, 21 Aug 2019 15:38:09 -0700
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <0000000000003728c00590a83aa5@google.com>
-Subject: WARNING: bad usercopy in hidraw_ioctl
-From: syzbot <syzbot+fc7106c3bcd1cb7b165c@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, andreyknvl@google.com, cai@lca.pw, 
-	isaacm@codeaurora.org, keescook@chromium.org, kstewart@linuxfoundation.org, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-usb@vger.kernel.org, 
-	psodagud@codeaurora.org, syzkaller-bugs@googlegroups.com, tglx@linutronix.de
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+References: <20190821001445.32114-1-echron@arista.com> <alpine.DEB.2.21.1908202024300.141379@chino.kir.corp.google.com>
+ <20190821064732.GW3111@dhcp22.suse.cz> <alpine.DEB.2.21.1908210017320.177871@chino.kir.corp.google.com>
+ <20190821074721.GY3111@dhcp22.suse.cz>
+In-Reply-To: <20190821074721.GY3111@dhcp22.suse.cz>
+From: Edward Chron <echron@arista.com>
+Date: Wed, 21 Aug 2019 16:12:08 -0700
+Message-ID: <CAM3twVR5Z1LG4+pqMF94mCw8R0sJ3VJtnggQnu+047c7jxJVug@mail.gmail.com>
+Subject: Re: [PATCH] mm/oom: Add oom_score_adj value to oom Killed process message
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shakeel Butt <shakeelb@google.com>, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Ivan Delalande <colona@arista.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, Aug 21, 2019 at 12:47 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 21-08-19 00:19:37, David Rientjes wrote:
+> > On Wed, 21 Aug 2019, Michal Hocko wrote:
+> >
+> > > > vm.oom_dump_tasks is pretty useful, however, so it's curious why you
+> > > > haven't left it enabled :/
+> > >
+> > > Because it generates a lot of output potentially. Think of a workload
+> > > with too many tasks which is not uncommon.
+> >
+> > Probably better to always print all the info for the victim so we don't
+> > need to duplicate everything between dump_tasks() and dump_oom_summary().
+>
+> I believe that the motivation was to have a one line summary that is already
+> parsed by log consumers. And that is in __oom_kill_process one.
+>
 
-syzbot found the following crash on:
+Yes the motivation was one line summary that the OOM Killed Process
+message supplies along
+with the fact it is error priority as I mentioned. It is a very
+desirable place to put summarized
+information.
 
-HEAD commit:    eea39f24 usb-fuzzer: main usb gadget fuzzer driver
-git tree:       https://github.com/google/kasan.git usb-fuzzer
-console output: https://syzkaller.appspot.com/x/log.txt?x=128c664c600000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=d0c62209eedfd54e
-dashboard link: https://syzkaller.appspot.com/bug?extid=fc7106c3bcd1cb7b165c
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> Also I do not think this patch improves things much for two reasons
+> at leasts a) it doesn't really give you the whole list of killed tasks
+> (this might be the whole memcg) and b) we already do have most important
+> information in __oom_kill_process. If something is missing there I do
+> not see a strong reason we cannot add it there. Like in this case.
+>
 
-Unfortunately, I don't have any reproducer for this crash yet.
+This is a good point.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+fc7106c3bcd1cb7b165c@syzkaller.appspotmail.com
+Additionally (which you know, but mentioning for reference) the OOM
+output used to look like this:
 
-------------[ cut here ]------------
-Bad or missing usercopy whitelist? Kernel memory exposure attempt detected  
-from SLUB object 'shmem_inode_cache' (offset 88, size 33)!
-WARNING: CPU: 0 PID: 3101 at mm/usercopy.c:74 usercopy_warn+0xe8/0x110  
-mm/usercopy.c:74
-Kernel panic - not syncing: panic_on_warn set ...
-CPU: 0 PID: 3101 Comm: syz-executor.0 Not tainted 5.3.0-rc5+ #28
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0xca/0x13e lib/dump_stack.c:113
-  panic+0x2a3/0x6da kernel/panic.c:219
-  __warn.cold+0x20/0x4a kernel/panic.c:576
-  report_bug+0x262/0x2a0 lib/bug.c:186
-  fixup_bug arch/x86/kernel/traps.c:179 [inline]
-  fixup_bug arch/x86/kernel/traps.c:174 [inline]
-  do_error_trap+0x12b/0x1e0 arch/x86/kernel/traps.c:272
-  do_invalid_op+0x32/0x40 arch/x86/kernel/traps.c:291
-  invalid_op+0x23/0x30 arch/x86/entry/entry_64.S:1028
-RIP: 0010:usercopy_warn+0xe8/0x110 mm/usercopy.c:74
-Code: e8 bd f8 d6 ff 49 89 e9 4c 89 e1 48 89 de 41 57 48 c7 c7 40 f5 cd 85  
-41 55 41 56 4c 8b 44 24 20 48 8b 54 24 18 e8 9d de ac ff <0f> 0b 48 83 c4  
-18 e9 45 ff ff ff 48 c7 c5 40 f3 cd 85 49 89 ee 49
-RSP: 0018:ffff8881c5d07be8 EFLAGS: 00010282
-RAX: 0000000000000000 RBX: ffffffff85cdf500 RCX: 0000000000000000
-RDX: 0000000000008303 RSI: ffffffff81288cfd RDI: ffffed1038ba0f6f
-RBP: ffffffff85cc2ca0 R08: ffff8881c79b0000 R09: ffffed103b645d58
-R10: ffffed103b645d57 R11: ffff8881db22eabf R12: ffffffff86a6b0c8
-R13: 0000000000000058 R14: ffffffff85cdf380 R15: 0000000000000021
-  check_heap_object mm/usercopy.c:234 [inline]
-  __check_object_size mm/usercopy.c:280 [inline]
-  __check_object_size+0x327/0x39a mm/usercopy.c:250
-  check_object_size include/linux/thread_info.h:119 [inline]
-  check_copy_size include/linux/thread_info.h:150 [inline]
-  copy_to_user include/linux/uaccess.h:151 [inline]
-  hidraw_ioctl+0x65f/0xae0 drivers/hid/hidraw.c:440
-  vfs_ioctl fs/ioctl.c:46 [inline]
-  file_ioctl fs/ioctl.c:509 [inline]
-  do_vfs_ioctl+0xd2d/0x1330 fs/ioctl.c:696
-  ksys_ioctl+0x9b/0xc0 fs/ioctl.c:713
-  __do_sys_ioctl fs/ioctl.c:720 [inline]
-  __se_sys_ioctl fs/ioctl.c:718 [inline]
-  __x64_sys_ioctl+0x6f/0xb0 fs/ioctl.c:718
-  do_syscall_64+0xb7/0x580 arch/x86/entry/common.c:296
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x459829
-Code: fd b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 cb b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007f75e27c6c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
-RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000459829
-RDX: 00000000200000c0 RSI: 0000000080404804 RDI: 0000000000000003
-RBP: 000000000075bfc8 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00007f75e27c76d4
-R13: 00000000004c21c9 R14: 00000000004d5628 R15: 00000000ffffffff
-Kernel Offset: disabled
-Rebooting in 86400 seconds..
+Nov 14 15:23:48 oldserver kernel: [337631.991218] Out of memory: Kill
+process 19961 (python) score 17 or sacrifice child
+Nov 14 15:23:48 oldserver kernel: [337631.991237] Killed process 31357
+(sh) total-vm:5400kB, anon-rss:252kB, file-rss:4kB, shmem-rss:0kB
 
+It now looks like this with 5.3.0-rc5 (minus the oom_score_adj):
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+Jul 22 10:42:40 newserver kernel:
+oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/user.slice/user-10383.slice/user@10383.service,task=oomprocs,pid=3035,uid=10383
+Jul 22 10:42:40 newserver kernel: Out of memory: Killed process 3035
+(oomprocs) total-vm:1056800kB, anon-rss:8kB, file-rss:4kB,
+shmem-rss:0kB
+Jul 22 10:42:40 newserver kernel: oom_reaper: reaped process 3035
+(oomprocs), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+The old output did explain that a oom_score of 17 must have either
+tied for highest or was the highest.
+This did document why OOM selected the process it did, even if ends up
+killing the related sh process.
+
+With the newer format that added constraint message, it does provide
+uid which can be helpful and
+the oom_reaper showing that the memory was reclaimed is certainly reassuring.
+
+My understanding now is that printing the oom_score is discouraged.
+This seems unfortunate.  The oom_score_adj can be adjusted
+appropriately if oom_score is known.
+So It would be useful to have both.
+
+But at least if oom_score_adj is printed you can confirm the value at
+the time of the OOM event.
+
+Thank-you,
+-Edward Chron
+Arista Networks
+
+> > Edward, how about this?
+> >
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -420,11 +420,17 @@ static int dump_task(struct task_struct *p, void *arg)
+> >   * State information includes task's pid, uid, tgid, vm size, rss,
+> >   * pgtables_bytes, swapents, oom_score_adj value, and name.
+> >   */
+> > -static void dump_tasks(struct oom_control *oc)
+> > +static void dump_tasks(struct oom_control *oc, struct task_struct *victim)
+> >  {
+> >       pr_info("Tasks state (memory values in pages):\n");
+> >       pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
+> >
+> > +     /* If vm.oom_dump_tasks is disabled, only show the victim */
+> > +     if (!sysctl_oom_dump_tasks) {
+> > +             dump_task(victim, oc);
+> > +             return;
+> > +     }
+> > +
+> >       if (is_memcg_oom(oc))
+> >               mem_cgroup_scan_tasks(oc->memcg, dump_task, oc);
+> >       else {
+> > @@ -465,8 +471,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+> >               if (is_dump_unreclaim_slabs())
+> >                       dump_unreclaimable_slab();
+> >       }
+> > -     if (sysctl_oom_dump_tasks)
+> > -             dump_tasks(oc);
+> > +     if (p || sysctl_oom_dump_tasks)
+> > +             dump_tasks(oc, p);
+> >       if (p)
+> >               dump_oom_summary(oc, p);
+> >  }
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
