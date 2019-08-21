@@ -5,74 +5,74 @@ X-Spam-Level:
 X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52A25C3A5A3
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 376BBC3A5A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17B422339F
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E27F62339F
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 15:00:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UBcsbaFs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17B422339F
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GAQYD4vm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E27F62339F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C14926B02D9; Wed, 21 Aug 2019 10:59:59 -0400 (EDT)
+	id 92E376B02DB; Wed, 21 Aug 2019 11:00:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC56E6B02DA; Wed, 21 Aug 2019 10:59:59 -0400 (EDT)
+	id 9045B6B02DC; Wed, 21 Aug 2019 11:00:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B01B06B02DB; Wed, 21 Aug 2019 10:59:59 -0400 (EDT)
+	id 7F48D6B02DD; Wed, 21 Aug 2019 11:00:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0220.hostedemail.com [216.40.44.220])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F0546B02D9
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 10:59:59 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 335B9181B0489
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:59:59 +0000 (UTC)
-X-FDA: 75846744918.22.gate48_571f73a0ca13f
-X-HE-Tag: gate48_571f73a0ca13f
-X-Filterd-Recvd-Size: 5541
-Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:59:58 +0000 (UTC)
-Received: by mail-pf1-f195.google.com with SMTP id f17so1601786pfn.6
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 07:59:58 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0200.hostedemail.com [216.40.44.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9BE6B02DB
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 11:00:07 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E47F4ABF3
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:00:06 +0000 (UTC)
+X-FDA: 75846745212.23.bean41_5827b337fe412
+X-HE-Tag: bean41_5827b337fe412
+X-Filterd-Recvd-Size: 10430
+Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com [209.85.215.194])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:00:05 +0000 (UTC)
+Received: by mail-pg1-f194.google.com with SMTP id l21so1469340pgm.3
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:00:04 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=subject:from:to:cc:date:message-id:in-reply-to:references
          :user-agent:mime-version:content-transfer-encoding;
-        bh=N1FHoD6ZMNB/7wrUWG2IW6DScPoWU0//Swe9DNcA3ZM=;
-        b=UBcsbaFs+RkamY++8TTiRe++zLe7yNVTPnIrDAYWzm6LUQbTSQ74QNJHEBRItO96HB
-         02SZZHn9Htsz1WlaSdRZfvGuzTxKHGWc2BTRrG8pa42ToRFl/TqsOmC4vTT2ZLpLzij6
-         J03iEvoiOsR8FEVWAeupmVSAapKUBh+nHpBJ+cYMBiQSo8sRE0exQ70QK2hX8qWFxFm+
-         FHNs2+2u0OaVKL3V6vwnYYxHpMBclxb2LKiSbnwwHx9uizE+23ZTc/CC4/wjWPSTQIBA
-         pIP+Jl8MJKuDfuNXSD5LHaK9Xckdi2zuiNxbYAPI6XYQpJdxTTG4nezco0WyqReMiODE
-         W2aQ==
+        bh=sof0muTDiXKYNM5WhTCBi1PApUlSP0Ym0GyRsBlZ35s=;
+        b=GAQYD4vmtrgEm7ws2DRxh+SFIyTTpZBVKsE3nSoFw8U6EcZeHEc81fbDxOvK54HGJP
+         K1XeL1Rh+F+zBciPVSYMb+MI8zo15QSOUjql8cykOMZPXhN99jUCo5pDjd6ANgXB7GY3
+         d/roabw+JdHbzC3baQcyjEkqQMWw1tKzELt1LKS6gDJPx/mxsnhjs5oWEgeU2dcHbkT1
+         /qf3c/+uXO9byajoC5OJcbl648mX7aYxcSKAJxanVcZuoQpDILwad3S5ZcvMZzaWpAIh
+         rSZpt3szQ0OihGuotPqgyfduTo1+oHWxBVpgqRI1JkElUjgVo1GUs6rj7hKa/SQA37h6
+         DdGg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:subject:from:to:cc:date:message-id:in-reply-to
          :references:user-agent:mime-version:content-transfer-encoding;
-        bh=N1FHoD6ZMNB/7wrUWG2IW6DScPoWU0//Swe9DNcA3ZM=;
-        b=JVs4zkZ+ndjrGXN6pTNOP/k9AB1HI5Sv5gYVueF8utzna2QicoRmAKoTbfSMZCd/5A
-         XSaa/FNLd0fipY0mq9bZD1GHly5k2KYaW2rZ8fP4WGJsTkGvmet8ycyZF9mVpdymVBlF
-         ObbHMBlIeo6DJPZ02Glc7nHqn1nijKs7ScJrXYIUpqwD7xI8/mMn4jaPRGrH2w3uG2FW
-         l3wIEfz6aoYTSqvCssoEi9XTq9HvpiOvH4O2YgEPq+HhMIlTLBPwlt5FxjPviQREMXzh
-         /E02mrhpeaiMwuDsTqzfYScupRAtJqY/ysfI7NbySYxOp+zMzyteiE2gL153V4i02Icm
-         3o2Q==
-X-Gm-Message-State: APjAAAXEJ0yETsTKZJJP7XmUpbiWKUrCOC9M/m2BLBc0V7chMBEp5az6
-	iDgd6A6xDXu7vUQN3Jen/MI=
-X-Google-Smtp-Source: APXvYqw/9ikn+1SlMs8YrpbK4yn240xMzQLoTRxSmZztXZbUiHNDLxVPWA0XUeakX5XWBDpVrXLuOQ==
-X-Received: by 2002:a17:90a:8d86:: with SMTP id d6mr430067pjo.94.1566399597619;
-        Wed, 21 Aug 2019 07:59:57 -0700 (PDT)
+        bh=sof0muTDiXKYNM5WhTCBi1PApUlSP0Ym0GyRsBlZ35s=;
+        b=sfUXqLfUC5QzTi/NVekpuom4DUsE5wJkliZWX/xcbHqRf/WUGMwL/L+VHrvc/3ZZtQ
+         OO14TZOrAnkbjCvppHzp2mPn9TrXnoCOK+I8ZXTPs7rPFt+EE0Sc4empZ8rGaTk/UHi3
+         1lx32oJq0zUeYi59P6IziOu4bDqAjXsv777XZTCayQ3/3WBB2cx/FLOSddggk5HhTmwX
+         GsisElPG43Sk0RkqbPBDG3BnhUsokF9rJIwxI9GGaYFP8iizM48xvDKW26ck8iviRa8R
+         T2bX97fJ/NMaJApMDwhnmtqBoSfZylVedr5gfgRSPvhD//xeNsxrnOd5b7tZkeNN5dl5
+         WAbw==
+X-Gm-Message-State: APjAAAXmEnw9b7sbVTxNYvQ16c2pQre8N0lUqGWxksF4xl9BGGChc7vq
+	OuClf2v9VNiIWCnI3slx3n8=
+X-Google-Smtp-Source: APXvYqzx28RnVl7NYtT7FqqVGNs2LwfVWPtdlXAL+NVoFazKGeAh28lQdVah7q3QEB4H+/VTTLmUTQ==
+X-Received: by 2002:aa7:9abc:: with SMTP id x28mr36644210pfi.234.1566399603844;
+        Wed, 21 Aug 2019 08:00:03 -0700 (PDT)
 Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
-        by smtp.gmail.com with ESMTPSA id y16sm25491605pfn.173.2019.08.21.07.59.56
+        by smtp.gmail.com with ESMTPSA id e13sm25636458pff.181.2019.08.21.08.00.02
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Aug 2019 07:59:57 -0700 (PDT)
-Subject: [PATCH v6 5/6] virtio-balloon: Pull page poisoning config out of
- free page hinting
+        Wed, 21 Aug 2019 08:00:03 -0700 (PDT)
+Subject: [PATCH v6 6/6] virtio-balloon: Add support for providing unused
+ page reports to host
 From: Alexander Duyck <alexander.duyck@gmail.com>
 To: nitesh@redhat.com, kvm@vger.kernel.org, mst@redhat.com, david@redhat.com,
  dave.hansen@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org,
@@ -82,8 +82,8 @@ Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
  konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
  aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
  alexander.h.duyck@linux.intel.com
-Date: Wed, 21 Aug 2019 07:59:56 -0700
-Message-ID: <20190821145956.20926.7187.stgit@localhost.localdomain>
+Date: Wed, 21 Aug 2019 08:00:02 -0700
+Message-ID: <20190821150002.20926.6527.stgit@localhost.localdomain>
 In-Reply-To: <20190821145806.20926.22448.stgit@localhost.localdomain>
 References: <20190821145806.20926.22448.stgit@localhost.localdomain>
 User-Agent: StGit/0.17.1-dirty
@@ -98,56 +98,194 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-Currently the page poisoning setting wasn't being enabled unless free page
-hinting was enabled. However we will need the page poisoning tracking logic
-as well for unused page reporting. As such pull it out and make it a
-separate bit of config in the probe function.
-
-In addition we can actually wrap the code in a check for NO_SANITY. If we
-don't care what is actually in the page we can just default to 0 and leave
-it there.
+Add support for the page reporting feature provided by virtio-balloon.
+Reporting differs from the regular balloon functionality in that is is
+much less durable than a standard memory balloon. Instead of creating a
+list of pages that cannot be accessed the pages are only inaccessible
+while they are being indicated to the virtio interface. Once the
+interface has acknowledged them they are placed back into their respective
+free lists and are once again accessible by the guest system.
 
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- drivers/virtio/virtio_balloon.c |   19 +++++++++++++------
- 1 file changed, 13 insertions(+), 6 deletions(-)
+ drivers/virtio/Kconfig              |    1 +
+ drivers/virtio/virtio_balloon.c     |   65 +++++++++++++++++++++++++++++++++++
+ include/uapi/linux/virtio_balloon.h |    1 +
+ 3 files changed, 67 insertions(+)
 
+diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+index 078615cf2afc..4b2dd8259ff5 100644
+--- a/drivers/virtio/Kconfig
++++ b/drivers/virtio/Kconfig
+@@ -58,6 +58,7 @@ config VIRTIO_BALLOON
+ 	tristate "Virtio balloon driver"
+ 	depends on VIRTIO
+ 	select MEMORY_BALLOON
++	select PAGE_REPORTING
+ 	---help---
+ 	 This driver supports increasing and decreasing the amount
+ 	 of memory within a KVM guest.
 diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 226fbb995fb0..2c19457ab573 100644
+index 2c19457ab573..52f9eeda1877 100644
 --- a/drivers/virtio/virtio_balloon.c
 +++ b/drivers/virtio/virtio_balloon.c
-@@ -842,7 +842,6 @@ static int virtio_balloon_register_shrinker(struct virtio_balloon *vb)
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
--	__u32 poison_val;
- 	int err;
+@@ -19,6 +19,7 @@
+ #include <linux/mount.h>
+ #include <linux/magic.h>
+ #include <linux/pseudo_fs.h>
++#include <linux/page_reporting.h>
  
- 	if (!vdev->config->get) {
-@@ -909,11 +908,19 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 						  VIRTIO_BALLOON_CMD_ID_STOP);
- 		spin_lock_init(&vb->free_page_list_lock);
- 		INIT_LIST_HEAD(&vb->free_page_list);
--		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
--			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
--			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
--				      poison_val, &poison_val);
--		}
-+	}
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+		__u32 poison_val = 0;
+ /*
+  * Balloon device works in 4K page units.  So each page is pointed to by
+@@ -37,6 +38,9 @@
+ #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
+ 	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+ 
++/*  limit on the number of pages that can be on the reporting vq */
++#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
 +
-+#if !defined(CONFIG_PAGE_POISONING_NO_SANITY)
-+		/*
-+		 * Let hypervisor know that we are expecting a specific
-+		 * value to be written back in unused pages.
-+		 */
-+		memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+#endif
-+		virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+			      poison_val, &poison_val);
+ #ifdef CONFIG_BALLOON_COMPACTION
+ static struct vfsmount *balloon_mnt;
+ #endif
+@@ -46,6 +50,7 @@ enum virtio_balloon_vq {
+ 	VIRTIO_BALLOON_VQ_DEFLATE,
+ 	VIRTIO_BALLOON_VQ_STATS,
+ 	VIRTIO_BALLOON_VQ_FREE_PAGE,
++	VIRTIO_BALLOON_VQ_REPORTING,
+ 	VIRTIO_BALLOON_VQ_MAX
+ };
+ 
+@@ -113,6 +118,10 @@ struct virtio_balloon {
+ 
+ 	/* To register a shrinker to shrink memory upon memory pressure */
+ 	struct shrinker shrinker;
++
++	/* Unused page reporting device */
++	struct virtqueue *reporting_vq;
++	struct page_reporting_dev_info ph_dev_info;
+ };
+ 
+ static struct virtio_device_id id_table[] = {
+@@ -152,6 +161,32 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+ 
+ }
+ 
++void virtballoon_unused_page_report(struct page_reporting_dev_info *ph_dev_info,
++				    unsigned int nents)
++{
++	struct virtio_balloon *vb =
++		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
++	struct virtqueue *vq = vb->reporting_vq;
++	unsigned int unused, err;
++
++	/* We should always be able to add these buffers to an empty queue. */
++	err = virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
++				  GFP_NOWAIT | __GFP_NOWARN);
++
++	/*
++	 * In the extremely unlikely case that something has changed and we
++	 * are able to trigger an error we will simply display a warning
++	 * and exit without actually processing the pages.
++	 */
++	if (WARN_ON(err))
++		return;
++
++	virtqueue_kick(vq);
++
++	/* When host has read buffer, this completes via balloon_ack */
++	wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
++}
++
+ static void set_page_pfns(struct virtio_balloon *vb,
+ 			  __virtio32 pfns[], struct page *page)
+ {
+@@ -476,6 +511,7 @@ static int init_vqs(struct virtio_balloon *vb)
+ 	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+ 	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+ 	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
++	names[VIRTIO_BALLOON_VQ_REPORTING] = NULL;
+ 
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+ 		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+@@ -487,11 +523,19 @@ static int init_vqs(struct virtio_balloon *vb)
+ 		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
  	}
- 	/*
- 	 * We continue to use VIRTIO_BALLOON_F_DEFLATE_ON_OOM to decide if a
+ 
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
++		names[VIRTIO_BALLOON_VQ_REPORTING] = "reporting_vq";
++		callbacks[VIRTIO_BALLOON_VQ_REPORTING] = balloon_ack;
++	}
++
+ 	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+ 					 vqs, callbacks, names, NULL, NULL);
+ 	if (err)
+ 		return err;
+ 
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
++		vb->reporting_vq = vqs[VIRTIO_BALLOON_VQ_REPORTING];
++
+ 	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+ 	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+@@ -931,12 +975,30 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 		if (err)
+ 			goto out_del_balloon_wq;
+ 	}
++
++	vb->ph_dev_info.report = virtballoon_unused_page_report;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
++		unsigned int capacity;
++
++		capacity = min_t(unsigned int,
++				 virtqueue_get_vring_size(vb->reporting_vq) - 1,
++				 VIRTIO_BALLOON_VRING_HINTS_MAX);
++		vb->ph_dev_info.capacity = capacity;
++
++		err = page_reporting_startup(&vb->ph_dev_info);
++		if (err)
++			goto out_unregister_shrinker;
++	}
++
+ 	virtio_device_ready(vdev);
+ 
+ 	if (towards_target(vb))
+ 		virtballoon_changed(vdev);
+ 	return 0;
+ 
++out_unregister_shrinker:
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
++		virtio_balloon_unregister_shrinker(vb);
+ out_del_balloon_wq:
+ 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+ 		destroy_workqueue(vb->balloon_wq);
+@@ -965,6 +1027,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ {
+ 	struct virtio_balloon *vb = vdev->priv;
+ 
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
++		page_reporting_shutdown(&vb->ph_dev_info);
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 		virtio_balloon_unregister_shrinker(vb);
+ 	spin_lock_irq(&vb->stop_update_lock);
+@@ -1034,6 +1098,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
+ 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+ 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+ 	VIRTIO_BALLOON_F_PAGE_POISON,
++	VIRTIO_BALLOON_F_REPORTING,
+ };
+ 
+ static struct virtio_driver virtio_balloon_driver = {
+diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+index a1966cd7b677..19974392d324 100644
+--- a/include/uapi/linux/virtio_balloon.h
++++ b/include/uapi/linux/virtio_balloon.h
+@@ -36,6 +36,7 @@
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+ #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+ #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
++#define VIRTIO_BALLOON_F_REPORTING	5 /* Page reporting virtqueue */
+ 
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
 
 
