@@ -2,120 +2,158 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AA81C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:28:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41929C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:34:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3885522D6D
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:28:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 025022332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:34:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aczAAOYj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3885522D6D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="egpMmbAI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 025022332A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C407C6B0328; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
+	id 892046B032A; Wed, 21 Aug 2019 13:34:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF0FE6B0329; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
+	id 842F86B032B; Wed, 21 Aug 2019 13:34:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE0166B032A; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
+	id 731526B032C; Wed, 21 Aug 2019 13:34:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BC0B6B0328
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:28:13 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 29BC640F0
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:28:13 +0000 (UTC)
-X-FDA: 75847118466.04.owl24_47b0ced08090b
-X-HE-Tag: owl24_47b0ced08090b
-X-Filterd-Recvd-Size: 4109
-Received: from mail-vs1-f46.google.com (mail-vs1-f46.google.com [209.85.217.46])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:28:12 +0000 (UTC)
-Received: by mail-vs1-f46.google.com with SMTP id m62so1858498vsc.8
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 10:28:12 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to;
-        bh=Pxcwkel5NwWC/EnzdY8s8ZGNQTQ4ddIIJy9odqHj+ng=;
-        b=aczAAOYj3EseHFh6Q04gpTCV7A1k6cB2ViZBvf2ywfgk/8BltmePw0QvCTQNRPBq8i
-         FjWDebo1Y2//nCx+m4oLmneLfQaKpakVAgu81I7X9Wpbw9eXjDGtgz9Tc5p38jgLd6Uy
-         Lg4ZOVqWEGL8IxNjBAUBxi9Py7nzMA8SmXr4a4Vc6k+4drO0a6NlYKqK28KrkmoMk0OF
-         co28kB8QyyAq02chi15B/nFp82jauaEjGxlF7Xol1+I7j2uwGrer/ud3xWyBDxxUfY9k
-         x+Y5KV5huY/SlDObDWMQIdIKSaVe1pbS+4lDO45nYXRXtJUh+AFoMKupx6GVjiK2td6m
-         35NA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:from:date:message-id:subject:to;
-        bh=Pxcwkel5NwWC/EnzdY8s8ZGNQTQ4ddIIJy9odqHj+ng=;
-        b=KhDbdNEe7yoWYrYwi+SzT5nu81W7/qRAA9bFOucZ0ihkaZWBA1fgfEy3J3wHbZBYOC
-         istJeXGgoPVNfjpkSmJ/AN6HryUI6hgsyFp0qgnuYOz0q9O1sZdeGl6t2DpLvJ183k8k
-         suuSfPiLOdH2LU2DrUtIXR0kT4forwpFAnakEbt/ocAmiEcGJ/4sc3jr7aJOpLD/6def
-         8EKrEL7ivsP+d6rd45BPBNdqDNlNbTrllz7Zvvf3kEb1b5e0L8j9ytuB5x3dz9IFFqhR
-         dBdNUcAnZv4IvfOI2bvtnj1pLGimFoSsM8Mh9pnGXnjexE0wq268WdVVg01rpwnXKcZ/
-         o5AQ==
-X-Gm-Message-State: APjAAAWWNbcn6Ltgn6a8lskhWrfaGmSMVUVn4pEzb7tYZi4HWccaeH4n
-	UME4O9MDoII47aKNhzbdsaa6lCujzaxz8jkldtjW5GjM
-X-Google-Smtp-Source: APXvYqyMzkhPzyCZLWHxOofE+fk8Owoq9XFGZcMw+ob35QeKDQqZ9+C3u7/Qy9+/seM1s+2aPgzbqWOx4vxXoC2FKis=
-X-Received: by 2002:a67:f450:: with SMTP id r16mr22270739vsn.119.1566408491894;
- Wed, 21 Aug 2019 10:28:11 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0056.hostedemail.com [216.40.44.56])
+	by kanga.kvack.org (Postfix) with ESMTP id 537A06B032A
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:34:00 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 0537B8248AB9
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:34:00 +0000 (UTC)
+X-FDA: 75847132998.18.shape73_7a298b2a3104d
+X-HE-Tag: shape73_7a298b2a3104d
+X-Filterd-Recvd-Size: 5737
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:33:59 +0000 (UTC)
+Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 191AC22D6D;
+	Wed, 21 Aug 2019 17:33:55 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1566408838;
+	bh=bs8hczsNPANODvH4KyJJB3Ke129MTzcBxY5ubZQ+el4=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=egpMmbAIpi3WaaAuHcdz1N5cHHlhmeIXdbl9GEwrlxmRauiS3jNUVkRBTETUsH+62
+	 eSLY/o1hrwQabl6eUuj5QKiuAKqdZQkPK5Tao3iNY/v1WtQLL+6CwMcB1l9FuEE3sp
+	 jAAGjQBiyoEh2qOZNuyopa5G+CsiudEpVo1ttDpA=
+Date: Wed, 21 Aug 2019 18:33:53 +0100
+From: Will Deacon <will@kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Dave P Martin <Dave.Martin@arm.com>,
+	Dave Hansen <dave.hansen@intel.com>, linux-doc@vger.kernel.org,
+	linux-arch@vger.kernel.org, Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v9 3/3] arm64: Relax
+ Documentation/arm64/tagged-pointers.rst
+Message-ID: <20190821173352.yqfgaozi7nfhcofg@willie-the-truck>
+References: <20190821164730.47450-1-catalin.marinas@arm.com>
+ <20190821164730.47450-4-catalin.marinas@arm.com>
 MIME-Version: 1.0
-From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
-Date: Wed, 21 Aug 2019 22:58:03 +0530
-Message-ID: <CACDBo56W1JGOc6w-NAf-hyWwJQ=vEDsAVAkO8MLLJBpQ0FTAcA@mail.gmail.com>
-Subject: How cma allocation works ?
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, pankaj.suryawanshi@einfochips.com
-Content-Type: multipart/alternative; boundary="000000000000bb8d2b0590a3e5a9"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.074812, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190821164730.47450-4-catalin.marinas@arm.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---000000000000bb8d2b0590a3e5a9
-Content-Type: text/plain; charset="UTF-8"
+On Wed, Aug 21, 2019 at 05:47:30PM +0100, Catalin Marinas wrote:
+> From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> 
+> On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
+> (EL0) to perform memory accesses through 64-bit pointers with a non-zero
+> top byte. However, such pointers were not allowed at the user-kernel
+> syscall ABI boundary.
+> 
+> With the Tagged Address ABI patchset, it is now possible to pass tagged
+> pointers to the syscalls. Relax the requirements described in
+> tagged-pointers.rst to be compliant with the behaviours guaranteed by
+> the AArch64 Tagged Address ABI.
+> 
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
+> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
+> Acked-by: Andrey Konovalov <andreyknvl@google.com>
+> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> ---
+>  Documentation/arm64/tagged-pointers.rst | 23 ++++++++++++++++-------
+>  1 file changed, 16 insertions(+), 7 deletions(-)
+> 
+> diff --git a/Documentation/arm64/tagged-pointers.rst b/Documentation/arm64/tagged-pointers.rst
+> index 2acdec3ebbeb..04f2ba9b779e 100644
+> --- a/Documentation/arm64/tagged-pointers.rst
+> +++ b/Documentation/arm64/tagged-pointers.rst
+> @@ -20,7 +20,9 @@ Passing tagged addresses to the kernel
+>  --------------------------------------
+>  
+>  All interpretation of userspace memory addresses by the kernel assumes
+> -an address tag of 0x00.
+> +an address tag of 0x00, unless the application enables the AArch64
+> +Tagged Address ABI explicitly
+> +(Documentation/arm64/tagged-address-abi.rst).
+>  
+>  This includes, but is not limited to, addresses found in:
+>  
+> @@ -33,13 +35,15 @@ This includes, but is not limited to, addresses found in:
+>   - the frame pointer (x29) and frame records, e.g. when interpreting
+>     them to generate a backtrace or call graph.
+>  
+> -Using non-zero address tags in any of these locations may result in an
+> -error code being returned, a (fatal) signal being raised, or other modes
+> -of failure.
+> +Using non-zero address tags in any of these locations when the
+> +userspace application did not enable the AArch64 Tagged Address ABI may
+> +result in an error code being returned, a (fatal) signal being raised,
+> +or other modes of failure.
+>  
+> -For these reasons, passing non-zero address tags to the kernel via
+> -system calls is forbidden, and using a non-zero address tag for sp is
+> -strongly discouraged.
+> +For these reasons, when the AArch64 Tagged Address ABI is disabled,
+> +passing non-zero address tags to the kernel via system calls is
+> +forbidden, and using a non-zero address tag for sp is strongly
+> +discouraged.
+>  
+>  Programs maintaining a frame pointer and frame records that use non-zero
+>  address tags may suffer impaired or inaccurate debug and profiling
+> @@ -59,6 +63,11 @@ be preserved.
+>  The architecture prevents the use of a tagged PC, so the upper byte will
+>  be set to a sign-extension of bit 55 on exception return.
+>  
+> +This behaviour is maintained when the AArch64 Tagged Address ABI is
+> +enabled. In addition, with the exceptions above, the kernel will
+> +preserve any non-zero tags passed by the user via syscalls and stored in
+> +kernel data structures (e.g. ``set_robust_list()``, ``sigaltstack()``).
 
-Hello,
+Hmm. I can see the need to provide this guarantee for things like
+set_robust_list(), but the problem is that the statement above is too broad
+and isn't strictly true: for example, mmap() doesn't propagate the tag of
+its address parameter into the VMA.
 
-Hard time to understand cma allocation how differs from normal allocation ?
+So I think we need to nail this down a bit more, but I'm having a really
+hard time coming up with some wording :(
 
-I know theoretically how cma works.
-
-1. How it reserved the memory (start pfn to end pfn) ? what is bitmap_*
-functions ?
-2. How alloc_contig_range() works ? it isolate all the pages including
-unevictable pages, what is the practical work flow ? all this works with
-virtual pages or physical pages ?
-3.what start_isolate_page_range() does ?
-4. what alloc_contig_migrate_range does() ?
-5.what isolate_migratepages_range(), reclaim_clean_pages_from_list(),
- migrate_pages() and shrink_page_list() is doing ?
-
-Please let me know the flow with simple example.
-
-Regards,
-Pankaj
-
---000000000000bb8d2b0590a3e5a9
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hello,<br><br>Hard time to understand cma allocation how d=
-iffers from normal allocation ?<br><br>I know theoretically how cma works.<=
-br>=C2=A0<br>1. How it reserved the memory (start pfn to end pfn) ? what is=
- bitmap_* functions ?<br>2. How alloc_contig_range() works ? it isolate all=
- the pages including unevictable pages, what is the practical work flow ? a=
-ll this works with virtual pages or physical pages ?<br>3.what start_isolat=
-e_page_range() does ?<br>4. what alloc_contig_migrate_range does() ?<br>5.w=
-hat isolate_migratepages_range(), reclaim_clean_pages_from_list(), =C2=A0mi=
-grate_pages() and shrink_page_list() is doing ?<br><br>Please let me know t=
-he flow with simple example.<br><br>Regards,<br>Pankaj</div>
-
---000000000000bb8d2b0590a3e5a9--
+Will
 
