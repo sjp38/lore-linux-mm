@@ -2,516 +2,282 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12242C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 21:02:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11A02C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 21:12:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC7AE2339F
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 21:02:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A66A3206DD
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 21:12:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="my8fLKom"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC7AE2339F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="jWiovE0W"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A66A3206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5ACC56B02A9; Wed, 21 Aug 2019 17:02:40 -0400 (EDT)
+	id 4BB9B6B02AB; Wed, 21 Aug 2019 17:12:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55E716B02AA; Wed, 21 Aug 2019 17:02:40 -0400 (EDT)
+	id 46C326B02AC; Wed, 21 Aug 2019 17:12:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44B9D6B02AB; Wed, 21 Aug 2019 17:02:40 -0400 (EDT)
+	id 35C2D6B02AD; Wed, 21 Aug 2019 17:12:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0222.hostedemail.com [216.40.44.222])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B92B6B02A9
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:02:40 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id D4B0399B5
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 21:02:39 +0000 (UTC)
-X-FDA: 75847658838.21.show31_3449995ce3310
-X-HE-Tag: show31_3449995ce3310
-X-Filterd-Recvd-Size: 16847
-Received: from mail-qt1-f182.google.com (mail-qt1-f182.google.com [209.85.160.182])
+Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
+	by kanga.kvack.org (Postfix) with ESMTP id 10EDC6B02AB
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:12:12 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id AB0F48248AB4
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 21:12:11 +0000 (UTC)
+X-FDA: 75847682862.22.boys82_877e81aa27e45
+X-HE-Tag: boys82_877e81aa27e45
+X-Filterd-Recvd-Size: 9967
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
 	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 21:02:39 +0000 (UTC)
-Received: by mail-qt1-f182.google.com with SMTP id u34so4870223qte.2
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:02:39 -0700 (PDT)
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 21:12:10 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id g17so3165895qkk.8
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 14:12:10 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=0p3VFgB6MA8y/sGYTOy5YQ+GrQgMPC2lAgcFjLdxX6k=;
-        b=my8fLKomosO52h1EUrmcCddV+Gj91ozsjZj7VQMZHHK4ClWTv+SRrK1Fq9Ytyzy1Pa
-         3u6U145OPZG/l6BDUC6a3JxF9LL0iebYNwtDmA0oBBxGmjNImoEdPzUH5Ys1FZHStLpk
-         eIUxXg2GQw90x6JaBphk7jvv2kNPuYUz/Qx1vTqwPG/KjOxsqlBvmB1X2QcYJQQA/QHX
-         7WuC2HVEnPIZV2ETf0+PWeD1LCL+COV8UeiSXmleYkuD/bBhO/g0WgVgRejfLLAsCE0d
-         RPfC2P8o2bUu4gbCaFIwkWkApT5UtzI64+XfMas7BV37ezET83rP8IDEbEM1yap3RSD6
-         qZzg==
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=wKfoGD8n1EExPN/R416sVnt2YzIc0+Wi95CWXfv+Qwc=;
+        b=jWiovE0WVWyuoSRn6Q6NcWiLlhDCr9SDx17bU42gfmxyhc87oSxHk+qHbYQygjSfT+
+         tH6VXnvSQoPDO+HDRApqHP4MObAmzQzTMzR6FKHuYJC0tiQ5dn1Zjbc24IAQyM6CaIAW
+         YQLNp62YoI8b/iy9qxXFMbmXwdZGaGuNw3hvqWAqz8kcU+qZ6Q9q/f83Gr+jG/Exj/S3
+         AGV4XoW0HaHZ3fJZj349TaO5HvUvu1Mfqtyf+s54/WqqEJkysXIDIXTeOLSb2nMSMuDQ
+         gLY6v4P4ZNk/rp6JLor6rfPfkfOcLrPtuvUqTzN1BpVfGlgGoChwtv4vh3mihM+QR7f+
+         8vvA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=0p3VFgB6MA8y/sGYTOy5YQ+GrQgMPC2lAgcFjLdxX6k=;
-        b=WrdQdk467h5WxY4hJ1rAb8OveH9snBLOlk47X+Nibyz5Z/kZEkyLAsVhdYy44wtHSi
-         LGxTYD3bB39vt46TrGl4S9VUNdt+e2D9skAp+szH6mZz1nSf3eILQRYEEnoV5W3KN2HE
-         /kd8I4z4yDiv53kJkDeINC0asdpq8xY9Ol7zGBnBt6i85b+RW0Ed0LKg+bZ0vE3msG50
-         4X8ka3+I1ZcBgmZO63IXyb8GhBXclvYFfiPRgBWRO5YDrdNMbojXpph/2WbG/ZzhAFar
-         hS0LnL4+euJK5khabF3l1/jLke24B+H1dqBD5A9mVJvIHmoJPWaSLZGtEWpQeBK6WKon
-         KXFg==
-X-Gm-Message-State: APjAAAVf5pLtuhSKBl1njKEPeI2XAf/JxtvP1XtMAkRTaQa6i49d8Vh1
-	6wtZ5Qd6B0u0U0HNWx1XOnE=
-X-Google-Smtp-Source: APXvYqxdn4UB6oGedEpOjX4d0V9OWgpTwbXIE9hFwB2yNV/rOKoEPM1DHzl/FY7hYnVu6st1kSRkng==
-X-Received: by 2002:a0c:ee86:: with SMTP id u6mr19898048qvr.38.1566421358389;
-        Wed, 21 Aug 2019 14:02:38 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:1f05])
-        by smtp.gmail.com with ESMTPSA id y5sm12041647qkj.64.2019.08.21.14.02.37
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=wKfoGD8n1EExPN/R416sVnt2YzIc0+Wi95CWXfv+Qwc=;
+        b=rkG3R+eF373Y43xf+W+IR/wi6DyaR5ZxCotPrrJLRTbI1/RaIb3vWFv08KrZ45w3u6
+         uSIQBJNJnroyXq/INfC5nz/C7vRsN/aPhA++C4Bsi/u7mSKHz8PjD42XdUtjlghQP3H2
+         IUrCPFkHNbsThmMimoFJe04I+LCu2bBfnRbOchbchPOSFDGgSRGrf1/QqXU9SfKG3shx
+         ZTXSxnDOWp/DwrkA5nlI8ZWW86qLUYSr2BEPB9oh342CWWtXlr6Lb8DfAV2eJvF12XmO
+         R0swO+sWOS7wkkTE/ui7WgbUlGMNJlseQGi1hHkBSrhybc90J9gxxc/7TzY7XMbK5U4U
+         3tRg==
+X-Gm-Message-State: APjAAAWGbQaAZE2oWEe7bMYJWufyYS1ccJF8qceNcZUMfQpBkw6hb0NS
+	/NC27/thKLPmpuetnn1Wex6NGw==
+X-Google-Smtp-Source: APXvYqwZ/bY1z3XLINRGQysL7fa2x5zQOYp0Z/0iOTKQ6+P8g3Nz+pt9/o+NHkYuXYYVlhIkIK4F5A==
+X-Received: by 2002:ae9:ef06:: with SMTP id d6mr33003385qkg.157.1566421930297;
+        Wed, 21 Aug 2019 14:12:10 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id z22sm5710821qti.1.2019.08.21.14.12.08
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Aug 2019 14:02:37 -0700 (PDT)
-Date: Wed, 21 Aug 2019 14:02:35 -0700
-From: Tejun Heo <tj@kernel.org>
-To: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: [PATCH v3 5/5] writeback, memcg: Implement foreign dirty flushing
-Message-ID: <20190821210235.GN2263813@devbig004.ftw2.facebook.com>
-References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
- <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+        Wed, 21 Aug 2019 14:12:09 -0700 (PDT)
+Message-ID: <1566421927.5576.3.camel@lca.pw>
+Subject: Re: devm_memremap_pages() triggers a kasan_add_zero_shadow() warning
+From: Qian Cai <cai@lca.pw>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>,
+  Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrey Ryabinin
+ <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com,  Baoquan He
+ <bhe@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Thomas Gleixner
+ <tglx@linutronix.de>
+Date: Wed, 21 Aug 2019 17:12:07 -0400
+In-Reply-To: <0AC959D7-5BCB-4A81-BBDC-990E9826EB45@lca.pw>
+References: <1565991345.8572.28.camel@lca.pw>
+	 <CAPcyv4i9VFLSrU75U0gQH6K2sz8AZttqvYidPdDcS7sU2SFaCA@mail.gmail.com>
+	 <0FB85A78-C2EE-4135-9E0F-D5623CE6EA47@lca.pw>
+	 <CAPcyv4h9Y7wSdF+jnNzLDRobnjzLfkGLpJsML2XYLUZZZUPsQA@mail.gmail.com>
+	 <E7A04694-504D-4FB3-9864-03C2CBA3898E@lca.pw>
+	 <CAPcyv4gofF-Xf0KTLH4EUkxuXdRO3ha-w+GoxgmiW7gOdS2nXQ@mail.gmail.com>
+	 <0AC959D7-5BCB-4A81-BBDC-990E9826EB45@lca.pw>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There's an inherent mismatch between memcg and writeback.  The former
-trackes ownership per-page while the latter per-inode.  This was a
-deliberate design decision because honoring per-page ownership in the
-writeback path is complicated, may lead to higher CPU and IO overheads
-and deemed unnecessary given that write-sharing an inode across
-different cgroups isn't a common use-case.
+On Sat, 2019-08-17 at 23:25 -0400, Qian Cai wrote:
+> > On Aug 17, 2019, at 12:59 PM, Dan Williams <dan.j.williams@intel.com>=
+ wrote:
+> >=20
+> > On Sat, Aug 17, 2019 at 4:13 AM Qian Cai <cai@lca.pw> wrote:
+> > >=20
+> > >=20
+> > >=20
+> > > > On Aug 16, 2019, at 11:57 PM, Dan Williams <dan.j.williams@intel.=
+com>
+> > > > wrote:
+> > > >=20
+> > > > On Fri, Aug 16, 2019 at 8:34 PM Qian Cai <cai@lca.pw> wrote:
+> > > > >=20
+> > > > >=20
+> > > > >=20
+> > > > > > On Aug 16, 2019, at 5:48 PM, Dan Williams <dan.j.williams@int=
+el.com>
+> > > > > > wrote:
+> > > > > >=20
+> > > > > > On Fri, Aug 16, 2019 at 2:36 PM Qian Cai <cai@lca.pw> wrote:
+> > > > > > >=20
+> > > > > > > Every so often recently, booting Intel CPU server on linux-=
+next
+> > > > > > > triggers this
+> > > > > > > warning. Trying to figure out if=C2=A0=C2=A0the commit 7cc7=
+867fb061
+> > > > > > > ("mm/devm_memremap_pages: enable sub-section remap") is the
+> > > > > > > culprit here.
+> > > > > > >=20
+> > > > > > > # ./scripts/faddr2line vmlinux devm_memremap_pages+0x894/0x=
+c70
+> > > > > > > devm_memremap_pages+0x894/0xc70:
+> > > > > > > devm_memremap_pages at mm/memremap.c:307
+> > > > > >=20
+> > > > > > Previously the forced section alignment in devm_memremap_page=
+s()
+> > > > > > would
+> > > > > > cause the implementation to never violate the
+> > > > > > KASAN_SHADOW_SCALE_SIZE
+> > > > > > (12K on x86) constraint.
+> > > > > >=20
+> > > > > > Can you provide a dump of /proc/iomem? I'm curious what resou=
+rce is
+> > > > > > triggering such a small alignment granularity.
+> > > > >=20
+> > > > > This is with memmap=3D4G!4G ,
+> > > > >=20
+> > > > > # cat /proc/iomem
+> > > >=20
+> > > > [..]
+> > > > > 100000000-155dfffff : Persistent Memory (legacy)
+> > > > > 100000000-155dfffff : namespace0.0
+> > > > > 155e00000-15982bfff : System RAM
+> > > > > 155e00000-156a00fa0 : Kernel code
+> > > > > 156a00fa1-15765d67f : Kernel data
+> > > > > 157837000-1597fffff : Kernel bss
+> > > > > 15982c000-1ffffffff : Persistent Memory (legacy)
+> > > > > 200000000-87fffffff : System RAM
+> > > >=20
+> > > > Ok, looks like 4G is bad choice to land the pmem emulation on thi=
+s
+> > > > system because it collides with where the kernel is deployed and =
+gets
+> > > > broken into tiny pieces that violate kasan's. This is a known pro=
+blem
+> > > > with memmap=3D. You need to pick an memory range that does not co=
+llide
+> > > > with anything else. See:
+> > > >=20
+> > > > =C2=A0 https://nvdimm.wiki.kernel.org/how_to_choose_the_correct_m=
+emmap_kernel
+> > > > _parameter_for_pmem_on_your_system
+> > > >=20
+> > > > ...for more info.
+> > >=20
+> > > Well, it seems I did exactly follow the information in that link,
+> > >=20
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-provided physical RAM map:
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000000000=
+00-0x0000000000093fff]
+> > > usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000000940=
+00-0x000000000009ffff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000000e00=
+00-0x00000000000fffff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000001000=
+00-0x000000005a7a0fff]
+> > > usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x000000005a7a10=
+00-0x000000005b5e0fff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x000000005b5e10=
+00-0x00000000790fefff]
+> > > usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000790ff0=
+00-0x00000000791fefff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000791ff0=
+00-0x000000007b5fefff] ACPI
+> > > NVS
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x000000007b5ff0=
+00-0x000000007b7fefff] ACPI
+> > > data
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x000000007b7ff0=
+00-0x000000007b7fffff]
+> > > usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x000000007b8000=
+00-0x000000008fffffff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000000ff8000=
+00-0x00000000ffffffff]
+> > > reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] BIOS-e820: [mem 0x00000001000000=
+00-0x000000087fffffff]
+> > > usable
+> > >=20
+> > > Where 4G is good. Then,
+> > >=20
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user-defined physical RAM map:
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x0000000000000000-0x=
+0000000000093fff] usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x0000000000094000-0x=
+000000000009ffff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x00000000000e0000-0x=
+00000000000fffff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x0000000000100000-0x=
+000000005a7a0fff] usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x000000005a7a1000-0x=
+000000005b5e0fff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x000000005b5e1000-0x=
+00000000790fefff] usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x00000000790ff000-0x=
+00000000791fefff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x00000000791ff000-0x=
+000000007b5fefff] ACPI NVS
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x000000007b5ff000-0x=
+000000007b7fefff] ACPI data
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x000000007b7ff000-0x=
+000000007b7fffff] usable
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x000000007b800000-0x=
+000000008fffffff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x00000000ff800000-0x=
+00000000ffffffff] reserved
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x0000000100000000-0x=
+00000001ffffffff]
+> > > persistent (type 12)
+> > > [=C2=A0=C2=A0=C2=A0=C2=A00.000000] user: [mem 0x0000000200000000-0x=
+000000087fffffff] usable
+> > >=20
+> > > The doc did mention that =E2=80=9CThere seems to be an issue with C=
+ONFIG_KSAN at
+> > > the moment however.=E2=80=9D
+> > > without more detail though.
+> >=20
+> > Does disabling CONFIG_RANDOMIZE_BASE help? Maybe that workaround has
+> > regressed. Effectively we need to find what is causing the kernel to
+> > sometimes be placed in the middle of a custom reserved memmap=3D rang=
+e.
+>=20
+> Yes, disabling KASLR works good so far. Assuming the workaround, i.e.,
+> f28442497b5c
+> (=E2=80=9Cx86/boot: Fix KASLR and memmap=3D collision=E2=80=9D) is corr=
+ect.
+>=20
+> The only other commit that might regress it from my research so far is,
+>=20
+> d52e7d5a952c ("x86/KASLR: Parse all 'memmap=3D' boot option entries=E2=80=
+=9D)
+>=20
 
-Combined with inode majority-writer ownership switching, this works
-well enough in most cases but there are some pathological cases.  For
-example, let's say there are two cgroups A and B which keep writing to
-different but confined parts of the same inode.  B owns the inode and
-A's memory is limited far below B's.  A's dirty ratio can rise enough
-to trigger balance_dirty_pages() sleeps but B's can be low enough to
-avoid triggering background writeback.  A will be slowed down without
-a way to make writeback of the dirty pages happen.
-
-This patch implements foreign dirty recording and foreign mechanism so
-that when a memcg encounters a condition as above it can trigger
-flushes on bdi_writebacks which can clean its pages.  Please see the
-comment on top of mem_cgroup_track_foreign_dirty_slowpath() for
-details.
-
-A reproducer follows.
-
-write-range.c::
-
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <unistd.h>
-  #include <fcntl.h>
-  #include <sys/types.h>
-
-  static const char *usage = "write-range FILE START SIZE\n";
-
-  int main(int argc, char **argv)
-  {
-	  int fd;
-	  unsigned long start, size, end, pos;
-	  char *endp;
-	  char buf[4096];
-
-	  if (argc < 4) {
-		  fprintf(stderr, usage);
-		  return 1;
-	  }
-
-	  fd = open(argv[1], O_WRONLY);
-	  if (fd < 0) {
-		  perror("open");
-		  return 1;
-	  }
-
-	  start = strtoul(argv[2], &endp, 0);
-	  if (*endp != '\0') {
-		  fprintf(stderr, usage);
-		  return 1;
-	  }
-
-	  size = strtoul(argv[3], &endp, 0);
-	  if (*endp != '\0') {
-		  fprintf(stderr, usage);
-		  return 1;
-	  }
-
-	  end = start + size;
-
-	  while (1) {
-		  for (pos = start; pos < end; ) {
-			  long bread, bwritten = 0;
-
-			  if (lseek(fd, pos, SEEK_SET) < 0) {
-				  perror("lseek");
-				  return 1;
-			  }
-
-			  bread = read(0, buf, sizeof(buf) < end - pos ?
-					       sizeof(buf) : end - pos);
-			  if (bread < 0) {
-				  perror("read");
-				  return 1;
-			  }
-			  if (bread == 0)
-				  return 0;
-
-			  while (bwritten < bread) {
-				  long this;
-
-				  this = write(fd, buf + bwritten,
-					       bread - bwritten);
-				  if (this < 0) {
-					  perror("write");
-					  return 1;
-				  }
-
-				  bwritten += this;
-				  pos += bwritten;
-			  }
-		  }
-	  }
-  }
-
-repro.sh::
-
-  #!/bin/bash
-
-  set -e
-  set -x
-
-  sysctl -w vm.dirty_expire_centisecs=300000
-  sysctl -w vm.dirty_writeback_centisecs=300000
-  sysctl -w vm.dirtytime_expire_seconds=300000
-  echo 3 > /proc/sys/vm/drop_caches
-
-  TEST=/sys/fs/cgroup/test
-  A=$TEST/A
-  B=$TEST/B
-
-  mkdir -p $A $B
-  echo "+memory +io" > $TEST/cgroup.subtree_control
-  echo $((1<<30)) > $A/memory.high
-  echo $((32<<30)) > $B/memory.high
-
-  rm -f testfile
-  touch testfile
-  fallocate -l 4G testfile
-
-  echo "Starting B"
-
-  (echo $BASHPID > $B/cgroup.procs
-   pv -q --rate-limit 70M < /dev/urandom | ./write-range testfile $((2<<30)) $((2<<30))) &
-
-  echo "Waiting 10s to ensure B claims the testfile inode"
-  sleep 5
-  sync
-  sleep 5
-  sync
-  echo "Starting A"
-
-  (echo $BASHPID > $A/cgroup.procs
-   pv < /dev/urandom | ./write-range testfile 0 $((2<<30)))
-
-v2: Added comments explaining why the specific intervals are being used.
-
-v3: Use 0 @nr when calling cgroup_writeback_by_id() to use best-effort
-    flushing while avoding possible livelocks.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
----
- include/linux/backing-dev-defs.h |    1 
- include/linux/memcontrol.h       |   39 +++++++++++
- mm/memcontrol.c                  |  132 +++++++++++++++++++++++++++++++++++++++
- mm/page-writeback.c              |    4 +
- 4 files changed, 176 insertions(+)
-
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -63,6 +63,7 @@ enum wb_reason {
- 	 * so it has a mismatch name.
- 	 */
- 	WB_REASON_FORKER_THREAD,
-+	WB_REASON_FOREIGN_FLUSH,
- 
- 	WB_REASON_MAX,
- };
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -184,6 +184,23 @@ struct memcg_padding {
- #endif
- 
- /*
-+ * Remember four most recent foreign writebacks with dirty pages in this
-+ * cgroup.  Inode sharing is expected to be uncommon and, even if we miss
-+ * one in a given round, we're likely to catch it later if it keeps
-+ * foreign-dirtying, so a fairly low count should be enough.
-+ *
-+ * See mem_cgroup_track_foreign_dirty_slowpath() for details.
-+ */
-+#define MEMCG_CGWB_FRN_CNT	4
-+
-+struct memcg_cgwb_frn {
-+	u64 bdi_id;			/* bdi->id of the foreign inode */
-+	int memcg_id;			/* memcg->css.id of foreign inode */
-+	u64 at;				/* jiffies_64 at the time of dirtying */
-+	struct wb_completion done;	/* tracks in-flight foreign writebacks */
-+};
-+
-+/*
-  * The memory controller data structure. The memory controller controls both
-  * page cache and RSS per cgroup. We would eventually like to provide
-  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
-@@ -307,6 +324,7 @@ struct mem_cgroup {
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	struct list_head cgwb_list;
- 	struct wb_domain cgwb_domain;
-+	struct memcg_cgwb_frn cgwb_frn[MEMCG_CGWB_FRN_CNT];
- #endif
- 
- 	/* List of events which userspace want to receive */
-@@ -1237,6 +1255,18 @@ void mem_cgroup_wb_stats(struct bdi_writ
- 			 unsigned long *pheadroom, unsigned long *pdirty,
- 			 unsigned long *pwriteback);
- 
-+void mem_cgroup_track_foreign_dirty_slowpath(struct page *page,
-+					     struct bdi_writeback *wb);
-+
-+static inline void mem_cgroup_track_foreign_dirty(struct page *page,
-+						  struct bdi_writeback *wb)
-+{
-+	if (unlikely(&page->mem_cgroup->css != wb->memcg_css))
-+		mem_cgroup_track_foreign_dirty_slowpath(page, wb);
-+}
-+
-+void mem_cgroup_flush_foreign(struct bdi_writeback *wb);
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static inline struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
-@@ -1252,6 +1282,15 @@ static inline void mem_cgroup_wb_stats(s
- {
- }
- 
-+static inline void mem_cgroup_track_foreign_dirty(struct page *page,
-+						  struct bdi_writeback *wb)
-+{
-+}
-+
-+static inline void mem_cgroup_flush_foreign(struct bdi_writeback *wb)
-+{
-+}
-+
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
- struct sock;
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -87,6 +87,10 @@ int do_swap_account __read_mostly;
- #define do_swap_account		0
- #endif
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+static DECLARE_WAIT_QUEUE_HEAD(memcg_cgwb_frn_waitq);
-+#endif
-+
- /* Whether legacy memory+swap accounting is active */
- static bool do_memsw_account(void)
- {
-@@ -4184,6 +4188,125 @@ void mem_cgroup_wb_stats(struct bdi_writ
- 	}
- }
- 
-+/*
-+ * Foreign dirty flushing
-+ *
-+ * There's an inherent mismatch between memcg and writeback.  The former
-+ * trackes ownership per-page while the latter per-inode.  This was a
-+ * deliberate design decision because honoring per-page ownership in the
-+ * writeback path is complicated, may lead to higher CPU and IO overheads
-+ * and deemed unnecessary given that write-sharing an inode across
-+ * different cgroups isn't a common use-case.
-+ *
-+ * Combined with inode majority-writer ownership switching, this works well
-+ * enough in most cases but there are some pathological cases.  For
-+ * example, let's say there are two cgroups A and B which keep writing to
-+ * different but confined parts of the same inode.  B owns the inode and
-+ * A's memory is limited far below B's.  A's dirty ratio can rise enough to
-+ * trigger balance_dirty_pages() sleeps but B's can be low enough to avoid
-+ * triggering background writeback.  A will be slowed down without a way to
-+ * make writeback of the dirty pages happen.
-+ *
-+ * Conditions like the above can lead to a cgroup getting repatedly and
-+ * severely throttled after making some progress after each
-+ * dirty_expire_interval while the underyling IO device is almost
-+ * completely idle.
-+ *
-+ * Solving this problem completely requires matching the ownership tracking
-+ * granularities between memcg and writeback in either direction.  However,
-+ * the more egregious behaviors can be avoided by simply remembering the
-+ * most recent foreign dirtying events and initiating remote flushes on
-+ * them when local writeback isn't enough to keep the memory clean enough.
-+ *
-+ * The following two functions implement such mechanism.  When a foreign
-+ * page - a page whose memcg and writeback ownerships don't match - is
-+ * dirtied, mem_cgroup_track_foreign_dirty() records the inode owning
-+ * bdi_writeback on the page owning memcg.  When balance_dirty_pages()
-+ * decides that the memcg needs to sleep due to high dirty ratio, it calls
-+ * mem_cgroup_flush_foreign() which queues writeback on the recorded
-+ * foreign bdi_writebacks which haven't expired.  Both the numbers of
-+ * recorded bdi_writebacks and concurrent in-flight foreign writebacks are
-+ * limited to MEMCG_CGWB_FRN_CNT.
-+ *
-+ * The mechanism only remembers IDs and doesn't hold any object references.
-+ * As being wrong occasionally doesn't matter, updates and accesses to the
-+ * records are lockless and racy.
-+ */
-+void mem_cgroup_track_foreign_dirty_slowpath(struct page *page,
-+					     struct bdi_writeback *wb)
-+{
-+	struct mem_cgroup *memcg = page->mem_cgroup;
-+	struct memcg_cgwb_frn *frn;
-+	u64 now = jiffies_64;
-+	u64 oldest_at = now;
-+	int oldest = -1;
-+	int i;
-+
-+	/*
-+	 * Pick the slot to use.  If there is already a slot for @wb, keep
-+	 * using it.  If not replace the oldest one which isn't being
-+	 * written out.
-+	 */
-+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++) {
-+		frn = &memcg->cgwb_frn[i];
-+		if (frn->bdi_id == wb->bdi->id &&
-+		    frn->memcg_id == wb->memcg_css->id)
-+			break;
-+		if (frn->at < oldest_at && atomic_read(&frn->done.cnt) == 1) {
-+			oldest = i;
-+			oldest_at = frn->at;
-+		}
-+	}
-+
-+	if (i < MEMCG_CGWB_FRN_CNT) {
-+		/*
-+		 * Re-using an existing one.  Update timestamp lazily to
-+		 * avoid making the cacheline hot.  We want them to be
-+		 * reasonably up-to-date and significantly shorter than
-+		 * dirty_expire_interval as that's what expires the record.
-+		 * Use the shorter of 1s and dirty_expire_interval / 8.
-+		 */
-+		unsigned long update_intv =
-+			min_t(unsigned long, HZ,
-+			      msecs_to_jiffies(dirty_expire_interval * 10) / 8);
-+
-+		if (frn->at < now - update_intv)
-+			frn->at = now;
-+	} else if (oldest >= 0) {
-+		/* replace the oldest free one */
-+		frn = &memcg->cgwb_frn[oldest];
-+		frn->bdi_id = wb->bdi->id;
-+		frn->memcg_id = wb->memcg_css->id;
-+		frn->at = now;
-+	}
-+}
-+
-+/* issue foreign writeback flushes for recorded foreign dirtying events */
-+void mem_cgroup_flush_foreign(struct bdi_writeback *wb)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
-+	unsigned long intv = msecs_to_jiffies(dirty_expire_interval * 10);
-+	u64 now = jiffies_64;
-+	int i;
-+
-+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++) {
-+		struct memcg_cgwb_frn *frn = &memcg->cgwb_frn[i];
-+
-+		/*
-+		 * If the record is older than dirty_expire_interval,
-+		 * writeback on it has already started.  No need to kick it
-+		 * off again.  Also, don't start a new one if there's
-+		 * already one in flight.
-+		 */
-+		if (frn->at > now - intv && atomic_read(&frn->done.cnt) == 1) {
-+			frn->at = 0;
-+			cgroup_writeback_by_id(frn->bdi_id, frn->memcg_id, 0,
-+					       WB_REASON_FOREIGN_FLUSH,
-+					       &frn->done);
-+		}
-+	}
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
-@@ -4700,6 +4823,7 @@ static struct mem_cgroup *mem_cgroup_all
- 	struct mem_cgroup *memcg;
- 	unsigned int size;
- 	int node;
-+	int __maybe_unused i;
- 
- 	size = sizeof(struct mem_cgroup);
- 	size += nr_node_ids * sizeof(struct mem_cgroup_per_node *);
-@@ -4743,6 +4867,9 @@ static struct mem_cgroup *mem_cgroup_all
- #endif
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	INIT_LIST_HEAD(&memcg->cgwb_list);
-+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-+		memcg->cgwb_frn[i].done =
-+			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
- #endif
- 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
- 	return memcg;
-@@ -4872,7 +4999,12 @@ static void mem_cgroup_css_released(stru
- static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	int __maybe_unused i;
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-+		wb_wait_for_completion(&memcg->cgwb_frn[i].done);
-+#endif
- 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
- 		static_branch_dec(&memcg_sockets_enabled_key);
- 
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1667,6 +1667,8 @@ static void balance_dirty_pages(struct b
- 		if (unlikely(!writeback_in_progress(wb)))
- 			wb_start_background_writeback(wb);
- 
-+		mem_cgroup_flush_foreign(wb);
-+
- 		/*
- 		 * Calculate global domain's pos_ratio and select the
- 		 * global dtc by default.
-@@ -2427,6 +2429,8 @@ void account_page_dirtied(struct page *p
- 		task_io_account_write(PAGE_SIZE);
- 		current->nr_dirtied++;
- 		this_cpu_inc(bdp_ratelimits);
-+
-+		mem_cgroup_track_foreign_dirty(page, wb);
- 	}
- }
- 
+It turns out that the origin commit f28442497b5c (=E2=80=9Cx86/boot: Fix =
+KASLR and
+memmap=3D collision=E2=80=9D) has a bug that is unable to handle "memmap=3D=
+" in
+CONFIG_CMDLINE instead of a parameter in bootloader because when it (as w=
+ell as
+the commit d52e7d5a952c) calls get_cmd_line_ptr() in order to run
+mem_avoid_memmap(), "boot_params" has no knowledge of CONFIG_CMDLINE. Onl=
+y later
+in setup_arch(), the kernel will deal with parameters over there.
 
