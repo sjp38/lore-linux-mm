@@ -2,176 +2,223 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65342C3A5A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:13:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6229C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:19:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2735F216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:13:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2735F216F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6E89E216F4
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 19:19:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="PBtD5w2K"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E89E216F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDB696B029B; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
+	id 054226B029D; Wed, 21 Aug 2019 15:19:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8B626B029D; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
+	id 004AF6B029F; Wed, 21 Aug 2019 15:19:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B547F6B029E; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
+	id E0D8F6B02A0; Wed, 21 Aug 2019 15:19:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0252.hostedemail.com [216.40.44.252])
-	by kanga.kvack.org (Postfix) with ESMTP id 95F346B029B
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:13:43 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 56A14282A
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:13:43 +0000 (UTC)
-X-FDA: 75847384326.19.bikes76_77b516623df5b
-X-HE-Tag: bikes76_77b516623df5b
-X-Filterd-Recvd-Size: 6778
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:13:42 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 612CC30872DD;
-	Wed, 21 Aug 2019 19:13:41 +0000 (UTC)
-Received: from [10.36.118.29] (unknown [10.36.118.29])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id BD21C60BF3;
-	Wed, 21 Aug 2019 19:13:37 +0000 (UTC)
-Subject: Re: [PATCH] mm/balloon_compaction: suppress allocation warnings
-To: Nadav Amit <namit@vmware.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
- "virtualization@lists.linux-foundation.org"
- <virtualization@lists.linux-foundation.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-References: <20190820091646.29642-1-namit@vmware.com>
- <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
- <5BBC6CB3-2DCD-4A95-90C9-7C23482F9B32@vmware.com>
- <85c72875-278f-fbab-69c9-92dc1873d407@redhat.com>
- <FC42B62F-167F-4D7D-ADC5-926B36347E82@vmware.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <2aa52636-4ca7-0d47-c5bf-42408af3ea0f@redhat.com>
-Date: Wed, 21 Aug 2019 21:13:36 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <FC42B62F-167F-4D7D-ADC5-926B36347E82@vmware.com>
-Content-Type: text/plain; charset=utf-8
+Received: from forelay.hostedemail.com (smtprelay0110.hostedemail.com [216.40.44.110])
+	by kanga.kvack.org (Postfix) with ESMTP id BAEF16B029D
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 15:19:21 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 7AFDF181AC9BA
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:19:21 +0000 (UTC)
+X-FDA: 75847398522.29.grain15_17618cd106902
+X-HE-Tag: grain15_17618cd106902
+X-Filterd-Recvd-Size: 9854
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-eopbgr760051.outbound.protection.outlook.com [40.107.76.51])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 19:19:20 +0000 (UTC)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=W6zoWVRyRWv8NT117LIHNpoW0573KB1pE8VM6Kl05fu/a/+fkSNGvgkLbybMH2P3Vv18LK0Lr23Ph3/UbvDpkDsmVoi7uDGKSLeGWXGPHNRiZMwTC71xFDo6idNcQPt/EYVnncDvQqCr1wJWO2bNmH6H2iztIbDxUyllZMkrxnWIv9R13n3MjKCbjmbeVEc37K2JTCaIMC0WMgXn9GLRBIvfKgRuiMv9+pjwLswY4Awc40LySq8ZArokbOqypxYT88mbnjAB0II40eqlNut+jagCax4UgxxYn82YvMsowIgTF9V6zBANQ6dmrMuRmey3eekF4acQOau5ysP+zPFWlw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=XS3OAXApQLJ/1wXmSZOjcV1W9UopVbrzv6+XGmjbVls=;
+ b=igXxl4750RPR/IP4Q8+P2M19i9YK9LGInGf6y/IHjauzDSK4bHOl/wR9sRIyvH3oaIqUN1yHIAqWRyG929iFBDG1D0IrZL7eSrRKUXXUwrVOWPrjwVp7iDHinl5l18ngc3+iylKZhEE8ULHovxknVQggRXcTc/9uwHrOqn1kUpu/HMzf8tmPKOd9q3D2emGQ20mN5iJRMz8LRYZ5dFjXqh1s1YAq5ZK2MKwRkKixj+gU7fnyphoxa0BFYYVUUMJfHR1F0yKSnJrzVGGcEWYVQaG1RuiR9Rteyq0mKPbd7cOABxz3t9n/zO+TbXAjTxeq6FIHVOdPqw1G2E+RJWeCWg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=vmware.com; dmarc=pass action=none header.from=vmware.com;
+ dkim=pass header.d=vmware.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=XS3OAXApQLJ/1wXmSZOjcV1W9UopVbrzv6+XGmjbVls=;
+ b=PBtD5w2KXIIgS+hUZFEa49DifjZYC/vyaBY4iyHjiFXWT0Q8An1Tf3I7EMSiFbtdsIOaOyYefPLOS6kQkeLhoIQT06pvtTT6352U5MMC6LBws/gx0CkNKff50HhdXVeADYO8RHWimBo+hoOvwwDPGBDW3W82WJe6/2Fa8X1Vj7Q=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB3925.namprd05.prod.outlook.com (52.135.195.25) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2199.7; Wed, 21 Aug 2019 19:19:18 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::1541:ed53:784a:6376]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::1541:ed53:784a:6376%5]) with mapi id 15.20.2199.011; Wed, 21 Aug 2019
+ 19:19:18 +0000
+From: Nadav Amit <namit@vmware.com>
+To: David Hildenbrand <david@redhat.com>
+CC: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+	"virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, Linux-MM <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v2] mm/balloon_compaction: Informative allocation warnings
+Thread-Topic: [PATCH v2] mm/balloon_compaction: Informative allocation
+ warnings
+Thread-Index:
+ AQHVWEJHWn7VmeZ5cEugJmetWObq/6cF9CyAgAAAcQCAAAHXgIAAATcAgAAAlgCAAAHhgA==
+Date: Wed, 21 Aug 2019 19:19:18 +0000
+Message-ID: <9DDD9A0D-C88C-4EEF-A41B-E5646BDEF414@vmware.com>
+References: <20190821094159.40795-1-namit@vmware.com>
+ <75ff92c2-7ae2-c4a6-cd1f-44741e29d20e@redhat.com>
+ <4E10A342-9A51-4C1F-8E5A-8005AACEF4CE@vmware.com>
+ <497b1189-8e1d-2926-ee5e-9077fcceb04b@redhat.com>
+ <36AC2460-9E88-4BAF-B793-A14A00E41617@vmware.com>
+ <3873b6ab-de6d-cac2-90e8-541fe86e2005@redhat.com>
+In-Reply-To: <3873b6ab-de6d-cac2-90e8-541fe86e2005@redhat.com>
+Accept-Language: en-US
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 21 Aug 2019 19:13:41 +0000 (UTC)
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 47b123e6-436a-4c10-2780-08d7266c76bc
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR05MB3925;
+x-ms-traffictypediagnostic: BYAPR05MB3925:
+x-microsoft-antispam-prvs:
+ <BYAPR05MB392575DA11B2F6C2CAC38183D0AA0@BYAPR05MB3925.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
+x-forefront-prvs: 0136C1DDA4
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(346002)(366004)(136003)(39860400002)(376002)(396003)(199004)(189003)(54906003)(186003)(486006)(53936002)(316002)(6512007)(5660300002)(26005)(478600001)(476003)(66946007)(64756008)(76176011)(6916009)(66446008)(53546011)(6506007)(66476007)(33656002)(6436002)(6486002)(66556008)(102836004)(14454004)(99286004)(76116006)(229853002)(256004)(305945005)(446003)(66066001)(2906002)(8676002)(6246003)(36756003)(86362001)(25786009)(8936002)(2616005)(71190400001)(4326008)(71200400001)(11346002)(7736002)(3846002)(6116002)(81156014)(14444005)(81166006);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB3925;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 3Xz5uBgO+veO4+oiTVhIswxusJvfnnxHx0DKBsx+9z2DxC8Wayp9CA3LnK3dQr0HZwu5+cHyQRLCoZOUp6qT8NTUAqvyWcD677hAN03/GtTqARn5BlEcEuNpE5r95ZwttnqtvqwjYGH6dwlHZ2HmXaUTRso/J1Xfzq+2kNFJdii8wRwcAI7Siu1CMV1d7R+mxhQ6UDYBHIg4+xV5ZqgwtKWxZYGLsS111YIXMPuSOF8H+/3HjnZOPL+IbbWqPoFOPcaBH063D1q6M0N38RgaGYt4G/9aoQ6CjsfmiZPdkLBVbod/7LhPn6RG1o02T2as3hq8QIbBlRJ/66JP5UeNiSjk5ZjMb1XHAB1VgZXzORoUOM2HteDqf3BO9CPvVCJZfHSt/f+MdDYw6Z/sAogWIGVAmPhFP6N0Pla2hvg5KJ0=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <F2EB266CFF731C4798729C491FC45D72@namprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 47b123e6-436a-4c10-2780-08d7266c76bc
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Aug 2019 19:19:18.4501
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: OAGZTuLecOGKeJDRewSHIP3AZr9oyY7dPrnJ8qqBJSGY6gCjkVh+t+bWXPGbXS8gcB/cXJMnRGlXxiavVx/FWA==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB3925
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21.08.19 18:34, Nadav Amit wrote:
->> On Aug 21, 2019, at 9:29 AM, David Hildenbrand <david@redhat.com> wrot=
+> On Aug 21, 2019, at 12:12 PM, David Hildenbrand <david@redhat.com> wrote:
+>=20
+> On 21.08.19 21:10, Nadav Amit wrote:
+>>> On Aug 21, 2019, at 12:06 PM, David Hildenbrand <david@redhat.com> wrot=
 e:
->>
->> On 21.08.19 18:23, Nadav Amit wrote:
->>>> On Aug 21, 2019, at 9:05 AM, David Hildenbrand <david@redhat.com> wr=
+>>>=20
+>>> On 21.08.19 20:59, Nadav Amit wrote:
+>>>>> On Aug 21, 2019, at 11:57 AM, David Hildenbrand <david@redhat.com> wr=
 ote:
->>>>
->>>> On 20.08.19 11:16, Nadav Amit wrote:
->>>>> There is no reason to print warnings when balloon page allocation f=
-ails,
->>>>> as they are expected and can be handled gracefully.  Since VMware
->>>>> balloon now uses balloon-compaction infrastructure, and suppressed =
-these
->>>>> warnings before, it is also beneficial to suppress these warnings t=
-o
->>>>> keep the same behavior that the balloon had before.
->>>>
->>>> I am not sure if that's a good idea. The allocation warnings are usu=
-ally
->>>> the only trace of "the user/admin did something bad because he/she t=
-ried
->>>> to inflate the balloon to an unsafe value". Believe me, I processed =
-a
->>>> couple of such bugreports related to virtio-balloon and the warning =
-were
->>>> very helpful for that.
->>>
->>> Ok, so a message is needed, but does it have to be a generic frighten=
-ing
->>> warning?
->>>
->>> How about using __GFP_NOWARN, and if allocation do something like:
->>>
->>>  pr_warn(=E2=80=9CBalloon memory allocation failed=E2=80=9D);
->>>
->>> Or even something more informative? This would surely be less intimid=
-ating
->>> for common users.
->>
->> ratelimit would make sense :)
->>
->> And yes, this would certainly be nicer.
+>>>>>=20
+>>>>> On 21.08.19 11:41, Nadav Amit wrote:
+>>>>>> There is no reason to print generic warnings when balloon memory
+>>>>>> allocation fails, as failures are expected and can be handled
+>>>>>> gracefully. Since VMware balloon now uses balloon-compaction
+>>>>>> infrastructure, and suppressed these warnings before, it is also
+>>>>>> beneficial to suppress these warnings to keep the same behavior that=
+ the
+>>>>>> balloon had before.
+>>>>>>=20
+>>>>>> Since such warnings can still be useful to indicate that the balloon=
+ is
+>>>>>> over-inflated, print more informative and less frightening warning i=
+f
+>>>>>> allocation fails instead.
+>>>>>>=20
+>>>>>> Cc: David Hildenbrand <david@redhat.com>
+>>>>>> Cc: Jason Wang <jasowang@redhat.com>
+>>>>>> Signed-off-by: Nadav Amit <namit@vmware.com>
+>>>>>>=20
+>>>>>> ---
+>>>>>>=20
+>>>>>> v1->v2:
+>>>>>> * Print informative warnings instead suppressing [David]
+>>>>>> ---
+>>>>>> mm/balloon_compaction.c | 7 ++++++-
+>>>>>> 1 file changed, 6 insertions(+), 1 deletion(-)
+>>>>>>=20
+>>>>>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+>>>>>> index 798275a51887..0c1d1f7689f0 100644
+>>>>>> --- a/mm/balloon_compaction.c
+>>>>>> +++ b/mm/balloon_compaction.c
+>>>>>> @@ -124,7 +124,12 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+>>>>>> struct page *balloon_page_alloc(void)
+>>>>>> {
+>>>>>> 	struct page *page =3D alloc_page(balloon_mapping_gfp_mask() |
+>>>>>> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+>>>>>> +				       __GFP_NOMEMALLOC | __GFP_NORETRY |
+>>>>>> +				       __GFP_NOWARN);
+>>>>>> +
+>>>>>> +	if (!page)
+>>>>>> +		pr_warn_ratelimited("memory balloon: memory allocation failed");
+>>>>>> +
+>>>>>> 	return page;
+>>>>>> }
+>>>>>> EXPORT_SYMBOL_GPL(balloon_page_alloc);
+>>>>>=20
+>>>>> Not sure if "memory balloon" is the right wording. hmmm.
+>>>>>=20
+>>>>> Acked-by: David Hildenbrand <david@redhat.com>
+>>>>=20
+>>>> Do you have a better suggestion?
+>>>=20
+>>> Not really - that's why I ack'ed :)
+>>>=20
+>>> However, thinking about it - what about moving the check + print to the
+>>> caller and then using dev_warn... or sth. like simple "virtio_balloon:
+>>> ..." ? You can then drop the warning for vmware balloon if you feel lik=
+e
+>>> not needing it.
+>>=20
+>> Actually, there is already a warning that is printed by the virtue_ballo=
+on
+>> in fill_balloon():
+>>=20
+>>                struct page *page =3D balloon_page_alloc();
+>>=20
+>>                if (!page) {
+>>                        dev_info_ratelimited(&vb->vdev->dev,
+>>                                             "Out of puff! Can't get %u p=
+ages\n",
+>>                                             VIRTIO_BALLOON_PAGES_PER_PAG=
+E);
+>>                        /* Sleep for at least 1/5 of a second before retr=
+y. */
+>>                        msleep(200);
+>>                        break;
+>>                }
+>>=20
+>> So are you ok with going back to v1?
 >=20
-> Thanks. I will post v2 of the patch.
+> Whoops, I missed that - sorry - usually the warnings scream louder at me =
+:D
 >=20
+> Yes, v1 is fine with me!
 
-As discussed in v2, we already print a warning in virtio-balloon, so I
-am fine with this patch.
+Thanks, I missed this one too. This change should prevent making users
+concerned for no good reason.
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
---=20
-
-Thanks,
-
-David / dhildenb
 
