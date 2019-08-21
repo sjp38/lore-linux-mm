@@ -2,111 +2,155 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D98FFC3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:04:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0727C3A5A0
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:06:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 992CE233A0
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:04:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FcPaI0pB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 992CE233A0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9EA7522D6D
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:06:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EA7522D6D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 182BD6B0305; Wed, 21 Aug 2019 12:04:35 -0400 (EDT)
+	id 37D096B0307; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10C886B0306; Wed, 21 Aug 2019 12:04:35 -0400 (EDT)
+	id 32F1D6B0308; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F15806B0307; Wed, 21 Aug 2019 12:04:34 -0400 (EDT)
+	id 1CFCD6B0309; Wed, 21 Aug 2019 12:06:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0052.hostedemail.com [216.40.44.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C9A016B0305
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:04:34 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 74F41A2D9
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:04:34 +0000 (UTC)
-X-FDA: 75846907668.17.jar78_44f609202423a
-X-HE-Tag: jar78_44f609202423a
-X-Filterd-Recvd-Size: 3960
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:04:33 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id x4so3657734qts.5
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 09:04:33 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=pSYvDILhSH8fJWFn1Ay93bkSas+NlIGIDDL+tHz2nnY=;
-        b=FcPaI0pBK/tsTJ85fkJV0GzNaa0VI6xq2/3C77dJ9Ksg2LPi+NeYin58kEZaHWQ4+c
-         yNts5ywVYjfMNCER2xvTfME0oKqC0YC2I4+K1tsuNpQiaJjKZTyj3LDo3/o+40aLy1b3
-         xFROy6h268Qz/2709NunEce2lWelxf9pFlX7BM8kPI3y5yOWd5UyF8HaxBcv8mpUorwb
-         8wJ1/du7AiJGYKqbpfRUjO9rT+TCM/8hnViWhPuAotTO6NOkCjN1Clp8ecE6hIl6tYqF
-         MHer6bExHhfCK5pjD900mPPO3BKg9ILIPrD3FA13M/iRdL1oZqc+Ge1OIPSGrhdITT6H
-         MvGA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=pSYvDILhSH8fJWFn1Ay93bkSas+NlIGIDDL+tHz2nnY=;
-        b=c1XD/txhqqX7TEvHo0hqyHuryYST/Jo8gF1ca4efDQG0lMKRMsxVTbo7K9DBVVvkaH
-         LQ/e1YJnERjeMAzG1wjtNguXULuiFzbOSAU0FUR24IJez7KhSEBog2a2taxf1h9bH/fB
-         J0ODuBpzgQMkJdcPeqfT3+pJx6Jmo7NQnDOlQXBRtT88KBWZL2KU++BgathAm22AUuMV
-         FCILz2GHtXaqxyjGPqUzn8uAK0uIYLQZgIL+SQYsnt488n9tMks4gYGX3rca3uTToZZP
-         eJ7KrrbQQDUZ4TgXWuk5W6WNXbLA0BGJsQSUySbDxYspxXoeSxA770lLeydIimcvhwry
-         0plQ==
-X-Gm-Message-State: APjAAAXyIVvid8FK+ShnuCT686gXz9C7gx72HY6ueGKRDLOhxMVml9EX
-	rTDdJ+2RXeTJTRvahDGEr0g=
-X-Google-Smtp-Source: APXvYqxpFrzdsIp5vYz/r7TIVsm3AF8l2qHkWaxK1IbWJsfJxsILknQZQre8GqBdTdcjbqhL1sL5hQ==
-X-Received: by 2002:a0c:edcb:: with SMTP id i11mr18388359qvr.206.1566403473118;
-        Wed, 21 Aug 2019 09:04:33 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:1f05])
-        by smtp.gmail.com with ESMTPSA id v126sm10464175qkh.3.2019.08.21.09.04.32
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Aug 2019 09:04:32 -0700 (PDT)
-Date: Wed, 21 Aug 2019 09:04:30 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Jan Kara <jack@suse.cz>
-Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 5/5] writeback, memcg: Implement foreign dirty flushing
-Message-ID: <20190821160430.GL2263813@devbig004.ftw2.facebook.com>
-References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
- <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
- <20190816160256.GI3041@quack2.suse.cz>
- <20190821160037.GK2263813@devbig004.ftw2.facebook.com>
+Received: from forelay.hostedemail.com (smtprelay0209.hostedemail.com [216.40.44.209])
+	by kanga.kvack.org (Postfix) with ESMTP id EF17E6B0307
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:06:00 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 6F907BF05
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:06:00 +0000 (UTC)
+X-FDA: 75846911280.28.tooth04_5177b4d95f433
+X-HE-Tag: tooth04_5177b4d95f433
+X-Filterd-Recvd-Size: 6280
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 102D630832DC;
+	Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
+Received: from [10.36.118.29] (unknown [10.36.118.29])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7AAF460603;
+	Wed, 21 Aug 2019 16:05:55 +0000 (UTC)
+Subject: Re: [PATCH] mm/balloon_compaction: suppress allocation warnings
+To: Nadav Amit <namit@vmware.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>,
+ virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190820091646.29642-1-namit@vmware.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
+Date: Wed, 21 Aug 2019 18:05:54 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190821160037.GK2263813@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000044, version=1.2.4
+In-Reply-To: <20190820091646.29642-1-namit@vmware.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 21 Aug 2019 16:05:59 +0000 (UTC)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 21, 2019 at 09:00:37AM -0700, Tejun Heo wrote:
-> > 2) When you invalidate frn entry here by writing 0 to 'at', it's likely to get
-> > reused soon. Possibly while the writeback is still running. And then you
-> > won't start any writeback for the new entry because of the
-> > atomic_read(&frn->done.cnt) == 1 check. This seems like it could happen
-> > pretty frequently?
+On 20.08.19 11:16, Nadav Amit wrote:
+> There is no reason to print warnings when balloon page allocation fails,
+> as they are expected and can be handled gracefully.  Since VMware
+> balloon now uses balloon-compaction infrastructure, and suppressed these
+> warnings before, it is also beneficial to suppress these warnings to
+> keep the same behavior that the balloon had before.
+
+I am not sure if that's a good idea. The allocation warnings are usually
+the only trace of "the user/admin did something bad because he/she tried
+to inflate the balloon to an unsafe value". Believe me, I processed a
+couple of such bugreports related to virtio-balloon and the warning were
+very helpful for that.
+
 > 
-> Hmm... yeah, the clearing might not make sense.  I'll remove that.
+> Cc: Jason Wang <jasowang@redhat.com>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> ---
+>  mm/balloon_compaction.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index 798275a51887..26de020aae7b 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -124,7 +124,8 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+>  struct page *balloon_page_alloc(void)
+>  {
+>  	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+> +				       __GFP_NOMEMALLOC | __GFP_NORETRY |
+> +				       __GFP_NOWARN);
+>  	return page;
+>  }
+>  EXPORT_SYMBOL_GPL(balloon_page_alloc);
+> 
 
-Oh, the reuse logic checks whether done.cnt == 1 and only reuse if no
-writeback is still in flight, so this one should be fine.
-
-Thanks.
 
 -- 
-tejun
+
+Thanks,
+
+David / dhildenb
 
