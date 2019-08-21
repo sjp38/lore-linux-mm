@@ -7,68 +7,62 @@ X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69FB3C41514
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 00:15:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7172FC3A589
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 00:30:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0449F2087E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 00:14:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3323A22DA7
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 00:30:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="mAx89SzU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0449F2087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E8OZSh34"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3323A22DA7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 645936B0005; Tue, 20 Aug 2019 20:14:59 -0400 (EDT)
+	id 8360E6B000A; Tue, 20 Aug 2019 20:30:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F6626B0006; Tue, 20 Aug 2019 20:14:59 -0400 (EDT)
+	id 7E6466B0008; Tue, 20 Aug 2019 20:30:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50D626B0007; Tue, 20 Aug 2019 20:14:59 -0400 (EDT)
+	id 611EF6B000D; Tue, 20 Aug 2019 20:30:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7A06B0005
-	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 20:14:59 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id A53E08248AC1
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:14:58 +0000 (UTC)
-X-FDA: 75844514676.04.beast27_485a9f7f3ee3d
-X-HE-Tag: beast27_485a9f7f3ee3d
-X-Filterd-Recvd-Size: 4231
-Received: from smtp.aristanetworks.com (mx.aristanetworks.com [162.210.129.12])
+Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3386B0008
+	for <linux-mm@kvack.org>; Tue, 20 Aug 2019 20:30:51 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id CADCB181AC9BF
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:30:50 +0000 (UTC)
+X-FDA: 75844554660.07.ship03_4189c4ac0ca11
+X-HE-Tag: ship03_4189c4ac0ca11
+X-Filterd-Recvd-Size: 4387
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
 	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:14:57 +0000 (UTC)
-Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 9460342C554;
-	Tue, 20 Aug 2019 17:15:39 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
-	s=Arista-A; t=1566346539;
-	bh=9nvWetf9lqZs3dYeWxahRnA3U8FbuSbGvhyiG5L8URA=;
-	h=From:To:Cc:Subject:Date;
-	b=mAx89SzUhBPgIsHC15LD3TzdsSGZM2+XPBYX75qUCmMYCYzKMFsbLQ9cBjijLrhyt
-	 huG0P5qRAAdIxykc49TCKHRTt6IdpZjClY/xPoIbd0Xd38aDkNNbZy0fjH5pxuxI31
-	 wTzG2lMEU3xtygRGfcStEoUIRXG+fC11eG22isaGZUnFSfGOnbq8iTLgcJu/f/tSmI
-	 q7NHLw6C9A4HGen2lQF0e+c7Aci6XscxKjf65Von+tTx7Ce5J+ScwL8jZSaev7o4WX
-	 yWL5iNJhKP1x+Hi924ZayjEOz41i4Ak4Eu5UcZPO/KMrQjuXZ7G8nr0KcydkCAymR7
-	 JlPPPXhbG9a4g==
-Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 90AE942C552;
-	Tue, 20 Aug 2019 17:15:39 -0700 (PDT)
-From: Edward Chron <echron@arista.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>,
-	Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	colona@arista.com,
-	Edward Chron <echron@arista.com>
-Subject: [PATCH] mm/oom: Add oom_score_adj value to oom Killed process message
-Date: Tue, 20 Aug 2019 17:14:45 -0700
-Message-Id: <20190821001445.32114-1-echron@arista.com>
-X-Mailer: git-send-email 2.20.1
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 00:30:50 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=iwYJY7S8Qb3H1qd117LIhrHhXdjR6K0E8vfO12YRxHU=; b=E8OZSh34g8xMpPIQPPbI3RZ0Kk
+	hWiv0hKFRqYz71lulS4vK7X2SzdOejeqNSjZFjiwdzctHwxmYxjt2rbXqtSfGLXY/R8RMIb38nENR
+	SVDccHI0NjXZ52zIbgPv/PhQCqPyRhEfg1HN1AKyv9E2Yo8awIGe7MoLeE6HEkoc4U56uU4Q6W5NK
+	2ThzHhoP/rlPJo6FnTIQiuLSBncuS5r+p844p8Y5L4uIVvTNo2z3KKWRCTW1xPGqfQfm0sf6kSJD1
+	YXjBJBI4EZPMSD1H7X/10qWG308clwCMzszz8CcP/eG//fYHoALpRCXVg+F3qBCimu7scohi0Esh5
+	AvILxmEQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i0EWQ-0003He-Cw; Wed, 21 Aug 2019 00:30:42 +0000
+From: Matthew Wilcox <willy@infradead.org>
+To: linux-fsdevel@vger.kernel.org
+Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+	hch@lst.de,
+	linux-xfs@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: [PATCH v2 4/5] xfs: Support large pages
+Date: Tue, 20 Aug 2019 17:30:38 -0700
+Message-Id: <20190821003039.12555-5-willy@infradead.org>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190821003039.12555-1-willy@infradead.org>
+References: <20190821003039.12555-1-willy@infradead.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -77,63 +71,82 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For an OOM event: print oom_score_adj value for the OOM Killed process to
-document what the oom score adjust value was at the time the process was
-OOM Killed. The adjustment value can be set by user code and it affects
-the resulting oom_score so it is used to influence kill process selection=
-.
+From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 
-When eligible tasks are not printed (sysctl oom_dump_tasks =3D 0) printin=
-g
-this value is the only documentation of the value for the process being
-killed. Having this value on the Killed process message documents if a
-miscconfiguration occurred or it can confirm that the oom_score_adj
-value applies as expected.
+Mostly this is just checking the page size of each page instead of
+assuming PAGE_SIZE.  Clean up the logic in writepage a little.
 
-An example which illustates both misconfiguration and validation that
-the oom_score_adj was applied as expected is:
-
-Aug 14 23:00:02 testserver kernel: Out of memory: Killed process 2692
- (systemd-udevd) total-vm:1056800kB, anon-rss:1052760kB, file-rss:4kB,
- shmem-rss:0kB oom_score_adj:1000
-
-The systemd-udevd is a critical system application that should have an
-oom_score_adj of -1000. Here it was misconfigured to have a adjustment
-of 1000 making it a highly favored OOM kill target process. The output
-documents both the misconfiguration and the fact that the process
-was correctly targeted by OOM due to the miconfiguration. Having
-the oom_score_adj on the Killed message ensures that it is documented.
-
-Signed-off-by: Edward Chron <echron@arista.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
 ---
- mm/oom_kill.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ fs/xfs/xfs_aops.c | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index eda2e2a0bdc6..c781f73b6cd6 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -884,12 +884,13 @@ static void __oom_kill_process(struct task_struct *=
-victim, const char *message)
- 	 */
- 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
- 	mark_oom_victim(victim);
--	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file=
--rss:%lukB, shmem-rss:%lukB\n",
-+	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file=
--rss:%lukB, shmem-rss:%lukB oom_score_adj:%ld\n",
- 		message, task_pid_nr(victim), victim->comm,
- 		K(victim->mm->total_vm),
- 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
- 		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
--		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-+		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-+		(long)victim->signal->oom_score_adj);
- 	task_unlock(victim);
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 102cfd8a97d6..1a26e9ca626b 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -765,7 +765,7 @@ xfs_add_to_ioend(
+ 	struct xfs_mount	*mp =3D ip->i_mount;
+ 	struct block_device	*bdev =3D xfs_find_bdev_for_inode(inode);
+ 	unsigned		len =3D i_blocksize(inode);
+-	unsigned		poff =3D offset & (PAGE_SIZE - 1);
++	unsigned		poff =3D offset & (page_size(page) - 1);
+ 	bool			merged, same_page =3D false;
+ 	sector_t		sector;
 =20
- 	/*
+@@ -843,7 +843,7 @@ xfs_aops_discard_page(
+ 	if (error && !XFS_FORCED_SHUTDOWN(mp))
+ 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
+ out_invalidate:
+-	xfs_vm_invalidatepage(page, 0, PAGE_SIZE);
++	xfs_vm_invalidatepage(page, 0, page_size(page));
+ }
+=20
+ /*
+@@ -984,8 +984,7 @@ xfs_do_writepage(
+ 	struct xfs_writepage_ctx *wpc =3D data;
+ 	struct inode		*inode =3D page->mapping->host;
+ 	loff_t			offset;
+-	uint64_t              end_offset;
+-	pgoff_t                 end_index;
++	uint64_t		end_offset;
+=20
+ 	trace_xfs_writepage(inode, page, 0, 0);
+=20
+@@ -1024,10 +1023,9 @@ xfs_do_writepage(
+ 	 * ---------------------------------^------------------|
+ 	 */
+ 	offset =3D i_size_read(inode);
+-	end_index =3D offset >> PAGE_SHIFT;
+-	if (page->index < end_index)
+-		end_offset =3D (xfs_off_t)(page->index + 1) << PAGE_SHIFT;
+-	else {
++	end_offset =3D file_offset_of_next_page(page);
++
++	if (end_offset > offset) {
+ 		/*
+ 		 * Check whether the page to write out is beyond or straddles
+ 		 * i_size or not.
+@@ -1039,7 +1037,8 @@ xfs_do_writepage(
+ 		 * |				    |      Straddles     |
+ 		 * ---------------------------------^-----------|--------|
+ 		 */
+-		unsigned offset_into_page =3D offset & (PAGE_SIZE - 1);
++		unsigned offset_into_page =3D offset_in_this_page(page, offset);
++		pgoff_t end_index =3D offset >> PAGE_SHIFT;
+=20
+ 		/*
+ 		 * Skip the page if it is fully outside i_size, e.g. due to a
+@@ -1070,7 +1069,7 @@ xfs_do_writepage(
+ 		 * memory is zeroed when mapped, and writes to that region are
+ 		 * not written out to the file."
+ 		 */
+-		zero_user_segment(page, offset_into_page, PAGE_SIZE);
++		zero_user_segment(page, offset_into_page, page_size(page));
+=20
+ 		/* Adjust the end_offset to the end of file */
+ 		end_offset =3D offset;
 --=20
-2.20.1
+2.23.0.rc1
 
 
