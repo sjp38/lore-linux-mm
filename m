@@ -6,99 +6,116 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52949C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 08:05:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61882C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 08:09:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FCF222D6D
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 08:05:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FCF222D6D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 2DED12332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 08:09:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DED12332A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B7B66B02A5; Wed, 21 Aug 2019 04:05:21 -0400 (EDT)
+	id C361A6B02A7; Wed, 21 Aug 2019 04:09:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 868B36B02A6; Wed, 21 Aug 2019 04:05:21 -0400 (EDT)
+	id BE65F6B02A8; Wed, 21 Aug 2019 04:09:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77D6B6B02A7; Wed, 21 Aug 2019 04:05:21 -0400 (EDT)
+	id AFC2C6B02A9; Wed, 21 Aug 2019 04:09:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0162.hostedemail.com [216.40.44.162])
-	by kanga.kvack.org (Postfix) with ESMTP id 50A776B02A5
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:05:21 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E4A6C181AC9CC
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:05:20 +0000 (UTC)
-X-FDA: 75845700000.28.taste83_68c0eedc33a01
-X-HE-Tag: taste83_68c0eedc33a01
-X-Filterd-Recvd-Size: 2899
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:05:19 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8EA65AD95;
-	Wed, 21 Aug 2019 08:05:17 +0000 (UTC)
-Date: Wed, 21 Aug 2019 10:05:16 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH v2] mm, memcg: skip killing processes under memcg
- protection at first scan
-Message-ID: <20190821080516.GZ3111@dhcp22.suse.cz>
-References: <1566177486-2649-1-git-send-email-laoar.shao@gmail.com>
- <20190820213905.GB12897@tower.DHCP.thefacebook.com>
- <CALOAHbBSUPkw-XZBGooGZ9o7HcD5fbavG0bPDFCnYAFqqX8MGA@mail.gmail.com>
- <20190821064452.GV3111@dhcp22.suse.cz>
- <CALOAHbAt6nm+qSOLGTeo5s5XjQFcasQw9HJfKEEC24xVOoVxwg@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0083.hostedemail.com [216.40.44.83])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6666B02A7
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 04:09:32 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 2DB1A181AC9CB
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:09:32 +0000 (UTC)
+X-FDA: 75845710584.05.juice90_8d61bdafd632e
+X-HE-Tag: juice90_8d61bdafd632e
+X-Filterd-Recvd-Size: 3656
+Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 08:09:31 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Aug 2019 01:09:29 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,412,1559545200"; 
+   d="scan'208";a="378061526"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga005.fm.intel.com with ESMTP; 21 Aug 2019 01:09:28 -0700
+Date: Wed, 21 Aug 2019 16:09:04 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org,
+	mgorman@techsingularity.net, osalvador@suse.de, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 3/3] mm/mmap.c: extract __vma_unlink_list as counter part
+ for __vma_link_list
+Message-ID: <20190821080904.GA29221@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190814021755.1977-1-richardw.yang@linux.intel.com>
+ <20190814021755.1977-3-richardw.yang@linux.intel.com>
+ <20190814051611.GA1958@infradead.org>
+ <20190814065703.GA6433@richard>
+ <2c5cdffd-f405-23b8-98f5-37b95ca9b027@suse.cz>
+ <20190820172629.GB4949@bombadil.infradead.org>
+ <20190821005234.GA5540@richard>
+ <20190821005417.GC18776@bombadil.infradead.org>
+ <20190821012244.GA13653@richard>
+ <20190821015939.GA28819@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALOAHbAt6nm+qSOLGTeo5s5XjQFcasQw9HJfKEEC24xVOoVxwg@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190821015939.GA28819@bombadil.infradead.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 21-08-19 15:26:56, Yafang Shao wrote:
-> On Wed, Aug 21, 2019 at 2:44 PM Michal Hocko <mhocko@suse.com> wrote:
-> >
-> > On Wed 21-08-19 09:00:39, Yafang Shao wrote:
-> > [...]
-> > > More possible OOMs is also a strong side effect (and it prevent us
-> > > from using it).
-> >
-> > So why don't you use low limit if the guarantee side of min limit is too
-> > strong for you?
-> 
-> Well, I don't know what the best-practice of memory.min is.
+On Tue, Aug 20, 2019 at 06:59:39PM -0700, Matthew Wilcox wrote:
+>On Wed, Aug 21, 2019 at 09:22:44AM +0800, Wei Yang wrote:
+>> On Tue, Aug 20, 2019 at 05:54:17PM -0700, Matthew Wilcox wrote:
+>> >On Wed, Aug 21, 2019 at 08:52:34AM +0800, Wei Yang wrote:
+>> >> On Tue, Aug 20, 2019 at 10:26:29AM -0700, Matthew Wilcox wrote:
+>> >> >On Wed, Aug 14, 2019 at 11:19:37AM +0200, Vlastimil Babka wrote:
+>> >> >> On 8/14/19 8:57 AM, Wei Yang wrote:
+>> >> >> > On Tue, Aug 13, 2019 at 10:16:11PM -0700, Christoph Hellwig wrote:
+>> >> >> >>Btw, is there any good reason we don't use a list_head for vma linkage?
+>> >> >> > 
+>> >> >> > Not sure, maybe there is some historical reason?
+>> >> >> 
+>> >> >> Seems it was single-linked until 2010 commit 297c5eee3724 ("mm: make the vma
+>> >> >> list be doubly linked") and I guess it was just simpler to add the vm_prev link.
+>> >> >> 
+>> >> >> Conversion to list_head might be an interesting project for some "advanced
+>> >> >> beginner" in the kernel :)
+>> >> >
+>> >> >I'm working to get rid of vm_prev and vm_next, so it would probably be
+>> >> >wasted effort.
+>> >> 
+>> >> You mean replace it with list_head?
+>> >
+>> >No, replace the rbtree with a new tree.  https://lwn.net/Articles/787629/
+>> 
+>> Sounds interesting.
+>> 
+>> While I am not sure the plan is settled down, and how long it would take to
+>> replace the rb_tree with maple tree. I guess it would probably take some time
+>> to get merged upstream.
+>> 
+>> IMHO, it would be good to have this cleanup in current kernel. Do you agree?
+>
+>The three cleanups you've posted are fine.  Doing more work (ie the
+>list_head) seems like wasted effort to me.
 
-It is really a workload reclaim protection. Say you have a memory
-consumer which performance characteristics would be noticeably disrupted
-by any memory reclaim which then would lead to SLA disruption. This is a
-strong requirement/QoS feature and as such comes with its demand on
-configuration.
+Ah, got your point. I misunderstand it.
 
-> In our plan, we want to use it to protect the top priority containers
-> (e.g. set the memory.min same with memory limit), which may latency
-> sensive. Using memory.min may sometimes decrease the refault.
-> If we set it too low, it may useless, becasue what memory.min is
-> protecting is not specified. And if there're some busrt anon memory
-> allocate in this memcg, the memory.min may can't protect any file
-> memory.
-
-I am still not seeing why you are considering guarantee (memory.min)
-rather than best practice (memory.low) here?
 -- 
-Michal Hocko
-SUSE Labs
+Wei Yang
+Help you, Help me
 
