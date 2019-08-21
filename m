@@ -2,137 +2,139 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E44A3C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:16:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EEA94C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:23:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C41C22CE3
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:16:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A2AE422CE3
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:23:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lecystT5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C41C22CE3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="AOd/sPDn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2AE422CE3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 375216B0309; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
+	id 2AD336B030B; Wed, 21 Aug 2019 12:23:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 325C96B030A; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
+	id 25CD46B030C; Wed, 21 Aug 2019 12:23:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1ED366B030B; Wed, 21 Aug 2019 12:16:38 -0400 (EDT)
+	id 14BE56B030D; Wed, 21 Aug 2019 12:23:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0014.hostedemail.com [216.40.44.14])
-	by kanga.kvack.org (Postfix) with ESMTP id ECCBD6B0309
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:16:37 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 97B428248ABD
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:16:37 +0000 (UTC)
-X-FDA: 75846938034.01.earth80_1cad7df7d9f39
-X-HE-Tag: earth80_1cad7df7d9f39
-X-Filterd-Recvd-Size: 4976
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:16:36 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id x4so3707911qts.5
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 09:16:36 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=rSelPuss6Rio+zLxmeT3lHQjONOPz6ghCteSl79uvc4=;
-        b=lecystT5pa2A6yo8Axdj1KSsLU40VESQnnpU2Rk1L1SzDdZmYUbd4PsiNU+5iLOE7j
-         zbD6bbLCGebQwx9lcXa2B+HW9DoD5q7uBa/gZ7ygQPx77wQQIQ1GmTexMMrPCdK7kyCX
-         dcyjDO+jw/ZpT3eBIlbTDS/F9lvZmJkfsIhEr9N+LJxXNscIOIrGwF+RrgQg/pAcfw/v
-         C6mD6PK7XpC9IuEvG2lpMuOD0oHl5qpDhT5vYuAjCVMq7SKO6jJn1/Yli0UUb+PtB3VS
-         3uspvkistGavDwQta/lD1VQQk7IwUnquCu4OISrFvHvchWTZq1eeFmMkErGSgo9qyGp1
-         hN0Q==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=rSelPuss6Rio+zLxmeT3lHQjONOPz6ghCteSl79uvc4=;
-        b=WWTNIH8auNfuJDRDUXNAA1Q9mt9hEf1JxaUpcGMdhT1GdFVJJxmijYXcTKg2C3mlzL
-         68Kz6gCtPGSG+INWmc2HQ4/3mBMKdpDjMQ8+FEtlg5bMUjthtgFGqZMRp539KmcNzw2d
-         rbCCxx5UwLi383F5YNnS8ZBvgOHBQkg8iYr8mLgzU6x2MvjNwliRH0cHfSpHHbtjWbTY
-         B4hia7rDiTRCwS5yiTZLb6m3xCW2et1spDRzSG4O43loi073z2JRdXFO9VTjzjTpogzP
-         KDVMdDj4p68DvWE4u7UphTanitThh7PGiB1Ov3PI6kapn1L3TbX9Chq7wFnmabjIeeUg
-         NtwQ==
-X-Gm-Message-State: APjAAAVBXbHXkEhJjyw7UxyTXboMReRFmWAdLF/hCxbqJnbIejI3Qnh4
-	zbY7ACfDcodSHVg2Q6/geiFVnQ==
-X-Google-Smtp-Source: APXvYqypokR94+w8NKN6DkdxQ9oFTavnyiG1VlybQkUXWne93Jd3wfqkFsQtWY3s57Jl+U7ZTrZ3aQ==
-X-Received: by 2002:ac8:7696:: with SMTP id g22mr31568522qtr.208.1566404196241;
-        Wed, 21 Aug 2019 09:16:36 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id y194sm10143420qkb.111.2019.08.21.09.16.35
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 21 Aug 2019 09:16:35 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1i0THn-0008UM-3g; Wed, 21 Aug 2019 13:16:35 -0300
-Date: Wed, 21 Aug 2019 13:16:35 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 4/4] mm, notifier: Catch sleeping/blocking for !blockable
-Message-ID: <20190821161635.GC8653@ziepe.ca>
-References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
- <20190820081902.24815-5-daniel.vetter@ffwll.ch>
- <20190820133418.GG29246@ziepe.ca>
- <20190820151810.GG11147@phenom.ffwll.local>
- <20190821154151.GK11147@phenom.ffwll.local>
+Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
+	by kanga.kvack.org (Postfix) with ESMTP id E27C56B030B
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:23:25 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 8C1A4180AD803
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:23:25 +0000 (UTC)
+X-FDA: 75846955170.25.cause48_57fc9c056a10d
+X-HE-Tag: cause48_57fc9c056a10d
+X-Filterd-Recvd-Size: 7585
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-eopbgr790085.outbound.protection.outlook.com [40.107.79.85])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:23:24 +0000 (UTC)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=iPFzk8auU2TN2S9qug5sRsvDk7nt2AixohJVifMCMbNRWau9wISuEd0UdDwSd+lOoJkFSWnTTBMpy3fCl/I/0ZCdqjGzOAJCnZiCGmOIEH08ZWt7evDJhGC8iSdx9zsElDEXb/AFhXG+RBm6vliuW9TqEpaSuYCzv1VGType371k0EYxnyXsnJCzAHaiEebJHxtJy9yVLJ6bw1zRa5SHnC/ttfnL39JVfMT3cZeO5KQTwFvapOhASTyzsu49WtrIdzHXcRXr8Mxf31l8LOQDlLlRmi1G2za8M8M4DvBlNxz06hcGv8tpoz8H+7bGb+rHP97VH/JpFeVYyKnQ3+EMtQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=I9tlPJtLZC99Tns9udnrluz2F9EERVnPcn7qiebsrQE=;
+ b=YMKkq210jeK1xJcwwakmVXdKoBRc8tmc01FNwEDNht0BMOUbCnSQd2wSjqOUfB5A9u6OushanuSxP+GqEhKE44UWTt6czgTJmmbpimkPnbEjYzC+wYkpOqEmSk7CHDlGlC+J5JDHkA0T/+I38Dh8Qk4SLH/wSIJEK/HbPosJncVWYuJ6N9Kf6wwHjuSkS+3l7pDzPQ3D8pskLuZsSL9H41wtcC1Dpt7MqYUTDYWiQFWhTt68MfYEqW4yA4Hy7Ekh/a78wmUsPYhvuVEozdlacusL6NYOCUBSeA3VBSZiGffWk4vLRLqHYmVOLRSdTivBTuF25xpVagb/q9gOE1pzWQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=vmware.com; dmarc=pass action=none header.from=vmware.com;
+ dkim=pass header.d=vmware.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=I9tlPJtLZC99Tns9udnrluz2F9EERVnPcn7qiebsrQE=;
+ b=AOd/sPDnClXQvtmU9My1HYwiLSbDRNX+0JCO152JpThQTQktdGVBx6BnU8w44f/nSTM0j/3y454V3u7J6hUEvCrrx5jGPDE7iZMyxWr71xAMN8PA+ER9VB52zuxPVoM5w1w8UPNDHRQ0M+xu8VWOi8r9hvEWlFOwmqyqnsFS1KE=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB5237.namprd05.prod.outlook.com (20.177.231.87) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2199.11; Wed, 21 Aug 2019 16:23:22 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::1541:ed53:784a:6376]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::1541:ed53:784a:6376%5]) with mapi id 15.20.2199.011; Wed, 21 Aug 2019
+ 16:23:22 +0000
+From: Nadav Amit <namit@vmware.com>
+To: David Hildenbrand <david@redhat.com>
+CC: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+	"virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/balloon_compaction: suppress allocation warnings
+Thread-Topic: [PATCH] mm/balloon_compaction: suppress allocation warnings
+Thread-Index: AQHVV3WT44k5kIt6JEiYnWTDWJ3OpKcFxbMAgAAE4IA=
+Date: Wed, 21 Aug 2019 16:23:22 +0000
+Message-ID: <5BBC6CB3-2DCD-4A95-90C9-7C23482F9B32@vmware.com>
+References: <20190820091646.29642-1-namit@vmware.com>
+ <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
+In-Reply-To: <ba01ec8c-19c3-847c-a315-2f70f4b1fe31@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 7ab1e096-5beb-4c96-e3c5-08d72653e2e2
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:BYAPR05MB5237;
+x-ms-traffictypediagnostic: BYAPR05MB5237:
+x-microsoft-antispam-prvs:
+ <BYAPR05MB523742FCCE03F64596033B5AD0AA0@BYAPR05MB5237.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7691;
+x-forefront-prvs: 0136C1DDA4
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(366004)(136003)(346002)(396003)(39860400002)(376002)(199004)(189003)(3846002)(6116002)(33656002)(14454004)(478600001)(316002)(6246003)(66066001)(6916009)(25786009)(53936002)(305945005)(7736002)(36756003)(66446008)(2906002)(4326008)(64756008)(66556008)(66476007)(5660300002)(66946007)(6512007)(8936002)(6486002)(54906003)(76116006)(476003)(2616005)(446003)(86362001)(99286004)(14444005)(486006)(71190400001)(71200400001)(8676002)(81156014)(81166006)(229853002)(6506007)(102836004)(53546011)(186003)(76176011)(26005)(11346002)(256004)(6436002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5237;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ R748NA9GD0TV+rQ+LpypWiIwKXqTHGcXFoo3YnvoudfZnB5NgeSrkecA2xFUdZ1poHUIi7a1uBXKMh47DUbBzb0MSMRo8bPK9lxxfhwiDN8NoQLlmEVK2jSsb6ih5zaBPdHC8xHlkf7gNeyIIekI4knI0oKMl0TO+eX4TDhIRcOxkqKmWYDrNyB4zy4j1xwlvPau7/DMluciYkUMWm4zKr1ujTyyYSmw7G1t8M+1lmmhhz06j6KRDV6sS5poN81tVZNFRolFzzocCGO6YiF1wOrcpCc6uQx9bfziBYxRP6J6cXhRs6k8JgkzITozdfyIaRLx9kZ28IHj2zLY6hNDlt585t8y8NOpSrQgBOTxBMvV9aQsg8dmHT7IE8I8aQqJ9rvUEFH/kHo63lrqYlJYppFpWh5jP6rzqGFdjW0B94w=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A6726210375C704692078D756D10D1B3@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190821154151.GK11147@phenom.ffwll.local>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 7ab1e096-5beb-4c96-e3c5-08d72653e2e2
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Aug 2019 16:23:22.5316
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: QRdCV6qpuhm0WxQz7a7hRGGXBR/2b9w/SlOdBhDKm0n6kX9LIuZ1712eOHEI1KF5jdLA7S9WUwymYjR7zy3RSg==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5237
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001118, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 21, 2019 at 05:41:51PM +0200, Daniel Vetter wrote:
-
-> > Hm, I thought the page table locks we're holding there already prevent any
-> > sleeping, so would be redundant? But reading through code I think that's
-> > not guaranteed, so yeah makes sense to add it for invalidate_range_end
-> > too. I'll respin once I have the ack/nack from scheduler people.
-> 
-> So I started to look into this, and I'm a bit confused. There's no
-> _nonblock version of this, so does this means blocking is never allowed,
-> or always allowed?
-
-RDMA has a mutex:
-
-ib_umem_notifier_invalidate_range_end
-  rbt_ib_umem_for_each_in_range
-   invalidate_range_start_trampoline
-    ib_umem_notifier_end_account
-      mutex_lock(&umem_odp->umem_mutex);
-
-I'm working to delete this path though!
-
-nonblocking or not follows the start, the same flag gets placed into
-the mmu_notifier_range struct passed to end.
-
-> From a quick look through implementations I've only seen spinlocks, and
-> one up_read. So I guess I should wrape this callback in some unconditional
-> non_block_start/end, but I'm not sure.
-
-For now, we should keep it the same as start, conditionally blocking.
-
-Hopefully before LPC I can send a RFC series that eliminates most
-invalidate_range_end users in favor of common locking..
-
-Jason
+PiBPbiBBdWcgMjEsIDIwMTksIGF0IDk6MDUgQU0sIERhdmlkIEhpbGRlbmJyYW5kIDxkYXZpZEBy
+ZWRoYXQuY29tPiB3cm90ZToNCj4gDQo+IE9uIDIwLjA4LjE5IDExOjE2LCBOYWRhdiBBbWl0IHdy
+b3RlOg0KPj4gVGhlcmUgaXMgbm8gcmVhc29uIHRvIHByaW50IHdhcm5pbmdzIHdoZW4gYmFsbG9v
+biBwYWdlIGFsbG9jYXRpb24gZmFpbHMsDQo+PiBhcyB0aGV5IGFyZSBleHBlY3RlZCBhbmQgY2Fu
+IGJlIGhhbmRsZWQgZ3JhY2VmdWxseS4gIFNpbmNlIFZNd2FyZQ0KPj4gYmFsbG9vbiBub3cgdXNl
+cyBiYWxsb29uLWNvbXBhY3Rpb24gaW5mcmFzdHJ1Y3R1cmUsIGFuZCBzdXBwcmVzc2VkIHRoZXNl
+DQo+PiB3YXJuaW5ncyBiZWZvcmUsIGl0IGlzIGFsc28gYmVuZWZpY2lhbCB0byBzdXBwcmVzcyB0
+aGVzZSB3YXJuaW5ncyB0bw0KPj4ga2VlcCB0aGUgc2FtZSBiZWhhdmlvciB0aGF0IHRoZSBiYWxs
+b29uIGhhZCBiZWZvcmUuDQo+IA0KPiBJIGFtIG5vdCBzdXJlIGlmIHRoYXQncyBhIGdvb2QgaWRl
+YS4gVGhlIGFsbG9jYXRpb24gd2FybmluZ3MgYXJlIHVzdWFsbHkNCj4gdGhlIG9ubHkgdHJhY2Ug
+b2YgInRoZSB1c2VyL2FkbWluIGRpZCBzb21ldGhpbmcgYmFkIGJlY2F1c2UgaGUvc2hlIHRyaWVk
+DQo+IHRvIGluZmxhdGUgdGhlIGJhbGxvb24gdG8gYW4gdW5zYWZlIHZhbHVlIi4gQmVsaWV2ZSBt
+ZSwgSSBwcm9jZXNzZWQgYQ0KPiBjb3VwbGUgb2Ygc3VjaCBidWdyZXBvcnRzIHJlbGF0ZWQgdG8g
+dmlydGlvLWJhbGxvb24gYW5kIHRoZSB3YXJuaW5nIHdlcmUNCj4gdmVyeSBoZWxwZnVsIGZvciB0
+aGF0Lg0KDQpPaywgc28gYSBtZXNzYWdlIGlzIG5lZWRlZCwgYnV0IGRvZXMgaXQgaGF2ZSB0byBi
+ZSBhIGdlbmVyaWMgZnJpZ2h0ZW5pbmcNCndhcm5pbmc/DQoNCkhvdyBhYm91dCB1c2luZyBfX0dG
+UF9OT1dBUk4sIGFuZCBpZiBhbGxvY2F0aW9uIGRvIHNvbWV0aGluZyBsaWtlOg0KDQogIHByX3dh
+cm4o4oCcQmFsbG9vbiBtZW1vcnkgYWxsb2NhdGlvbiBmYWlsZWTigJ0pOw0KDQpPciBldmVuIHNv
+bWV0aGluZyBtb3JlIGluZm9ybWF0aXZlPyBUaGlzIHdvdWxkIHN1cmVseSBiZSBsZXNzIGludGlt
+aWRhdGluZw0KZm9yIGNvbW1vbiB1c2Vycy4NCg0K
 
