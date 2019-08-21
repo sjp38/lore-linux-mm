@@ -2,85 +2,83 @@ Return-Path: <SRS0=I31T=WR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1FBDC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:57:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99E8DC3A5A1
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:00:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67CF622DD3
-	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 16:57:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5155C2332A
+	for <linux-mm@archiver.kernel.org>; Wed, 21 Aug 2019 17:00:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="LZ29zPgY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67CF622DD3
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ou25kIOk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5155C2332A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E7AA46B0316; Wed, 21 Aug 2019 12:57:13 -0400 (EDT)
+	id F14F36B0323; Wed, 21 Aug 2019 13:00:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E04356B0322; Wed, 21 Aug 2019 12:57:13 -0400 (EDT)
+	id EEBB66B0324; Wed, 21 Aug 2019 13:00:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA4776B0323; Wed, 21 Aug 2019 12:57:13 -0400 (EDT)
+	id DB2FA6B0325; Wed, 21 Aug 2019 13:00:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F91D6B0316
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 12:57:13 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 506B08248ABC
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:57:13 +0000 (UTC)
-X-FDA: 75847040346.06.key48_5c0fff61ff400
-X-HE-Tag: key48_5c0fff61ff400
-X-Filterd-Recvd-Size: 10360
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 16:57:12 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id c81so1795780pfc.11
-        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 09:57:12 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0113.hostedemail.com [216.40.44.113])
+	by kanga.kvack.org (Postfix) with ESMTP id B88796B0323
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 13:00:35 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 5B8BC181AC9C6
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:00:35 +0000 (UTC)
+X-FDA: 75847048830.19.join89_797bbab92065a
+X-HE-Tag: join89_797bbab92065a
+X-Filterd-Recvd-Size: 7702
+Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 21 Aug 2019 17:00:34 +0000 (UTC)
+Received: by mail-pl1-f193.google.com with SMTP id 4so1633643pld.10
+        for <linux-mm@kvack.org>; Wed, 21 Aug 2019 10:00:34 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=VW3KnN8Acc9B0iEM/8SMTYoiqB1C69NJCO/L2fy9T0E=;
-        b=LZ29zPgY1JCJZosPEQMWMF8sGqW2T0iQX3VHzbcY14iAPwWBFycPp+Ut1pIp60N+6M
-         63yBq7G0RdWy2aANHbwOBTZ+I6GIiz4Xu49tOYEDigKaPpLtizTGQEZRk2iNnATEvJ17
-         rn+wmv3o9QmCU40S2WKtKxFJtNrzZxRGvLmkLlhjf3DBDlOI0UBkt+DgXO3e+QQFm5Zb
-         Y6xww4gWli2XoEyQfeJfhkDgKBP0nueMLWXzyCl4Pj/8S2K/9i5RjTU0hiY6jRz3yyL+
-         wlS2QqQ0eGRZ4KUFDxcOvqO2hyFB4XnME8oveHgJhobYEyApjwYfUlO7YxGHndquQH+w
-         3IUg==
+        bh=RsU08W9/afBmJ4GcGvCken8lWY/T5/5fZJ/HC8LpvYw=;
+        b=ou25kIOk9sINCo+3cRDcGt9yjLpvoQY0j1yl/H2/yK9357uz8Cus+F4SpUSuxcZXBL
+         +49O9FCuBVg8Kh48VfFTfWp2R8+fEYD+sevlBmUSbH83rSMnEqdKTzan8xGq8k/TaZeU
+         8DY43QLs4OgwW6rtiVlf4cwz+Fgx6NkDbbkVlQTBwHNizXvE8zqxZjYN97l1dS9suvOH
+         bMlpyHJO7dVxZcjL+0x6Kxyx/EYmfCPebZDcsEwsXgF5NvnSyLErqaeHuL9b27S0sTH2
+         1+DtBOILGq5e7/CEFiG6MvEa7khudljkYq46qcjJkINp6J8jukq1BmV0O4HC+NxviLD1
+         AliQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=VW3KnN8Acc9B0iEM/8SMTYoiqB1C69NJCO/L2fy9T0E=;
-        b=tPi5A3bgiUcvcHBvGQE0NK+XQ7ieBzjTxTjgLXRhWVDiwufdL39n8RuquJNboCym5e
-         pXM4S5rItacgKqHcQfn8r7XyJnQEwASUOd/0ckCwOrzJRt5kb8N4/oHy1gH+AH3Vzigo
-         xC8SEkTMh5Uyl2zD7c/8xL5OK1yytBpxI/7npD2nyGlIybptQgLG8X6zTB9IbmCAZUEY
-         MWcxD7826mLggSRtntsgC7Iq35MNfp9ji7NfOMbzKdaJgLuF7VPDJLeV8l83jEuDpjUQ
-         MNLyEQPnnqqdJoNhl/Mnn7TPaIOIiwRqT0TlqOM10RGytPMY2nLu39xg81anqCWFtPlU
-         99Jw==
-X-Gm-Message-State: APjAAAVMsUBtXyhIPg6drbf9n7MeYLuCeur0Yg5ipLHviXPZLRoP3cyy
-	40mFe1qqzwtLgVzUvacUbyIwi0R2lDwR8xBEdyuOUQ==
-X-Google-Smtp-Source: APXvYqwnj4AfSHo4zaKShEx5x/xfpdyGgXeEebNiuYFmoZO8TrjatmHOB/N9SjERHBTajCv/IJuhtVvRitJpvc0lQQ8=
-X-Received: by 2002:a63:3006:: with SMTP id w6mr30236162pgw.440.1566406630977;
- Wed, 21 Aug 2019 09:57:10 -0700 (PDT)
+        bh=RsU08W9/afBmJ4GcGvCken8lWY/T5/5fZJ/HC8LpvYw=;
+        b=sRx2E75t79lxQ45OkOLy1wy3x9Qp1gqQZEhTL3S7iYVOWjj9NcjoCsHuej4fSubfr7
+         ICLf6C9tKV0h2dkVuun6kXHW8++NW9OfTjhJq5EBcGGmcOzWtcbpaCpEKljTx4GrU7zq
+         TaG6Ccx+kx64BRZS0ibnisTJpU4ezuV5LzRvrc/dXgG6trvLyt3cYAF8VyPSKkebYIlg
+         p/WOBnsK1ae7Mj1Yh4xeX0HGVickDeS9gCC67wkUqy8hq50DgrauHj6y01l9wMQ1PISk
+         S2d862Cqkt7gnbmPHsE05Zv+dt5GHKm7OVlBBvbeSWXG/kPdYJf/V0WH3eZC80tjzOzU
+         0PKQ==
+X-Gm-Message-State: APjAAAWkzdrDE+AYsROZxDOb5bKRPdMk7T98W5xx20WCTgesdz7KrvHe
+	0Jzxn2DkFBMdnaAQfmSKYZSd1JII+lVRM3avcfsGEA==
+X-Google-Smtp-Source: APXvYqy+5iaT7vro4zo8iyqIckXxgCTLhKcz3TBCgi/0JRfYsfYktT9XaTKZC22WeVRvW2OWrR/HksMeHNFxaPHpGWg=
+X-Received: by 2002:a17:902:ab96:: with SMTP id f22mr35670775plr.147.1566406833279;
+ Wed, 21 Aug 2019 10:00:33 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190821164730.47450-1-catalin.marinas@arm.com> <20190821164730.47450-3-catalin.marinas@arm.com>
-In-Reply-To: <20190821164730.47450-3-catalin.marinas@arm.com>
+References: <000000000000ce6527058f8bf0d0@google.com>
+In-Reply-To: <000000000000ce6527058f8bf0d0@google.com>
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 21 Aug 2019 18:57:00 +0200
-Message-ID: <CAAeHK+wHDx5bqNd+OQuJWoiA=LzsjCWkQ2UY_JVipr852Gv4JA@mail.gmail.com>
-Subject: Re: [PATCH v9 2/3] arm64: Define Documentation/arm64/tagged-address-abi.rst
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will@kernel.org>, 
-	Szabolcs Nagy <szabolcs.nagy@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
-	Dave P Martin <Dave.Martin@arm.com>, Dave Hansen <dave.hansen@intel.com>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, 
-	Will Deacon <will.deacon@arm.com>
+Date: Wed, 21 Aug 2019 19:00:21 +0200
+Message-ID: <CAAeHK+yu=bN-HW-bgJ1OS3TDWpiieGi0Z5sbOuBYU2W=7CyNhQ@mail.gmail.com>
+Subject: Re: BUG: bad usercopy in hidraw_ioctl
+To: syzbot <syzbot+3de312463756f656b47d@syzkaller.appspotmail.com>
+Cc: allison@lohutok.net, Qian Cai <cai@lca.pw>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, USB list <linux-usb@vger.kernel.org>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -88,192 +86,99 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 21, 2019 at 6:47 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+On Wed, Aug 7, 2019 at 9:28 PM syzbot
+<syzbot+3de312463756f656b47d@syzkaller.appspotmail.com> wrote:
 >
-> From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Hello,
 >
-> On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
-> (EL0) to perform memory accesses through 64-bit pointers with a non-zero
-> top byte. Introduce the document describing the relaxation of the
-> syscall ABI that allows userspace to pass certain tagged pointers to
-> kernel syscalls.
+> syzbot found the following crash on:
 >
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
-> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
-> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-
-Acked-by: Andrey Konovalov <andreyknvl@google.com>
-
-
+> HEAD commit:    e96407b4 usb-fuzzer: main usb gadget fuzzer driver
+> git tree:       https://github.com/google/kasan.git usb-fuzzer
+> console output: https://syzkaller.appspot.com/x/log.txt?x=151b2926600000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=cfa2c18fb6a8068e
+> dashboard link: https://syzkaller.appspot.com/bug?extid=3de312463756f656b47d
+> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+>
+> Unfortunately, I don't have any reproducer for this crash yet.
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+3de312463756f656b47d@syzkaller.appspotmail.com
+>
+> usercopy: Kernel memory exposure attempt detected from wrapped address
+> (offset 0, size 0)!
+> ------------[ cut here ]------------
+> kernel BUG at mm/usercopy.c:98!
+> invalid opcode: 0000 [#1] SMP KASAN
+> CPU: 1 PID: 2968 Comm: syz-executor.1 Not tainted 5.3.0-rc2+ #25
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
+> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
+> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
+> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
+> RSP: 0018:ffff8881b0f37be8 EFLAGS: 00010282
+> RAX: 000000000000005a RBX: ffffffff85cdf100 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed10361e6f6f
+> RBP: ffffffff85cdf2c0 R08: 000000000000005a R09: ffffed103b665d58
+> R10: ffffed103b665d57 R11: ffff8881db32eabf R12: ffffffff85cdf460
+> R13: ffffffff85cdf100 R14: 0000000000000000 R15: ffffffff85cdf100
+> FS:  00007f539a2a9700(0000) GS:ffff8881db300000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000021237d0 CR3: 00000001d6ac6000 CR4: 00000000001406e0
+> Call Trace:
+>   check_bogus_address mm/usercopy.c:151 [inline]
+>   __check_object_size mm/usercopy.c:260 [inline]
+>   __check_object_size.cold+0xb2/0xba mm/usercopy.c:250
+>   check_object_size include/linux/thread_info.h:119 [inline]
+>   check_copy_size include/linux/thread_info.h:150 [inline]
+>   copy_to_user include/linux/uaccess.h:151 [inline]
+>   hidraw_ioctl+0x38c/0xae0 drivers/hid/hidraw.c:392
+>   vfs_ioctl fs/ioctl.c:46 [inline]
+>   file_ioctl fs/ioctl.c:509 [inline]
+>   do_vfs_ioctl+0xd2d/0x1330 fs/ioctl.c:696
+>   ksys_ioctl+0x9b/0xc0 fs/ioctl.c:713
+>   __do_sys_ioctl fs/ioctl.c:720 [inline]
+>   __se_sys_ioctl fs/ioctl.c:718 [inline]
+>   __x64_sys_ioctl+0x6f/0xb0 fs/ioctl.c:718
+>   do_syscall_64+0xb7/0x580 arch/x86/entry/common.c:296
+>   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x459829
+> Code: fd b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7
+> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff
+> ff 0f 83 cb b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+> RSP: 002b:00007f539a2a8c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+> RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000459829
+> RDX: 0000000020000800 RSI: 0000000090044802 RDI: 0000000000000004
+> RBP: 000000000075c268 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 00007f539a2a96d4
+> R13: 00000000004c21f3 R14: 00000000004d55b8 R15: 00000000ffffffff
+> Modules linked in:
+> ---[ end trace 24b9968555bf4653 ]---
+> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
+> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
+> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
+> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
+> RSP: 0018:ffff8881b0f37be8 EFLAGS: 00010282
+> RAX: 000000000000005a RBX: ffffffff85cdf100 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed10361e6f6f
+> RBP: ffffffff85cdf2c0 R08: 000000000000005a R09: ffffed103b665d58
+> R10: ffffed103b665d57 R11: ffff8881db32eabf R12: ffffffff85cdf460
+> R13: ffffffff85cdf100 R14: 0000000000000000 R15: ffffffff85cdf100
+> FS:  00007f539a2a9700(0000) GS:ffff8881db300000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00000000021237d0 CR3: 00000001d6ac6000 CR4: 00000000001406e0
+>
+>
 > ---
->  Documentation/arm64/tagged-address-abi.rst | 156 +++++++++++++++++++++
->  1 file changed, 156 insertions(+)
->  create mode 100644 Documentation/arm64/tagged-address-abi.rst
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
 >
-> diff --git a/Documentation/arm64/tagged-address-abi.rst b/Documentation/arm64/tagged-address-abi.rst
-> new file mode 100644
-> index 000000000000..d4a85d535bf9
-> --- /dev/null
-> +++ b/Documentation/arm64/tagged-address-abi.rst
-> @@ -0,0 +1,156 @@
-> +==========================
-> +AArch64 TAGGED ADDRESS ABI
-> +==========================
-> +
-> +Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> +         Catalin Marinas <catalin.marinas@arm.com>
-> +
-> +Date: 21 August 2019
-> +
-> +This document describes the usage and semantics of the Tagged Address
-> +ABI on AArch64 Linux.
-> +
-> +1. Introduction
-> +---------------
-> +
-> +On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
-> +userspace (EL0) to perform memory accesses through 64-bit pointers with
-> +a non-zero top byte. This document describes the relaxation of the
-> +syscall ABI that allows userspace to pass certain tagged pointers to
-> +kernel syscalls.
-> +
-> +2. AArch64 Tagged Address ABI
-> +-----------------------------
-> +
-> +From the kernel syscall interface perspective and for the purposes of
-> +this document, a "valid tagged pointer" is a pointer with a potentially
-> +non-zero top-byte that references an address in the user process address
-> +space obtained in one of the following ways:
-> +
-> +- ``mmap()`` syscall where either:
-> +
-> +  - flags have the ``MAP_ANONYMOUS`` bit set or
-> +  - the file descriptor refers to a regular file (including those
-> +    returned by ``memfd_create()``) or ``/dev/zero``
-> +
-> +- ``brk()`` syscall (i.e. the heap area between the initial location of
-> +  the program break at process creation and its current location).
-> +
-> +- any memory mapped by the kernel in the address space of the process
-> +  during creation and with the same restrictions as for ``mmap()`` above
-> +  (e.g. data, bss, stack).
-> +
-> +The AArch64 Tagged Address ABI has two stages of relaxation depending
-> +how the user addresses are used by the kernel:
-> +
-> +1. User addresses not accessed by the kernel but used for address space
-> +   management (e.g. ``mmap()``, ``mprotect()``, ``madvise()``). The use
-> +   of valid tagged pointers in this context is always allowed.
-> +
-> +2. User addresses accessed by the kernel (e.g. ``write()``). This ABI
-> +   relaxation is disabled by default and the application thread needs to
-> +   explicitly enable it via ``prctl()`` as follows:
-> +
-> +   - ``PR_SET_TAGGED_ADDR_CTRL``: enable or disable the AArch64 Tagged
-> +     Address ABI for the calling thread.
-> +
-> +     The ``(unsigned int) arg2`` argument is a bit mask describing the
-> +     control mode used:
-> +
-> +     - ``PR_TAGGED_ADDR_ENABLE``: enable AArch64 Tagged Address ABI.
-> +       Default status is disabled.
-> +
-> +     Arguments ``arg3``, ``arg4``, and ``arg5`` must be 0.
-> +
-> +   - ``PR_GET_TAGGED_ADDR_CTRL``: get the status of the AArch64 Tagged
-> +     Address ABI for the calling thread.
-> +
-> +     Arguments ``arg2``, ``arg3``, ``arg4``, and ``arg5`` must be 0.
-> +
-> +   The ABI properties described above are thread-scoped, inherited on
-> +   clone() and fork() and cleared on exec().
-> +
-> +   Calling ``prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0)``
-> +   returns ``-EINVAL`` if the AArch64 Tagged Address ABI is globally
-> +   disabled by ``sysctl abi.tagged_addr_disabled=1``. The default
-> +   ``sysctl abi.tagged_addr_disabled`` configuration is 0.
-> +
-> +When the AArch64 Tagged Address ABI is enabled for a thread, the
-> +following behaviours are guaranteed:
-> +
-> +- All syscalls except the cases mentioned in section 3 can accept any
-> +  valid tagged pointer.
-> +
-> +- The syscall behaviour is undefined for invalid tagged pointers: it may
-> +  result in an error code being returned, a (fatal) signal being raised,
-> +  or other modes of failure.
-> +
-> +- The syscall behaviour for a valid tagged pointer is the same as for
-> +  the corresponding untagged pointer.
-> +
-> +
-> +A definition of the meaning of tagged pointers on AArch64 can be found
-> +in Documentation/arm64/tagged-pointers.rst.
-> +
-> +3. AArch64 Tagged Address ABI Exceptions
-> +-----------------------------------------
-> +
-> +The following system call parameters must be untagged regardless of the
-> +ABI relaxation:
-> +
-> +- ``prctl()`` other than pointers to user data either passed directly or
-> +  indirectly as arguments to be accessed by the kernel.
-> +
-> +- ``ioctl()`` other than pointers to user data either passed directly or
-> +  indirectly as arguments to be accessed by the kernel.
-> +
-> +- ``shmat()`` and ``shmdt()``.
-> +
-> +Any attempt to use non-zero tagged pointers may result in an error code
-> +being returned, a (fatal) signal being raised, or other modes of
-> +failure.
-> +
-> +4. Example of correct usage
-> +---------------------------
-> +.. code-block:: c
-> +
-> +   #include <stdlib.h>
-> +   #include <string.h>
-> +   #include <unistd.h>
-> +   #include <sys/mman.h>
-> +   #include <sys/prctl.h>
-> +
-> +   #define PR_SET_TAGGED_ADDR_CTRL     55
-> +   #define PR_TAGGED_ADDR_ENABLE       (1UL << 0)
-> +
-> +   #define TAG_SHIFT           56
-> +
-> +   int main(void)
-> +   {
-> +       int tbi_enabled = 0;
-> +       unsigned long tag = 0;
-> +       char *ptr;
-> +
-> +       /* check/enable the tagged address ABI */
-> +       if (!prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0))
-> +               tbi_enabled = 1;
-> +
-> +       /* memory allocation */
-> +       ptr = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
-> +                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-> +       if (ptr == MAP_FAILED)
-> +               return 1;
-> +
-> +       /* set a non-zero tag if the ABI is available */
-> +       if (tbi_enabled)
-> +               tag = rand() & 0xff;
-> +       ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
-> +
-> +       /* memory access to a tagged address */
-> +       strcpy(ptr, "tagged pointer\n");
-> +
-> +       /* syscall with a tagged pointer */
-> +       write(1, ptr, strlen(ptr));
-> +
-> +       return 0;
-> +   }
+> syzbot will keep track of this bug report. See:
+> https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+
+Looks like the same bug:
+
+#syz dup: KASAN: slab-out-of-bounds Read in hidraw_ioctl
 
