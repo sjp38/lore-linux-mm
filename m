@@ -2,43 +2,43 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41495C3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 07:09:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4559C3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 07:15:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F15E20644
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 07:09:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F15E20644
+	by mail.kernel.org (Postfix) with ESMTP id 68269214DA
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 07:15:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68269214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B351E6B02D3; Thu, 22 Aug 2019 03:09:22 -0400 (EDT)
+	id 00D086B02D5; Thu, 22 Aug 2019 03:15:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE6366B02D4; Thu, 22 Aug 2019 03:09:22 -0400 (EDT)
+	id F006E6B02D6; Thu, 22 Aug 2019 03:15:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FCC26B02D5; Thu, 22 Aug 2019 03:09:22 -0400 (EDT)
+	id E15576B02D7; Thu, 22 Aug 2019 03:15:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0200.hostedemail.com [216.40.44.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB4F6B02D3
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 03:09:22 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 34CB08248AB2
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 07:09:22 +0000 (UTC)
-X-FDA: 75849187764.06.dirt26_6ed8bc992050e
-X-HE-Tag: dirt26_6ed8bc992050e
-X-Filterd-Recvd-Size: 5279
+Received: from forelay.hostedemail.com (smtprelay0156.hostedemail.com [216.40.44.156])
+	by kanga.kvack.org (Postfix) with ESMTP id C06626B02D5
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 03:15:47 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 2F4B2180AD832
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 07:15:47 +0000 (UTC)
+X-FDA: 75849203934.08.wave77_15568554e7609
+X-HE-Tag: wave77_15568554e7609
+X-Filterd-Recvd-Size: 6076
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 07:09:21 +0000 (UTC)
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 07:15:46 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 27E53AE00;
-	Thu, 22 Aug 2019 07:09:20 +0000 (UTC)
-Date: Thu, 22 Aug 2019 09:09:19 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 54151AE00;
+	Thu, 22 Aug 2019 07:15:45 +0000 (UTC)
+Date: Thu, 22 Aug 2019 09:15:44 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: Edward Chron <echron@arista.com>
 Cc: David Rientjes <rientjes@google.com>,
@@ -49,14 +49,16 @@ Cc: David Rientjes <rientjes@google.com>,
 	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
 Subject: Re: [PATCH] mm/oom: Add oom_score_adj value to oom Killed process
  message
-Message-ID: <20190822070919.GB12785@dhcp22.suse.cz>
+Message-ID: <20190822071544.GC12785@dhcp22.suse.cz>
 References: <20190821001445.32114-1-echron@arista.com>
  <alpine.DEB.2.21.1908202024300.141379@chino.kir.corp.google.com>
- <CAM3twVSfO7Z-fgHxy0CDgnJ33X6OgRzbrF+210QSGfPF4mxEuQ@mail.gmail.com>
+ <20190821064732.GW3111@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1908210017320.177871@chino.kir.corp.google.com>
+ <CAM3twVQ4Z7dOx+bFn3O6ERstQ4wm3ojhM624NVzc=CAZw1OUUA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAM3twVSfO7Z-fgHxy0CDgnJ33X6OgRzbrF+210QSGfPF4mxEuQ@mail.gmail.com>
+In-Reply-To: <CAM3twVQ4Z7dOx+bFn3O6ERstQ4wm3ojhM624NVzc=CAZw1OUUA@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -64,84 +66,110 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 21-08-19 15:25:13, Edward Chron wrote:
-> On Tue, Aug 20, 2019 at 8:25 PM David Rientjes <rientjes@google.com> wrote:
+On Wed 21-08-19 15:22:07, Edward Chron wrote:
+> On Wed, Aug 21, 2019 at 12:19 AM David Rientjes <rientjes@google.com> wrote:
 > >
-> > On Tue, 20 Aug 2019, Edward Chron wrote:
+> > On Wed, 21 Aug 2019, Michal Hocko wrote:
 > >
-> > > For an OOM event: print oom_score_adj value for the OOM Killed process to
-> > > document what the oom score adjust value was at the time the process was
-> > > OOM Killed. The adjustment value can be set by user code and it affects
-> > > the resulting oom_score so it is used to influence kill process selection.
+> > > > vm.oom_dump_tasks is pretty useful, however, so it's curious why you
+> > > > haven't left it enabled :/
 > > >
-> > > When eligible tasks are not printed (sysctl oom_dump_tasks = 0) printing
-> > > this value is the only documentation of the value for the process being
-> > > killed. Having this value on the Killed process message documents if a
-> > > miscconfiguration occurred or it can confirm that the oom_score_adj
-> > > value applies as expected.
-> > >
-> > > An example which illustates both misconfiguration and validation that
-> > > the oom_score_adj was applied as expected is:
-> > >
-> > > Aug 14 23:00:02 testserver kernel: Out of memory: Killed process 2692
-> > >  (systemd-udevd) total-vm:1056800kB, anon-rss:1052760kB, file-rss:4kB,
-> > >  shmem-rss:0kB oom_score_adj:1000
-> > >
-> > > The systemd-udevd is a critical system application that should have an
-> > > oom_score_adj of -1000. Here it was misconfigured to have a adjustment
-> > > of 1000 making it a highly favored OOM kill target process. The output
-> > > documents both the misconfiguration and the fact that the process
-> > > was correctly targeted by OOM due to the miconfiguration. Having
-> > > the oom_score_adj on the Killed message ensures that it is documented.
-> > >
-> > > Signed-off-by: Edward Chron <echron@arista.com>
-> > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > > Because it generates a lot of output potentially. Think of a workload
+> > > with too many tasks which is not uncommon.
 > >
-> > Acked-by: David Rientjes <rientjes@google.com>
+> > Probably better to always print all the info for the victim so we don't
+> > need to duplicate everything between dump_tasks() and dump_oom_summary().
 > >
-> > vm.oom_dump_tasks is pretty useful, however, so it's curious why you
-> > haven't left it enabled :/
+> > Edward, how about this?
 > >
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index eda2e2a0bdc6..c781f73b6cd6 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -884,12 +884,13 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
-> > >        */
-> > >       do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
-> > >       mark_oom_victim(victim);
-> > > -     pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-> > > +     pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB oom_score_adj:%ld\n",
-> > >               message, task_pid_nr(victim), victim->comm,
-> > >               K(victim->mm->total_vm),
-> > >               K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-> > >               K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-> > > -             K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-> > > +             K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-> > > +             (long)victim->signal->oom_score_adj);
-> > >       task_unlock(victim);
-> > >
-> > >       /*
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -420,11 +420,17 @@ static int dump_task(struct task_struct *p, void *arg)
+> >   * State information includes task's pid, uid, tgid, vm size, rss,
+> >   * pgtables_bytes, swapents, oom_score_adj value, and name.
+> >   */
+> > -static void dump_tasks(struct oom_control *oc)
+> > +static void dump_tasks(struct oom_control *oc, struct task_struct *victim)
+> >  {
+> >         pr_info("Tasks state (memory values in pages):\n");
+> >         pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
 > >
-> > Nit: why not just use %hd and avoid the cast to long?
+> > +       /* If vm.oom_dump_tasks is disabled, only show the victim */
+> > +       if (!sysctl_oom_dump_tasks) {
+> > +               dump_task(victim, oc);
+> > +               return;
+> > +       }
+> > +
+> >         if (is_memcg_oom(oc))
+> >                 mem_cgroup_scan_tasks(oc->memcg, dump_task, oc);
+> >         else {
+> > @@ -465,8 +471,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+> >                 if (is_dump_unreclaim_slabs())
+> >                         dump_unreclaimable_slab();
+> >         }
+> > -       if (sysctl_oom_dump_tasks)
+> > -               dump_tasks(oc);
+> > +       if (p || sysctl_oom_dump_tasks)
+> > +               dump_tasks(oc, p);
+> >         if (p)
+> >                 dump_oom_summary(oc, p);
+> >  }
 > 
-> Sorry I may have accidently top posted my response to this. Here is
-> where my response should go:
-> -----------------------------------------------------------------------------------------------------------------------------------
+> I would be willing to accept this, though as Michal mentions in his
+> post, it would be very helpful to have the oom_score_adj on the Killed
+> process message.
 > 
-> Good point, I can post this with your correction.
+> One reason for that is that the Killed process message is the one
+> message that is printed with error priority (pr_err)
+> and so that message can be filtered out and sent to notify support
+> that an OOM event occurred.
+> Putting any information that can be shared in that message is useful
+> from my experience as it the initial point of triage for an OOM event.
+> Even if the full log with per user process is available it the
+> starting point for triage for an OOM event.
 > 
-> I will add your Acked-by: David Rientjes <rientjes@google.com>
+> So from my perspective I would be happy having both, with David's
+> proposal providing a bit of extra information as shown here:
 > 
-> I am adding your Acked-by to the revised patch as this is what Michal
-> asked me to do (so I assume that is what I should do).
+> Jul 21 20:07:48 linuxserver kernel: [  pid  ]   uid  tgid total_vm
+>  rss pgtables_bytes swapents oom_score_adj name
+> Jul 21 20:07:48 linuxserver kernel: [    547]     0   547    31664
+> 615             299008              0                       0
+> systemd-journal
 > 
-> Should I post as a separate fix again or simply post here?
+> The OOM Killed process message will print as:
+> 
+> Jul 21 20:07:48 linuxserver kernel: Out of memory: Killed process 2826
+> (oomprocs) total-vm:1056800kB, anon-rss:1052784kB, file-rss:4kB,
+> shmem-rss:0kB oom_score_adj:1000
+> 
+> But if only one one output change is allowed I'd favor the Killed
+> process message since that can be singled due to it's print priority
+> and forwarded.
+> 
+> By the way, right now there is redundancy in that the Killed process
+> message is printing vm, rss even if vm.oom_dump_tasks is enabled.
+> I don't see why that is a big deal.
 
-Andrew usually folds these small fixups automagically. If that doesn't
-happen here for some reason then just repost with acks and the fixup.
+There will always be redundancy there because dump_tasks part is there
+mostly to check the oom victim decision for potential wrong/unexpected
+selection. While "killed..." message is there to inform who has been
+killed. Most people really do care about that part only.
 
-Thanks!
+> It is very useful to have all the information that is there.
+> Wouldn't mind also having pgtables too but we would be able to get
+> that from the output of dump_task if that is enabled.
+
+I am not against adding pgrable information there. That memory is going
+to be released when the task dies.
+ 
+> If it is acceptable to also add the dump_task for the killed process
+> for !sysctl_oom_dump_tasks I can repost the patch including that as
+> well.
+
+Well, I would rather focus on adding the missing pieces to the killed
+task message instead.
 
 -- 
 Michal Hocko
