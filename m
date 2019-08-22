@@ -2,132 +2,136 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56209C3A5A1
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 13:26:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5893C41514
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 14:24:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2162D233A2
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 13:26:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2162D233A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3ECDE233FC
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 14:24:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="U5M7r7PI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3ECDE233FC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C179D6B031C; Thu, 22 Aug 2019 09:26:17 -0400 (EDT)
+	id 7A7376B031E; Thu, 22 Aug 2019 10:24:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA1D86B031D; Thu, 22 Aug 2019 09:26:17 -0400 (EDT)
+	id 757626B031F; Thu, 22 Aug 2019 10:24:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A68AE6B031E; Thu, 22 Aug 2019 09:26:17 -0400 (EDT)
+	id 66E556B0320; Thu, 22 Aug 2019 10:24:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CEE26B031C
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:26:17 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 0F295180AD801
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 13:26:17 +0000 (UTC)
-X-FDA: 75850137594.24.kite90_36c9476b68137
-X-HE-Tag: kite90_36c9476b68137
-X-Filterd-Recvd-Size: 4323
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf22.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 13:26:16 +0000 (UTC)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7MDPGdc045905
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:26:12 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uhuce1pk5-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:26:11 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 22 Aug 2019 14:26:08 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 22 Aug 2019 14:26:06 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7MDQ5uY47710246
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 22 Aug 2019 13:26:05 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 78A7D4C04E;
-	Thu, 22 Aug 2019 13:26:05 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 12A4D4C050;
-	Thu, 22 Aug 2019 13:26:05 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.59])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 22 Aug 2019 13:26:04 +0000 (GMT)
-Date: Thu, 22 Aug 2019 16:26:03 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/init-mm.c: use CPU_BITS_NONE to initialize .cpu_bitmap
-References: <20190822075207.26400-1-linux@rasmusvillemoes.dk>
+Received: from forelay.hostedemail.com (smtprelay0016.hostedemail.com [216.40.44.16])
+	by kanga.kvack.org (Postfix) with ESMTP id 45D246B031E
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:24:13 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id BB1416D94
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 14:24:12 +0000 (UTC)
+X-FDA: 75850283544.02.crown11_7c075135e7821
+X-HE-Tag: crown11_7c075135e7821
+X-Filterd-Recvd-Size: 4865
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 14:24:12 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id s145so5266088qke.7
+        for <linux-mm@kvack.org>; Thu, 22 Aug 2019 07:24:12 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Dc5+B44d/riVZ4BUj5s+q3Lkc18YuwqlI4z9+Sq+DYI=;
+        b=U5M7r7PIyUiUocgqIIxQGJhmG0OFdz9U6VAO0wM0x9A3Vm1DHeBBjWMEOm+kGH0+sZ
+         DVv7IgnNa8XvXNx76i2JRGXB1VOoVy4HaRSd5Majxg2lBxexhTGf4IqG48SiOLjcbvhE
+         Mgx+/6CT1tNcq2BuTPXz8aDbbkhIzpAZObMLT2Axn3xV8AUEPMljgWAa7yQMvm08Ssyj
+         Z+5muEGCOJ/m+c/Z3hTPXgauluqi3fD9P9IRfcmxsuTg1tqEb+PCwj8pdWwr8DWOjvtw
+         +g//1M+gbQ6xkkIk7Px0hFVwWYVOOI7HP4+k4bs2ecFl2T7g0x/XQiWSQxDtGK4KXiOT
+         9sxg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=Dc5+B44d/riVZ4BUj5s+q3Lkc18YuwqlI4z9+Sq+DYI=;
+        b=UGF+E9CaN6h5fWRFY0255+HUzikVI9yoVOiMlofozz1bM6YpuimcoK6aJ9qDIHVMbo
+         mpPk2uKuh1HVdA+bKGM+DMzmJOFQpx9uLK6P4LvQWaGzLscLjfIAE3Z+UmRelXJNDm7g
+         HC16tuFV6SjPhdTNZnFPVUGx1st/8wZoV1fHmJLhw1v1fOChn5TZQFsmO0dTYutaIo5O
+         1+w1cE9oSFWFuqeI3yTGdE6Hlq2JVvqp7A4rzz28NfP85W7vqkTwrcL5ox5Swm+LbFiK
+         K35/N0Z+WcLIAE5wHQFQ2PR5g7BBMHnWMMaBR7KOByVCp/IozyEuk6Irtdjd4OnhXcyK
+         w+fg==
+X-Gm-Message-State: APjAAAUhM4xKdaoT0sNHP1fiyeGAJFfVP/8LRQ6Yduw8E5ev5JLZF+Qk
+	jcMFyMuC9LnPpVl506rLA4aUqw==
+X-Google-Smtp-Source: APXvYqx1hDXEyXaCf4TQxuW7kB785QqUUNv48fJgwQaA1egBhvm9xoK/w0v99nR0V1KI+G1DH5vz7A==
+X-Received: by 2002:a37:47d8:: with SMTP id u207mr20384093qka.255.1566483851626;
+        Thu, 22 Aug 2019 07:24:11 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id m3sm7668768qki.10.2019.08.22.07.24.10
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 22 Aug 2019 07:24:10 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1i0o0Y-000763-37; Thu, 22 Aug 2019 11:24:10 -0300
+Date: Thu, 22 Aug 2019 11:24:10 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 4/4] mm, notifier: Catch sleeping/blocking for !blockable
+Message-ID: <20190822142410.GB8339@ziepe.ca>
+References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
+ <20190820081902.24815-5-daniel.vetter@ffwll.ch>
+ <20190820133418.GG29246@ziepe.ca>
+ <20190820151810.GG11147@phenom.ffwll.local>
+ <20190821154151.GK11147@phenom.ffwll.local>
+ <20190821161635.GC8653@ziepe.ca>
+ <CAKMK7uERsmgFqDVHMCWs=4s_3fHM0eRr7MV6A8Mdv7xVouyxJw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190822075207.26400-1-linux@rasmusvillemoes.dk>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19082213-0012-0000-0000-0000034182BA
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19082213-0013-0000-0000-0000217BAE03
-Message-Id: <20190822132602.GF18872@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-22_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908220143
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <CAKMK7uERsmgFqDVHMCWs=4s_3fHM0eRr7MV6A8Mdv7xVouyxJw@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, Aug 22, 2019 at 10:42:39AM +0200, Daniel Vetter wrote:
 
-On Thu, Aug 22, 2019 at 09:52:07AM +0200, Rasmus Villemoes wrote:
-> init_mm is sizeof(long) larger than it needs to be. Use the
-> CPU_BITS_NONE macro meant for this, which will initialize just the
-> indices 0...(BITS_TO_LONGS(NR_CPUS)-1) and hence make the array size
-> actually BITS_TO_LONGS(NR_CPUS).
-
-I've sent a similar patch [1] a week or so ago, it's in -mm tree.
-
-[1] https://lore.kernel.org/linux-mm/1565703815-8584-1-git-send-email-rppt@linux.ibm.com/
- 
-> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-> ---
->  mm/init-mm.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> > RDMA has a mutex:
+> >
+> > ib_umem_notifier_invalidate_range_end
+> >   rbt_ib_umem_for_each_in_range
+> >    invalidate_range_start_trampoline
+> >     ib_umem_notifier_end_account
+> >       mutex_lock(&umem_odp->umem_mutex);
+> >
+> > I'm working to delete this path though!
+> >
+> > nonblocking or not follows the start, the same flag gets placed into
+> > the mmu_notifier_range struct passed to end.
 > 
-> diff --git a/mm/init-mm.c b/mm/init-mm.c
-> index a787a319211e..fb1e15028ef0 100644
-> --- a/mm/init-mm.c
-> +++ b/mm/init-mm.c
-> @@ -35,6 +35,6 @@ struct mm_struct init_mm = {
->  	.arg_lock	=  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
->  	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
->  	.user_ns	= &init_user_ns,
-> -	.cpu_bitmap	= { [BITS_TO_LONGS(NR_CPUS)] = 0},
-> +	.cpu_bitmap	= CPU_BITS_NONE,
->  	INIT_MM_CONTEXT(init_mm)
->  };
-> -- 
-> 2.20.1
+> Ok, makes sense.
 > 
-> 
+> I guess that also means the might_sleep (I started on that) in
+> invalidate_range_end also needs to be conditional? Or not bother with
+> a might_sleep in invalidate_range_end since you're working on removing
+> the last sleep in there?
 
--- 
-Sincerely yours,
-Mike.
+I might suggest the same pattern as used for locked, the might_sleep
+unconditionally on the start, and a 2nd might sleep after the IF in
+__mmu_notifier_invalidate_range_end()
 
+Observing that by audit all the callers already have the same locking
+context for start/end
+
+Jason
 
