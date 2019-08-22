@@ -2,141 +2,178 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 825E1C3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:15:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47EEFC3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2AF87206BB
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:15:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AF87206BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 146AA233FD
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 146AA233FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D71E6B02F1; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
+	id 9E0D26B02F3; Thu, 22 Aug 2019 06:26:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 888406B02F2; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
+	id 991D56B02F4; Thu, 22 Aug 2019 06:26:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 74FBE6B02F3; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
+	id 881526B02F5; Thu, 22 Aug 2019 06:26:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0147.hostedemail.com [216.40.44.147])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EE1F6B02F1
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id D0FFC6D66
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:15:53 +0000 (UTC)
-X-FDA: 75849657786.03.rake45_8ab2b36520157
-X-HE-Tag: rake45_8ab2b36520157
-X-Filterd-Recvd-Size: 5094
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au [211.29.132.249])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:15:52 +0000 (UTC)
-Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 6B637360DD4;
-	Thu, 22 Aug 2019 20:15:49 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1i0k77-0008VY-Sg; Thu, 22 Aug 2019 20:14:41 +1000
-Date: Thu, 22 Aug 2019 20:14:41 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org,
-	Ingo Molnar <mingo@redhat.com>, Will Deacon <will@kernel.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	penguin-kernel@I-love.SAKURA.ne.jp
-Subject: Re: [PATCH 2/3] xfs: add kmem_alloc_io()
-Message-ID: <20190822101441.GY1119@dread.disaster.area>
-References: <20190821083820.11725-1-david@fromorbit.com>
- <20190821083820.11725-3-david@fromorbit.com>
- <20190821232440.GB24904@infradead.org>
- <20190822003131.GR1119@dread.disaster.area>
- <20190822075948.GA31346@infradead.org>
- <20190822085130.GI2349@hirez.programming.kicks-ass.net>
- <20190822091057.GK2386@hirez.programming.kicks-ass.net>
+Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
+	by kanga.kvack.org (Postfix) with ESMTP id 661BA6B02F3
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:41 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1D91B180AD801
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:41 +0000 (UTC)
+X-FDA: 75849685002.30.taste88_5769e6044cf50
+X-HE-Tag: taste88_5769e6044cf50
+X-Filterd-Recvd-Size: 6685
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:40 +0000 (UTC)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7MAMgUM099105
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:39 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2uhqy1k7k8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:39 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Thu, 22 Aug 2019 11:26:37 +0100
+Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 22 Aug 2019 11:26:35 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7MAQCv340894940
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 22 Aug 2019 10:26:12 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 85CDBAE045;
+	Thu, 22 Aug 2019 10:26:33 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id F07A9AE055;
+	Thu, 22 Aug 2019 10:26:30 +0000 (GMT)
+Received: from bharata.ibmuc.com (unknown [9.199.57.57])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Thu, 22 Aug 2019 10:26:30 +0000 (GMT)
+From: Bharata B Rao <bharata@linux.ibm.com>
+To: linuxppc-dev@lists.ozlabs.org
+Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
+        aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
+        linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+        cclaudio@linux.ibm.com, hch@lst.de,
+        Bharata B Rao <bharata@linux.ibm.com>
+Subject: [PATCH v7 0/7] KVMPPC driver to manage secure guest pages
+Date: Thu, 22 Aug 2019 15:56:13 +0530
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190822091057.GK2386@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
-	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=Bi6Kc3tJZaiG_sx6kGYA:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+X-TM-AS-GCONF: 00
+x-cbid: 19082210-4275-0000-0000-0000035BD3F9
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19082210-4276-0000-0000-0000386DF9B4
+Message-Id: <20190822102620.21897-1-bharata@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-22_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908220112
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 22, 2019 at 11:10:57AM +0200, Peter Zijlstra wrote:
-> On Thu, Aug 22, 2019 at 10:51:30AM +0200, Peter Zijlstra wrote:
-> > On Thu, Aug 22, 2019 at 12:59:48AM -0700, Christoph Hellwig wrote:
-> > > On Thu, Aug 22, 2019 at 10:31:32AM +1000, Dave Chinner wrote:
-> > > > > Btw, I think we should eventually kill off KM_NOFS and just use
-> > > > > PF_MEMALLOC_NOFS in XFS, as the interface makes so much more sense.
-> > > > > But that's something for the future.
-> > > > 
-> > > > Yeah, and it's not quite as simple as just using PF_MEMALLOC_NOFS
-> > > > at high levels - we'll still need to annotate callers that use KM_NOFS
-> > > > to avoid lockdep false positives. i.e. any code that can be called from
-> > > > GFP_KERNEL and reclaim context will throw false positives from
-> > > > lockdep if we don't annotate tehm correctly....
-> > > 
-> > > Oh well.  For now we have the XFS kmem_wrappers to turn that into
-> > > GFP_NOFS so we shouldn't be too worried, but I think that is something
-> > > we should fix in lockdep to ensure it is generally useful.  I've added
-> > > the maintainers and relevant lists to kick off a discussion.
-> > 
-> > Strictly speaking the fs_reclaim annotation is no longer part of the
-> > lockdep core, but is simply a fake lock in page_alloc.c and thus falls
-> > under the mm people's purview.
-> > 
-> > That said; it should be fairly straight forward to teach
-> > __need_fs_reclaim() about PF_MEMALLOC_NOFS, much like how it already
-> > knows about PF_MEMALLOC.
-> 
-> Ah, current_gfp_context() already seems to transfer PF_MEMALLOC_NOFS
-> into the GFP flags.
-> 
-> So are we sure it is broken and needs mending?
+Hi,
 
-Well, that's what we are trying to work out. The problem is that we
-have code that takes locks and does allocations that is called both
-above and below the reclaim "lock" context. Once it's been seen
-below the reclaim lock context, calling it with GFP_KERNEL context
-above the reclaim lock context throws a deadlock warning.
+A pseries guest can be run as a secure guest on Ultravisor-enabled
+POWER platforms. On such platforms, this driver will be used to manage
+the movement of guest pages between the normal memory managed by
+hypervisor(HV) and secure memory managed by Ultravisor(UV).
 
-The only way around that was to mark these allocation sites as
-GFP_NOFS so lockdep is never allowed to see that recursion through
-reclaim occur. Even though it isn't a deadlock vector.
+Private ZONE_DEVICE memory equal to the amount of secure memory
+available in the platform for running secure guests is created.
+Whenever a page belonging to the guest becomes secure, a page from
+this private device memory is used to represent and track that secure
+page on the HV side. The movement of pages between normal and secure
+memory is done via migrate_vma_pages(). The reverse movement is driven
+via pagemap_ops.migrate_to_ram().
 
-What we're looking at is whether PF_MEMALLOC_NOFS changes this - I
-don't think it does solve this problem. i.e. if we define the
-allocation as GFP_KERNEL and then use PF_MEMALLOC_NOFS where reclaim
-is not allowed, we still have GFP_KERNEL allocations in code above
-reclaim that has also been seen below relcaim. And so we'll get
-false positive warnings again.
+The page-in or page-out requests from UV will come to HV as hcalls and
+HV will call back into UV via uvcalls to satisfy these page requests.
 
-What I think we are going to have to do here is manually audit
-each of the KM_NOFS call sites as we remove the NOFS from them and
-determine if ___GFP_NOLOCKDEP is needed to stop lockdep from trying
-to track these allocation sites. We've never used this tag because
-we'd already fixed most of these false positives with explicit
-GFP_NOFS tags long before ___GFP_NOLOCKDEP was created.
+These patches are against hmm.git
+(https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=3Dh=
+mm)
 
-But until someone starts doing the work, I don't know if it will
-work or even whether conversion PF_MEMALLOC_NOFS is going to
-introduce a bunch of new ways to get false positives from lockdep...
+plus
 
-Cheers,
+Claudio Carvalho's base ultravisor enablement patchset v6
+(https://lore.kernel.org/linuxppc-dev/20190822034838.27876-1-cclaudio@lin=
+ux.ibm.com/T/#t)
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+These patches along with Claudio's above patches are required to
+run a secure pseries guest on KVM. This patchset is based on hmm.git
+because hmm.git has migrate_vma cleanup and not-device memremap_pages
+patchsets that are required by this patchset.
+
+Changes in v7
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+- The major change in this version is to not create a char device but
+  instead use the not device versions of memremap_pages and
+  request_free_mem_region (Christoph Hellwig)
+- Other changes
+  * Addressed all the changes suggested by Christoph Hellwig for v6.
+  * Removed MIGRATE_VMA_HELPER dependency
+  * Switched to using of_find_compatible_node() and not doing
+    find by path (Thiago Jung Bauermann)
+  * Moved kvmppc_rmap_is_devm_pfn to kvm_host.h
+  * Updated comments
+  * use @page_shift argument in H_SVM_PAGE_OUT instead of PAGE_SHIFT
+  * Proper handling of return val from kvmppc_devm_fault_migrate_alloc_an=
+d_copy
+
+v6: https://lore.kernel.org/linuxppc-dev/20190809084108.30343-1-bharata@l=
+inux.ibm.com/T/#t
+
+Anshuman Khandual (1):
+  KVM: PPC: Ultravisor: Add PPC_UV config option
+
+Bharata B Rao (6):
+  kvmppc: Driver to manage pages of secure guest
+  kvmppc: Shared pages support for secure guests
+  kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
+  kvmppc: Handle memory plug/unplug to secure VM
+  kvmppc: Radix changes for secure guest
+  kvmppc: Support reset of secure guest
+
+ Documentation/virtual/kvm/api.txt          |  19 +
+ arch/powerpc/Kconfig                       |  17 +
+ arch/powerpc/include/asm/hvcall.h          |   9 +
+ arch/powerpc/include/asm/kvm_book3s_devm.h |  47 ++
+ arch/powerpc/include/asm/kvm_host.h        |  39 ++
+ arch/powerpc/include/asm/kvm_ppc.h         |   2 +
+ arch/powerpc/include/asm/ultravisor-api.h  |   6 +
+ arch/powerpc/include/asm/ultravisor.h      |  36 ++
+ arch/powerpc/kvm/Makefile                  |   3 +
+ arch/powerpc/kvm/book3s_64_mmu_radix.c     |  22 +
+ arch/powerpc/kvm/book3s_hv.c               | 113 ++++
+ arch/powerpc/kvm/book3s_hv_devm.c          | 614 +++++++++++++++++++++
+ arch/powerpc/kvm/powerpc.c                 |  12 +
+ include/uapi/linux/kvm.h                   |   1 +
+ 14 files changed, 940 insertions(+)
+ create mode 100644 arch/powerpc/include/asm/kvm_book3s_devm.h
+ create mode 100644 arch/powerpc/kvm/book3s_hv_devm.c
+
+--=20
+2.21.0
+
 
