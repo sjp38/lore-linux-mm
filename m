@@ -2,328 +2,130 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7799C3A5A1
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 17:51:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B912BC3A5A1
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 18:24:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 667962133F
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 17:51:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 667962133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 72DD42133F
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 18:24:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JjSJQtGt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72DD42133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13D8A6B034D; Thu, 22 Aug 2019 13:51:38 -0400 (EDT)
+	id EB9546B034F; Thu, 22 Aug 2019 14:24:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EDD96B034E; Thu, 22 Aug 2019 13:51:38 -0400 (EDT)
+	id E6A1D6B0351; Thu, 22 Aug 2019 14:24:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F1FE36B034F; Thu, 22 Aug 2019 13:51:37 -0400 (EDT)
+	id D59CE6B0352; Thu, 22 Aug 2019 14:24:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0123.hostedemail.com [216.40.44.123])
-	by kanga.kvack.org (Postfix) with ESMTP id D07D56B034D
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 13:51:37 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 6CCC6181AC9B4
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 17:51:37 +0000 (UTC)
-X-FDA: 75850806234.05.cart57_2b0f438e7a62a
-X-HE-Tag: cart57_2b0f438e7a62a
-X-Filterd-Recvd-Size: 9384
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com [115.124.30.130])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 17:51:35 +0000 (UTC)
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0Ta9PNTk_1566496230;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0Ta9PNTk_1566496230)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 23 Aug 2019 01:50:37 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: kirill.shutemov@linux.intel.com,
-	ktkhai@virtuozzo.com,
-	hannes@cmpxchg.org,
-	mhocko@suse.com,
-	hughd@google.com,
-	shakeelb@google.com,
-	rientjes@google.com,
-	cai@lca.pw,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [v6 PATCH 3/4] mm: shrinker: make shrinker not depend on memcg kmem
-Date: Fri, 23 Aug 2019 01:50:26 +0800
-Message-Id: <1566496227-84952-4-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1566496227-84952-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1566496227-84952-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Received: from forelay.hostedemail.com (smtprelay0220.hostedemail.com [216.40.44.220])
+	by kanga.kvack.org (Postfix) with ESMTP id AF4806B034F
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 14:24:29 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 4D787180AD7C1
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 18:24:29 +0000 (UTC)
+X-FDA: 75850889058.17.mouth13_27233f606a745
+X-HE-Tag: mouth13_27233f606a745
+X-Filterd-Recvd-Size: 4396
+Received: from mail-ua1-f53.google.com (mail-ua1-f53.google.com [209.85.222.53])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 18:24:28 +0000 (UTC)
+Received: by mail-ua1-f53.google.com with SMTP id g13so2336921uap.5
+        for <linux-mm@kvack.org>; Thu, 22 Aug 2019 11:24:28 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=RyMbtTLUWCmoliNTAnndKPMWCp0b4Jb6ryQcQLXyRPk=;
+        b=JjSJQtGtEHCCNTj150vGW5+IpYhImY2UzbDtjgs4fQWzbQTHkTDfsTTl6FpavisshJ
+         fwcs+njq9+RsyDcoV112B1tJf42BSk8bVmtw3FXoBECYvX++AeTBda1RcvqlSWxy182h
+         3x3WyPptDBifo8JNFSVk1D4m9kVAAvElZMUwLx9uyQZZNOoJJvC28/6cg/D3DduaWb6N
+         zqGOKC3DbGAvkqbqdbt148Iv31HDBWJe9KIBsqitJe0xtfqQQHn4pZuCU7jmK7liN2I4
+         LG/EAV7E0aAVPr2xtqGsPgf1klpmq431jYayAK+17anGdxIN/hKTl76IuPK6Fy0wRjvh
+         8vzw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=RyMbtTLUWCmoliNTAnndKPMWCp0b4Jb6ryQcQLXyRPk=;
+        b=dXx3kq0FbkoxkQxDg5F4B/BpOZdq+mjVWLnaDF579yXfalODDUM641tyq7lFMc35jk
+         +QGi+MOy5akiaEO8EK2dpKCabzsNARssX/DFkJE7xjVYL0k6m0fCxFSvC0oBfPLXThBi
+         yAb2GPHVWikuibk4FP1e1B5bZWdz1BliuEqHTLV/6KnGEG/GdGMGkiaFnMvHaRvlXHj4
+         qP82uZGS53PHWUHxRa4g45ERaod0xlK0N2MTu8UUedwrc722l8/f9GXdygI8l6SUg45o
+         dOm5CdRawT1XC/u65myQSLhfdC833cqxRP1LeivQ4y8V1bjsKET9IfSX5ZSnBwbA3xGP
+         lPbQ==
+X-Gm-Message-State: APjAAAXhXu/EuzQQoqQ80DglyxG0FULFEMvtE56aJEBxSzMlPlGWM7Xa
+	vVOzrnK9Mfur2nTj/+haU0QAXdxml6AoEEo0JDA=
+X-Google-Smtp-Source: APXvYqx1J/Ncnfo9JgGyq3fQGw8OEaIMxKLGGLgK2xQXI3wljRgHLN8cm74bJyiNWXXKWFJiioDxBRgNgg6xLX2AjqA=
+X-Received: by 2002:ab0:70ac:: with SMTP id q12mr624615ual.134.1566498268191;
+ Thu, 22 Aug 2019 11:24:28 -0700 (PDT)
+MIME-Version: 1.0
+References: <CACDBo57u+sgordDvFpTzJ=U4mT8uVz7ZovJ3qSZQCrhdYQTw0A@mail.gmail.com>
+ <20190822125231.GJ12785@dhcp22.suse.cz>
+In-Reply-To: <20190822125231.GJ12785@dhcp22.suse.cz>
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Thu, 22 Aug 2019 23:54:19 +0530
+Message-ID: <CACDBo57OkND1LCokPLfyR09+oRTbA6+GAPc90xAEF6AM_LmbyQ@mail.gmail.com>
+Subject: Re: PageBlocks and Migrate Types
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	Vlastimil Babka <vbabka@suse.cz>, pankaj.suryawanshi@einfochips.com
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.005180, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently shrinker is just allocated and can work when memcg kmem is
-enabled.  But, THP deferred split shrinker is not slab shrinker, it
-doesn't make too much sense to have such shrinker depend on memcg kmem.
-It should be able to reclaim THP even though memcg kmem is disabled.
+On Thu, Aug 22, 2019 at 6:22 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 21-08-19 22:23:44, Pankaj Suryawanshi wrote:
+> > Hello,
+> >
+> > 1. What are Pageblocks and migrate types(MIGRATE_CMA) in Linux memory ?
+>
+> Pageblocks are a simple grouping of physically contiguous pages with
+> common set of flags. I haven't checked closely recently so I might
+> misremember but my recollection is that only the migrate type is stored
+> there. Normally we would store that information into page flags but
+> there is not enough room there.
+>
+> MIGRATE_CMA represent pages allocated for the CMA allocator. There are
+> other migrate types denoting unmovable/movable allocations or pages that
+> are isolated from the page allocator.
+>
+> Very broadly speaking, the migrate type groups pages with similar
+> movability properties to reduce fragmentation that compaction cannot
+> do anything about because there are objects of different properti
+> around. Please note that pageblock might contain objects of a different
+> migrate type in some cases (e.g. low on memory).
+>
+> Have a look at gfpflags_to_migratetype and how the gfp mask is converted
+> to a migratetype for the allocation. Also follow different MIGRATE_$TYPE
+> to see how it is used in the code.
+>
+> > How many movable/unmovable pages are defined by default?
+>
+> There is nothing like that. It depends on how many objects of a specific
+> type are allocated.
 
-Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker.
-When memcg kmem is disabled, just such shrinkers can be called in
-shrinking memcg slab.
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Qian Cai <cai@lca.pw>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- include/linux/memcontrol.h | 19 ++++++++-------
- include/linux/shrinker.h   |  7 +++++-
- mm/memcontrol.c            |  9 +------
- mm/vmscan.c                | 60 ++++++++++++++++++++++++----------------------
- 4 files changed, 49 insertions(+), 46 deletions(-)
+It means that it started creating pageblocks after allocation of
+different objects, but from which block it allocate initially when
+there is nothing like pageblocks ? (when memory subsystem up)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 44c4146..5771816 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -128,9 +128,8 @@ struct mem_cgroup_per_node {
- 
- 	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
- 
--#ifdef CONFIG_MEMCG_KMEM
- 	struct memcg_shrinker_map __rcu	*shrinker_map;
--#endif
-+
- 	struct rb_node		tree_node;	/* RB tree node */
- 	unsigned long		usage_in_excess;/* Set to the value by which */
- 						/* the soft limit is exceeded*/
-@@ -1253,6 +1252,11 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
- 	} while ((memcg = parent_mem_cgroup(memcg)));
- 	return false;
- }
-+
-+extern int memcg_expand_shrinker_maps(int new_id);
-+
-+extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-+				   int nid, int shrinker_id);
- #else
- #define mem_cgroup_sockets_enabled 0
- static inline void mem_cgroup_sk_alloc(struct sock *sk) { };
-@@ -1261,6 +1265,11 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
- {
- 	return false;
- }
-+
-+static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-+					  int nid, int shrinker_id)
-+{
-+}
- #endif
- 
- struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
-@@ -1332,10 +1341,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
- 	return memcg ? memcg->kmemcg_id : -1;
- }
- 
--extern int memcg_expand_shrinker_maps(int new_id);
--
--extern void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
--				   int nid, int shrinker_id);
- #else
- 
- static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
-@@ -1377,8 +1382,6 @@ static inline void memcg_put_cache_ids(void)
- {
- }
- 
--static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
--					  int nid, int shrinker_id) { }
- #endif /* CONFIG_MEMCG_KMEM */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 9443caf..0f80123 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -69,7 +69,7 @@ struct shrinker {
- 
- 	/* These are for internal use */
- 	struct list_head list;
--#ifdef CONFIG_MEMCG_KMEM
-+#ifdef CONFIG_MEMCG
- 	/* ID in shrinker_idr */
- 	int id;
- #endif
-@@ -81,6 +81,11 @@ struct shrinker {
- /* Flags */
- #define SHRINKER_NUMA_AWARE	(1 << 0)
- #define SHRINKER_MEMCG_AWARE	(1 << 1)
-+/*
-+ * It just makes sense when the shrinker is also MEMCG_AWARE for now,
-+ * non-MEMCG_AWARE shrinker should not have this flag set.
-+ */
-+#define SHRINKER_NONSLAB	(1 << 2)
- 
- extern int prealloc_shrinker(struct shrinker *shrinker);
- extern void register_shrinker_prepared(struct shrinker *shrinker);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cdbb7a8..d90ded1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -313,6 +313,7 @@ void memcg_put_cache_ids(void)
- EXPORT_SYMBOL(memcg_kmem_enabled_key);
- 
- struct workqueue_struct *memcg_kmem_cache_wq;
-+#endif
- 
- static int memcg_shrinker_map_size;
- static DEFINE_MUTEX(memcg_shrinker_map_mutex);
-@@ -436,14 +437,6 @@ void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int shrinker_id)
- 	}
- }
- 
--#else /* CONFIG_MEMCG_KMEM */
--static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
--{
--	return 0;
--}
--static void memcg_free_shrinker_maps(struct mem_cgroup *memcg) { }
--#endif /* CONFIG_MEMCG_KMEM */
--
- /**
-  * mem_cgroup_css_from_page - css of the memcg associated with a page
-  * @page: page of interest
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b1b5e5f..093b76d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -174,11 +174,22 @@ struct scan_control {
-  */
- unsigned long vm_total_pages;
- 
-+static void set_task_reclaim_state(struct task_struct *task,
-+				   struct reclaim_state *rs)
-+{
-+	/* Check for an overwrite */
-+	WARN_ON_ONCE(rs && task->reclaim_state);
-+
-+	/* Check for the nulling of an already-nulled member */
-+	WARN_ON_ONCE(!rs && !task->reclaim_state);
-+
-+	task->reclaim_state = rs;
-+}
-+
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
--#ifdef CONFIG_MEMCG_KMEM
--
-+#ifdef CONFIG_MEMCG
- /*
-  * We allow subsystems to populate their shrinker-related
-  * LRU lists before register_shrinker_prepared() is called
-@@ -230,30 +241,7 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
- 	idr_remove(&shrinker_idr, id);
- 	up_write(&shrinker_rwsem);
- }
--#else /* CONFIG_MEMCG_KMEM */
--static int prealloc_memcg_shrinker(struct shrinker *shrinker)
--{
--	return 0;
--}
- 
--static void unregister_memcg_shrinker(struct shrinker *shrinker)
--{
--}
--#endif /* CONFIG_MEMCG_KMEM */
--
--static void set_task_reclaim_state(struct task_struct *task,
--				   struct reclaim_state *rs)
--{
--	/* Check for an overwrite */
--	WARN_ON_ONCE(rs && task->reclaim_state);
--
--	/* Check for the nulling of an already-nulled member */
--	WARN_ON_ONCE(!rs && !task->reclaim_state);
--
--	task->reclaim_state = rs;
--}
--
--#ifdef CONFIG_MEMCG
- static bool global_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup;
-@@ -308,6 +296,15 @@ static bool memcg_congested(pg_data_t *pgdat,
- 
- }
- #else
-+static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-+{
-+	return 0;
-+}
-+
-+static void unregister_memcg_shrinker(struct shrinker *shrinker)
-+{
-+}
-+
- static bool global_reclaim(struct scan_control *sc)
- {
- 	return true;
-@@ -594,7 +591,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	return freed;
- }
- 
--#ifdef CONFIG_MEMCG_KMEM
-+#ifdef CONFIG_MEMCG
- static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
-@@ -602,7 +599,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 	unsigned long ret, freed = 0;
- 	int i;
- 
--	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
-+	if (!mem_cgroup_online(memcg))
- 		return 0;
- 
- 	if (!down_read_trylock(&shrinker_rwsem))
-@@ -628,6 +625,11 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 		}
- 
-+		/* Call non-slab shrinkers even though kmem is disabled */
-+		if (!memcg_kmem_enabled() &&
-+		    !(shrinker->flags & SHRINKER_NONSLAB))
-+			continue;
-+
- 		ret = do_shrink_slab(&sc, shrinker, priority);
- 		if (ret == SHRINK_EMPTY) {
- 			clear_bit(i, map->map);
-@@ -664,13 +666,13 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 	up_read(&shrinker_rwsem);
- 	return freed;
- }
--#else /* CONFIG_MEMCG_KMEM */
-+#else /* CONFIG_MEMCG */
- static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			struct mem_cgroup *memcg, int priority)
- {
- 	return 0;
- }
--#endif /* CONFIG_MEMCG_KMEM */
-+#endif /* CONFIG_MEMCG */
- 
- /**
-  * shrink_slab - shrink slab caches
--- 
-1.8.3.1
-
+Pageblocks and its type dynamically changes ?
+>
+>
+> HTH
+> --
+> Michal Hocko
+> SUSE Labs
 
