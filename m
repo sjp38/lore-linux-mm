@@ -2,288 +2,116 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35BD8C3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:56:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F2AAC3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:11:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4EE12173E
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:56:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1A47B22CE3
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:11:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lQyjSqxa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4EE12173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="YaiC1+wc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A47B22CE3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CA5B6B02E7; Thu, 22 Aug 2019 04:56:52 -0400 (EDT)
+	id A8F586B02E9; Thu, 22 Aug 2019 05:11:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 653566B02E8; Thu, 22 Aug 2019 04:56:52 -0400 (EDT)
+	id A3FB06B02EA; Thu, 22 Aug 2019 05:11:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 519956B02E9; Thu, 22 Aug 2019 04:56:52 -0400 (EDT)
+	id 92F9A6B02EB; Thu, 22 Aug 2019 05:11:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 29C0C6B02E7
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 04:56:52 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B0246181AC9B6
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:56:51 +0000 (UTC)
-X-FDA: 75849458622.12.balls02_1eb89bff4341f
-X-HE-Tag: balls02_1eb89bff4341f
-X-Filterd-Recvd-Size: 9325
-Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com [209.85.214.195])
+Received: from forelay.hostedemail.com (smtprelay0221.hostedemail.com [216.40.44.221])
+	by kanga.kvack.org (Postfix) with ESMTP id 723936B02E9
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 05:11:04 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 195888248AB7
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:11:04 +0000 (UTC)
+X-FDA: 75849494448.24.noise36_944430841c5b
+X-HE-Tag: noise36_944430841c5b
+X-Filterd-Recvd-Size: 4242
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
 	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:56:50 +0000 (UTC)
-Received: by mail-pl1-f195.google.com with SMTP id go14so3070261plb.0
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2019 01:56:50 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=6IBOEBvaSKrYv/FX9CyvdAC9vCM9UIq+SSSdalZ2X+0=;
-        b=lQyjSqxaAHigCD+Y7l2F0YTXOeJE9Dgg04wS4LSC1S6grmdb3M8MyK2IcaG05zgMO+
-         HFs6orZM58cJA5nIn4uqR92nsV2Vg3HGfHkaPB2CrvKtHGWqQukhfNmhKBW0Cy6R81Uv
-         sFSGXot8/j/O0D1VYKd9cymx9wbCchS2d3KrDjZEr1EYUHlMHdOvuYfWd18w5pZwxGpz
-         QJe04/TyWC3zm3q8X0x8oBUIM0zPEBx+mKGArbmly5uDcPxuvV86cUHXBLbP6PNrgnGg
-         O5cw35oscc1b7Xa6tOOPRKHCwJjQkV4Diw69QQBTxeci3c9XVCCJMEB8hF+uuZcu2AZS
-         08MQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id;
-        bh=6IBOEBvaSKrYv/FX9CyvdAC9vCM9UIq+SSSdalZ2X+0=;
-        b=m61w/49P937TAq7frOan9ANzlXYdQspW6AtepkJ59BR4fWHDjttDapZBq/Oe0NKkhm
-         mmp30vkEmK1U7mEpB8XEOMpGmH2WQmkASne1vg6zWbLVYBD4O5ZS50uK8GwP6HLqEV/l
-         LCjEABcY9U4SMR9EieCa6GGWtp2Gpuu0+smt3K/gP6G0ujlqu9kWSx1ip1phvW48a+JA
-         hxVTQLfzuq1PoOtCk5H7dYDobvZBMcLPcP6sKAGP9nDoknKQ3Eyb30vLkLFpNEwY72jB
-         cjed4hLXhpEg5zb2fkV5qhSUkPEMWQ9kCuRt8MKhomllGtHwhtJ0W3bEJEiEENJP8NYf
-         3/Rw==
-X-Gm-Message-State: APjAAAWOjTP3L72ehGt8NFYkkJGTLZpSnhSO+wfpFWG1rtcwh2L+gtoT
-	fSA1If4+Eb79MT5/Lcc08+I=
-X-Google-Smtp-Source: APXvYqzxi5BB0Stwtxk8ZSbXbu7+VRPuv7gT2sQBtgBWhjShLlUsuVA+YLTgdTarmOGvzMt8oCDgNA==
-X-Received: by 2002:a17:902:1027:: with SMTP id b36mr37025559pla.203.1566464209816;
-        Thu, 22 Aug 2019 01:56:49 -0700 (PDT)
-Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id l31sm26620642pgm.63.2019.08.22.01.56.47
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Aug 2019 01:56:49 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH] mm, memcg: introduce per memcg oom_score_adj
-Date: Thu, 22 Aug 2019 04:56:29 -0400
-Message-Id: <1566464189-1631-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:11:03 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=x4foXpuRFuIwOjwAh/WD4Jpq4dQ0elk1+Aq1lb6/PQ0=; b=YaiC1+wcqYrXMCnzzZkJlOM7Y
+	es9C6umm9YWRG7LOsHvpT1WC84Xg1bLLowkwVZM6jBEobZIGvTOpYNOGp/eCB3/Bp3Q12ioQCHE9u
+	i1V6veZ+0P+hHkPhbY1rhdb3yXQsEHT9DEERtX/hF+x+3Iwj21iFCrtgb0cl9vdoz1UGz5+60d/38
+	VVdSI9Amrr/nLfWis5wiNIgZZwDWJClE4w2ItR8aPBh2CYKO5kSrqNJOIwKMAEyT3ebk64Ba3KsRl
+	lhce65fR8vXYVeh2YC7HxlrsSMpornazboOGM8fs3X8KSYXETw5O5C3bp4ze+f5mxKQlExTUAFtQ6
+	JCuzSfd3A==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i0j7T-0003l1-BB; Thu, 22 Aug 2019 09:10:59 +0000
+Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(Client did not present a certificate)
+	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 139B8305F65;
+	Thu, 22 Aug 2019 11:10:25 +0200 (CEST)
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 0D9A92029B084; Thu, 22 Aug 2019 11:10:57 +0200 (CEST)
+Date: Thu, 22 Aug 2019 11:10:57 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org,
+	Ingo Molnar <mingo@redhat.com>, Will Deacon <will@kernel.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	penguin-kernel@I-love.SAKURA.ne.jp
+Subject: Re: [PATCH 2/3] xfs: add kmem_alloc_io()
+Message-ID: <20190822091057.GK2386@hirez.programming.kicks-ass.net>
+References: <20190821083820.11725-1-david@fromorbit.com>
+ <20190821083820.11725-3-david@fromorbit.com>
+ <20190821232440.GB24904@infradead.org>
+ <20190822003131.GR1119@dread.disaster.area>
+ <20190822075948.GA31346@infradead.org>
+ <20190822085130.GI2349@hirez.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190822085130.GI2349@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-- Why we need a per memcg oom_score_adj setting ?
-This is easy to deploy and very convenient for container.
-When we use container, we always treat memcg as a whole, if we have a per
-memcg oom_score_adj setting we don't need to set it process by process.
-It will make the user exhausted to set it to all processes in a memcg.
+On Thu, Aug 22, 2019 at 10:51:30AM +0200, Peter Zijlstra wrote:
+> On Thu, Aug 22, 2019 at 12:59:48AM -0700, Christoph Hellwig wrote:
+> > On Thu, Aug 22, 2019 at 10:31:32AM +1000, Dave Chinner wrote:
+> > > > Btw, I think we should eventually kill off KM_NOFS and just use
+> > > > PF_MEMALLOC_NOFS in XFS, as the interface makes so much more sense.
+> > > > But that's something for the future.
+> > > 
+> > > Yeah, and it's not quite as simple as just using PF_MEMALLOC_NOFS
+> > > at high levels - we'll still need to annotate callers that use KM_NOFS
+> > > to avoid lockdep false positives. i.e. any code that can be called from
+> > > GFP_KERNEL and reclaim context will throw false positives from
+> > > lockdep if we don't annotate tehm correctly....
+> > 
+> > Oh well.  For now we have the XFS kmem_wrappers to turn that into
+> > GFP_NOFS so we shouldn't be too worried, but I think that is something
+> > we should fix in lockdep to ensure it is generally useful.  I've added
+> > the maintainers and relevant lists to kick off a discussion.
+> 
+> Strictly speaking the fs_reclaim annotation is no longer part of the
+> lockdep core, but is simply a fake lock in page_alloc.c and thus falls
+> under the mm people's purview.
+> 
+> That said; it should be fairly straight forward to teach
+> __need_fs_reclaim() about PF_MEMALLOC_NOFS, much like how it already
+> knows about PF_MEMALLOC.
 
-In this patch, a file named memory.oom.score_adj is introduced.
-The valid value of it is from -1000 to +1000, which is same with
-process-level oom_score_adj.
-When OOM is invoked, the effective oom_score_adj is as bellow,
-    effective oom_score_adj = original oom_score_adj + memory.oom.score_adj
-The valid effective value is also from -1000 to +1000.
-This is something like a hook to re-calculate the oom_score_adj.
+Ah, current_gfp_context() already seems to transfer PF_MEMALLOC_NOFS
+into the GFP flags.
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>
----
- include/linux/memcontrol.h | 24 ++++++++++++++++++++++++
- mm/memcontrol.c            | 38 ++++++++++++++++++++++++++++++++++++++
- mm/oom_kill.c              | 20 ++++++++------------
- 3 files changed, 70 insertions(+), 12 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 2cd4359..d2dbde5 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -21,6 +21,7 @@
- #include <linux/vmstat.h>
- #include <linux/writeback.h>
- #include <linux/page-flags.h>
-+#include <linux/oom.h>
- 
- struct mem_cgroup;
- struct page;
-@@ -224,6 +225,7 @@ struct mem_cgroup {
- 	 * Should the OOM killer kill all belonging tasks, had it kill one?
- 	 */
- 	bool oom_group;
-+	short oom_score_adj;
- 
- 	/* protected by memcg_oom_lock */
- 	bool		oom_lock;
-@@ -538,6 +540,23 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
- 	return p->memcg_in_oom;
- }
- 
-+static inline int mem_cgroup_score_adj(struct task_struct *p, int task_adj)
-+{
-+	struct mem_cgroup *memcg;
-+	int adj = task_adj;
-+
-+	memcg = mem_cgroup_from_task(p);
-+	if (memcg != root_mem_cgroup) {
-+		adj += memcg->oom_score_adj;
-+		if (adj < OOM_SCORE_ADJ_MIN)
-+			adj = OOM_SCORE_ADJ_MIN;
-+		else if (adj > OOM_SCORE_ADJ_MAX)
-+			adj = OOM_SCORE_ADJ_MAX;
-+	}
-+
-+	return adj;
-+}
-+
- bool mem_cgroup_oom_synchronize(bool wait);
- struct mem_cgroup *mem_cgroup_get_oom_group(struct task_struct *victim,
- 					    struct mem_cgroup *oom_domain);
-@@ -987,6 +1006,11 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
- 	return false;
- }
- 
-+static inline int mem_cgroup_score_adj(struct task_struct *p, int task_adj)
-+{
-+	return task_adj;
-+}
-+
- static inline bool mem_cgroup_oom_synchronize(bool wait)
- {
- 	return false;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6f5c0c5..065285c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5856,6 +5856,38 @@ static ssize_t memory_oom_group_write(struct kernfs_open_file *of,
- 	return nbytes;
- }
- 
-+static int memory_oom_score_adj_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-+
-+	seq_printf(m, "%d\n", memcg->oom_score_adj);
-+
-+	return 0;
-+}
-+
-+static ssize_t memory_oom_score_adj_write(struct kernfs_open_file *of,
-+					  char *buf, size_t nbytes, loff_t off)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	int oom_score_adj;
-+	int ret;
-+
-+	buf = strstrip(buf);
-+	if (!buf)
-+		return -EINVAL;
-+
-+	ret = kstrtoint(buf, 0, &oom_score_adj);
-+	if (ret)
-+		return ret;
-+
-+	if (oom_score_adj > 1000 || oom_score_adj < -1000)
-+		return -EINVAL;
-+
-+	memcg->oom_score_adj = oom_score_adj;
-+
-+	return nbytes;
-+}
-+
- static struct cftype memory_files[] = {
- 	{
- 		.name = "current",
-@@ -5909,6 +5941,12 @@ static ssize_t memory_oom_group_write(struct kernfs_open_file *of,
- 		.seq_show = memory_oom_group_show,
- 		.write = memory_oom_group_write,
- 	},
-+	{
-+		.name = "oom.score_adj",
-+		.flags = CFTYPE_NOT_ON_ROOT | CFTYPE_NS_DELEGATABLE,
-+		.seq_show = memory_oom_score_adj_show,
-+		.write = memory_oom_score_adj_write,
-+	},
- 	{ }	/* terminate */
- };
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index eda2e2a..f3b0276 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -212,13 +212,7 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
- 	 * unkillable or have been already oom reaped or the are in
- 	 * the middle of vfork
- 	 */
--	adj = (long)p->signal->oom_score_adj;
--	if (adj == OOM_SCORE_ADJ_MIN ||
--			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
--			in_vfork(p)) {
--		task_unlock(p);
--		return 0;
--	}
-+	adj = mem_cgroup_score_adj(p, p->signal->oom_score_adj);
- 
- 	/*
- 	 * The baseline for the badness score is the proportion of RAM that each
-@@ -404,7 +398,8 @@ static int dump_task(struct task_struct *p, void *arg)
- 		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
- 		mm_pgtables_bytes(task->mm),
- 		get_mm_counter(task->mm, MM_SWAPENTS),
--		task->signal->oom_score_adj, task->comm);
-+		mem_cgroup_score_adj(task, task->signal->oom_score_adj),
-+		task->comm);
- 	task_unlock(task);
- 
- 	return 0;
-@@ -453,7 +448,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- {
- 	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
- 		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
--			current->signal->oom_score_adj);
-+		mem_cgroup_score_adj(current, current->signal->oom_score_adj));
- 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
- 		pr_warn("COMPACTION is disabled!!!\n");
- 
-@@ -939,8 +934,8 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
-  */
- static int oom_kill_memcg_member(struct task_struct *task, void *message)
- {
--	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
--	    !is_global_init(task)) {
-+	if (mem_cgroup_score_adj(task, task->signal->oom_score_adj) !=
-+	    OOM_SCORE_ADJ_MIN && !is_global_init(task)) {
- 		get_task_struct(task);
- 		__oom_kill_process(task, message);
- 	}
-@@ -1085,7 +1080,8 @@ bool out_of_memory(struct oom_control *oc)
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
- 	    current->mm && !oom_unkillable_task(current) &&
- 	    oom_cpuset_eligible(current, oc) &&
--	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-+	    mem_cgroup_score_adj(current, current->signal->oom_score_adj) !=
-+	    OOM_SCORE_ADJ_MIN) {
- 		get_task_struct(current);
- 		oc->chosen = current;
- 		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
--- 
-1.8.3.1
-
+So are we sure it is broken and needs mending?
 
