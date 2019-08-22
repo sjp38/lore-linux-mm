@@ -6,62 +6,62 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61AE1C3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0F75C3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23200233FD
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23200233FD
+	by mail.kernel.org (Postfix) with ESMTP id AFC75233A2
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:26:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFC75233A2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C31C66B02F8; Thu, 22 Aug 2019 06:26:50 -0400 (EDT)
+	id 54F626B02FB; Thu, 22 Aug 2019 06:26:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6F876B02F9; Thu, 22 Aug 2019 06:26:50 -0400 (EDT)
+	id 525796B02FC; Thu, 22 Aug 2019 06:26:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A568E6B02FA; Thu, 22 Aug 2019 06:26:50 -0400 (EDT)
+	id 3EE956B02FD; Thu, 22 Aug 2019 06:26:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 816906B02F8
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:50 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 439F0181AC9B4
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:50 +0000 (UTC)
-X-FDA: 75849685380.07.crib12_58bd1250fdc2e
-X-HE-Tag: crib12_58bd1250fdc2e
-X-Filterd-Recvd-Size: 9398
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:49 +0000 (UTC)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7MAPE1d083842
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:48 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uhs9gg279-1
+Received: from forelay.hostedemail.com (smtprelay0007.hostedemail.com [216.40.44.7])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F3CA6B02FB
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:57 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 88029180AD801
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:56 +0000 (UTC)
+X-FDA: 75849685632.22.tank03_59a6ae2cb221b
+X-HE-Tag: tank03_59a6ae2cb221b
+X-Filterd-Recvd-Size: 5854
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:26:55 +0000 (UTC)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7MAMasZ043750
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:54 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uhs2q0mcd-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:48 -0400
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:26:54 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Thu, 22 Aug 2019 11:26:46 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Thu, 22 Aug 2019 11:26:51 +0100
+Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 22 Aug 2019 11:26:44 +0100
+	Thu, 22 Aug 2019 11:26:47 +0100
 Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7MAQg6O43647024
+	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7MAQkSp46072182
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 22 Aug 2019 10:26:42 GMT
+	Thu, 22 Aug 2019 10:26:46 GMT
 Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B0B53AE055;
-	Thu, 22 Aug 2019 10:26:42 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 09F5DAE055;
+	Thu, 22 Aug 2019 10:26:46 +0000 (GMT)
 Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id DA245AE05A;
-	Thu, 22 Aug 2019 10:26:39 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 28FB0AE056;
+	Thu, 22 Aug 2019 10:26:43 +0000 (GMT)
 Received: from bharata.ibmuc.com (unknown [9.199.57.57])
 	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Thu, 22 Aug 2019 10:26:39 +0000 (GMT)
+	Thu, 22 Aug 2019 10:26:42 +0000 (GMT)
 From: Bharata B Rao <bharata@linux.ibm.com>
 To: linuxppc-dev@lists.ozlabs.org
 Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
@@ -70,23 +70,23 @@ Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
         cclaudio@linux.ibm.com, hch@lst.de,
         Bharata B Rao <bharata@linux.ibm.com>,
         Paul Mackerras <paulus@ozlabs.org>
-Subject: [PATCH v7 3/7] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
-Date: Thu, 22 Aug 2019 15:56:16 +0530
+Subject: [PATCH v7 4/7] kvmppc: Handle memory plug/unplug to secure VM
+Date: Thu, 22 Aug 2019 15:56:17 +0530
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190822102620.21897-1-bharata@linux.ibm.com>
 References: <20190822102620.21897-1-bharata@linux.ibm.com>
 MIME-Version: 1.0
 X-TM-AS-GCONF: 00
-x-cbid: 19082210-0016-0000-0000-000002A16DDA
+x-cbid: 19082210-0012-0000-0000-000003416D3F
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19082210-0017-0000-0000-00003301A65D
-Message-Id: <20190822102620.21897-4-bharata@linux.ibm.com>
+x-cbparentid: 19082210-0013-0000-0000-0000217B97F3
+Message-Id: <20190822102620.21897-5-bharata@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-22_07:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=3 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=773 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1906280000 definitions=main-1908220112
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -95,189 +95,82 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-H_SVM_INIT_START: Initiate securing a VM
-H_SVM_INIT_DONE: Conclude securing a VM
-
-As part of H_SVM_INIT_START, register all existing memslots with
-the UV. H_SVM_INIT_DONE call by UV informs HV that transition of
-the guest to secure mode is complete.
-
-These two states (transition to secure mode STARTED and transition
-to secure mode COMPLETED) are recorded in kvm->arch.secure_guest.
-Setting these states will cause the assembly code that enters the
-guest to call the UV_RETURN ucall instead of trying to enter the
-guest directly.
+Register the new memslot with UV during plug and unregister
+the memslot during unplug.
 
 Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
 Acked-by: Paul Mackerras <paulus@ozlabs.org>
 ---
- arch/powerpc/include/asm/hvcall.h          |  2 ++
- arch/powerpc/include/asm/kvm_book3s_devm.h | 12 ++++++++
- arch/powerpc/include/asm/kvm_host.h        |  4 +++
- arch/powerpc/include/asm/ultravisor-api.h  |  1 +
- arch/powerpc/include/asm/ultravisor.h      |  7 +++++
- arch/powerpc/kvm/book3s_hv.c               |  7 +++++
- arch/powerpc/kvm/book3s_hv_devm.c          | 34 ++++++++++++++++++++++
- 7 files changed, 67 insertions(+)
+ arch/powerpc/include/asm/ultravisor-api.h |  1 +
+ arch/powerpc/include/asm/ultravisor.h     |  5 +++++
+ arch/powerpc/kvm/book3s_hv.c              | 17 +++++++++++++++++
+ 3 files changed, 23 insertions(+)
 
-diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm=
-/hvcall.h
-index 05b8536f6653..fa7695928e30 100644
---- a/arch/powerpc/include/asm/hvcall.h
-+++ b/arch/powerpc/include/asm/hvcall.h
-@@ -343,6 +343,8 @@
- /* Platform-specific hcalls used by the Ultravisor */
- #define H_SVM_PAGE_IN		0xEF00
- #define H_SVM_PAGE_OUT		0xEF04
-+#define H_SVM_INIT_START	0xEF08
-+#define H_SVM_INIT_DONE		0xEF0C
-=20
- /* Values for 2nd argument to H_SET_MODE */
- #define H_SET_MODE_RESOURCE_SET_CIABR		1
-diff --git a/arch/powerpc/include/asm/kvm_book3s_devm.h b/arch/powerpc/in=
-clude/asm/kvm_book3s_devm.h
-index 9603c2b48d67..fc924ef00b91 100644
---- a/arch/powerpc/include/asm/kvm_book3s_devm.h
-+++ b/arch/powerpc/include/asm/kvm_book3s_devm.h
-@@ -11,6 +11,8 @@ unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
- 				    unsigned long gra,
- 				    unsigned long flags,
- 				    unsigned long page_shift);
-+unsigned long kvmppc_h_svm_init_start(struct kvm *kvm);
-+unsigned long kvmppc_h_svm_init_done(struct kvm *kvm);
- #else
- static inline unsigned long
- kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
-@@ -25,5 +27,15 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long g=
-ra,
- {
- 	return H_UNSUPPORTED;
- }
-+
-+static inline unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
-+{
-+	return H_UNSUPPORTED;
-+}
-+
-+static inline unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
-+{
-+	return H_UNSUPPORTED;
-+}
- #endif /* CONFIG_PPC_UV */
- #endif /* __POWERPC_KVM_PPC_HMM_H__ */
-diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/a=
-sm/kvm_host.h
-index 855d82730f44..66e5cc8c9759 100644
---- a/arch/powerpc/include/asm/kvm_host.h
-+++ b/arch/powerpc/include/asm/kvm_host.h
-@@ -272,6 +272,10 @@ struct kvm_hpt_info {
-=20
- struct kvm_resize_hpt;
-=20
-+/* Flag values for kvm_arch.secure_guest */
-+#define KVMPPC_SECURE_INIT_START 0x1 /* H_SVM_INIT_START has been called=
- */
-+#define KVMPPC_SECURE_INIT_DONE  0x2 /* H_SVM_INIT_DONE completed */
-+
- struct kvm_arch {
- 	unsigned int lpid;
- 	unsigned int smt_mode;		/* # vcpus per virtual core */
 diff --git a/arch/powerpc/include/asm/ultravisor-api.h b/arch/powerpc/inc=
 lude/asm/ultravisor-api.h
-index 1cd1f595fd81..c578d9b13a56 100644
+index c578d9b13a56..46b1ee381695 100644
 --- a/arch/powerpc/include/asm/ultravisor-api.h
 +++ b/arch/powerpc/include/asm/ultravisor-api.h
-@@ -25,6 +25,7 @@
- /* opcodes */
+@@ -26,6 +26,7 @@
  #define UV_WRITE_PATE			0xF104
  #define UV_RETURN			0xF11C
-+#define UV_REGISTER_MEM_SLOT		0xF120
+ #define UV_REGISTER_MEM_SLOT		0xF120
++#define UV_UNREGISTER_MEM_SLOT		0xF124
  #define UV_PAGE_IN			0xF128
  #define UV_PAGE_OUT			0xF12C
 =20
 diff --git a/arch/powerpc/include/asm/ultravisor.h b/arch/powerpc/include=
 /asm/ultravisor.h
-index 0fc4a974b2e8..58ccf5e2d6bb 100644
+index 58ccf5e2d6bb..719c0c3930b9 100644
 --- a/arch/powerpc/include/asm/ultravisor.h
 +++ b/arch/powerpc/include/asm/ultravisor.h
-@@ -45,4 +45,11 @@ static inline int uv_page_out(u64 lpid, u64 dst_ra, u6=
-4 src_gpa, u64 flags,
- 			    page_shift);
+@@ -52,4 +52,9 @@ static inline int uv_register_mem_slot(u64 lpid, u64 st=
+art_gpa, u64 size,
+ 			    size, flags, slotid);
  }
 =20
-+static inline int uv_register_mem_slot(u64 lpid, u64 start_gpa, u64 size=
-,
-+				       u64 flags, u64 slotid)
++static inline int uv_unregister_mem_slot(u64 lpid, u64 slotid)
 +{
-+	return ucall_norets(UV_REGISTER_MEM_SLOT, lpid, start_gpa,
-+			    size, flags, slotid);
++	return ucall_norets(UV_UNREGISTER_MEM_SLOT, lpid, slotid);
 +}
 +
  #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
 diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
-index 00b43ee8b693..33b8ebffbef0 100644
+index 33b8ebffbef0..57f8b0b1c703 100644
 --- a/arch/powerpc/kvm/book3s_hv.c
 +++ b/arch/powerpc/kvm/book3s_hv.c
-@@ -1089,6 +1089,13 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
- 					    kvmppc_get_gpr(vcpu, 5),
- 					    kvmppc_get_gpr(vcpu, 6));
- 		break;
-+	case H_SVM_INIT_START:
-+		ret =3D kvmppc_h_svm_init_start(vcpu->kvm);
-+		break;
-+	case H_SVM_INIT_DONE:
-+		ret =3D kvmppc_h_svm_init_done(vcpu->kvm);
-+		break;
-+
- 	default:
- 		return RESUME_HOST;
- 	}
-diff --git a/arch/powerpc/kvm/book3s_hv_devm.c b/arch/powerpc/kvm/book3s_=
-hv_devm.c
-index 6a3229b78fed..494495806407 100644
---- a/arch/powerpc/kvm/book3s_hv_devm.c
-+++ b/arch/powerpc/kvm/book3s_hv_devm.c
-@@ -49,6 +49,40 @@ struct kvmppc_devm_page_pvt {
- 	bool skip_page_out;
- };
+@@ -74,6 +74,7 @@
+ #include <asm/hw_breakpoint.h>
+ #include <asm/kvm_host.h>
+ #include <asm/kvm_book3s_devm.h>
++#include <asm/ultravisor.h>
 =20
-+unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
-+{
-+	struct kvm_memslots *slots;
-+	struct kvm_memory_slot *memslot;
-+	int ret =3D H_SUCCESS;
-+	int srcu_idx;
+ #include "book3s.h"
+=20
+@@ -4504,6 +4505,22 @@ static void kvmppc_core_commit_memory_region_hv(st=
+ruct kvm *kvm,
+ 	if (change =3D=3D KVM_MR_FLAGS_ONLY && kvm_is_radix(kvm) &&
+ 	    ((new->flags ^ old->flags) & KVM_MEM_LOG_DIRTY_PAGES))
+ 		kvmppc_radix_flush_memslot(kvm, old);
++	/*
++	 * If UV hasn't yet called H_SVM_INIT_START, don't register memslots.
++	 */
++	if (!kvm->arch.secure_guest)
++		return;
 +
-+	srcu_idx =3D srcu_read_lock(&kvm->srcu);
-+	slots =3D kvm_memslots(kvm);
-+	kvm_for_each_memslot(memslot, slots) {
-+		ret =3D uv_register_mem_slot(kvm->arch.lpid,
-+					   memslot->base_gfn << PAGE_SHIFT,
-+					   memslot->npages * PAGE_SIZE,
-+					   0, memslot->id);
-+		if (ret < 0) {
-+			ret =3D H_PARAMETER;
-+			goto out;
-+		}
-+	}
-+	kvm->arch.secure_guest |=3D KVMPPC_SECURE_INIT_START;
-+out:
-+	srcu_read_unlock(&kvm->srcu, srcu_idx);
-+	return ret;
-+}
-+
-+unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
-+{
-+	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
-+		return H_UNSUPPORTED;
-+
-+	kvm->arch.secure_guest |=3D KVMPPC_SECURE_INIT_DONE;
-+	return H_SUCCESS;
-+}
-+
++	/*
++	 * TODO: Handle KVM_MR_MOVE
++	 */
++	if (change =3D=3D KVM_MR_CREATE) {
++		uv_register_mem_slot(kvm->arch.lpid,
++				     new->base_gfn << PAGE_SHIFT,
++				     new->npages * PAGE_SIZE,
++				     0, new->id);
++	} else if (change =3D=3D KVM_MR_DELETE)
++		uv_unregister_mem_slot(kvm->arch.lpid, old->id);
+ }
+=20
  /*
-  * Get a free device PFN from the pool
-  *
 --=20
 2.21.0
 
