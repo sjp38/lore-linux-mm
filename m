@@ -2,146 +2,262 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41867C3A5A1
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:35:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94D5BC3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:38:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EFDD1233A2
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:35:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qOmYeVVw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFDD1233A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 50BD121655
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:38:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50BD121655
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 91EFE6B02ED; Thu, 22 Aug 2019 05:35:32 -0400 (EDT)
+	id 01A616B02EF; Thu, 22 Aug 2019 05:38:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CE136B02EE; Thu, 22 Aug 2019 05:35:32 -0400 (EDT)
+	id F0DC96B02F0; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E3E56B02EF; Thu, 22 Aug 2019 05:35:32 -0400 (EDT)
+	id DFC0A6B02F1; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0133.hostedemail.com [216.40.44.133])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA076B02ED
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 05:35:32 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E9D91181AC9B6
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:35:31 +0000 (UTC)
-X-FDA: 75849556062.22.dime23_4d5cb7b495057
-X-HE-Tag: dime23_4d5cb7b495057
-X-Filterd-Recvd-Size: 4886
-Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:35:31 +0000 (UTC)
-Received: by mail-io1-f66.google.com with SMTP id l7so10531306ioj.6
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2019 02:35:31 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=JXL8Bgd1NTdiGNb2EOO7Ywv12WeIDCaYn/7GGlihWuU=;
-        b=qOmYeVVw80eSlWG2jhEg/SH08VXxkSSVtgRNtcaky7swIHbXUQIGsBVABt7+ENq9qk
-         KZA8lJJXfLQCCGzw8ZYSiJxziAYoaSQ7CsV4D5x02BThXqoixvhsyxxIOd8HmhVU14P2
-         PQ8zmJ38HNMhqyNaQ4iLl3JZNIz4jlLLSyVeCzgMHiEqgYB9tF/vWkckjdo3W7V96Ucs
-         D6NDFs/il9qM/Eaz0ay0dz6sBsQdtSxCN1TFIh5bCjBoYw4C3ItYWKzIT6tBEfcW/lyR
-         FEBCyyGo6XJQ5PVAZ5kHy54a8gP79daLZ9xXa9+mEg0UILrChmxvMa7V8iLk6jN7iAeb
-         kd8w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=JXL8Bgd1NTdiGNb2EOO7Ywv12WeIDCaYn/7GGlihWuU=;
-        b=PH3avrFcIXrysAy2EG0bvFoZfiuEJNV5zSHBb/9cW3LWj0JolqPn07bVp2O6G9tLjr
-         tAJoxoot8nt8JLNzVmKCory3QRwanXpBpCt/F9ih4FnwaFiLCjsWdWXdkssHobtvoll7
-         ENP0oIuWznZ5TBgGWjCBi7Nyo6gqVo7FkfnyqB9rmWlf+ruSW2g8X3Jan2hZxDWOO6BZ
-         /7ebz4bSBqhilSYJV1h56OUEdGQ7TsKbQPcsb3CaswNUB2HN7KN8tJJYnw0Ob255Bzkh
-         KLzmbJhWxACJbVmfEBVGPstgm7J5alBx/spCbypeHEhmNr3xH+88LNkWTGRCDGgZj9BT
-         RKeA==
-X-Gm-Message-State: APjAAAWzsukyaMbXr3srcQouu/nAVBCUJdbx73pkwEbQJi/62ufvrbNj
-	GGAbbCoqKTUJMNcBp4IaaSdVvq1BDp1cThqE2Bk=
-X-Google-Smtp-Source: APXvYqxCmCz4floBFlltzUhioGjOrqlPLbtYS8qUs0SOkCsPsvBPQlcimA0irZd+XZffzLkfuu5pReVx8U4FrUf8a8k=
-X-Received: by 2002:a5e:8a46:: with SMTP id o6mr777646iom.36.1566466530877;
- Thu, 22 Aug 2019 02:35:30 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0249.hostedemail.com [216.40.44.249])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5476B02EF
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 8168E1F848
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:38:43 +0000 (UTC)
+X-FDA: 75849564126.16.sea79_6924f42a25834
+X-HE-Tag: sea79_6924f42a25834
+X-Filterd-Recvd-Size: 9387
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:38:42 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6B42A1596;
+	Thu, 22 Aug 2019 02:38:41 -0700 (PDT)
+Received: from [10.1.194.48] (e123572-lin.cambridge.arm.com [10.1.194.48])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CBCE93F246;
+	Thu, 22 Aug 2019 02:38:39 -0700 (PDT)
+Subject: Re: [PATCH v9 2/3] arm64: Define
+ Documentation/arm64/tagged-address-abi.rst
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Linux Memory Management List <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon
+ <will@kernel.org>, Szabolcs Nagy <szabolcs.nagy@arm.com>,
+ Dave P Martin <Dave.Martin@arm.com>, Dave Hansen <dave.hansen@intel.com>,
+ "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+ linux-arch <linux-arch@vger.kernel.org>, Will Deacon <will.deacon@arm.com>
+References: <20190821164730.47450-1-catalin.marinas@arm.com>
+ <20190821164730.47450-3-catalin.marinas@arm.com>
+ <CAAeHK+wHDx5bqNd+OQuJWoiA=LzsjCWkQ2UY_JVipr852Gv4JA@mail.gmail.com>
+From: Kevin Brodsky <kevin.brodsky@arm.com>
+Message-ID: <b6ea0be1-398c-f2ee-c586-7bf0142a6793@arm.com>
+Date: Thu, 22 Aug 2019 10:38:37 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <1566464189-1631-1-git-send-email-laoar.shao@gmail.com> <20190822091902.GG12785@dhcp22.suse.cz>
-In-Reply-To: <20190822091902.GG12785@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Thu, 22 Aug 2019 17:34:54 +0800
-Message-ID: <CALOAHbAOH+Y+sN3ynAiBDm=JWrm4XpyUm8s3r9G=Oz4b0iNvCA@mail.gmail.com>
-Subject: Re: [PATCH] mm, memcg: introduce per memcg oom_score_adj
-To: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Roman Gushchin <guro@fb.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.005403, version=1.2.4
+In-Reply-To: <CAAeHK+wHDx5bqNd+OQuJWoiA=LzsjCWkQ2UY_JVipr852Gv4JA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 22, 2019 at 5:19 PM Michal Hocko <mhocko@suse.com> wrote:
->
-> On Thu 22-08-19 04:56:29, Yafang Shao wrote:
-> > - Why we need a per memcg oom_score_adj setting ?
-> > This is easy to deploy and very convenient for container.
-> > When we use container, we always treat memcg as a whole, if we have a per
-> > memcg oom_score_adj setting we don't need to set it process by process.
->
-> Why cannot an initial process in the cgroup set the oom_score_adj and
-> other processes just inherit it from there? This sounds trivial to do
-> with a startup script.
->
+On 21/08/2019 17:57, Andrey Konovalov wrote:
+> On Wed, Aug 21, 2019 at 6:47 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>> From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+>>
+>> On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
+>> (EL0) to perform memory accesses through 64-bit pointers with a non-zero
+>> top byte. Introduce the document describing the relaxation of the
+>> syscall ABI that allows userspace to pass certain tagged pointers to
+>> kernel syscalls.
+>>
+>> Cc: Will Deacon <will.deacon@arm.com>
+>> Cc: Andrey Konovalov <andreyknvl@google.com>
+>> Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
+>> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
+>> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+>> Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
+>> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> Acked-by: Andrey Konovalov <andreyknvl@google.com>
 
-That is what we used to do before.
-But it can't apply to the running containers.
+Acked-by: Kevin Brodsky <kevin.brodsky@arm.com>
 
+>> ---
+>>   Documentation/arm64/tagged-address-abi.rst | 156 +++++++++++++++++++++
+>>   1 file changed, 156 insertions(+)
+>>   create mode 100644 Documentation/arm64/tagged-address-abi.rst
+>>
+>> diff --git a/Documentation/arm64/tagged-address-abi.rst b/Documentation/arm64/tagged-address-abi.rst
+>> new file mode 100644
+>> index 000000000000..d4a85d535bf9
+>> --- /dev/null
+>> +++ b/Documentation/arm64/tagged-address-abi.rst
+>> @@ -0,0 +1,156 @@
+>> +==========================
+>> +AArch64 TAGGED ADDRESS ABI
+>> +==========================
+>> +
+>> +Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
+>> +         Catalin Marinas <catalin.marinas@arm.com>
+>> +
+>> +Date: 21 August 2019
+>> +
+>> +This document describes the usage and semantics of the Tagged Address
+>> +ABI on AArch64 Linux.
+>> +
+>> +1. Introduction
+>> +---------------
+>> +
+>> +On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
+>> +userspace (EL0) to perform memory accesses through 64-bit pointers with
+>> +a non-zero top byte. This document describes the relaxation of the
+>> +syscall ABI that allows userspace to pass certain tagged pointers to
+>> +kernel syscalls.
+>> +
+>> +2. AArch64 Tagged Address ABI
+>> +-----------------------------
+>> +
+>> +From the kernel syscall interface perspective and for the purposes of
+>> +this document, a "valid tagged pointer" is a pointer with a potentially
+>> +non-zero top-byte that references an address in the user process address
+>> +space obtained in one of the following ways:
+>> +
+>> +- ``mmap()`` syscall where either:
+>> +
+>> +  - flags have the ``MAP_ANONYMOUS`` bit set or
+>> +  - the file descriptor refers to a regular file (including those
+>> +    returned by ``memfd_create()``) or ``/dev/zero``
+>> +
+>> +- ``brk()`` syscall (i.e. the heap area between the initial location of
+>> +  the program break at process creation and its current location).
+>> +
+>> +- any memory mapped by the kernel in the address space of the process
+>> +  during creation and with the same restrictions as for ``mmap()`` above
+>> +  (e.g. data, bss, stack).
+>> +
+>> +The AArch64 Tagged Address ABI has two stages of relaxation depending
+>> +how the user addresses are used by the kernel:
+>> +
+>> +1. User addresses not accessed by the kernel but used for address space
+>> +   management (e.g. ``mmap()``, ``mprotect()``, ``madvise()``). The use
+>> +   of valid tagged pointers in this context is always allowed.
+>> +
+>> +2. User addresses accessed by the kernel (e.g. ``write()``). This ABI
+>> +   relaxation is disabled by default and the application thread needs to
+>> +   explicitly enable it via ``prctl()`` as follows:
+>> +
+>> +   - ``PR_SET_TAGGED_ADDR_CTRL``: enable or disable the AArch64 Tagged
+>> +     Address ABI for the calling thread.
+>> +
+>> +     The ``(unsigned int) arg2`` argument is a bit mask describing the
+>> +     control mode used:
+>> +
+>> +     - ``PR_TAGGED_ADDR_ENABLE``: enable AArch64 Tagged Address ABI.
+>> +       Default status is disabled.
+>> +
+>> +     Arguments ``arg3``, ``arg4``, and ``arg5`` must be 0.
+>> +
+>> +   - ``PR_GET_TAGGED_ADDR_CTRL``: get the status of the AArch64 Tagged
+>> +     Address ABI for the calling thread.
+>> +
+>> +     Arguments ``arg2``, ``arg3``, ``arg4``, and ``arg5`` must be 0.
+>> +
+>> +   The ABI properties described above are thread-scoped, inherited on
+>> +   clone() and fork() and cleared on exec().
+>> +
+>> +   Calling ``prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0)``
+>> +   returns ``-EINVAL`` if the AArch64 Tagged Address ABI is globally
+>> +   disabled by ``sysctl abi.tagged_addr_disabled=1``. The default
+>> +   ``sysctl abi.tagged_addr_disabled`` configuration is 0.
+>> +
+>> +When the AArch64 Tagged Address ABI is enabled for a thread, the
+>> +following behaviours are guaranteed:
+>> +
+>> +- All syscalls except the cases mentioned in section 3 can accept any
+>> +  valid tagged pointer.
+>> +
+>> +- The syscall behaviour is undefined for invalid tagged pointers: it may
+>> +  result in an error code being returned, a (fatal) signal being raised,
+>> +  or other modes of failure.
+>> +
+>> +- The syscall behaviour for a valid tagged pointer is the same as for
+>> +  the corresponding untagged pointer.
+>> +
+>> +
+>> +A definition of the meaning of tagged pointers on AArch64 can be found
+>> +in Documentation/arm64/tagged-pointers.rst.
+>> +
+>> +3. AArch64 Tagged Address ABI Exceptions
+>> +-----------------------------------------
+>> +
+>> +The following system call parameters must be untagged regardless of the
+>> +ABI relaxation:
+>> +
+>> +- ``prctl()`` other than pointers to user data either passed directly or
+>> +  indirectly as arguments to be accessed by the kernel.
+>> +
+>> +- ``ioctl()`` other than pointers to user data either passed directly or
+>> +  indirectly as arguments to be accessed by the kernel.
+>> +
+>> +- ``shmat()`` and ``shmdt()``.
+>> +
+>> +Any attempt to use non-zero tagged pointers may result in an error code
+>> +being returned, a (fatal) signal being raised, or other modes of
+>> +failure.
+>> +
+>> +4. Example of correct usage
+>> +---------------------------
+>> +.. code-block:: c
+>> +
+>> +   #include <stdlib.h>
+>> +   #include <string.h>
+>> +   #include <unistd.h>
+>> +   #include <sys/mman.h>
+>> +   #include <sys/prctl.h>
+>> +
+>> +   #define PR_SET_TAGGED_ADDR_CTRL     55
+>> +   #define PR_TAGGED_ADDR_ENABLE       (1UL << 0)
+>> +
+>> +   #define TAG_SHIFT           56
+>> +
+>> +   int main(void)
+>> +   {
+>> +       int tbi_enabled = 0;
+>> +       unsigned long tag = 0;
+>> +       char *ptr;
+>> +
+>> +       /* check/enable the tagged address ABI */
+>> +       if (!prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0))
+>> +               tbi_enabled = 1;
+>> +
+>> +       /* memory allocation */
+>> +       ptr = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
+>> +                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+>> +       if (ptr == MAP_FAILED)
+>> +               return 1;
+>> +
+>> +       /* set a non-zero tag if the ABI is available */
+>> +       if (tbi_enabled)
+>> +               tag = rand() & 0xff;
+>> +       ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
+>> +
+>> +       /* memory access to a tagged address */
+>> +       strcpy(ptr, "tagged pointer\n");
+>> +
+>> +       /* syscall with a tagged pointer */
+>> +       write(1, ptr, strlen(ptr));
+>> +
+>> +       return 0;
+>> +   }
 
-> > It will make the user exhausted to set it to all processes in a memcg.
->
-> Then let's have scripts to set it as they are less prone to exhaustion
-> ;)
-
-That is not easy to deploy it to the production environment.
-
-> But seriously
->
-> > In this patch, a file named memory.oom.score_adj is introduced.
-> > The valid value of it is from -1000 to +1000, which is same with
-> > process-level oom_score_adj.
-> > When OOM is invoked, the effective oom_score_adj is as bellow,
-> >     effective oom_score_adj = original oom_score_adj + memory.oom.score_adj
->
-> This doesn't make any sense to me. Say that process has oom_score_adj
-> -1000 (never kill) then group oom_score_adj will simply break the
-> expectation and the task becomes killable for any value but -1000.
-> Why is summing up those values even sensible?
->
-
-Ah, good catch. This needs to be improved.
-
-> > The valid effective value is also from -1000 to +1000.
-> > This is something like a hook to re-calculate the oom_score_adj.
->
-> Besides that. What is the hierarchical semantic? Say you have hierarchy
->         A (oom_score_adj = 1000)
->          \
->           B (oom_score_adj = 500)
->            \
->             C (oom_score_adj = -1000)
->
-> put the above summing up aside for now and just focus on the memcg
-> adjusting?
-
-I think that there's no conflict between children's oom_score_adj,
-that is different with memory.max.
-So it is not neccessary to consider the parent's oom_sore_adj.
-
-Thanks
-
-Yafang
 
