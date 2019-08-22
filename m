@@ -6,58 +6,69 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92D40C3A5A1
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 23:03:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CEDEC3A5A3
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 23:14:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2765E233A0
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 23:03:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D1268233A0
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 23:14:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="BBxVo2nN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2765E233A0
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="JnFvVQX5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1268233A0
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA1216B035D; Thu, 22 Aug 2019 19:03:46 -0400 (EDT)
+	id 72D1D6B0360; Thu, 22 Aug 2019 19:14:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B513A6B035F; Thu, 22 Aug 2019 19:03:46 -0400 (EDT)
+	id 6DBE46B0361; Thu, 22 Aug 2019 19:14:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A66436B0360; Thu, 22 Aug 2019 19:03:46 -0400 (EDT)
+	id 5F1036B0362; Thu, 22 Aug 2019 19:14:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0015.hostedemail.com [216.40.44.15])
-	by kanga.kvack.org (Postfix) with ESMTP id 800436B035D
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 19:03:46 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 277E6689C
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 23:03:46 +0000 (UTC)
-X-FDA: 75851592852.09.nerve57_3c21e0d48c29
-X-HE-Tag: nerve57_3c21e0d48c29
-X-Filterd-Recvd-Size: 2603
+Received: from forelay.hostedemail.com (smtprelay0217.hostedemail.com [216.40.44.217])
+	by kanga.kvack.org (Postfix) with ESMTP id 375C06B0360
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 19:14:31 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id B97AD180AD7C1
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 23:14:30 +0000 (UTC)
+X-FDA: 75851619900.24.shoes49_61891e6e48829
+X-HE-Tag: shoes49_61891e6e48829
+X-Filterd-Recvd-Size: 3038
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 23:03:45 +0000 (UTC)
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 23:14:30 +0000 (UTC)
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9C32B21848;
-	Thu, 22 Aug 2019 23:03:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9E6CC2173E;
+	Thu, 22 Aug 2019 23:14:28 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566515024;
-	bh=fgi/rgPJr0UBQTUlu1/65uSy+9MMhXIOvXFp0ALGfb0=;
+	s=default; t=1566515669;
+	bh=vApCOM3H3LWmBhR9eGKlIz7FlGeav7+0V7QMAv0lrz4=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=BBxVo2nNziNaw3nAAEFAen1S7XiIO8Vta0pNHjnEDrJV2guXM6hZIbA3EBQnD27XU
-	 xx5lUT8HJgT0tzNJTsVuX+MYZ+kxVgP8Ozyil9XXkdjvISelPuFKSvf1uwNrSSSuuI
-	 gXZFDs+IVIjusG2rBR8LeQ8NVAbEX+BcR3Xuw3ow=
-Date: Thu, 22 Aug 2019 16:03:44 -0700
+	b=JnFvVQX53Ce1G2PQ2HOdxbB/SubAMwjIprQiE8EBfadRyLGqt1J+ii+olw/j5668Y
+	 +QtLBXDlkv6/aLoxjapTqHtWc0fc3gJRJDtnIBEIp+3qWO0oQofuFmpQXuSE4efjH3
+	 lHWO0el4UUudjvso5nDstFN30oxIxxABVA7nHCxs=
+Date: Thu, 22 Aug 2019 16:14:28 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov"
- <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Mel
- Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 0/4] debug_pagealloc improvements through page_owner
-Message-Id: <20190822160344.716eda34585271fa4a519d4c@linux-foundation.org>
-In-Reply-To: <20190820131828.22684-1-vbabka@suse.cz>
-References: <20190820131828.22684-1-vbabka@suse.cz>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, DRI
+ Development <dri-devel@lists.freedesktop.org>, Intel Graphics Development
+ <intel-gfx@lists.freedesktop.org>, Daniel Vetter <daniel.vetter@ffwll.ch>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Peter Zijlstra <peterz@infradead.org>, Ingo
+ Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, David Rientjes
+ <rientjes@google.com>, Christian =?ISO-8859-1?Q?K=F6nig?=
+ <christian.koenig@amd.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
+ <jglisse@redhat.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Wei
+ Wang <wvw@google.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+ Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>, Feng
+ Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>, Randy Dunlap
+ <rdunlap@infradead.org>, Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 3/4] kernel.h: Add non_block_start/end()
+Message-Id: <20190822161428.c9e4479207386d34745ea111@linux-foundation.org>
+In-Reply-To: <20190820202440.GH11147@phenom.ffwll.local>
+References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
+	<20190820081902.24815-4-daniel.vetter@ffwll.ch>
+	<20190820202440.GH11147@phenom.ffwll.local>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -68,23 +79,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Aug 2019 15:18:24 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Tue, 20 Aug 2019 22:24:40 +0200 Daniel Vetter <daniel@ffwll.ch> wrote:
 
-> v2: also fix THP split handling (added Patch 1) per Kirill
+> Hi Peter,
 > 
-> The debug_pagealloc functionality serves a similar purpose on the page
-> allocator level that slub_debug does on the kmalloc level, which is to detect
-> bad users. One notable feature that slub_debug has is storing stack traces of
-> who last allocated and freed the object. On page level we track allocations via
-> page_owner, but that info is discarded when freeing, and we don't track freeing
-> at all. This series improves those aspects. With both debug_pagealloc and
-> page_owner enabled, we can then get bug reports such as the example in Patch 4.
-> 
-> SLUB debug tracking additionaly stores cpu, pid and timestamp. This could be
-> added later, if deemed useful enough to justify the additional page_ext
-> structure size.
+> Iirc you've been involved at least somewhat in discussing this. -mm folks
+> are a bit undecided whether these new non_block semantics are a good idea.
+> Michal Hocko still is in support, but Andrew Morton and Jason Gunthorpe
+> are less enthusiastic. Jason said he's ok with merging the hmm side of
+> this if scheduler folks ack. If not, then I'll respin with the
+> preempt_disable/enable instead like in v1.
 
-Thanks.  I split [1/1] out of the series as a bugfix and turned this
-into a three-patch series.
+I became mollified once Michel explained the rationale.  I think it's
+OK.  It's very specific to the oom reaper and hopefully won't be used
+more widely(?).
 
 
