@@ -2,262 +2,141 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94D5BC3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:38:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 825E1C3A59D
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:15:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50BD121655
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 09:38:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50BD121655
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2AF87206BB
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 10:15:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AF87206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01A616B02EF; Thu, 22 Aug 2019 05:38:44 -0400 (EDT)
+	id 8D71E6B02F1; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0DC96B02F0; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
+	id 888406B02F2; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFC0A6B02F1; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
+	id 74FBE6B02F3; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0249.hostedemail.com [216.40.44.249])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5476B02EF
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 05:38:43 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 8168E1F848
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:38:43 +0000 (UTC)
-X-FDA: 75849564126.16.sea79_6924f42a25834
-X-HE-Tag: sea79_6924f42a25834
-X-Filterd-Recvd-Size: 9387
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 09:38:42 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6B42A1596;
-	Thu, 22 Aug 2019 02:38:41 -0700 (PDT)
-Received: from [10.1.194.48] (e123572-lin.cambridge.arm.com [10.1.194.48])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CBCE93F246;
-	Thu, 22 Aug 2019 02:38:39 -0700 (PDT)
-Subject: Re: [PATCH v9 2/3] arm64: Define
- Documentation/arm64/tagged-address-abi.rst
-To: Andrey Konovalov <andreyknvl@google.com>,
- Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon
- <will@kernel.org>, Szabolcs Nagy <szabolcs.nagy@arm.com>,
- Dave P Martin <Dave.Martin@arm.com>, Dave Hansen <dave.hansen@intel.com>,
- "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
- linux-arch <linux-arch@vger.kernel.org>, Will Deacon <will.deacon@arm.com>
-References: <20190821164730.47450-1-catalin.marinas@arm.com>
- <20190821164730.47450-3-catalin.marinas@arm.com>
- <CAAeHK+wHDx5bqNd+OQuJWoiA=LzsjCWkQ2UY_JVipr852Gv4JA@mail.gmail.com>
-From: Kevin Brodsky <kevin.brodsky@arm.com>
-Message-ID: <b6ea0be1-398c-f2ee-c586-7bf0142a6793@arm.com>
-Date: Thu, 22 Aug 2019 10:38:37 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0147.hostedemail.com [216.40.44.147])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EE1F6B02F1
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 06:15:54 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D0FFC6D66
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:15:53 +0000 (UTC)
+X-FDA: 75849657786.03.rake45_8ab2b36520157
+X-HE-Tag: rake45_8ab2b36520157
+X-Filterd-Recvd-Size: 5094
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au [211.29.132.249])
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 10:15:52 +0000 (UTC)
+Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 6B637360DD4;
+	Thu, 22 Aug 2019 20:15:49 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1i0k77-0008VY-Sg; Thu, 22 Aug 2019 20:14:41 +1000
+Date: Thu, 22 Aug 2019 20:14:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org,
+	Ingo Molnar <mingo@redhat.com>, Will Deacon <will@kernel.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	penguin-kernel@I-love.SAKURA.ne.jp
+Subject: Re: [PATCH 2/3] xfs: add kmem_alloc_io()
+Message-ID: <20190822101441.GY1119@dread.disaster.area>
+References: <20190821083820.11725-1-david@fromorbit.com>
+ <20190821083820.11725-3-david@fromorbit.com>
+ <20190821232440.GB24904@infradead.org>
+ <20190822003131.GR1119@dread.disaster.area>
+ <20190822075948.GA31346@infradead.org>
+ <20190822085130.GI2349@hirez.programming.kicks-ass.net>
+ <20190822091057.GK2386@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+wHDx5bqNd+OQuJWoiA=LzsjCWkQ2UY_JVipr852Gv4JA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190822091057.GK2386@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
+	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=7-415B0cAAAA:8 a=Bi6Kc3tJZaiG_sx6kGYA:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21/08/2019 17:57, Andrey Konovalov wrote:
-> On Wed, Aug 21, 2019 at 6:47 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->> From: Vincenzo Frascino <vincenzo.frascino@arm.com>
->>
->> On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
->> (EL0) to perform memory accesses through 64-bit pointers with a non-zero
->> top byte. Introduce the document describing the relaxation of the
->> syscall ABI that allows userspace to pass certain tagged pointers to
->> kernel syscalls.
->>
->> Cc: Will Deacon <will.deacon@arm.com>
->> Cc: Andrey Konovalov <andreyknvl@google.com>
->> Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
->> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
->> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
->> Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
->> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> Acked-by: Andrey Konovalov <andreyknvl@google.com>
+On Thu, Aug 22, 2019 at 11:10:57AM +0200, Peter Zijlstra wrote:
+> On Thu, Aug 22, 2019 at 10:51:30AM +0200, Peter Zijlstra wrote:
+> > On Thu, Aug 22, 2019 at 12:59:48AM -0700, Christoph Hellwig wrote:
+> > > On Thu, Aug 22, 2019 at 10:31:32AM +1000, Dave Chinner wrote:
+> > > > > Btw, I think we should eventually kill off KM_NOFS and just use
+> > > > > PF_MEMALLOC_NOFS in XFS, as the interface makes so much more sense.
+> > > > > But that's something for the future.
+> > > > 
+> > > > Yeah, and it's not quite as simple as just using PF_MEMALLOC_NOFS
+> > > > at high levels - we'll still need to annotate callers that use KM_NOFS
+> > > > to avoid lockdep false positives. i.e. any code that can be called from
+> > > > GFP_KERNEL and reclaim context will throw false positives from
+> > > > lockdep if we don't annotate tehm correctly....
+> > > 
+> > > Oh well.  For now we have the XFS kmem_wrappers to turn that into
+> > > GFP_NOFS so we shouldn't be too worried, but I think that is something
+> > > we should fix in lockdep to ensure it is generally useful.  I've added
+> > > the maintainers and relevant lists to kick off a discussion.
+> > 
+> > Strictly speaking the fs_reclaim annotation is no longer part of the
+> > lockdep core, but is simply a fake lock in page_alloc.c and thus falls
+> > under the mm people's purview.
+> > 
+> > That said; it should be fairly straight forward to teach
+> > __need_fs_reclaim() about PF_MEMALLOC_NOFS, much like how it already
+> > knows about PF_MEMALLOC.
+> 
+> Ah, current_gfp_context() already seems to transfer PF_MEMALLOC_NOFS
+> into the GFP flags.
+> 
+> So are we sure it is broken and needs mending?
 
-Acked-by: Kevin Brodsky <kevin.brodsky@arm.com>
+Well, that's what we are trying to work out. The problem is that we
+have code that takes locks and does allocations that is called both
+above and below the reclaim "lock" context. Once it's been seen
+below the reclaim lock context, calling it with GFP_KERNEL context
+above the reclaim lock context throws a deadlock warning.
 
->> ---
->>   Documentation/arm64/tagged-address-abi.rst | 156 +++++++++++++++++++++
->>   1 file changed, 156 insertions(+)
->>   create mode 100644 Documentation/arm64/tagged-address-abi.rst
->>
->> diff --git a/Documentation/arm64/tagged-address-abi.rst b/Documentation/arm64/tagged-address-abi.rst
->> new file mode 100644
->> index 000000000000..d4a85d535bf9
->> --- /dev/null
->> +++ b/Documentation/arm64/tagged-address-abi.rst
->> @@ -0,0 +1,156 @@
->> +==========================
->> +AArch64 TAGGED ADDRESS ABI
->> +==========================
->> +
->> +Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
->> +         Catalin Marinas <catalin.marinas@arm.com>
->> +
->> +Date: 21 August 2019
->> +
->> +This document describes the usage and semantics of the Tagged Address
->> +ABI on AArch64 Linux.
->> +
->> +1. Introduction
->> +---------------
->> +
->> +On AArch64 the ``TCR_EL1.TBI0`` bit is set by default, allowing
->> +userspace (EL0) to perform memory accesses through 64-bit pointers with
->> +a non-zero top byte. This document describes the relaxation of the
->> +syscall ABI that allows userspace to pass certain tagged pointers to
->> +kernel syscalls.
->> +
->> +2. AArch64 Tagged Address ABI
->> +-----------------------------
->> +
->> +From the kernel syscall interface perspective and for the purposes of
->> +this document, a "valid tagged pointer" is a pointer with a potentially
->> +non-zero top-byte that references an address in the user process address
->> +space obtained in one of the following ways:
->> +
->> +- ``mmap()`` syscall where either:
->> +
->> +  - flags have the ``MAP_ANONYMOUS`` bit set or
->> +  - the file descriptor refers to a regular file (including those
->> +    returned by ``memfd_create()``) or ``/dev/zero``
->> +
->> +- ``brk()`` syscall (i.e. the heap area between the initial location of
->> +  the program break at process creation and its current location).
->> +
->> +- any memory mapped by the kernel in the address space of the process
->> +  during creation and with the same restrictions as for ``mmap()`` above
->> +  (e.g. data, bss, stack).
->> +
->> +The AArch64 Tagged Address ABI has two stages of relaxation depending
->> +how the user addresses are used by the kernel:
->> +
->> +1. User addresses not accessed by the kernel but used for address space
->> +   management (e.g. ``mmap()``, ``mprotect()``, ``madvise()``). The use
->> +   of valid tagged pointers in this context is always allowed.
->> +
->> +2. User addresses accessed by the kernel (e.g. ``write()``). This ABI
->> +   relaxation is disabled by default and the application thread needs to
->> +   explicitly enable it via ``prctl()`` as follows:
->> +
->> +   - ``PR_SET_TAGGED_ADDR_CTRL``: enable or disable the AArch64 Tagged
->> +     Address ABI for the calling thread.
->> +
->> +     The ``(unsigned int) arg2`` argument is a bit mask describing the
->> +     control mode used:
->> +
->> +     - ``PR_TAGGED_ADDR_ENABLE``: enable AArch64 Tagged Address ABI.
->> +       Default status is disabled.
->> +
->> +     Arguments ``arg3``, ``arg4``, and ``arg5`` must be 0.
->> +
->> +   - ``PR_GET_TAGGED_ADDR_CTRL``: get the status of the AArch64 Tagged
->> +     Address ABI for the calling thread.
->> +
->> +     Arguments ``arg2``, ``arg3``, ``arg4``, and ``arg5`` must be 0.
->> +
->> +   The ABI properties described above are thread-scoped, inherited on
->> +   clone() and fork() and cleared on exec().
->> +
->> +   Calling ``prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0)``
->> +   returns ``-EINVAL`` if the AArch64 Tagged Address ABI is globally
->> +   disabled by ``sysctl abi.tagged_addr_disabled=1``. The default
->> +   ``sysctl abi.tagged_addr_disabled`` configuration is 0.
->> +
->> +When the AArch64 Tagged Address ABI is enabled for a thread, the
->> +following behaviours are guaranteed:
->> +
->> +- All syscalls except the cases mentioned in section 3 can accept any
->> +  valid tagged pointer.
->> +
->> +- The syscall behaviour is undefined for invalid tagged pointers: it may
->> +  result in an error code being returned, a (fatal) signal being raised,
->> +  or other modes of failure.
->> +
->> +- The syscall behaviour for a valid tagged pointer is the same as for
->> +  the corresponding untagged pointer.
->> +
->> +
->> +A definition of the meaning of tagged pointers on AArch64 can be found
->> +in Documentation/arm64/tagged-pointers.rst.
->> +
->> +3. AArch64 Tagged Address ABI Exceptions
->> +-----------------------------------------
->> +
->> +The following system call parameters must be untagged regardless of the
->> +ABI relaxation:
->> +
->> +- ``prctl()`` other than pointers to user data either passed directly or
->> +  indirectly as arguments to be accessed by the kernel.
->> +
->> +- ``ioctl()`` other than pointers to user data either passed directly or
->> +  indirectly as arguments to be accessed by the kernel.
->> +
->> +- ``shmat()`` and ``shmdt()``.
->> +
->> +Any attempt to use non-zero tagged pointers may result in an error code
->> +being returned, a (fatal) signal being raised, or other modes of
->> +failure.
->> +
->> +4. Example of correct usage
->> +---------------------------
->> +.. code-block:: c
->> +
->> +   #include <stdlib.h>
->> +   #include <string.h>
->> +   #include <unistd.h>
->> +   #include <sys/mman.h>
->> +   #include <sys/prctl.h>
->> +
->> +   #define PR_SET_TAGGED_ADDR_CTRL     55
->> +   #define PR_TAGGED_ADDR_ENABLE       (1UL << 0)
->> +
->> +   #define TAG_SHIFT           56
->> +
->> +   int main(void)
->> +   {
->> +       int tbi_enabled = 0;
->> +       unsigned long tag = 0;
->> +       char *ptr;
->> +
->> +       /* check/enable the tagged address ABI */
->> +       if (!prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0))
->> +               tbi_enabled = 1;
->> +
->> +       /* memory allocation */
->> +       ptr = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
->> +                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
->> +       if (ptr == MAP_FAILED)
->> +               return 1;
->> +
->> +       /* set a non-zero tag if the ABI is available */
->> +       if (tbi_enabled)
->> +               tag = rand() & 0xff;
->> +       ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
->> +
->> +       /* memory access to a tagged address */
->> +       strcpy(ptr, "tagged pointer\n");
->> +
->> +       /* syscall with a tagged pointer */
->> +       write(1, ptr, strlen(ptr));
->> +
->> +       return 0;
->> +   }
+The only way around that was to mark these allocation sites as
+GFP_NOFS so lockdep is never allowed to see that recursion through
+reclaim occur. Even though it isn't a deadlock vector.
 
+What we're looking at is whether PF_MEMALLOC_NOFS changes this - I
+don't think it does solve this problem. i.e. if we define the
+allocation as GFP_KERNEL and then use PF_MEMALLOC_NOFS where reclaim
+is not allowed, we still have GFP_KERNEL allocations in code above
+reclaim that has also been seen below relcaim. And so we'll get
+false positive warnings again.
+
+What I think we are going to have to do here is manually audit
+each of the KM_NOFS call sites as we remove the NOFS from them and
+determine if ___GFP_NOLOCKDEP is needed to stop lockdep from trying
+to track these allocation sites. We've never used this tag because
+we'd already fixed most of these false positives with explicit
+GFP_NOFS tags long before ___GFP_NOLOCKDEP was created.
+
+But until someone starts doing the work, I don't know if it will
+work or even whether conversion PF_MEMALLOC_NOFS is going to
+introduce a bunch of new ways to get false positives from lockdep...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
