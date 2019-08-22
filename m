@@ -2,136 +2,109 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33538C3A59D
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:42:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 200B4C3A5A2
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:51:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CED5822CE3
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:42:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D8AC422CE3
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 08:51:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="cbZ/eIqa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CED5822CE3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="MFT1spad"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8AC422CE3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B89D6B02E1; Thu, 22 Aug 2019 04:42:53 -0400 (EDT)
+	id 7424D6B02E3; Thu, 22 Aug 2019 04:51:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06A886B02E2; Thu, 22 Aug 2019 04:42:53 -0400 (EDT)
+	id 6F3116B02E4; Thu, 22 Aug 2019 04:51:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC0A76B02E3; Thu, 22 Aug 2019 04:42:52 -0400 (EDT)
+	id 609726B02E5; Thu, 22 Aug 2019 04:51:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
-	by kanga.kvack.org (Postfix) with ESMTP id C67966B02E1
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 04:42:52 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 72AF2181AC9BA
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:42:52 +0000 (UTC)
-X-FDA: 75849423384.14.drop08_361d5fbcf2823
-X-HE-Tag: drop08_361d5fbcf2823
-X-Filterd-Recvd-Size: 4764
-Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com [209.85.210.68])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:42:51 +0000 (UTC)
-Received: by mail-ot1-f68.google.com with SMTP id b1so4740075otp.6
-        for <linux-mm@kvack.org>; Thu, 22 Aug 2019 01:42:51 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NfCKuFdEeNBAgpgY3GQU9evNY2kKtJpvRWsNwL+v9LE=;
-        b=cbZ/eIqa3UOnq5kZcw9ViWpQlwY6IoHQWwYFtH4j5KLaJRU0py33AbPiPiAJVlbc/Y
-         BKVPPwYWmhbkGDR1ys452Hfk/wY38q87dT/NiRbDk43nh9KoZQCtcGVi2a+huvT45BW1
-         DTkTcnHBZzI/xbpSr6wkE8INN5L/ml6Sq3+ak=
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=NfCKuFdEeNBAgpgY3GQU9evNY2kKtJpvRWsNwL+v9LE=;
-        b=ZJiTH2rjjgdsW9tIm8xbBsl1GkNd979aU+JUAsSjHCEP1DlzJcbZj4uAZKjnWMLQpr
-         e4CHC0+iHzeD8HLjxzE5qaF4z8T9jMeQo2iqxNppacmq9YTFr705Yu4vlV/CMnOz9otW
-         A+QizV6RjSY2EtanPd7latZ3/mqLgGRhCcaE8Zg3KdBf+LP5Wm9FNfHx0z4lguO2KnBm
-         4pmc5wXpoZhCiVJVPscHsfubrfR82ErAB2urnb/y1xyRJmHn+rCA1ik6qD15yfIxeGML
-         /+gx3z1jsHvMwWHkuQSnvR1Xc1GJwSGDNMRyhy1zVf55Z0dshS8Ysu4TwaqeY2ivVJdd
-         T7fA==
-X-Gm-Message-State: APjAAAWqP+TdWFKqxXRNZ0NTZNNWtZi6zf6/OuJeORhAnsAz7g+J1Lse
-	J4kwMXqVum+pdMsUvHTbGTITQH/oQuBlh4OTsMmAdw==
-X-Google-Smtp-Source: APXvYqxpz8kgbP+ugs1KUhnBtoipkM40G0JFM2B8mwDRWFu9+c1XE/VWtgoMVi8Vtvm95XZX33AsAYp4bMyumd0+MLk=
-X-Received: by 2002:a9d:7cc9:: with SMTP id r9mr31457513otn.188.1566463370802;
- Thu, 22 Aug 2019 01:42:50 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0115.hostedemail.com [216.40.44.115])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB086B02E3
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 04:51:39 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E88D681F5
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:51:38 +0000 (UTC)
+X-FDA: 75849445476.03.soda25_82b1918e9c237
+X-HE-Tag: soda25_82b1918e9c237
+X-Filterd-Recvd-Size: 3911
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:51:37 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=/4rJRZsfJXe9oSAm3OkCNAzkFSYWRZ0OphOb1fZTRSo=; b=MFT1spadGIPSvmC2gKecCHqZF
+	w7GUDDQBE5aFoSYzdPeE7sJ8YF3nkFj2Jy5vf/N/WOQg9N9srHtwabN1t2gnYz+1QjJdmv6MG+XAW
+	CI0reqeS7a778ZKVQljeLq5AtIfmbrUvEt9kwyX+KPne83nSBoe7mfI1mGNmLnQVG5d2Ao84F1Ksq
+	XKYkDFEDrvwtPDhELKoNmJN2NvrZO16zsxPWdwcU21mRQ+utXKVVq3aRmlWMABG8zZXOpm5WMLBB2
+	jpdMJlqjgP1UhuDgnX6xRQkxqlwICL/N/zrsfXrgZ093ZXcpHtsr51C0NaZeRlQF082tvpq4QcO8x
+	7HW1ZJdwQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i0iof-0002XU-70; Thu, 22 Aug 2019 08:51:33 +0000
+Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(Client did not present a certificate)
+	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id C0CCE305F65;
+	Thu, 22 Aug 2019 10:50:58 +0200 (CEST)
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id BAC9B20B335AE; Thu, 22 Aug 2019 10:51:30 +0200 (CEST)
+Date: Thu, 22 Aug 2019 10:51:30 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org,
+	Ingo Molnar <mingo@redhat.com>, Will Deacon <will@kernel.org>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	penguin-kernel@I-love.SAKURA.ne.jp
+Subject: Re: [PATCH 2/3] xfs: add kmem_alloc_io()
+Message-ID: <20190822085130.GI2349@hirez.programming.kicks-ass.net>
+References: <20190821083820.11725-1-david@fromorbit.com>
+ <20190821083820.11725-3-david@fromorbit.com>
+ <20190821232440.GB24904@infradead.org>
+ <20190822003131.GR1119@dread.disaster.area>
+ <20190822075948.GA31346@infradead.org>
 MIME-Version: 1.0
-References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
- <20190820081902.24815-5-daniel.vetter@ffwll.ch> <20190820133418.GG29246@ziepe.ca>
- <20190820151810.GG11147@phenom.ffwll.local> <20190821154151.GK11147@phenom.ffwll.local>
- <20190821161635.GC8653@ziepe.ca>
-In-Reply-To: <20190821161635.GC8653@ziepe.ca>
-From: Daniel Vetter <daniel@ffwll.ch>
-Date: Thu, 22 Aug 2019 10:42:39 +0200
-Message-ID: <CAKMK7uERsmgFqDVHMCWs=4s_3fHM0eRr7MV6A8Mdv7xVouyxJw@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm, notifier: Catch sleeping/blocking for !blockable
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	DRI Development <dri-devel@lists.freedesktop.org>, 
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Daniel Vetter <daniel.vetter@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190822075948.GA31346@infradead.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 22, 2019 at 10:16 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
->
-> On Wed, Aug 21, 2019 at 05:41:51PM +0200, Daniel Vetter wrote:
->
-> > > Hm, I thought the page table locks we're holding there already prevent any
-> > > sleeping, so would be redundant? But reading through code I think that's
-> > > not guaranteed, so yeah makes sense to add it for invalidate_range_end
-> > > too. I'll respin once I have the ack/nack from scheduler people.
-> >
-> > So I started to look into this, and I'm a bit confused. There's no
-> > _nonblock version of this, so does this means blocking is never allowed,
-> > or always allowed?
->
-> RDMA has a mutex:
->
-> ib_umem_notifier_invalidate_range_end
->   rbt_ib_umem_for_each_in_range
->    invalidate_range_start_trampoline
->     ib_umem_notifier_end_account
->       mutex_lock(&umem_odp->umem_mutex);
->
-> I'm working to delete this path though!
->
-> nonblocking or not follows the start, the same flag gets placed into
-> the mmu_notifier_range struct passed to end.
+On Thu, Aug 22, 2019 at 12:59:48AM -0700, Christoph Hellwig wrote:
+> On Thu, Aug 22, 2019 at 10:31:32AM +1000, Dave Chinner wrote:
+> > > Btw, I think we should eventually kill off KM_NOFS and just use
+> > > PF_MEMALLOC_NOFS in XFS, as the interface makes so much more sense.
+> > > But that's something for the future.
+> > 
+> > Yeah, and it's not quite as simple as just using PF_MEMALLOC_NOFS
+> > at high levels - we'll still need to annotate callers that use KM_NOFS
+> > to avoid lockdep false positives. i.e. any code that can be called from
+> > GFP_KERNEL and reclaim context will throw false positives from
+> > lockdep if we don't annotate tehm correctly....
+> 
+> Oh well.  For now we have the XFS kmem_wrappers to turn that into
+> GFP_NOFS so we shouldn't be too worried, but I think that is something
+> we should fix in lockdep to ensure it is generally useful.  I've added
+> the maintainers and relevant lists to kick off a discussion.
 
-Ok, makes sense.
+Strictly speaking the fs_reclaim annotation is no longer part of the
+lockdep core, but is simply a fake lock in page_alloc.c and thus falls
+under the mm people's purview.
 
-I guess that also means the might_sleep (I started on that) in
-invalidate_range_end also needs to be conditional? Or not bother with
-a might_sleep in invalidate_range_end since you're working on removing
-the last sleep in there?
-
-> > From a quick look through implementations I've only seen spinlocks, and
-> > one up_read. So I guess I should wrape this callback in some unconditional
-> > non_block_start/end, but I'm not sure.
->
-> For now, we should keep it the same as start, conditionally blocking.
->
-> Hopefully before LPC I can send a RFC series that eliminates most
-> invalidate_range_end users in favor of common locking..
-
-Thanks, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+That said; it should be fairly straight forward to teach
+__need_fs_reclaim() about PF_MEMALLOC_NOFS, much like how it already
+knows about PF_MEMALLOC.
 
