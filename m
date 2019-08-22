@@ -2,186 +2,93 @@ Return-Path: <SRS0=SaVu=WS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CF96C3A5A2
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 12:32:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDC6FC3A5A3
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 12:52:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C44D2206BB
-	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 12:32:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="c6VeasvP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C44D2206BB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id B8BC52089E
+	for <linux-mm@archiver.kernel.org>; Thu, 22 Aug 2019 12:52:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8BC52089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 49FE56B030F; Thu, 22 Aug 2019 08:32:02 -0400 (EDT)
+	id 3A5086B0311; Thu, 22 Aug 2019 08:52:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 477946B0310; Thu, 22 Aug 2019 08:32:02 -0400 (EDT)
+	id 355FB6B0312; Thu, 22 Aug 2019 08:52:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33F5E6B0311; Thu, 22 Aug 2019 08:32:02 -0400 (EDT)
+	id 244E36B0313; Thu, 22 Aug 2019 08:52:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0125.hostedemail.com [216.40.44.125])
-	by kanga.kvack.org (Postfix) with ESMTP id 1031F6B030F
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:32:02 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id AD7D5181AC9B6
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 12:32:01 +0000 (UTC)
-X-FDA: 75850000842.22.birds29_119105d4f6d2e
-X-HE-Tag: birds29_119105d4f6d2e
-X-Filterd-Recvd-Size: 7301
-Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 12:32:00 +0000 (UTC)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7MCObdR143553;
-	Thu, 22 Aug 2019 12:31:34 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=8ipepF8fIFfgoy7WBs+ngpSF9Cs8x/q2LfMnzNUB/ck=;
- b=c6VeasvPQc1NQSKzFfMUV3Q9iwsBfVzX7BCmaQyJcM546IjuYiwUPqLvJX2FOh1H/TM2
- TONIPr5h9l8xsSfUs6YdJo83HL+HgEexK2mj/yD3j5mAOJ54h//jkZ6FF9+556qcJR09
- l+2n+BQys+78y/cqGYi31paXsLQqvRANm9lLev1S6SFzPzbjk/WcrRa/6ndjkheE6EbQ
- KmxXtKC0fZxcBhfERzIL3c1VwZv0fYrTCDzrW58KCPFD29N8GNpOzCG+gD6Ch9+c5SpS
- 5QCbfpERA0i+D+J7R0XGsNBPP+5zOJhacSHp38PHiKWWjcwHRpfjtbbXGipLwKlQDUC/ XA== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2120.oracle.com with ESMTP id 2ue9hpw4w1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 22 Aug 2019 12:31:34 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7MCNnH6051591;
-	Thu, 22 Aug 2019 12:31:33 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2uh83q0uxy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 22 Aug 2019 12:31:33 +0000
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7MCVNQI022232;
-	Thu, 22 Aug 2019 12:31:27 GMT
-Received: from [10.166.106.34] (/10.166.106.34)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 22 Aug 2019 05:31:23 -0700
-Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
-To: dario.faggioli@linux.it, Peter Zijlstra <peterz@infradead.org>
-Cc: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
-        mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
-        dave.hansen@linux.intel.com, luto@kernel.org, kvm@vger.kernel.org,
-        x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,
-        liran.alon@oracle.com, jwadams@google.com, graf@amazon.de,
-        rppt@linux.vnet.ibm.com, Paul Turner <pjt@google.com>
-References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
- <20190712114458.GU3402@hirez.programming.kicks-ass.net>
- <1f97f1d9-d209-f2ab-406d-fac765006f91@oracle.com>
- <20190712123653.GO3419@hirez.programming.kicks-ass.net>
- <b1b7f85f-dac3-80a3-c05c-160f58716ce8@oracle.com>
- <20190712130720.GQ3419@hirez.programming.kicks-ass.net>
- <8b84ac05-f639-b708-0f7f-810935b323e8@oracle.com>
- <715155f37708852ea8075190aeb4f2ec9ab158fe.camel@gmail.com>
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <062d7de5-2061-f7a6-acf9-8e7f50b78e29@oracle.com>
-Date: Thu, 22 Aug 2019 14:31:19 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+Received: from forelay.hostedemail.com (smtprelay0032.hostedemail.com [216.40.44.32])
+	by kanga.kvack.org (Postfix) with ESMTP id F11586B0311
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 08:52:34 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 8294D8154
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 12:52:34 +0000 (UTC)
+X-FDA: 75850052628.07.shoe23_338b59bfae919
+X-HE-Tag: shoe23_338b59bfae919
+X-Filterd-Recvd-Size: 2385
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 12:52:34 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 910B1AE04;
+	Thu, 22 Aug 2019 12:52:32 +0000 (UTC)
+Date: Thu, 22 Aug 2019 14:52:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>, pankaj.suryawanshi@einfochips.com
+Subject: Re: PageBlocks and Migrate Types
+Message-ID: <20190822125231.GJ12785@dhcp22.suse.cz>
+References: <CACDBo57u+sgordDvFpTzJ=U4mT8uVz7ZovJ3qSZQCrhdYQTw0A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <715155f37708852ea8075190aeb4f2ec9ab158fe.camel@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9355 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908220134
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9355 signatures=668684
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908220134
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACDBo57u+sgordDvFpTzJ=U4mT8uVz7ZovJ3qSZQCrhdYQTw0A@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000147, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed 21-08-19 22:23:44, Pankaj Suryawanshi wrote:
+> Hello,
+> 
+> 1. What are Pageblocks and migrate types(MIGRATE_CMA) in Linux memory ?
 
-On 7/31/19 6:31 PM, Dario Faggioli wrote:
-> Hello all,
-> 
-> I know this is a bit of an old thread, so apologies for being late to
-> the party. :-)
+Pageblocks are a simple grouping of physically contiguous pages with
+common set of flags. I haven't checked closely recently so I might
+misremember but my recollection is that only the migrate type is stored
+there. Normally we would store that information into page flags but
+there is not enough room there.
 
-And sorry for the late reply, I was away for a while.
+MIGRATE_CMA represent pages allocated for the CMA allocator. There are
+other migrate types denoting unmovable/movable allocations or pages that
+are isolated from the page allocator.
 
-> I would have a question about this:
-> 
->>>> On 7/12/19 2:36 PM, Peter Zijlstra wrote:
->>>>> On Fri, Jul 12, 2019 at 02:17:20PM +0200, Alexandre Chartre
->>>>> wrote:
->>>>>> On 7/12/19 1:44 PM, Peter Zijlstra wrote:
->>>>>>> AFAIK3 this wants/needs to be combined with core-scheduling
->>>>>>> to be
->>>>>>> useful, but not a single mention of that is anywhere.
->>>>>>
->>>>>> No. This is actually an alternative to core-scheduling.
->>>>>> Eventually, ASI
->>>>>> will kick all sibling hyperthreads when exiting isolation and
->>>>>> it needs to
->>>>>> run with the full kernel page-table (note that's currently
->>>>>> not in these
->>>>>> patches).
->>
-> I.e., about the fact that ASI is presented as an alternative to
-> core-scheduling or, at least, as it will only need integrate a small
-> subset of the logic (and of the code) from core-scheduling, as said
-> here:
-> 
->> I haven't looked at details about what has been done so far.
->> Hopefully, we
->> can do something not too complex, or reuse a (small) part of co-
->> scheduling.
->>
-> Now, sticking to virtualization examples, if you don't have core-
-> scheduling, it means that you can have two vcpus, one from VM A and the
-> other from VM B, running on the same core, one on thread 0 and the
-> other one on thread 1, at the same time.
-> 
-> And if VM A's vcpu, running on thread 0, exits, then VM B's vcpu
-> running in guest more on thread 1 can read host memory, as it is
-> speculatively accessed (either "normally" or because of cache load
-> gadgets) and brought in L1D cache by thread 0. And Indeed I do see how
-> ASI protects us from this attack scenario.
-> 
->
-> However, when the two VMs' vcpus are both running in guest mode, each
-> one on a thread of the same core, VM B's vcpu running on thread 1 can
-> exploit L1TF to peek at and steal secrets that VM A's vcpu, running on
-> thread 0, is accessing, as they're brought into L1D cache... can't it?
-> 
-> How can, ASI *without* core-scheduling, prevent this other attack
-> scenario?
->
-> Because I may very well be missing something, but it looks to me that
-> it can't. In which case, I'm not sure we can call it "alternative" to
-> core-scheduling.... Or is the second attack scenario that I tried to
-> describe above, not considered interesting?
-> 
+Very broadly speaking, the migrate type groups pages with similar
+movability properties to reduce fragmentation that compaction cannot
+do anything about because there are objects of different properties
+around. Please note that pageblock might contain objects of a different
+migrate type in some cases (e.g. low on memory).
 
-Correct, ASI doesn't prevent this attack scenario. However, this case can
-be prevented by pinning each VM to different CPU cores (for example, using
-cgroups) so that you never have two different VMs running with CPU threads
-from the same CPU core. Of course, this limits the number of VMs you can
-run to the number of CPU cores on the system but we assume this is a
-reasonable configuration when you want to have high performing VM.
+Have a look at gfpflags_to_migratetype and how the gfp mask is converted
+to a migratetype for the allocation. Also follow different MIGRATE_$TYPE
+to see how it is used in the code.
 
-Rgds,
+> How many movable/unmovable pages are defined by default?
 
-alex.
+There is nothing like that. It depends on how many objects of a specific
+type are allocated.
+
+HTH
+-- 
+Michal Hocko
+SUSE Labs
 
