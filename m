@@ -2,113 +2,102 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DD45C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 11:54:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D133DC3A5A4
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 11:57:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C574A22CE3
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 11:54:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dc1S0At/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C574A22CE3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 949B422CE3
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 11:57:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 949B422CE3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36A056B0391; Fri, 23 Aug 2019 07:54:39 -0400 (EDT)
+	id 42BDC6B0393; Fri, 23 Aug 2019 07:57:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31B7B6B0393; Fri, 23 Aug 2019 07:54:39 -0400 (EDT)
+	id 3DC936B0395; Fri, 23 Aug 2019 07:57:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 231A96B0394; Fri, 23 Aug 2019 07:54:39 -0400 (EDT)
+	id 319226B0396; Fri, 23 Aug 2019 07:57:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
-	by kanga.kvack.org (Postfix) with ESMTP id D3CA56B0391
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 07:54:38 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 9DBD0181AC9B4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:54:38 +0000 (UTC)
-X-FDA: 75853535436.14.angle96_2875d4678cb3e
-X-HE-Tag: angle96_2875d4678cb3e
-X-Filterd-Recvd-Size: 3876
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:54:37 +0000 (UTC)
-Received: by mail-ed1-f68.google.com with SMTP id w5so13074343edl.8
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2019 04:54:37 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=XWn2j85u6MVOX5qSxDVagBkhlB2EkHiVTQW8X727y+g=;
-        b=dc1S0At/n/qGw9IaZnZaZvHsXo1g8UvqK5wd3lUYPL75cIQnLXYjDknkgn81nTUdTI
-         9i64luC5bT5RcmZrTlqltNCokNe9n6OW63na5HKNIOyt5MAhVreWyIa5MyTVDImdCsrQ
-         Ug0Y7rq0jBNKwmO51LTC0gqoBkET5U9WcEAaEvIHmGqkIaviJExN8h7helrkd/x6PP0D
-         RvJgqHjyK6gpU9Ww985miklt3Zxs11bOUbTDtbnEmbVdXbdxZvR3qLZaEfV0eKUvG0XZ
-         Aby/utk7ua2Hvg4Y4OPyoHM05KpsJ/JxiYyBGVhYGCIlDnf4jNHft6w9US72KkW7cMRw
-         BdJg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=XWn2j85u6MVOX5qSxDVagBkhlB2EkHiVTQW8X727y+g=;
-        b=nTCpPCvBTN90aT9Rnq9Q6zDtwbOBQTAvCy/kJlEf2BRTza9wPfQhVMOCpSkqu9s4Xs
-         R0QXZ/bLHeaqM9KZdiQfu+olRHfkEa83ATll7BGEIzA8a5Xsw75p4X4EusNu+1SS/POv
-         Ez5+RFqODEiDSItkPL3StYdtDNPeUFe+Nd+Dou/DQV2nxhYVW5dse+V4cbsfGWbytSlW
-         U76t7WW4IccYcDSJzw6STPJstWBn8l2F91dGrnkfCToPnUjB6sXMqxVOWmkeODmdYU7N
-         6S5eHgHeV6RMcFy7JI2ZFDWDyt0fiHeftXPcc8l7CRyXu1ra18+p4fB7qhD0UyVWADpa
-         gHQQ==
-X-Gm-Message-State: APjAAAWD5+z54l4kM64UlBgfsjSJUBU6tZHPJtS2oJzJsiqf4sHVXTqJ
-	hQZ0Sv47ssxhKdA/1DV6dVYV/Q==
-X-Google-Smtp-Source: APXvYqznjHJq0BolOPAuW51zUFcfiGmPBgOuocOnkkjGRBdnvn/D+UzOsViex3gjDmlYfZj3iLVVuw==
-X-Received: by 2002:aa7:d1c6:: with SMTP id g6mr3956660edp.85.1566561276792;
-        Fri, 23 Aug 2019 04:54:36 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id b18sm378982eju.0.2019.08.23.04.54.35
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Aug 2019 04:54:36 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id DA3AD10074E; Fri, 23 Aug 2019 14:54:35 +0300 (+03)
-Date: Fri, 23 Aug 2019 14:54:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: zhengbin <zhengbin13@huawei.com>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com,
-	jglisse@redhat.com, mike.kravetz@oracle.com, rcampbell@nvidia.com,
-	ktkhai@virtuozzo.com, aryabinin@virtuozzo.com, hughd@google.com,
-	linux-mm@kvack.org, yi.zhang@huawei.com
-Subject: Re: [PATCH] mm/rmap.c: remove set but not used variable 'cstart'
-Message-ID: <20190823115435.tcfpfudczuqomp6p@box>
-References: <1566533321-23131-1-git-send-email-zhengbin13@huawei.com>
+Received: from forelay.hostedemail.com (smtprelay0009.hostedemail.com [216.40.44.9])
+	by kanga.kvack.org (Postfix) with ESMTP id 262D66B0393
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 07:57:47 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id E2CFC6D8C
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:57:46 +0000 (UTC)
+X-FDA: 75853543332.02.rule74_43c569671a72c
+X-HE-Tag: rule74_43c569671a72c
+X-Filterd-Recvd-Size: 3365
+Received: from ozlabs.org (bilbo.ozlabs.org [203.11.71.1])
+	by imf15.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:57:45 +0000 (UTC)
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 46FKds2Qn9z9s00;
+	Fri, 23 Aug 2019 21:57:37 +1000 (AEST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Paul Mackerras <paulus@ozlabs.org>, Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxram@us.ibm.com, cclaudio@linux.ibm.com, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, aneesh.kumar@linux.vnet.ibm.com, paulus@au1.ibm.com, sukadev@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, hch@lst.de
+Subject: Re: [PATCH v7 0/7] KVMPPC driver to manage secure guest pages
+In-Reply-To: <20190823041747.ctquda5uwvy2eiqz@oak.ozlabs.ibm.com>
+References: <20190822102620.21897-1-bharata@linux.ibm.com> <20190823041747.ctquda5uwvy2eiqz@oak.ozlabs.ibm.com>
+Date: Fri, 23 Aug 2019 21:57:32 +1000
+Message-ID: <87wof43xhv.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1566533321-23131-1-git-send-email-zhengbin13@huawei.com>
-User-Agent: NeoMutt/20180716
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 23, 2019 at 12:08:41PM +0800, zhengbin wrote:
-> Fixes gcc '-Wunused-but-set-variable' warning:
-> 
-> mm/rmap.c: In function page_mkclean_one:
-> mm/rmap.c:906:17: warning: variable cstart set but not used [-Wunused-but-set-variable]
-> 
-> It is not used since commit 0f10851ea475 ("mm/mmu_notifier:
-> avoid double notification when it is useless")
-> 
-> Reported-by: Hulk Robot <hulkci@huawei.com>
-> Signed-off-by: zhengbin <zhengbin13@huawei.com>
+Paul Mackerras <paulus@ozlabs.org> writes:
+> On Thu, Aug 22, 2019 at 03:56:13PM +0530, Bharata B Rao wrote:
+>> A pseries guest can be run as a secure guest on Ultravisor-enabled
+>> POWER platforms. On such platforms, this driver will be used to manage
+>> the movement of guest pages between the normal memory managed by
+>> hypervisor(HV) and secure memory managed by Ultravisor(UV).
+>> 
+>> Private ZONE_DEVICE memory equal to the amount of secure memory
+>> available in the platform for running secure guests is created.
+>> Whenever a page belonging to the guest becomes secure, a page from
+>> this private device memory is used to represent and track that secure
+>> page on the HV side. The movement of pages between normal and secure
+>> memory is done via migrate_vma_pages(). The reverse movement is driven
+>> via pagemap_ops.migrate_to_ram().
+>> 
+>> The page-in or page-out requests from UV will come to HV as hcalls and
+>> HV will call back into UV via uvcalls to satisfy these page requests.
+>> 
+>> These patches are against hmm.git
+>> (https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=hmm)
+>> 
+>> plus
+>> 
+>> Claudio Carvalho's base ultravisor enablement patchset v6
+>> (https://lore.kernel.org/linuxppc-dev/20190822034838.27876-1-cclaudio@linux.ibm.com/T/#t)
+>
+> How are you thinking these patches will go upstream?  Are you going to
+> send them via the hmm tree?
+>
+> I assume you need Claudio's patchset as a prerequisite for your series
+> to compile, which means the hmm maintainers would need to pull in a
+> topic branch from Michael Ellerman's powerpc tree, or something like
+> that.
 
-There is already fix in the mm tree. See
+I think more workable would be for me to make a topic branch based on
+the hmm tree (or some commit from the hmm tree), which I then apply the
+patches on top of, and merge any required powerpc changes into that. I
+can then ask Linus to merge that branch late in the merge window once
+the hmm changes have gone in.
 
-http://lkml.kernel.org/r/20190724141453.38536-1-yuehaibing@huawei.com
+The bigger problem at the moment is the lack of reviews or acks on the
+bulk of the series.
 
--- 
- Kirill A. Shutemov
+cheers
 
