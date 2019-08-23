@@ -2,266 +2,108 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D047FC3A589
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:24:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEC49C3A5A2
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:32:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 889DC22CEC
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:24:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 816E122CF7
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:32:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="ctGEYVlW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 889DC22CEC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=ozlabs.org header.i=@ozlabs.org header.b="J/JhSKyJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 816E122CF7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=ozlabs.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2DF626B037C; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
+	id 08F846B037D; Fri, 23 Aug 2019 01:32:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 291126B037D; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
+	id 0415B6B0380; Fri, 23 Aug 2019 01:32:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A78A6B037F; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
+	id E965A6B0381; Fri, 23 Aug 2019 01:32:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0226.hostedemail.com [216.40.44.226])
-	by kanga.kvack.org (Postfix) with ESMTP id ED55D6B037C
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 01:24:13 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 8C9BE181AC9B4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:24:13 +0000 (UTC)
-X-FDA: 75852551586.03.geese68_7c1eb95dcb630
-X-HE-Tag: geese68_7c1eb95dcb630
-X-Filterd-Recvd-Size: 9193
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:24:12 +0000 (UTC)
-Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7N5O7RQ000660
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 22:24:11 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : mime-version : content-type; s=facebook;
- bh=X5cZafEMOtA9egvlal74E4vlPa7kd0hNN9ns5h5N+qo=;
- b=ctGEYVlWD8wU9maXCXQcfvBbT8vpAUm1XXo6OdVD8gyR+f6d4RyRLp8JlPq1Y4gaGCTN
- AOxFtlHkziUfafdHchD7yRhYc/62tmGYzmOCgVDBjsFcnOgSINHtIxET93NPNmUb5TZr
- NG2/qjY7BZSaUUOIAj7mjO0KQfCUyUWzGm0= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2uj3mhh8hj-6
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 22:24:10 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Thu, 22 Aug 2019 22:23:56 -0700
-Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id AA25B62E2FD5; Thu, 22 Aug 2019 22:23:50 -0700 (PDT)
-Smtp-Origin-Hostprefix: devbig
-From: Song Liu <songliubraving@fb.com>
-Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
-To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
-CC: <kernel-team@fb.com>, Song Liu <songliubraving@fb.com>,
-        <stable@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
-        Dave Hansen
-	<dave.hansen@intel.com>,
-        Peter Zijlstra <peterz@infradead.org>
-Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH] x86/mm: Do not split_large_page() for set_kernel_text_rw()
-Date: Thu, 22 Aug 2019 22:23:35 -0700
-Message-ID: <20190823052335.572133-1-songliubraving@fb.com>
-X-Mailer: git-send-email 2.17.1
-X-FB-Internal: Safe
+Received: from forelay.hostedemail.com (smtprelay0053.hostedemail.com [216.40.44.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C95866B037D
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 01:32:54 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 609F5181AC9AE
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:32:54 +0000 (UTC)
+X-FDA: 75852573468.17.wound32_3654af5bd2753
+X-HE-Tag: wound32_3654af5bd2753
+X-Filterd-Recvd-Size: 3198
+Received: from ozlabs.org (ozlabs.org [203.11.71.1])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:32:53 +0000 (UTC)
+Received: by ozlabs.org (Postfix, from userid 1003)
+	id 46F95q6lYyz9s3Z; Fri, 23 Aug 2019 15:32:47 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=ozlabs.org; s=201707;
+	t=1566538367; bh=z02FCq36ZOlybuIQo9saHjlkCOE1r+GbTnZ2u8ZYozQ=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=J/JhSKyJna3dO+hzVwvKqr555OfMsYkSc6rEU4HDI6t7UXTZHTXFw0kUqNtRyy1fT
+	 XZyG/guq1JZXAD1JYZyREjzSKwT6GNg2EdxDMBXY+ve7kgOG8szGrIaMMU/8EKCnyd
+	 aqmdM2IfW0NRJlzhmm0iNJfc2uKXKdhv4xxiOzyxO5RBad4beOWcisAo4QRjQvL3uZ
+	 L08pjXagLF/YR+8V5WEbqt0bH/8AvagOKgWfNO33k8vwEm3ehMt6BldhXCpwlAKll+
+	 Swt7Wc9SWo0muhF2IbJRhtyIOpv1eFZ2DG4ba8glK3yeGGJCS6v7LuIh+B0hvTl8zy
+	 vgO9sc3zYRUcA==
+Date: Fri, 23 Aug 2019 14:17:47 +1000
+From: Paul Mackerras <paulus@ozlabs.org>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org,
+	linux-mm@kvack.org, paulus@au1.ibm.com,
+	aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
+	linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+	cclaudio@linux.ibm.com, hch@lst.de
+Subject: Re: [PATCH v7 0/7] KVMPPC driver to manage secure guest pages
+Message-ID: <20190823041747.ctquda5uwvy2eiqz@oak.ozlabs.ibm.com>
+References: <20190822102620.21897-1-bharata@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-23_01:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908230058
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190822102620.21897-1-bharata@linux.ibm.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As 4k pages check was removed from cpa [1], set_kernel_text_rw() leads to
-split_large_page() for all kernel text pages. This means a single kprobe
-will put all kernel text in 4k pages:
+On Thu, Aug 22, 2019 at 03:56:13PM +0530, Bharata B Rao wrote:
+> Hi,
+> 
+> A pseries guest can be run as a secure guest on Ultravisor-enabled
+> POWER platforms. On such platforms, this driver will be used to manage
+> the movement of guest pages between the normal memory managed by
+> hypervisor(HV) and secure memory managed by Ultravisor(UV).
+> 
+> Private ZONE_DEVICE memory equal to the amount of secure memory
+> available in the platform for running secure guests is created.
+> Whenever a page belonging to the guest becomes secure, a page from
+> this private device memory is used to represent and track that secure
+> page on the HV side. The movement of pages between normal and secure
+> memory is done via migrate_vma_pages(). The reverse movement is driven
+> via pagemap_ops.migrate_to_ram().
+> 
+> The page-in or page-out requests from UV will come to HV as hcalls and
+> HV will call back into UV via uvcalls to satisfy these page requests.
+> 
+> These patches are against hmm.git
+> (https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=hmm)
+> 
+> plus
+> 
+> Claudio Carvalho's base ultravisor enablement patchset v6
+> (https://lore.kernel.org/linuxppc-dev/20190822034838.27876-1-cclaudio@linux.ibm.com/T/#t)
 
-  root@ ~# grep ffff81000000- /sys/kernel/debug/page_tables/kernel
-  0xffffffff81000000-0xffffffff82400000     20M  ro    PSE      x  pmd
+How are you thinking these patches will go upstream?  Are you going to
+send them via the hmm tree?
 
-  root@ ~# echo ONE_KPROBE >> /sys/kernel/debug/tracing/kprobe_events
-  root@ ~# echo 1 > /sys/kernel/debug/tracing/events/kprobes/enable
+I assume you need Claudio's patchset as a prerequisite for your series
+to compile, which means the hmm maintainers would need to pull in a
+topic branch from Michael Ellerman's powerpc tree, or something like
+that.
 
-  root@ ~# grep ffff81000000- /sys/kernel/debug/page_tables/kernel
-  0xffffffff81000000-0xffffffff82400000     20M  ro             x  pte
-
-To fix this issue, introduce CPA_FLIP_TEXT_RW to bypass "Text RO" check
-in static_protections().
-
-Two helper functions set_text_rw() and set_text_ro() are added to flip
-_PAGE_RW bit for kernel text.
-
-[1] commit 585948f4f695 ("x86/mm/cpa: Avoid the 4k pages check completely")
-
-Fixes: 585948f4f695 ("x86/mm/cpa: Avoid the 4k pages check completely")
-Cc: stable@vger.kernel.org  # v4.20+
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Signed-off-by: Song Liu <songliubraving@fb.com>
----
- arch/x86/mm/init_64.c     |  4 ++--
- arch/x86/mm/mm_internal.h |  4 ++++
- arch/x86/mm/pageattr.c    | 34 +++++++++++++++++++++++++---------
- 3 files changed, 31 insertions(+), 11 deletions(-)
-
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a6b5c653727b..5745fdcc429e 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1276,7 +1276,7 @@ void set_kernel_text_rw(void)
- 	 * mapping will always be RO. Refer to the comment in
- 	 * static_protections() in pageattr.c
- 	 */
--	set_memory_rw(start, (end - start) >> PAGE_SHIFT);
-+	set_text_rw(start, (end - start) >> PAGE_SHIFT);
- }
- 
- void set_kernel_text_ro(void)
-@@ -1293,7 +1293,7 @@ void set_kernel_text_ro(void)
- 	/*
- 	 * Set the kernel identity mapping for text RO.
- 	 */
--	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
-+	set_text_ro(start, (end - start) >> PAGE_SHIFT);
- }
- 
- void mark_rodata_ro(void)
-diff --git a/arch/x86/mm/mm_internal.h b/arch/x86/mm/mm_internal.h
-index eeae142062ed..65b84b471770 100644
---- a/arch/x86/mm/mm_internal.h
-+++ b/arch/x86/mm/mm_internal.h
-@@ -24,4 +24,8 @@ void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache);
- 
- extern unsigned long tlb_single_page_flush_ceiling;
- 
-+int set_text_rw(unsigned long addr, int numpages);
-+
-+int set_text_ro(unsigned long addr, int numpages);
-+
- #endif	/* __X86_MM_INTERNAL_H */
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 6a9a77a403c9..44a885df776d 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -66,6 +66,7 @@ static DEFINE_SPINLOCK(cpa_lock);
- #define CPA_ARRAY 2
- #define CPA_PAGES_ARRAY 4
- #define CPA_NO_CHECK_ALIAS 8 /* Do not search for aliases */
-+#define CPA_FLIP_TEXT_RW 0x10 /* allow flip _PAGE_RW for kernel text */
- 
- #ifdef CONFIG_PROC_FS
- static unsigned long direct_pages_count[PG_LEVEL_NUM];
-@@ -516,7 +517,7 @@ static inline void check_conflict(int warnlvl, pgprot_t prot, pgprotval_t val,
-  */
- static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
- 					  unsigned long pfn, unsigned long npg,
--					  int warnlvl)
-+					  int warnlvl, unsigned int cpa_flags)
- {
- 	pgprotval_t forbidden, res;
- 	unsigned long end;
-@@ -535,9 +536,11 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
- 	check_conflict(warnlvl, prot, res, start, end, pfn, "Text NX");
- 	forbidden = res;
- 
--	res = protect_kernel_text_ro(start, end);
--	check_conflict(warnlvl, prot, res, start, end, pfn, "Text RO");
--	forbidden |= res;
-+	if (!(cpa_flags & CPA_FLIP_TEXT_RW)) {
-+		res = protect_kernel_text_ro(start, end);
-+		check_conflict(warnlvl, prot, res, start, end, pfn, "Text RO");
-+		forbidden |= res;
-+	}
- 
- 	/* Check the PFN directly */
- 	res = protect_pci_bios(pfn, pfn + npg - 1);
-@@ -819,7 +822,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
- 	 * extra conditional required here.
- 	 */
- 	chk_prot = static_protections(old_prot, lpaddr, old_pfn, numpages,
--				      CPA_CONFLICT);
-+				      CPA_CONFLICT, cpa->flags);
- 
- 	if (WARN_ON_ONCE(pgprot_val(chk_prot) != pgprot_val(old_prot))) {
- 		/*
-@@ -855,7 +858,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
- 	 * protection requirement in the large page.
- 	 */
- 	new_prot = static_protections(req_prot, lpaddr, old_pfn, numpages,
--				      CPA_DETECT);
-+				      CPA_DETECT, cpa->flags);
- 
- 	/*
- 	 * If there is a conflict, split the large page.
-@@ -906,7 +909,7 @@ static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
- 	if (!cpa->force_static_prot)
- 		goto set;
- 
--	prot = static_protections(ref_prot, address, pfn, npg, CPA_PROTECT);
-+	prot = static_protections(ref_prot, address, pfn, npg, CPA_PROTECT, 0);
- 
- 	if (pgprot_val(prot) == pgprot_val(ref_prot))
- 		goto set;
-@@ -1504,7 +1507,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
- 
- 		cpa_inc_4k_install();
- 		new_prot = static_protections(new_prot, address, pfn, 1,
--					      CPA_PROTECT);
-+					      CPA_PROTECT, 0);
- 
- 		new_prot = pgprot_clear_protnone_bits(new_prot);
- 
-@@ -1707,7 +1710,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
- 	cpa.curpage = 0;
- 	cpa.force_split = force_split;
- 
--	if (in_flag & (CPA_ARRAY | CPA_PAGES_ARRAY))
-+	if (in_flag & (CPA_ARRAY | CPA_PAGES_ARRAY | CPA_FLIP_TEXT_RW))
- 		cpa.flags |= in_flag;
- 
- 	/* No alias checking for _NX bit modifications */
-@@ -1983,11 +1986,24 @@ int set_memory_ro(unsigned long addr, int numpages)
- 	return change_page_attr_clear(&addr, numpages, __pgprot(_PAGE_RW), 0);
- }
- 
-+int set_text_ro(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set_clr(&addr, numpages, __pgprot(0),
-+					__pgprot(_PAGE_RW), 0, CPA_FLIP_TEXT_RW,
-+					NULL);
-+}
-+
- int set_memory_rw(unsigned long addr, int numpages)
- {
- 	return change_page_attr_set(&addr, numpages, __pgprot(_PAGE_RW), 0);
- }
- 
-+int set_text_rw(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set_clr(&addr, numpages, __pgprot(_PAGE_RW),
-+					__pgprot(0), 0, CPA_FLIP_TEXT_RW, NULL);
-+}
-+
- int set_memory_np(unsigned long addr, int numpages)
- {
- 	return change_page_attr_clear(&addr, numpages, __pgprot(_PAGE_PRESENT), 0);
--- 
-2.17.1
-
+Paul.
 
