@@ -6,90 +6,90 @@ X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 585B1C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:02:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AEF25C3A5A2
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:06:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1640921848
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:02:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6CC3521848
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:06:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZjSOzcnG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1640921848
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pLeDF2JR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CC3521848
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0F586B049A; Fri, 23 Aug 2019 10:02:49 -0400 (EDT)
+	id 0BCB06B049C; Fri, 23 Aug 2019 10:06:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 997CB6B049B; Fri, 23 Aug 2019 10:02:49 -0400 (EDT)
+	id 06D9A6B049D; Fri, 23 Aug 2019 10:06:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 839456B049C; Fri, 23 Aug 2019 10:02:49 -0400 (EDT)
+	id E77AE6B049E; Fri, 23 Aug 2019 10:06:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0236.hostedemail.com [216.40.44.236])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC1D6B049A
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 10:02:49 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 0481982437D2
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:02:49 +0000 (UTC)
-X-FDA: 75853858458.13.need85_8cf0a28fa1d13
-X-HE-Tag: need85_8cf0a28fa1d13
-X-Filterd-Recvd-Size: 4163
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C73DE6B049C
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 10:06:42 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 73E8F52C7
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:06:42 +0000 (UTC)
+X-FDA: 75853868244.07.pull23_1d6b3d095b11e
+X-HE-Tag: pull23_1d6b3d095b11e
+X-Filterd-Recvd-Size: 3740
+Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
 	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:02:48 +0000 (UTC)
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:06:42 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=TlgSQbGZQbJS6HSDwi/9wyBYZmrJdjzuU/XfSgcoVhk=; b=ZjSOzcnGcfW/LTdzeR/cMRrGu
-	hM5Ku9PVLtYuui8pFAfhIb6v0R6YOO5qjsMuw7dvWVbFpD+i5Z5PqZ9ahOHejsSTlE9wrd+apSRUZ
-	1r1B6ol8fjseEyO1nHBCb4O2rZ9vMWpl2zedqIxRFO1cadKFaGAE9Y1lH/npc5yz38/ld/lub0fE/
-	DC9LG7mINAvxT7HwTNVePM1CgJxvR+bPTXgQgq9bjLe4pZylvKfJQBGc0hX4lCccOU3PI2F1F0e6d
-	OWGqm8f1dndYs52YG854QIFZs9ZzNF/Prwi1z8CqHiUww9N5xeH+mB6o5TaLm7HcIvoIVnvkAMFJ0
-	c1zcqv41Q==;
+	 bh=YKuQj4mAn7Ly5b7a4x9QRIt1a/TDbvR4K88H+PiPWaY=; b=pLeDF2JRWvn5cV6HVnEDw3VLF
+	m6eg1WFTuIkTWXy/lA95iK0Ff+Ac3qqG7mLkMqzJnT5sh0kFAMPkyhTnHF0ObSzu5cOOSYXkv4tyS
+	okxtf6Uc8yCdeZ7c236qvdKh/NoFGDK7/Ti7lMgUFd/or3ObdSQstPTL+isWWUyFCgJzKIwdrWHHk
+	uLGRqW0XJlsVnbiO99fDPHpYfC+GXdqwSgf/L2sUCn3oi6eZ3yKbdS/Tkg4RD1eqsMG/kHAbOtFYt
+	0i3/a/MJg+FHF9xSxttoVoi9RtyiTlKVAaynNJpYkhjPA4JQF/8KRtSwV6XEQw2gbS58lOIvz97TV
+	NeA22XXQQ==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1i1A9E-0006Qi-4s; Fri, 23 Aug 2019 14:02:36 +0000
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i1ACp-00023P-9v; Fri, 23 Aug 2019 14:06:19 +0000
 Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(Client did not present a certificate)
-	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 415B1305F65;
-	Fri, 23 Aug 2019 16:02:01 +0200 (CEST)
+	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 6A117307510;
+	Fri, 23 Aug 2019 16:05:43 +0200 (CEST)
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id A4044202245EA; Fri, 23 Aug 2019 16:02:33 +0200 (CEST)
-Date: Fri, 23 Aug 2019 16:02:33 +0200
+	id 99EF9202245FF; Fri, 23 Aug 2019 16:06:15 +0200 (CEST)
+Date: Fri, 23 Aug 2019 16:06:15 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
-	Dave Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v8 11/27] x86/mm: Introduce _PAGE_DIRTY_SW
-Message-ID: <20190823140233.GC2332@hirez.programming.kicks-ass.net>
-References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
- <20190813205225.12032-12-yu-cheng.yu@intel.com>
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH 3/4] kernel.h: Add non_block_start/end()
+Message-ID: <20190823140615.GJ2369@hirez.programming.kicks-ass.net>
+References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
+ <20190820081902.24815-4-daniel.vetter@ffwll.ch>
+ <20190820202440.GH11147@phenom.ffwll.local>
+ <20190822161428.c9e4479207386d34745ea111@linux-foundation.org>
+ <CAKMK7uGw_7uD=wH3bcR9xXSxAcAuYTLOZt3ue4TEvst1D0KzLQ@mail.gmail.com>
+ <20190823121234.GB12968@ziepe.ca>
+ <CAKMK7uHzSkd2j4MvSMoHhCaSE0BT0zMo9osF4FUBYwNZrVfYDA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190813205225.12032-12-yu-cheng.yu@intel.com>
+In-Reply-To: <CAKMK7uHzSkd2j4MvSMoHhCaSE0BT0zMo9osF4FUBYwNZrVfYDA@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -97,32 +97,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 01:52:09PM -0700, Yu-cheng Yu wrote:
+On Fri, Aug 23, 2019 at 03:42:47PM +0200, Daniel Vetter wrote:
+> I'm assuming the lockdep one will land, so not going to resend that.
 
-> +static inline pte_t pte_move_flags(pte_t pte, pteval_t from, pteval_t to)
-> +{
-> +	if (pte_flags(pte) & from)
-> +		pte = pte_set_flags(pte_clear_flags(pte, from), to);
-> +	return pte;
-> +}
-
-Aside of the whole conditional thing (I agree it would be better to have
-this unconditionally); the function doesn't really do as advertised.
-
-That is, if @from is clear, it doesn't endeavour to make sure @to is
-also clear.
-
-Now it might be sufficient, but in that case it really needs a comment
-and or different name.
-
-An implementation that actually moves the bit is something like:
-
-	pteval_t a,b;
-
-	a = native_pte_value(pte);
-	b = (a >> from_bit) & 1;
-	a &= ~((1ULL << from_bit) | (1ULL << to_bit));
-	a |= b << to_bit;
-	return make_native_pte(a);
-
+I was assuming you'd wake the might_lock_nested() along with the i915
+user through the i915/drm tree. If want me to take some or all of that,
+lemme know.
 
