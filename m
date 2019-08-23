@@ -2,154 +2,113 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB700C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:18:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F5EBC3A5A2
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:36:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B6E3206B7
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:18:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B6E3206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2076021019
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:36:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2076021019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 196E36B04A4; Fri, 23 Aug 2019 11:18:30 -0400 (EDT)
+	id AD8196B04A6; Fri, 23 Aug 2019 11:36:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 148BF6B04A5; Fri, 23 Aug 2019 11:18:30 -0400 (EDT)
+	id A891E6B04A7; Fri, 23 Aug 2019 11:36:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05E646B04A6; Fri, 23 Aug 2019 11:18:30 -0400 (EDT)
+	id 99EFB6B04A8; Fri, 23 Aug 2019 11:36:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0006.hostedemail.com [216.40.44.6])
-	by kanga.kvack.org (Postfix) with ESMTP id D834C6B04A4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:18:29 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 99BB9181AC9B4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:18:29 +0000 (UTC)
-X-FDA: 75854049138.22.foot52_4a080d1ee7300
-X-HE-Tag: foot52_4a080d1ee7300
-X-Filterd-Recvd-Size: 4856
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:18:28 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2AB713090FD6;
-	Fri, 23 Aug 2019 15:18:27 +0000 (UTC)
-Received: from horse.redhat.com (unknown [10.18.25.158])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E2CAF6A50D;
-	Fri, 23 Aug 2019 15:18:26 +0000 (UTC)
-Received: by horse.redhat.com (Postfix, from userid 10451)
-	id 72B0C223CFC; Fri, 23 Aug 2019 11:18:26 -0400 (EDT)
-Date: Fri, 23 Aug 2019 11:18:26 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-To: ira.weiny@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>,
-	linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Jason Gunthorpe <jgg@ziepe.ca>, linux-fsdevel@vger.kernel.org,
-	Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 06/19] fs/ext4: Teach dax_layout_busy_page() to
- operate on a sub-range
-Message-ID: <20190823151826.GB11009@redhat.com>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-7-ira.weiny@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0175.hostedemail.com [216.40.44.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 793236B04A6
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:36:11 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 3FE39824CA3F
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:36:11 +0000 (UTC)
+X-FDA: 75854093742.28.rat02_52cb34606515d
+X-HE-Tag: rat02_52cb34606515d
+X-Filterd-Recvd-Size: 3776
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:36:08 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B44D528;
+	Fri, 23 Aug 2019 08:36:07 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 94E0B3F246;
+	Fri, 23 Aug 2019 08:36:06 -0700 (PDT)
+Subject: Re: cleanup the walk_page_range interface
+To: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+ Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>,
+ =?UTF-8?Q?Thomas_Hellstr=c3=b6m?= <thomas@shipmail.org>,
+ Jerome Glisse <jglisse@redhat.com>, Linux-MM <linux-mm@kvack.org>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+References: <20190808154240.9384-1-hch@lst.de>
+ <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+ <20190816062751.GA16169@infradead.org> <20190823134308.GH12847@mellanox.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <ad8179e2-f404-1e48-e366-fcd1f139a202@arm.com>
+Date: Fri, 23 Aug 2019 16:36:05 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190809225833.6657-7-ira.weiny@intel.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 23 Aug 2019 15:18:27 +0000 (UTC)
+In-Reply-To: <20190823134308.GH12847@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 09, 2019 at 03:58:20PM -0700, ira.weiny@intel.com wrote:
-> From: Ira Weiny <ira.weiny@intel.com>
+On 23/08/2019 14:43, Jason Gunthorpe wrote:
+> On Thu, Aug 15, 2019 at 11:27:51PM -0700, Christoph Hellwig wrote:
+>> On Thu, Aug 08, 2019 at 10:50:37AM -0700, Linus Torvalds wrote:
+>>> On Thu, Aug 8, 2019 at 8:42 AM Christoph Hellwig <hch@lst.de> wrote:
+>>>>
+>>>> this series is based on a patch from Linus to split the callbacks
+>>>> passed to walk_page_range and walk_page_vma into a separate structure
+>>>> that can be marked const, with various cleanups from me on top.
+>>>
+>>> The whole series looks good to me. Ack.
+>>>
+>>>> Note that both Thomas and Steven have series touching this area pending,
+>>>> and there are a couple consumer in flux too - the hmm tree already
+>>>> conflicts with this series, and I have potential dma changes on top of
+>>>> the consumers in Thomas and Steven's series, so we'll probably need a
+>>>> git tree similar to the hmm one to synchronize these updates.
+>>>
+>>> I'd be willing to just merge this now, if that helps. The conversion
+>>> is mechanical, and my only slight worry would be that at least for my
+>>> original patch I didn't build-test the (few) non-x86
+>>> architecture-specific cases. But I did end up looking at them fairly
+>>> closely  (basically using some grep/sed scripts to see that the
+>>> conversions I did matched the same patterns). And your changes look
+>>> like obvious improvements too where any mistake would have been caught
+>>> by the compiler.
+>>>
+>>> So I'm not all that worried from a functionality standpoint, and if
+>>> this will help the next merge window, I'll happily pull now.
+>>
+>> So what is the plan forward?  Probably a little late for 5.3,
+>> so queue it up in -mm for 5.4 and deal with the conflicts in at least
+>> hmm?  Queue it up in the hmm tree even if it doesn't 100% fit?
 > 
-> Callers of dax_layout_busy_page() are only rarely operating on the
-> entire file of concern.
-> 
-> Teach dax_layout_busy_page() to operate on a sub-range of the
-> address_space provided.  Specifying 0 - ULONG_MAX however, will continue
-> to operate on the "entire file" and XFS is split out to a separate patch
-> by this method.
-> 
-> This could potentially speed up dax_layout_busy_page() as well.
+> Did we make a decision on this? Due to travel & LPC I'd like to
+> finalize the hmm tree next week.
 
-I need this functionality as well for virtio_fs and posted a patch for
-this.
+I was planning on rebasing my series on this and posting it for 5.4 - I
+hadn't actually realised this hasn't been picked up yet. I haven't had
+much time to look at this recently.
 
-https://lkml.org/lkml/2019/8/21/825
+FWIW you can add for the series:
 
-Given this is an optimization which existing users can benefit from already,
-this patch could probably be pushed upstream independently.
+Acked-by: Steven Price <steven.price@arm.com>
 
-> 
-> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> 
-> ---
-> Changes from RFC v1
-> 	Fix 0-day build errors
-> 
->  fs/dax.c            | 15 +++++++++++----
->  fs/ext4/ext4.h      |  2 +-
->  fs/ext4/extents.c   |  6 +++---
->  fs/ext4/inode.c     | 19 ++++++++++++-------
->  fs/xfs/xfs_file.c   |  3 ++-
->  include/linux/dax.h |  6 ++++--
->  6 files changed, 33 insertions(+), 18 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index a14ec32255d8..3ad19c384454 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -573,8 +573,11 @@ bool dax_mapping_is_dax(struct address_space *mapping)
->  EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
->  
->  /**
-> - * dax_layout_busy_page - find first pinned page in @mapping
-> + * dax_layout_busy_page - find first pinned page in @mapping within
-> + *                        the range @off - @off + @len
->   * @mapping: address space to scan for a page with ref count > 1
-> + * @off: offset to start at
-> + * @len: length to scan through
->   *
->   * DAX requires ZONE_DEVICE mapped pages. These pages are never
->   * 'onlined' to the page allocator so they are considered idle when
-> @@ -587,9 +590,13 @@ EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
->   * to be able to run unmap_mapping_range() and subsequently not race
->   * mapping_mapped() becoming true.
->   */
-> -struct page *dax_layout_busy_page(struct address_space *mapping)
-> +struct page *dax_layout_busy_page(struct address_space *mapping,
-> +				  loff_t off, loff_t len)
->  {
-> -	XA_STATE(xas, &mapping->i_pages, 0);
-> +	unsigned long start_idx = off >> PAGE_SHIFT;
-> +	unsigned long end_idx = (len == ULONG_MAX) ? ULONG_MAX
-> +				: start_idx + (len >> PAGE_SHIFT);
-> +	XA_STATE(xas, &mapping->i_pages, start_idx);
->  	void *entry;
->  	unsigned int scanned = 0;
->  	struct page *page = NULL;
-> @@ -612,7 +619,7 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
->  	unmap_mapping_range(mapping, 0, 0, 1);
-
-Should we unmap only those pages which fall in the range specified by caller.
-Unmapping whole file seems to be less efficient.
-
-Thanks
-Vivek
+Steve
 
