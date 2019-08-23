@@ -2,105 +2,116 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AEF25C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:06:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB676C3A5A2
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:01:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6CC3521848
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 14:06:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4E0B322CEC
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:01:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pLeDF2JR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CC3521848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ogw5G1a4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E0B322CEC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BCB06B049C; Fri, 23 Aug 2019 10:06:43 -0400 (EDT)
+	id B40C76B049E; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06D9A6B049D; Fri, 23 Aug 2019 10:06:43 -0400 (EDT)
+	id AF11C6B049F; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E77AE6B049E; Fri, 23 Aug 2019 10:06:42 -0400 (EDT)
+	id A08C56B04A0; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C73DE6B049C
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 10:06:42 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 73E8F52C7
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:06:42 +0000 (UTC)
-X-FDA: 75853868244.07.pull23_1d6b3d095b11e
-X-HE-Tag: pull23_1d6b3d095b11e
-X-Filterd-Recvd-Size: 3740
-Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
-	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 14:06:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=YKuQj4mAn7Ly5b7a4x9QRIt1a/TDbvR4K88H+PiPWaY=; b=pLeDF2JRWvn5cV6HVnEDw3VLF
-	m6eg1WFTuIkTWXy/lA95iK0Ff+Ac3qqG7mLkMqzJnT5sh0kFAMPkyhTnHF0ObSzu5cOOSYXkv4tyS
-	okxtf6Uc8yCdeZ7c236qvdKh/NoFGDK7/Ti7lMgUFd/or3ObdSQstPTL+isWWUyFCgJzKIwdrWHHk
-	uLGRqW0XJlsVnbiO99fDPHpYfC+GXdqwSgf/L2sUCn3oi6eZ3yKbdS/Tkg4RD1eqsMG/kHAbOtFYt
-	0i3/a/MJg+FHF9xSxttoVoi9RtyiTlKVAaynNJpYkhjPA4JQF/8KRtSwV6XEQw2gbS58lOIvz97TV
-	NeA22XXQQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1i1ACp-00023P-9v; Fri, 23 Aug 2019 14:06:19 +0000
-Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
+Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F61A6B049E
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 351685C0
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:01:30 +0000 (UTC)
+X-FDA: 75854006340.11.skirt44_4745f24692238
+X-HE-Tag: skirt44_4745f24692238
+X-Filterd-Recvd-Size: 3326
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:01:29 +0000 (UTC)
+Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(Client did not present a certificate)
-	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 6A117307510;
-	Fri, 23 Aug 2019 16:05:43 +0200 (CEST)
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 99EF9202245FF; Fri, 23 Aug 2019 16:06:15 +0200 (CEST)
-Date: Fri, 23 Aug 2019 16:06:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 3/4] kernel.h: Add non_block_start/end()
-Message-ID: <20190823140615.GJ2369@hirez.programming.kicks-ass.net>
-References: <20190820081902.24815-1-daniel.vetter@ffwll.ch>
- <20190820081902.24815-4-daniel.vetter@ffwll.ch>
- <20190820202440.GH11147@phenom.ffwll.local>
- <20190822161428.c9e4479207386d34745ea111@linux-foundation.org>
- <CAKMK7uGw_7uD=wH3bcR9xXSxAcAuYTLOZt3ue4TEvst1D0KzLQ@mail.gmail.com>
- <20190823121234.GB12968@ziepe.ca>
- <CAKMK7uHzSkd2j4MvSMoHhCaSE0BT0zMo9osF4FUBYwNZrVfYDA@mail.gmail.com>
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6EB4320870;
+	Fri, 23 Aug 2019 15:01:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1566572488;
+	bh=VeDXUNhYi4KOLRcPtTimB9I/sRPTZn6cLXwdsKfPAoM=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=ogw5G1a4JKEhadQ4VXMl8TD9pUVeCpgRlOTMDgBEM80gSNPg9C9ilMz662jfrrP1D
+	 C0Ht4swy/wJGr0TqI3JQy1vqynpRHpPFJGNGSigNYfrwVf14YBKQpVaFkXmW8Hu0AX
+	 lQ2Ehl2PfHVZv6NukNtD+6USjCHPjarbfILjbFQU=
+Date: Fri, 23 Aug 2019 16:01:23 +0100
+From: Will Deacon <will@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, linux-doc@vger.kernel.org,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Dave P Martin <Dave.Martin@arm.com>
+Subject: Re: [PATCH v8 1/5] mm: untag user pointers in mmap/munmap/mremap/brk
+Message-ID: <20190823150123.okjow4g3mt2znz7c@willie-the-truck>
+References: <20190815154403.16473-1-catalin.marinas@arm.com>
+ <20190815154403.16473-2-catalin.marinas@arm.com>
+ <20190819162851.tncj4wpwf625ofg6@willie-the-truck>
+ <20190822164125.acfb97de912996b2b9127c61@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKMK7uHzSkd2j4MvSMoHhCaSE0BT0zMo9osF4FUBYwNZrVfYDA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190822164125.acfb97de912996b2b9127c61@linux-foundation.org>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 23, 2019 at 03:42:47PM +0200, Daniel Vetter wrote:
-> I'm assuming the lockdep one will land, so not going to resend that.
+On Thu, Aug 22, 2019 at 04:41:25PM -0700, Andrew Morton wrote:
+> On Mon, 19 Aug 2019 17:28:51 +0100 Will Deacon <will@kernel.org> wrote:
+> 
+> > On Thu, Aug 15, 2019 at 04:43:59PM +0100, Catalin Marinas wrote:
+> > > There isn't a good reason to differentiate between the user address
+> > > space layout modification syscalls and the other memory
+> > > permission/attributes ones (e.g. mprotect, madvise) w.r.t. the tagged
+> > > address ABI. Untag the user addresses on entry to these functions.
+> > > 
+> > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > ---
+> > >  mm/mmap.c   | 5 +++++
+> > >  mm/mremap.c | 6 +-----
+> > >  2 files changed, 6 insertions(+), 5 deletions(-)
+> > 
+> > Acked-by: Will Deacon <will@kernel.org>
+> > 
+> > Andrew -- please can you pick this patch up? I'll take the rest of the
+> > series via arm64 once we've finished discussing the wording details.
+> > 
+> 
+> Sure, I grabbed the patch from the v9 series.
 
-I was assuming you'd wake the might_lock_nested() along with the i915
-user through the i915/drm tree. If want me to take some or all of that,
-lemme know.
+Thanks, Andrew.
+
+> But please feel free to include this in the arm64 tree - I'll autodrop
+> my copy if this turns up in linux-next.
+
+I'd prefer for this one to go via you so that it can sit with the rest of
+the core changes relating to tagged addresses. Obviously please yell if
+you run into any issues with it!
+
+Cheers,
+
+Will
 
