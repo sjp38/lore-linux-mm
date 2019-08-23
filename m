@@ -2,116 +2,193 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB676C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:01:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E15EC3A5A3
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:02:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E0B322CEC
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:01:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ogw5G1a4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E0B322CEC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 3FFA42339D
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 15:02:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FFA42339D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B40C76B049E; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
+	id D3C4F6B049F; Fri, 23 Aug 2019 11:02:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF11C6B049F; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
+	id CC5D96B04A1; Fri, 23 Aug 2019 11:02:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A08C56B04A0; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
+	id BB4296B04A2; Fri, 23 Aug 2019 11:02:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F61A6B049E
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:01:30 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 351685C0
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:01:30 +0000 (UTC)
-X-FDA: 75854006340.11.skirt44_4745f24692238
-X-HE-Tag: skirt44_4745f24692238
-X-Filterd-Recvd-Size: 3326
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:01:29 +0000 (UTC)
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6EB4320870;
-	Fri, 23 Aug 2019 15:01:26 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566572488;
-	bh=VeDXUNhYi4KOLRcPtTimB9I/sRPTZn6cLXwdsKfPAoM=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=ogw5G1a4JKEhadQ4VXMl8TD9pUVeCpgRlOTMDgBEM80gSNPg9C9ilMz662jfrrP1D
-	 C0Ht4swy/wJGr0TqI3JQy1vqynpRHpPFJGNGSigNYfrwVf14YBKQpVaFkXmW8Hu0AX
-	 lQ2Ehl2PfHVZv6NukNtD+6USjCHPjarbfILjbFQU=
-Date: Fri, 23 Aug 2019 16:01:23 +0100
-From: Will Deacon <will@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-doc@vger.kernel.org,
-	Szabolcs Nagy <szabolcs.nagy@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Dave P Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v8 1/5] mm: untag user pointers in mmap/munmap/mremap/brk
-Message-ID: <20190823150123.okjow4g3mt2znz7c@willie-the-truck>
-References: <20190815154403.16473-1-catalin.marinas@arm.com>
- <20190815154403.16473-2-catalin.marinas@arm.com>
- <20190819162851.tncj4wpwf625ofg6@willie-the-truck>
- <20190822164125.acfb97de912996b2b9127c61@linux-foundation.org>
+Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
+	by kanga.kvack.org (Postfix) with ESMTP id 921A76B049F
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 11:02:31 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 44856180AD7C1
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:02:31 +0000 (UTC)
+X-FDA: 75854008902.19.pipe90_501df4a8a3e4b
+X-HE-Tag: pipe90_501df4a8a3e4b
+X-Filterd-Recvd-Size: 8297
+Received: from mga01.intel.com (mga01.intel.com [192.55.52.88])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 15:02:30 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Aug 2019 08:02:28 -0700
+X-IronPort-AV: E=Sophos;i="5.64,421,1559545200"; 
+   d="scan'208";a="263214565"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga001-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Aug 2019 08:02:28 -0700
+Message-ID: <5518aac16a38577cd868526b2e2d79036612832d.camel@linux.intel.com>
+Subject: Re: [PATCH v6 0/6] mm / virtio: Provide support for unused page
+ reporting
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com, 
+ kvm@vger.kernel.org, mst@redhat.com, david@redhat.com, dave hansen
+ <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, willy@infradead.org,
+  mhocko@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, 
+ virtio-dev@lists.oasis-open.org, osalvador@suse.de, yang zhang wz
+ <yang.zhang.wz@gmail.com>, riel@surriel.com, konrad wilk
+ <konrad.wilk@oracle.com>,  lcapitulino@redhat.com, wei w wang
+ <wei.w.wang@intel.com>, aarcange@redhat.com,  pbonzini@redhat.com, dan j
+ williams <dan.j.williams@intel.com>
+Date: Fri, 23 Aug 2019 08:02:28 -0700
+In-Reply-To: <860165703.10076075.1566537394212.JavaMail.zimbra@redhat.com>
+References: <20190821145806.20926.22448.stgit@localhost.localdomain>
+	 <1297409377.9866813.1566470593223.JavaMail.zimbra@redhat.com>
+	 <31b75078d004a1ccf77b710b35b8f847f404de9a.camel@linux.intel.com>
+	 <860165703.10076075.1566537394212.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190822164125.acfb97de912996b2b9127c61@linux-foundation.org>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 22, 2019 at 04:41:25PM -0700, Andrew Morton wrote:
-> On Mon, 19 Aug 2019 17:28:51 +0100 Will Deacon <will@kernel.org> wrote:
-> 
-> > On Thu, Aug 15, 2019 at 04:43:59PM +0100, Catalin Marinas wrote:
-> > > There isn't a good reason to differentiate between the user address
-> > > space layout modification syscalls and the other memory
-> > > permission/attributes ones (e.g. mprotect, madvise) w.r.t. the tagged
-> > > address ABI. Untag the user addresses on entry to these functions.
+On Fri, 2019-08-23 at 01:16 -0400, Pankaj Gupta wrote:
+> > On Thu, 2019-08-22 at 06:43 -0400, Pankaj Gupta wrote:
+> > > > This series provides an asynchronous means of reporting to a hypervisor
+> > > > that a guest page is no longer in use and can have the data associated
+> > > > with it dropped. To do this I have implemented functionality that allows
+> > > > for what I am referring to as unused page reporting
+> > > > 
+> > > > The functionality for this is fairly simple. When enabled it will
+> > > > allocate
+> > > > statistics to track the number of reported pages in a given free area.
+> > > > When the number of free pages exceeds this value plus a high water value,
+> > > > currently 32, it will begin performing page reporting which consists of
+> > > > pulling pages off of free list and placing them into a scatter list. The
+> > > > scatterlist is then given to the page reporting device and it will
+> > > > perform
+> > > > the required action to make the pages "reported", in the case of
+> > > > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+> > > > and as such they are forced out of the guest. After this they are placed
+> > > > back on the free list, and an additional bit is added if they are not
+> > > > merged indicating that they are a reported buddy page instead of a
+> > > > standard buddy page. The cycle then repeats with additional non-reported
+> > > > pages being pulled until the free areas all consist of reported pages.
+> > > > 
+> > > > I am leaving a number of things hard-coded such as limiting the lowest
+> > > > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
+> > > > determine what the limit is on how many pages it wants to allocate to
+> > > > process the hints. The upper limit for this is based on the size of the
+> > > > queue used to store the scattergather list.
+> > > > 
+> > > > My primary testing has just been to verify the memory is being freed
+> > > > after
+> > > > allocation by running memhog 40g on a 40g guest and watching the total
+> > > > free memory via /proc/meminfo on the host. With this I have verified most
+> > > > of the memory is freed after each iteration.
 > > > 
-> > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> > > ---
-> > >  mm/mmap.c   | 5 +++++
-> > >  mm/mremap.c | 6 +-----
-> > >  2 files changed, 6 insertions(+), 5 deletions(-)
+> > > I tried to go through the entire patch series. I can see you reported a
+> > > -3.27 drop from the baseline. If its because of re-faulting the page after
+> > > host has freed them? Can we avoid freeing all the pages from the guest
+> > > free_area
+> > > and keep some pages(maybe some mixed order), so that next allocation is
+> > > done from
+> > > the guest itself than faulting to host. This will work with real workload
+> > > where
+> > > allocation and deallocation happen at regular intervals.
+> > > 
+> > > This can be further optimized based on other factors like host memory
+> > > pressure etc.
+> > > 
+> > > Thanks,
+> > > Pankaj
 > > 
-> > Acked-by: Will Deacon <will@kernel.org>
+> > When I originally started implementing and testing this code I was seeing
+> > less than a 1% regression. I didn't feel like that was really an accurate
+> > result since it wasn't putting much stress on the changed code so I have
+> > modified my tests and kernel so that I have memory shuffting and THP
+> > enabled. In addition I have gone out of my way to lock things down to a
+> > single NUMA node on my host system as the code I had would sometimes
+> > perform better than baseline when running the test due to the fact that
+> > memory was being freed back to the hose and then reallocated which
+> > actually allowed for better NUMA locality.
 > > 
-> > Andrew -- please can you pick this patch up? I'll take the rest of the
-> > series via arm64 once we've finished discussing the wording details.
-> > 
+> > The general idea was I wanted to know what the worst case penalty would be
+> > for running this code, and it turns out most of that is just the cost of
+> > faulting back in the pages. By enabling memory shuffling I am forcing the
+> > memory to churn as pages are added to both the head and tail of the
+> > free_list. The test itself was modified so that it didn't allocate order 0
+> > pages and instead was allocating transparent huge pages so the effects
+> > were as visible as possible. Without that the page faulting overhead would
+> > mostly fall into the noise of having to allocate the memory as order 0
+> > pages, that is what I had essentially seen earlier when I was running the
+> > stock page_fault1 test.
 > 
-> Sure, I grabbed the patch from the v9 series.
+> Right. I think the reason is this test is allocating THP's in guest, host side
+> you are still using order 0 pages, I assume?
 
-Thanks, Andrew.
+No, on host side they should be huge pages as well. Most of the cost for
+the fault is the page zeroing I believe since we are having to zero a 2MB
+page twice, once in the host and once in the guest.
 
-> But please feel free to include this in the arm64 tree - I'll autodrop
-> my copy if this turns up in linux-next.
+Basically if I disable THP in the guest the results are roughly half what
+they are with THP enabled, and the difference between the patchset and
+baseline drops to less than 1%.
 
-I'd prefer for this one to go via you so that it can sit with the rest of
-the core changes relating to tagged addresses. Obviously please yell if
-you run into any issues with it!
+> > This code does no hinting on anything smaller than either MAX_ORDER - 1 or
+> > HUGETLB_PAGE_ORDER pages, and it only starts when there are at least 32 of
+> > them available to hint on. This results in us not starting to perform the
+> > hinting until there is 64MB to 128MB of memory sitting in the higher order
+> > regions of the zone.
+> 
+> o.k
+> 
+> > The hinting itself stops as soon as we run out of unhinted pages to pull
+> > from. When this occurs we let any pages that are freed after that
+> > accumulate until we get back to 32 pages being free in a given order.
+> > During this time we should build up the cache of warm pages that you
+> > mentioned, assuming that shuffling is not enabled.
+> 
+> I was thinking about something like retaining pages to a lower watermark here.
+> Looks like we still might have few lower order pages in free list if they are
+> not merged to orders which are hinted. 
 
-Cheers,
+Right. We should have everything below the reporting order untouched and
+as such it will not be faulted. It is only if the page gets merged back up
+to reporting order that we will reported it, and only if we have at least
+32 of them available.
 
-Will
+> > As far as further optimizations I don't think there is anything here that
+> > prevents us from doing that. For now I am focused on just getting the
+> > basics in place so we have a foundation to start from.
+> 
+> Agree. Thanks for explaining.
+> 
+> Best rgards,
+> Pankaj
+
+Thanks.
+
+- Alex
+
 
