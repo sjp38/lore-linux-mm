@@ -2,142 +2,171 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EB99C3A5A4
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 16:37:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D15CFC3A5A2
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 17:15:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03B7021726
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 16:37:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03B7021726
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A366A21019
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 17:15:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A366A21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F7506B04AD; Fri, 23 Aug 2019 12:37:26 -0400 (EDT)
+	id 4003D6B04B0; Fri, 23 Aug 2019 13:15:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1A97D6B04AE; Fri, 23 Aug 2019 12:37:26 -0400 (EDT)
+	id 3B0836B04B1; Fri, 23 Aug 2019 13:15:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0979D6B04AF; Fri, 23 Aug 2019 12:37:26 -0400 (EDT)
+	id 277B16B04B2; Fri, 23 Aug 2019 13:15:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0029.hostedemail.com [216.40.44.29])
-	by kanga.kvack.org (Postfix) with ESMTP id DFCB06B04AD
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 12:37:25 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id A01E952A6
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 16:37:25 +0000 (UTC)
-X-FDA: 75854248050.11.legs02_23b21bc3cfb63
-X-HE-Tag: legs02_23b21bc3cfb63
-X-Filterd-Recvd-Size: 4612
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 16:37:25 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 44B021570;
-	Fri, 23 Aug 2019 09:37:24 -0700 (PDT)
-Received: from arrakis.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 75CAC3F246;
-	Fri, 23 Aug 2019 09:37:22 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: linux-arm-kernel@lists.infradead.org,
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id F418F6B04B0
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 13:15:11 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 9D708180AD7C3
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 17:15:11 +0000 (UTC)
+X-FDA: 75854343222.05.group80_4a48536867035
+X-HE-Tag: group80_4a48536867035
+X-Filterd-Recvd-Size: 6164
+Received: from mga18.intel.com (mga18.intel.com [134.134.136.126])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 17:15:10 +0000 (UTC)
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Aug 2019 10:15:08 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,422,1559545200"; 
+   d="scan'208";a="180736561"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga007.fm.intel.com with ESMTP; 23 Aug 2019 10:15:07 -0700
+Date: Fri, 23 Aug 2019 10:15:04 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will@kernel.org>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Szabolcs Nagy <szabolcs.nagy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Dave P Martin <Dave.Martin@arm.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	linux-doc@vger.kernel.org,
-	linux-arch@vger.kernel.org,
-	Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v10 1/1] arm64: Relax Documentation/arm64/tagged-pointers.rst
-Date: Fri, 23 Aug 2019 17:37:17 +0100
-Message-Id: <20190823163717.19569-2-catalin.marinas@arm.com>
-X-Mailer: git-send-email 2.23.0.rc0
-In-Reply-To: <20190823163717.19569-1-catalin.marinas@arm.com>
-References: <20190823163717.19569-1-catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190823171504.GA1092@iweiny-DESK2.sc.intel.com>
+References: <20190815130558.GF14313@quack2.suse.cz>
+ <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
+ <20190817022603.GW6129@dread.disaster.area>
+ <20190819063412.GA20455@quack2.suse.cz>
+ <20190819092409.GM7777@dread.disaster.area>
+ <20190819123841.GC5058@ziepe.ca>
+ <20190820011210.GP7777@dread.disaster.area>
+ <20190820115515.GA29246@ziepe.ca>
+ <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
+ <20190823005914.GF1119@dread.disaster.area>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190823005914.GF1119@dread.disaster.area>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+On Fri, Aug 23, 2019 at 10:59:14AM +1000, Dave Chinner wrote:
+> On Wed, Aug 21, 2019 at 11:02:00AM -0700, Ira Weiny wrote:
+> > On Tue, Aug 20, 2019 at 08:55:15AM -0300, Jason Gunthorpe wrote:
+> > > On Tue, Aug 20, 2019 at 11:12:10AM +1000, Dave Chinner wrote:
+> > > > On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
+> > > > > On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
+> > > > > 
+> > > > > > So that leaves just the normal close() syscall exit case, where the
+> > > > > > application has full control of the order in which resources are
+> > > > > > released. We've already established that we can block in this
+> > > > > > context.  Blocking in an interruptible state will allow fatal signal
+> > > > > > delivery to wake us, and then we fall into the
+> > > > > > fatal_signal_pending() case if we get a SIGKILL while blocking.
+> > > > > 
+> > > > > The major problem with RDMA is that it doesn't always wait on close() for the
+> > > > > MR holding the page pins to be destoyed. This is done to avoid a
+> > > > > deadlock of the form:
+> > > > > 
+> > > > >    uverbs_destroy_ufile_hw()
+> > > > >       mutex_lock()
+> > > > >        [..]
+> > > > >         mmput()
+> > > > >          exit_mmap()
+> > > > >           remove_vma()
+> > > > >            fput();
+> > > > >             file_operations->release()
+> > > > 
+> > > > I think this is wrong, and I'm pretty sure it's an example of why
+> > > > the final __fput() call is moved out of line.
+> > > 
+> > > Yes, I think so too, all I can say is this *used* to happen, as we
+> > > have special code avoiding it, which is the code that is messing up
+> > > Ira's lifetime model.
+> > > 
+> > > Ira, you could try unraveling the special locking, that solves your
+> > > lifetime issues?
+> > 
+> > Yes I will try to prove this out...  But I'm still not sure this fully solves
+> > the problem.
+> > 
+> > This only ensures that the process which has the RDMA context (RDMA FD) is safe
+> > with regard to hanging the close for the "data file FD" (the file which has
+> > pinned pages) in that _same_ process.  But what about the scenario.
+> > 
+> > Process A has the RDMA context FD and data file FD (with lease) open.
+> > 
+> > Process A uses SCM_RIGHTS to pass the RDMA context FD to Process B.
+> 
+> Passing the RDMA context dependent on a file layout lease to another
+> process that doesn't have a file layout lease or a reference to the
+> original lease should be considered a violation of the layout lease.
+> Process B does not have an active layout lease, and so by the rules
+> of layout leases, it is not allowed to pin the layout of the file.
+> 
 
-On AArch64 the TCR_EL1.TBI0 bit is set by default, allowing userspace
-(EL0) to perform memory accesses through 64-bit pointers with a non-zero
-top byte. However, such pointers were not allowed at the user-kernel
-syscall ABI boundary.
+I don't disagree with the semantics of this.  I just don't know how to enforce
+it.
 
-With the Tagged Address ABI patchset, it is now possible to pass tagged
-pointers to the syscalls. Relax the requirements described in
-tagged-pointers.rst to be compliant with the behaviours guaranteed by
-the AArch64 Tagged Address ABI.
+> > Process A attempts to exit (hangs because data file FD is pinned).
+> > 
+> > Admin kills process A.  kill works because we have allowed for it...
+> > 
+> > Process B _still_ has the RDMA context FD open _and_ therefore still holds the
+> > file pins.
+> > 
+> > Truncation still fails.
+> > 
+> > Admin does not know which process is holding the pin.
+> > 
+> > What am I missing?
+> 
+> Application does not hold the correct file layout lease references.
+> Passing the fd via SCM_RIGHTS to a process without a layout lease
+> is equivalent to not using layout leases in the first place.
 
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
-Cc: Kevin Brodsky <kevin.brodsky@arm.com>
-Acked-by: Andrey Konovalov <andreyknvl@google.com>
-Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Co-developed-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
- Documentation/arm64/tagged-pointers.rst | 21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
+Ok, So If I understand you correctly you would support a failure of SCM_RIGHTS
+in this case?  I'm ok with that but not sure how to implement it right now.
 
-diff --git a/Documentation/arm64/tagged-pointers.rst b/Documentation/arm6=
-4/tagged-pointers.rst
-index 2acdec3ebbeb..eab4323609b9 100644
---- a/Documentation/arm64/tagged-pointers.rst
-+++ b/Documentation/arm64/tagged-pointers.rst
-@@ -20,7 +20,9 @@ Passing tagged addresses to the kernel
- --------------------------------------
-=20
- All interpretation of userspace memory addresses by the kernel assumes
--an address tag of 0x00.
-+an address tag of 0x00, unless the application enables the AArch64
-+Tagged Address ABI explicitly
-+(Documentation/arm64/tagged-address-abi.rst).
-=20
- This includes, but is not limited to, addresses found in:
-=20
-@@ -33,13 +35,15 @@ This includes, but is not limited to, addresses found=
- in:
-  - the frame pointer (x29) and frame records, e.g. when interpreting
-    them to generate a backtrace or call graph.
-=20
--Using non-zero address tags in any of these locations may result in an
--error code being returned, a (fatal) signal being raised, or other modes
--of failure.
-+Using non-zero address tags in any of these locations when the
-+userspace application did not enable the AArch64 Tagged Address ABI may
-+result in an error code being returned, a (fatal) signal being raised,
-+or other modes of failure.
-=20
--For these reasons, passing non-zero address tags to the kernel via
--system calls is forbidden, and using a non-zero address tag for sp is
--strongly discouraged.
-+For these reasons, when the AArch64 Tagged Address ABI is disabled,
-+passing non-zero address tags to the kernel via system calls is
-+forbidden, and using a non-zero address tag for sp is strongly
-+discouraged.
-=20
- Programs maintaining a frame pointer and frame records that use non-zero
- address tags may suffer impaired or inaccurate debug and profiling
-@@ -59,6 +63,9 @@ be preserved.
- The architecture prevents the use of a tagged PC, so the upper byte will
- be set to a sign-extension of bit 55 on exception return.
-=20
-+This behaviour is maintained when the AArch64 Tagged Address ABI is
-+enabled.
-+
-=20
- Other considerations
- --------------------
+To that end, I would like to simplify this slightly because I'm not convinced
+that SCM_RIGHTS is a problem we need to solve right now.  ie I don't know of a
+user who wants to do this.
+
+Right now duplication via SCM_RIGHTS could fail if _any_ file pins (and by
+definition leases) exist underneath the "RDMA FD" (or other direct access FD,
+like XDP etc) being duplicated.  Later, if this becomes a use case we will need
+to code up the proper checks, potentially within each of the subsystems.  This
+is because, with RDMA at least, there are potentially large numbers of MR's and
+file leases which may have to be checked.
+
+Ira
+
 
