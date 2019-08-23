@@ -2,190 +2,266 @@ Return-Path: <SRS0=7HIe=WT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0B66C3A5A2
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:16:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D047FC3A589
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:24:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8416523400
-	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:16:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8416523400
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 889DC22CEC
+	for <linux-mm@archiver.kernel.org>; Fri, 23 Aug 2019 05:24:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="ctGEYVlW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 889DC22CEC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D3646B037A; Fri, 23 Aug 2019 01:16:39 -0400 (EDT)
+	id 2DF626B037C; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 185E16B037B; Fri, 23 Aug 2019 01:16:39 -0400 (EDT)
+	id 291126B037D; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09A936B037C; Fri, 23 Aug 2019 01:16:39 -0400 (EDT)
+	id 1A78A6B037F; Fri, 23 Aug 2019 01:24:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
-	by kanga.kvack.org (Postfix) with ESMTP id DEB296B037A
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 01:16:38 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0226.hostedemail.com [216.40.44.226])
+	by kanga.kvack.org (Postfix) with ESMTP id ED55D6B037C
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 01:24:13 -0400 (EDT)
 Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 68ED5181AC9AE
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:16:38 +0000 (UTC)
-X-FDA: 75852532476.03.ship29_39df33deebc1a
-X-HE-Tag: ship29_39df33deebc1a
-X-Filterd-Recvd-Size: 7921
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:16:37 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 642043091754;
-	Fri, 23 Aug 2019 05:16:36 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.21])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0F3A510016E9;
-	Fri, 23 Aug 2019 05:16:36 +0000 (UTC)
-Received: from zmail21.collab.prod.int.phx2.redhat.com (zmail21.collab.prod.int.phx2.redhat.com [10.5.83.24])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id C84DB4A460;
-	Fri, 23 Aug 2019 05:16:34 +0000 (UTC)
-Date: Fri, 23 Aug 2019 01:16:34 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com, 
-	kvm@vger.kernel.org, mst@redhat.com, david@redhat.com, 
-	dave hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, 
-	willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org, 
-	akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, 
-	osalvador@suse.de, yang zhang wz <yang.zhang.wz@gmail.com>, 
-	riel@surriel.com, konrad wilk <konrad.wilk@oracle.com>, 
-	lcapitulino@redhat.com, wei w wang <wei.w.wang@intel.com>, 
-	aarcange@redhat.com, pbonzini@redhat.com, 
-	dan j williams <dan.j.williams@intel.com>
-Message-ID: <860165703.10076075.1566537394212.JavaMail.zimbra@redhat.com>
-In-Reply-To: <31b75078d004a1ccf77b710b35b8f847f404de9a.camel@linux.intel.com>
-References: <20190821145806.20926.22448.stgit@localhost.localdomain> <1297409377.9866813.1566470593223.JavaMail.zimbra@redhat.com> <31b75078d004a1ccf77b710b35b8f847f404de9a.camel@linux.intel.com>
-Subject: Re: [PATCH v6 0/6] mm / virtio: Provide support for unused page
- reporting
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8C9BE181AC9B4
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:24:13 +0000 (UTC)
+X-FDA: 75852551586.03.geese68_7c1eb95dcb630
+X-HE-Tag: geese68_7c1eb95dcb630
+X-Filterd-Recvd-Size: 9193
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 05:24:12 +0000 (UTC)
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7N5O7RQ000660
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 22:24:11 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=X5cZafEMOtA9egvlal74E4vlPa7kd0hNN9ns5h5N+qo=;
+ b=ctGEYVlWD8wU9maXCXQcfvBbT8vpAUm1XXo6OdVD8gyR+f6d4RyRLp8JlPq1Y4gaGCTN
+ AOxFtlHkziUfafdHchD7yRhYc/62tmGYzmOCgVDBjsFcnOgSINHtIxET93NPNmUb5TZr
+ NG2/qjY7BZSaUUOIAj7mjO0KQfCUyUWzGm0= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2uj3mhh8hj-6
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Aug 2019 22:24:10 -0700
+Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
+ mail.thefacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Thu, 22 Aug 2019 22:23:56 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id AA25B62E2FD5; Thu, 22 Aug 2019 22:23:50 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
+CC: <kernel-team@fb.com>, Song Liu <songliubraving@fb.com>,
+        <stable@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
+        Dave Hansen
+	<dave.hansen@intel.com>,
+        Peter Zijlstra <peterz@infradead.org>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH] x86/mm: Do not split_large_page() for set_kernel_text_rw()
+Date: Thu, 22 Aug 2019 22:23:35 -0700
+Message-ID: <20190823052335.572133-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.67.116.62, 10.4.195.21]
-Thread-Topic: mm / virtio: Provide support for unused page reporting
-Thread-Index: sTNT+EjyPXY4peHrw8rPQkPz8nPuRw==
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 23 Aug 2019 05:16:36 +0000 (UTC)
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-23_01:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908230058
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+As 4k pages check was removed from cpa [1], set_kernel_text_rw() leads to
+split_large_page() for all kernel text pages. This means a single kprobe
+will put all kernel text in 4k pages:
 
-> On Thu, 2019-08-22 at 06:43 -0400, Pankaj Gupta wrote:
-> > > This series provides an asynchronous means of reporting to a hypervisor
-> > > that a guest page is no longer in use and can have the data associated
-> > > with it dropped. To do this I have implemented functionality that allows
-> > > for what I am referring to as unused page reporting
-> > > 
-> > > The functionality for this is fairly simple. When enabled it will
-> > > allocate
-> > > statistics to track the number of reported pages in a given free area.
-> > > When the number of free pages exceeds this value plus a high water value,
-> > > currently 32, it will begin performing page reporting which consists of
-> > > pulling pages off of free list and placing them into a scatter list. The
-> > > scatterlist is then given to the page reporting device and it will
-> > > perform
-> > > the required action to make the pages "reported", in the case of
-> > > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> > > and as such they are forced out of the guest. After this they are placed
-> > > back on the free list, and an additional bit is added if they are not
-> > > merged indicating that they are a reported buddy page instead of a
-> > > standard buddy page. The cycle then repeats with additional non-reported
-> > > pages being pulled until the free areas all consist of reported pages.
-> > > 
-> > > I am leaving a number of things hard-coded such as limiting the lowest
-> > > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> > > determine what the limit is on how many pages it wants to allocate to
-> > > process the hints. The upper limit for this is based on the size of the
-> > > queue used to store the scattergather list.
-> > > 
-> > > My primary testing has just been to verify the memory is being freed
-> > > after
-> > > allocation by running memhog 40g on a 40g guest and watching the total
-> > > free memory via /proc/meminfo on the host. With this I have verified most
-> > > of the memory is freed after each iteration.
-> > 
-> > I tried to go through the entire patch series. I can see you reported a
-> > -3.27 drop from the baseline. If its because of re-faulting the page after
-> > host has freed them? Can we avoid freeing all the pages from the guest
-> > free_area
-> > and keep some pages(maybe some mixed order), so that next allocation is
-> > done from
-> > the guest itself than faulting to host. This will work with real workload
-> > where
-> > allocation and deallocation happen at regular intervals.
-> > 
-> > This can be further optimized based on other factors like host memory
-> > pressure etc.
-> > 
-> > Thanks,
-> > Pankaj
-> 
-> When I originally started implementing and testing this code I was seeing
-> less than a 1% regression. I didn't feel like that was really an accurate
-> result since it wasn't putting much stress on the changed code so I have
-> modified my tests and kernel so that I have memory shuffting and THP
-> enabled. In addition I have gone out of my way to lock things down to a
-> single NUMA node on my host system as the code I had would sometimes
-> perform better than baseline when running the test due to the fact that
-> memory was being freed back to the hose and then reallocated which
-> actually allowed for better NUMA locality.
-> 
-> The general idea was I wanted to know what the worst case penalty would be
-> for running this code, and it turns out most of that is just the cost of
-> faulting back in the pages. By enabling memory shuffling I am forcing the
-> memory to churn as pages are added to both the head and tail of the
-> free_list. The test itself was modified so that it didn't allocate order 0
-> pages and instead was allocating transparent huge pages so the effects
-> were as visible as possible. Without that the page faulting overhead would
-> mostly fall into the noise of having to allocate the memory as order 0
-> pages, that is what I had essentially seen earlier when I was running the
-> stock page_fault1 test.
+  root@ ~# grep ffff81000000- /sys/kernel/debug/page_tables/kernel
+  0xffffffff81000000-0xffffffff82400000     20M  ro    PSE      x  pmd
 
-Right. I think the reason is this test is allocating THP's in guest, host side
-you are still using order 0 pages, I assume?
+  root@ ~# echo ONE_KPROBE >> /sys/kernel/debug/tracing/kprobe_events
+  root@ ~# echo 1 > /sys/kernel/debug/tracing/events/kprobes/enable
 
-> 
-> This code does no hinting on anything smaller than either MAX_ORDER - 1 or
-> HUGETLB_PAGE_ORDER pages, and it only starts when there are at least 32 of
-> them available to hint on. This results in us not starting to perform the
-> hinting until there is 64MB to 128MB of memory sitting in the higher order
-> regions of the zone.
+  root@ ~# grep ffff81000000- /sys/kernel/debug/page_tables/kernel
+  0xffffffff81000000-0xffffffff82400000     20M  ro             x  pte
 
-o.k
+To fix this issue, introduce CPA_FLIP_TEXT_RW to bypass "Text RO" check
+in static_protections().
 
-> 
-> The hinting itself stops as soon as we run out of unhinted pages to pull
-> from. When this occurs we let any pages that are freed after that
-> accumulate until we get back to 32 pages being free in a given order.
-> During this time we should build up the cache of warm pages that you
-> mentioned, assuming that shuffling is not enabled.
+Two helper functions set_text_rw() and set_text_ro() are added to flip
+_PAGE_RW bit for kernel text.
 
-I was thinking about something like retaining pages to a lower watermark here.
-Looks like we still might have few lower order pages in free list if they are
-not merged to orders which are hinted. 
+[1] commit 585948f4f695 ("x86/mm/cpa: Avoid the 4k pages check completely")
 
-> 
-> As far as further optimizations I don't think there is anything here that
-> prevents us from doing that. For now I am focused on just getting the
-> basics in place so we have a foundation to start from.
+Fixes: 585948f4f695 ("x86/mm/cpa: Avoid the 4k pages check completely")
+Cc: stable@vger.kernel.org  # v4.20+
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Song Liu <songliubraving@fb.com>
+---
+ arch/x86/mm/init_64.c     |  4 ++--
+ arch/x86/mm/mm_internal.h |  4 ++++
+ arch/x86/mm/pageattr.c    | 34 +++++++++++++++++++++++++---------
+ 3 files changed, 31 insertions(+), 11 deletions(-)
 
-Agree. Thanks for explaining.
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index a6b5c653727b..5745fdcc429e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1276,7 +1276,7 @@ void set_kernel_text_rw(void)
+ 	 * mapping will always be RO. Refer to the comment in
+ 	 * static_protections() in pageattr.c
+ 	 */
+-	set_memory_rw(start, (end - start) >> PAGE_SHIFT);
++	set_text_rw(start, (end - start) >> PAGE_SHIFT);
+ }
+ 
+ void set_kernel_text_ro(void)
+@@ -1293,7 +1293,7 @@ void set_kernel_text_ro(void)
+ 	/*
+ 	 * Set the kernel identity mapping for text RO.
+ 	 */
+-	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
++	set_text_ro(start, (end - start) >> PAGE_SHIFT);
+ }
+ 
+ void mark_rodata_ro(void)
+diff --git a/arch/x86/mm/mm_internal.h b/arch/x86/mm/mm_internal.h
+index eeae142062ed..65b84b471770 100644
+--- a/arch/x86/mm/mm_internal.h
++++ b/arch/x86/mm/mm_internal.h
+@@ -24,4 +24,8 @@ void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache);
+ 
+ extern unsigned long tlb_single_page_flush_ceiling;
+ 
++int set_text_rw(unsigned long addr, int numpages);
++
++int set_text_ro(unsigned long addr, int numpages);
++
+ #endif	/* __X86_MM_INTERNAL_H */
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 6a9a77a403c9..44a885df776d 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -66,6 +66,7 @@ static DEFINE_SPINLOCK(cpa_lock);
+ #define CPA_ARRAY 2
+ #define CPA_PAGES_ARRAY 4
+ #define CPA_NO_CHECK_ALIAS 8 /* Do not search for aliases */
++#define CPA_FLIP_TEXT_RW 0x10 /* allow flip _PAGE_RW for kernel text */
+ 
+ #ifdef CONFIG_PROC_FS
+ static unsigned long direct_pages_count[PG_LEVEL_NUM];
+@@ -516,7 +517,7 @@ static inline void check_conflict(int warnlvl, pgprot_t prot, pgprotval_t val,
+  */
+ static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
+ 					  unsigned long pfn, unsigned long npg,
+-					  int warnlvl)
++					  int warnlvl, unsigned int cpa_flags)
+ {
+ 	pgprotval_t forbidden, res;
+ 	unsigned long end;
+@@ -535,9 +536,11 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
+ 	check_conflict(warnlvl, prot, res, start, end, pfn, "Text NX");
+ 	forbidden = res;
+ 
+-	res = protect_kernel_text_ro(start, end);
+-	check_conflict(warnlvl, prot, res, start, end, pfn, "Text RO");
+-	forbidden |= res;
++	if (!(cpa_flags & CPA_FLIP_TEXT_RW)) {
++		res = protect_kernel_text_ro(start, end);
++		check_conflict(warnlvl, prot, res, start, end, pfn, "Text RO");
++		forbidden |= res;
++	}
+ 
+ 	/* Check the PFN directly */
+ 	res = protect_pci_bios(pfn, pfn + npg - 1);
+@@ -819,7 +822,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
+ 	 * extra conditional required here.
+ 	 */
+ 	chk_prot = static_protections(old_prot, lpaddr, old_pfn, numpages,
+-				      CPA_CONFLICT);
++				      CPA_CONFLICT, cpa->flags);
+ 
+ 	if (WARN_ON_ONCE(pgprot_val(chk_prot) != pgprot_val(old_prot))) {
+ 		/*
+@@ -855,7 +858,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
+ 	 * protection requirement in the large page.
+ 	 */
+ 	new_prot = static_protections(req_prot, lpaddr, old_pfn, numpages,
+-				      CPA_DETECT);
++				      CPA_DETECT, cpa->flags);
+ 
+ 	/*
+ 	 * If there is a conflict, split the large page.
+@@ -906,7 +909,7 @@ static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
+ 	if (!cpa->force_static_prot)
+ 		goto set;
+ 
+-	prot = static_protections(ref_prot, address, pfn, npg, CPA_PROTECT);
++	prot = static_protections(ref_prot, address, pfn, npg, CPA_PROTECT, 0);
+ 
+ 	if (pgprot_val(prot) == pgprot_val(ref_prot))
+ 		goto set;
+@@ -1504,7 +1507,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
+ 
+ 		cpa_inc_4k_install();
+ 		new_prot = static_protections(new_prot, address, pfn, 1,
+-					      CPA_PROTECT);
++					      CPA_PROTECT, 0);
+ 
+ 		new_prot = pgprot_clear_protnone_bits(new_prot);
+ 
+@@ -1707,7 +1710,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
+ 	cpa.curpage = 0;
+ 	cpa.force_split = force_split;
+ 
+-	if (in_flag & (CPA_ARRAY | CPA_PAGES_ARRAY))
++	if (in_flag & (CPA_ARRAY | CPA_PAGES_ARRAY | CPA_FLIP_TEXT_RW))
+ 		cpa.flags |= in_flag;
+ 
+ 	/* No alias checking for _NX bit modifications */
+@@ -1983,11 +1986,24 @@ int set_memory_ro(unsigned long addr, int numpages)
+ 	return change_page_attr_clear(&addr, numpages, __pgprot(_PAGE_RW), 0);
+ }
+ 
++int set_text_ro(unsigned long addr, int numpages)
++{
++	return change_page_attr_set_clr(&addr, numpages, __pgprot(0),
++					__pgprot(_PAGE_RW), 0, CPA_FLIP_TEXT_RW,
++					NULL);
++}
++
+ int set_memory_rw(unsigned long addr, int numpages)
+ {
+ 	return change_page_attr_set(&addr, numpages, __pgprot(_PAGE_RW), 0);
+ }
+ 
++int set_text_rw(unsigned long addr, int numpages)
++{
++	return change_page_attr_set_clr(&addr, numpages, __pgprot(_PAGE_RW),
++					__pgprot(0), 0, CPA_FLIP_TEXT_RW, NULL);
++}
++
+ int set_memory_np(unsigned long addr, int numpages)
+ {
+ 	return change_page_attr_clear(&addr, numpages, __pgprot(_PAGE_PRESENT), 0);
+-- 
+2.17.1
 
-Best rgards,
-Pankaj
-
-> 
-> Thanks.
-> 
-> - Alex
-> 
-> 
 
