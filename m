@@ -2,184 +2,159 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64E4EC3A5A2
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:19:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12E6EC3A5A2
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:59:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FCF921726
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:19:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FCF921726
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id D1E8021726
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:59:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1E8021726
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFFF96B04C4; Fri, 23 Aug 2019 20:19:51 -0400 (EDT)
+	id 600F36B04C6; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB1106B04C5; Fri, 23 Aug 2019 20:19:51 -0400 (EDT)
+	id 5B00B6B04C7; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C70E6B04C6; Fri, 23 Aug 2019 20:19:51 -0400 (EDT)
+	id 4C6486B04C8; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA616B04C4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 20:19:51 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id F01078243760
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:19:50 +0000 (UTC)
-X-FDA: 75855413340.24.fly43_9018664a40944
-X-HE-Tag: fly43_9018664a40944
-X-Filterd-Recvd-Size: 6794
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:19:50 +0000 (UTC)
-Received: from dread.disaster.area (pa49-181-255-194.pa.nsw.optusnet.com.au [49.181.255.194])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id A5FD843E73B;
-	Sat, 24 Aug 2019 10:19:46 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1i1JlP-0007eP-Cg; Sat, 24 Aug 2019 10:18:39 +1000
-Date: Sat, 24 Aug 2019 10:18:39 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190824001839.GJ1119@dread.disaster.area>
-References: <20190816190528.GB371@iweiny-DESK2.sc.intel.com>
- <20190817022603.GW6129@dread.disaster.area>
- <20190819063412.GA20455@quack2.suse.cz>
- <20190819092409.GM7777@dread.disaster.area>
- <20190819123841.GC5058@ziepe.ca>
- <20190820011210.GP7777@dread.disaster.area>
- <20190820115515.GA29246@ziepe.ca>
- <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
- <20190823005914.GF1119@dread.disaster.area>
- <20190823171504.GA1092@iweiny-DESK2.sc.intel.com>
+Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A2D6B04C6
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id C6567688F
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:59:35 +0000 (UTC)
+X-FDA: 75855513510.07.eye34_369f41361c122
+X-HE-Tag: eye34_369f41361c122
+X-Filterd-Recvd-Size: 5248
+Received: from Galois.linutronix.de (Galois.linutronix.de [193.142.43.55])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:59:35 +0000 (UTC)
+Received: from p5de0b6c5.dip0.t-ipconnect.de ([93.224.182.197] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1i1KOw-0003M2-0x; Sat, 24 Aug 2019 02:59:30 +0200
+Date: Sat, 24 Aug 2019 02:59:28 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Song Liu <songliubraving@fb.com>
+cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+    Linux MM <linux-mm@kvack.org>, Kernel Team <Kernel-team@fb.com>, 
+    "stable@vger.kernel.org" <stable@vger.kernel.org>, 
+    Joerg Roedel <jroedel@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, 
+    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
+    Rik van Riel <riel@surriel.com>
+Subject: Re: [PATCH v2] x86/mm/pti: in pti_clone_pgtable(), increase addr
+ properly
+In-Reply-To: <alpine.DEB.2.21.1908211210160.2223@nanos.tec.linutronix.de>
+Message-ID: <alpine.DEB.2.21.1908240225320.1939@nanos.tec.linutronix.de>
+References: <20190820202314.1083149-1-songliubraving@fb.com> <2CB1A3FD-33EF-4D8B-B74A-CF35F9722993@fb.com> <alpine.DEB.2.21.1908211210160.2223@nanos.tec.linutronix.de>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190823171504.GA1092@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0
-	a=YO9NNpcXwc8z/SaoS+iAiA==:117 a=YO9NNpcXwc8z/SaoS+iAiA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=QZy_m0AoVJ59bLp0kawA:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 23, 2019 at 10:15:04AM -0700, Ira Weiny wrote:
-> On Fri, Aug 23, 2019 at 10:59:14AM +1000, Dave Chinner wrote:
-> > On Wed, Aug 21, 2019 at 11:02:00AM -0700, Ira Weiny wrote:
-> > > On Tue, Aug 20, 2019 at 08:55:15AM -0300, Jason Gunthorpe wrote:
-> > > > On Tue, Aug 20, 2019 at 11:12:10AM +1000, Dave Chinner wrote:
-> > > > > On Mon, Aug 19, 2019 at 09:38:41AM -0300, Jason Gunthorpe wrote:
-> > > > > > On Mon, Aug 19, 2019 at 07:24:09PM +1000, Dave Chinner wrote:
-> > > > > > 
-> > > > > > > So that leaves just the normal close() syscall exit case, where the
-> > > > > > > application has full control of the order in which resources are
-> > > > > > > released. We've already established that we can block in this
-> > > > > > > context.  Blocking in an interruptible state will allow fatal signal
-> > > > > > > delivery to wake us, and then we fall into the
-> > > > > > > fatal_signal_pending() case if we get a SIGKILL while blocking.
-> > > > > > 
-> > > > > > The major problem with RDMA is that it doesn't always wait on close() for the
-> > > > > > MR holding the page pins to be destoyed. This is done to avoid a
-> > > > > > deadlock of the form:
-> > > > > > 
-> > > > > >    uverbs_destroy_ufile_hw()
-> > > > > >       mutex_lock()
-> > > > > >        [..]
-> > > > > >         mmput()
-> > > > > >          exit_mmap()
-> > > > > >           remove_vma()
-> > > > > >            fput();
-> > > > > >             file_operations->release()
-> > > > > 
-> > > > > I think this is wrong, and I'm pretty sure it's an example of why
-> > > > > the final __fput() call is moved out of line.
-> > > > 
-> > > > Yes, I think so too, all I can say is this *used* to happen, as we
-> > > > have special code avoiding it, which is the code that is messing up
-> > > > Ira's lifetime model.
-> > > > 
-> > > > Ira, you could try unraveling the special locking, that solves your
-> > > > lifetime issues?
+On Wed, 21 Aug 2019, Thomas Gleixner wrote:
+> On Wed, 21 Aug 2019, Song Liu wrote:
+> > > On Aug 20, 2019, at 1:23 PM, Song Liu <songliubraving@fb.com> wrote:
 > > > 
-> > > Yes I will try to prove this out...  But I'm still not sure this fully solves
-> > > the problem.
+> > > Before 32-bit support, pti_clone_pmds() always adds PMD_SIZE to addr.
+> > > This behavior changes after the 32-bit support:  pti_clone_pgtable()
+> > > increases addr by PUD_SIZE for pud_none(*pud) case, and increases addr by
+> > > PMD_SIZE for pmd_none(*pmd) case. However, this is not accurate because
+> > > addr may not be PUD_SIZE/PMD_SIZE aligned.
 > > > 
-> > > This only ensures that the process which has the RDMA context (RDMA FD) is safe
-> > > with regard to hanging the close for the "data file FD" (the file which has
-> > > pinned pages) in that _same_ process.  But what about the scenario.
-> > > 
-> > > Process A has the RDMA context FD and data file FD (with lease) open.
-> > > 
-> > > Process A uses SCM_RIGHTS to pass the RDMA context FD to Process B.
+> > > Fix this issue by properly rounding up addr to next PUD_SIZE/PMD_SIZE
+> > > in these two cases.
 > > 
-> > Passing the RDMA context dependent on a file layout lease to another
-> > process that doesn't have a file layout lease or a reference to the
-> > original lease should be considered a violation of the layout lease.
-> > Process B does not have an active layout lease, and so by the rules
-> > of layout leases, it is not allowed to pin the layout of the file.
-> > 
+> > After poking around more, I found the following doesn't really make 
+> > sense. 
 > 
-> I don't disagree with the semantics of this.  I just don't know how to enforce
-> it.
+> I'm glad you figured that out yourself. Was about to write up something to
+> that effect.
 > 
-> > > Process A attempts to exit (hangs because data file FD is pinned).
-> > > 
-> > > Admin kills process A.  kill works because we have allowed for it...
-> > > 
-> > > Process B _still_ has the RDMA context FD open _and_ therefore still holds the
-> > > file pins.
-> > > 
-> > > Truncation still fails.
-> > > 
-> > > Admin does not know which process is holding the pin.
-> > > 
-> > > What am I missing?
-> > 
-> > Application does not hold the correct file layout lease references.
-> > Passing the fd via SCM_RIGHTS to a process without a layout lease
-> > is equivalent to not using layout leases in the first place.
+> Still interesting questions remain:
 > 
-> Ok, So If I understand you correctly you would support a failure of SCM_RIGHTS
-> in this case?  I'm ok with that but not sure how to implement it right now.
+>   1) How did you end up feeding an unaligned address into that which points
+>      to a 0 PUD?
 > 
-> To that end, I would like to simplify this slightly because I'm not convinced
-> that SCM_RIGHTS is a problem we need to solve right now.  ie I don't know of a
-> user who wants to do this.
+>   2) Is this related to Facebook specific changes and unlikely to affect any
+>      regular kernel? I can't come up with a way to trigger that in mainline
+> 
+>   3) As this is a user page table and the missing mapping is related to
+>      mappings required by PTI, how is the machine going in/out of user
+>      space in the first place? Or did I just trip over what you called
+>      nonsense?
 
-I don't think we can support it, let alone want to. SCM_RIGHTS was a
-mistake made years ago that has been causing bugs and complexity to
-try and avoid those bugs ever since.  I'm only taking about it
-because someone else raised it and I asummed they raised it because
-they want it to "work".
+And just because this ended in silence I looked at it myself after Peter
+told me that this was on a kernel with PTI disabled. Aside of that my built
+in distrust for debug war stories combined with fairy tale changelogs
+triggered my curiousity anyway.
 
-> Right now duplication via SCM_RIGHTS could fail if _any_ file pins (and by
-> definition leases) exist underneath the "RDMA FD" (or other direct access FD,
-> like XDP etc) being duplicated.
+So that cannot be a kernel with PTI disabled compile time because in that
+case the functions are not available, unless it's FB hackery which I do not
+care about.
 
-Sounds like a fine idea to me.
+So the only way this can be reached is when PTI is configured but disabled
+at boot time via pti=off or nopti.
 
-Cheers,
+For some silly reason and that goes back to before the 32bit support and
+Joern did not notice either when he introduced pti_finalize() this results
+in the following functions being called unconditionallY:
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+     pti_clone_entry_text()
+     pti_clone_kernel_text()
+
+pti_clone_kernel_text() was called unconditionally before the 32bit support
+already and the only reason why it did not have any effect in that
+situation is that it invokes pti_kernel_image_global_ok() and that returns
+false when PTI is disabled on the kernel command line. Oh well. It
+obviously never checked whether X86_FEATURE_PTI was disabled or enabled in
+the first place.
+
+Now 32bit moved that around into pti_finalize() and added the call to
+pti_clone_entry_text() which just runs unconditionally.
+
+Now there is still the interesting question why this matters. The to be
+cloned page table entries are mapped and the start address even if
+unaligned never points to something unmapped. The unmapped case only covers
+holes and holes are obviously aligned at the upper levels even if the
+address of the hole is unaligned.
+
+So colour me still confused what's wrong there but the proper fix is the
+trivial:
+
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -666,6 +666,8 @@ void __init pti_init(void)
+  */
+ void pti_finalize(void)
+ {
++	if (!boot_cpu_has(X86_FEATURE_PTI))
++		return;
+ 	/*
+ 	 * We need to clone everything (again) that maps parts of the
+ 	 * kernel image.
+
+Hmm?
+
+I'm going to look whether that makes any difference in the page tables
+tomorrow with brain awake, but I wanted to share this before the .us
+vanishes into the weekend :)
+
+Thanks,
+
+	tglx
+
 
