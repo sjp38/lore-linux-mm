@@ -2,148 +2,61 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+X-Spam-Status: No, score=-0.5 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EB77FC3A5A2
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 02:12:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2ABFC3A5A2
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 02:57:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D97D21726
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 02:12:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="MROcyqGg";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="RlvPu07t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D97D21726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 66C1921726
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 02:57:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66C1921726
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B7126B04CE; Fri, 23 Aug 2019 22:12:35 -0400 (EDT)
+	id ECEB16B04D0; Fri, 23 Aug 2019 22:57:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4675F6B04CF; Fri, 23 Aug 2019 22:12:35 -0400 (EDT)
+	id E56BC6B04D1; Fri, 23 Aug 2019 22:57:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 356196B04D0; Fri, 23 Aug 2019 22:12:35 -0400 (EDT)
+	id D1E586B04D2; Fri, 23 Aug 2019 22:57:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F2B6B04CE
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 22:12:35 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id AD11F52D3
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 02:12:34 +0000 (UTC)
-X-FDA: 75855697428.23.plate56_6db296f62a012
-X-HE-Tag: plate56_6db296f62a012
-X-Filterd-Recvd-Size: 9715
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 02:12:33 +0000 (UTC)
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7O29YRM019059;
-	Fri, 23 Aug 2019 19:12:26 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=/oegRWb3ammnVvupQjrHMnCHszWE4ZQU+KbjiiXDi4M=;
- b=MROcyqGgk+lj/uhk8/kwir8AS8Q/5EWuUF1nBRguO4Xa0yCoCvELEY+3Nw4euM4IZNnb
- SAkjfWrjOJB0fd0y76LIcM9uRqeoIJzX85JQEI1egKGii/rGJV+PLOUMUFB/mIiYp6Nl
- nSqmwG+H2ZsUf3NOYrGsorAvzVq9k5o8rd4= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ujrvygmqq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 23 Aug 2019 19:12:26 -0700
-Received: from ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) by
- ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 23 Aug 2019 19:12:25 -0700
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.174) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 23 Aug 2019 19:12:25 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=e6Ci3B89G2o8vqabLmgAXByAljSQJOuHkXdsMVctVLjlchxeBc+MmaCKnBIL6osQr8YGxJloRXcR7MMT8InanLO6ys4auNJR9YhDvpE/2LBDQ+u53wKcg8mH8aaHYqGuJtJtuhu8lwwsJmmjUQXCXMzP1yOs/b8lfF+10Y13Y3/QE3A/IBtVkVu9+4OnF8G97OB7L29UZ5jHLr9SyDNZak+v//4invUzwWd6vNkx967BxlBlUmjJXg54j35HxBnPpKxqOTOgUOeOvlpeGpRsEFL8JEv3HHWq7lnrVOWPpLyqLfqXeNrnNQKv4jqaFARLqBF1MhgmS4Eeu9cAIIVM1A==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=/oegRWb3ammnVvupQjrHMnCHszWE4ZQU+KbjiiXDi4M=;
- b=lgGd1M2snquuQjvImSbHsRpm9UGGirZC+L7y6xvZluvkTHs4c9QiQV26GaS27jK/RwxSVXGzruesbtXi0HHMlG2VJ1XDSTlFr/5MF7S0nGDVTWXQYauRnbc6ersKaLr/BXE9r1XyFilRG0vHRzyudl/+xRsY8SJV4HEOfO0Q37scVT7ApBqAg7MGqsDxhLwk8RbfxWuTsZGcrw5hQi8vIhqsIUCWZwHqNWwqyhAPCyMr07dE68cK5PYMYv23jjIBzZGQc7e99RLVtZr8cn2kZd5OSMviA3z4nSgW3y4JwUX4X4Egunu84/tXbalDYBfQc+pEmvkYQ2TSgasdQt5Lgg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=/oegRWb3ammnVvupQjrHMnCHszWE4ZQU+KbjiiXDi4M=;
- b=RlvPu07tRhR/97EmUajtXhcryl0s6KnnDvQoW4RugjQUwjcnQlVA5LiWC+jQG+/odu3eGiUAfJFvlRFIUViZIzokMdC2Pk0ldT5XsdoX/LYatDbBJrQ7xepdtmzc4XNOPYU6RXB25MfeDL265drlYTw4pem3+NX5k8OUYi4l2Nk=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1552.namprd15.prod.outlook.com (10.173.229.19) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Sat, 24 Aug 2019 02:12:23 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::45ee:bc50:acfa:60a5]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::45ee:bc50:acfa:60a5%3]) with mapi id 15.20.2178.020; Sat, 24 Aug 2019
- 02:12:23 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Peter Zijlstra <peterz@infradead.org>
-CC: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>,
-        Joerg Roedel
-	<jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>,
-        Dave Hansen
-	<dave.hansen@linux.intel.com>,
-        Andy Lutomirski <luto@kernel.org>
-Subject: Re: [PATCH v2] x86/mm/pti: in pti_clone_pgtable(), increase addr
- properly
-Thread-Topic: [PATCH v2] x86/mm/pti: in pti_clone_pgtable(), increase addr
- properly
-Thread-Index: AQHVV5U99G5SsRzRUkunOQ/1Fd5gD6cFYg0AgAAFmQCABCvpAA==
-Date: Sat, 24 Aug 2019 02:12:23 +0000
-Message-ID: <33ED1189-0509-4F66-A96B-8CBD465889C3@fb.com>
-References: <20190820202314.1083149-1-songliubraving@fb.com>
- <20190821101008.GX2349@hirez.programming.kicks-ass.net>
- <20190821103010.GJ2386@hirez.programming.kicks-ass.net>
-In-Reply-To: <20190821103010.GJ2386@hirez.programming.kicks-ass.net>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::5e10]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 0dfc2b6e-f090-410c-fdbf-08d7283880ba
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600166)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:MWHPR15MB1552;
-x-ms-traffictypediagnostic: MWHPR15MB1552:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <MWHPR15MB1552D4BD5316081A44F1967AB3A70@MWHPR15MB1552.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4502;
-x-forefront-prvs: 0139052FDB
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(136003)(346002)(366004)(396003)(376002)(199004)(189003)(53936002)(54906003)(81166006)(229853002)(25786009)(99286004)(86362001)(8936002)(6512007)(64756008)(46003)(66476007)(186003)(66556008)(81156014)(2906002)(66446008)(256004)(57306001)(76176011)(305945005)(66946007)(7736002)(6246003)(76116006)(36756003)(6436002)(6486002)(478600001)(4326008)(71200400001)(71190400001)(53546011)(5660300002)(102836004)(6506007)(6916009)(486006)(50226002)(6116002)(446003)(11346002)(33656002)(476003)(316002)(2616005)(8676002)(14454004);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1552;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: JA+LJ25coI9NI9Xe1AI/AqBZN5taFqcGAa3o3FkdgUtb6HjgRsXFP1YdD8xTcCGiA1QE4vOApmYOgvYuWyZ0jRRBDEOm3WjOFWrNEr1Wv0eV6M6ywwKt348noaJ5GopjGIDZkPTs/VlTYcRKK2CKrHlWTVaxRxZKhUGtidqFzaAbe5DquLibI3K/fZ+W9y4GGRzL/4rrOnf6vKNRrm4KJLPhoQhZ7UakrtZplCBeGxjYP8W2W7Eohd07BapMNwx5WydQcu47lB5TUYUJl55ktrqyUOQ3waWcKi6SfwhBMRvOfW4AZsI70iyGo3XcjAzXn017Rl1dql1X47mXLYPy6r+N0UytKKLdDvgntpQJY+zqliyLKEiN1aK/lAbbtnMru99xYoSfDhx62mE26gYM4a5u9Y2lB9OIOS0fxfyZ5YY=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <F92BCEE5473C2946834B98F4CCA6B9FD@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0126.hostedemail.com [216.40.44.126])
+	by kanga.kvack.org (Postfix) with ESMTP id A92166B04D0
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 22:57:44 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 344826418
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 02:57:44 +0000 (UTC)
+X-FDA: 75855811248.22.trip99_4358ff75d2832
+X-HE-Tag: trip99_4358ff75d2832
+X-Filterd-Recvd-Size: 7305
+Received: from r3-21.sinamail.sina.com.cn (r3-21.sinamail.sina.com.cn [202.108.3.21])
+	by imf38.hostedemail.com (Postfix) with SMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 02:57:42 +0000 (UTC)
+Received: from unknown (HELO localhost.localdomain)([124.64.0.77])
+	by sina.com with ESMTP
+	id 5D60A7A200023491; Sat, 24 Aug 2019 10:57:40 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 142829752972
+From: Hillf Danton <hdanton@sina.com>
+To: Adric Blake <promarbler14@gmail.com>
+Cc: akpm@linux-foundation.org,
+	ktkhai@virtuozzo.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	daniel.m.jordan@oracle.com,
+	laoar.shao@gmail.com,
+	yang.shi@linux.alibaba.com,
+	mgorman@techsingularity.net,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: WARNINGs in set_task_reclaim_state with memory cgroup and full memory usage
+Date: Sat, 24 Aug 2019 10:57:26 +0800
+Message-Id: <20190824025726.14032-1-hdanton@sina.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 0dfc2b6e-f090-410c-fdbf-08d7283880ba
-X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Aug 2019 02:12:23.6788
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: qYer2JhenY1uogzEGadhYxZTzKNEqxfK/pvcI7EReuOQCh0E2na3HARYT7MkOG60zNpHzz3+kLNHCNSLAJ8p5w==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1552
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-24_01:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=878 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908240022
-X-FB-Internal: deliver
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -151,45 +64,150 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
+On Fri, 23 Aug 2019 18:00:15 -0400 Adric Blake wrote:
+> Synopsis:
+> A WARN_ON_ONCE is hit twice in set_task_reclaim_state under the
+> following conditions:
+> - a memory cgroup has been created and a task assigned it it
+> - memory.limit_in_bytes has been set
+> - memory has filled up, likely from cache
+>=20
+Thanks for report.
 
-> On Aug 21, 2019, at 3:30 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> In my usage, I create a cgroup under the current session scope and
+> assign a task to it. I then set memory.limit_in_bytes and
+> memory.soft_limit_in_bytes for the cgroup to reasonable values, say
+> 1G/512M. The program accesses large files frequently and gradually
+> fills memory with the page cache. The warnings appears when the
+> entirety of the system memory is filled, presumably from other
+> programs.
 >=20
-> On Wed, Aug 21, 2019 at 12:10:08PM +0200, Peter Zijlstra wrote:
->> On Tue, Aug 20, 2019 at 01:23:14PM -0700, Song Liu wrote:
+> If I wait until the program has filled the entirety of system memory
+> with cache and then assign a memory limit, the warnings appear
+> immediately.
 >=20
->>> host-5.2-after # grep "x  pmd" /sys/kernel/debug/page_tables/dump_pid
->>> 0x0000000000600000-0x0000000000e00000           8M USR ro         PSE  =
-       x  pmd
->>> 0xffffffff81000000-0xffffffff81e00000          14M     ro         PSE  =
-   GLB x  pmd
->>>=20
->>> So after this patch, the 5.2 based kernel has 7 PMDs instead of 1 PMD
->>> in 4.16 kernel.
->>=20
->> This basically gives rise to more questions than it provides answers.
->> You seem to have 'forgotten' to provide the equivalent mappings on the
->> two older kernels. The fact that they're not PMD is evident, but it
->> would be very good to know what is mapped, and what -- if anything --
->> lives in the holes we've (accidentally) created.
->>=20
->> Can you please provide more complete mappings? Basically provide the
->> whole cpu_entry_area mapping.
+> I am building the linux git. I first noticed this issue with the
+> drm-tip 5.3rc3 and 5.3rc4 kernels, and tested linux master after
+> 5.3rc5 to confirm the bug more resoundingly.
 >=20
-> I tried on my local machine and:
+> Here are the warnings.
 >=20
->  cat /debug/page_tables/kernel | awk '/^---/ { p=3D0 } /CPU entry/ { p=3D=
-1 } { if (p) print $0 }' > ~/cea-{before,after}.txt
->=20
-> resulted in _identical_ files ?!?!
->=20
-> Can you share your before and after dumps?
+> [38491.963105] WARNING: CPU: 7 PID: 175 at mm/vmscan.c:245 set_task_rec=
+laim_state+0x1e/0x40
+> [38491.963106] Modules linked in: iwlmvm mac80211 libarc4 iwlwifi
+> cfg80211 xt_comment nls_iso8859_1 nls_cp437 vfat fat xfs jfs btrfs xor
+> raid6_pq libcrc32c ccm tun rfcomm fuse xt_tcpudp ip6t_REJECT
+> nf_reject_ipv6 ipt_REJECT nf_reject_ipv4 xt_multiport xt_owner
+> snd_hda_codec_hdmi ip6table_filter ip6_tables iptable_filter bnep ext4
+> crc32c_generic mbcache jbd2 snd_hda_codec_realtek
+> snd_hda_codec_generic snd_soc_skl snd_soc_hdac_hda snd_hda_ext_core
+> snd_soc_skl_ipc x86_pkg_temp_thermal intel_powerclamp snd_soc_sst_ipc
+> coretemp snd_soc_sst_dsp snd_soc_acpi_intel_match kvm_intel
+> snd_soc_acpi i915 snd_soc_core kvm snd_compress ac97_bus
+> snd_pcm_dmaengine snd_hda_intel i2c_algo_bit btusb irqbypass
+> drm_kms_helper btrtl snd_hda_codec dell_laptop btbcm crct10dif_pclmul
+> snd_hda_core crc32c_intel btintel iTCO_wdt ghash_clmulni_intel drm
+> ledtrig_audio aesni_intel iTCO_vendor_support snd_hwdep dell_wmi
+> rtsx_usb_ms r8169 dell_smbios aes_x86_64 mei_hdcp crypto_simd
+> intel_gtt bluetooth snd_pcm cryptd dcdbas
+> [38491.963155]  wmi_bmof dell_wmi_descriptor intel_rapl_msr
+> glue_helper snd_timer joydev intel_cstate snd realtek memstick
+> dell_smm_hwmon mousedev psmouse input_leds libphy intel_uncore
+> ecdh_generic ecc crc16 rfkill intel_rapl_perf soundcore i2c_i801
+> agpgart mei_me tpm_crb syscopyarea sysfillrect sysimgblt mei
+> intel_xhci_usb_role_switch fb_sys_fops idma64 tpm_tis roles
+> processor_thermal_device intel_rapl_common i2c_hid tpm_tis_core
+> int3403_thermal intel_soc_dts_iosf battery wmi intel_lpss_pci
+> intel_lpss intel_pch_thermal tpm int3400_thermal int3402_thermal
+> acpi_thermal_rel int340x_thermal_zone rng_core intel_hid ac
+> sparse_keymap evdev mac_hid crypto_user ip_tables x_tables
+> hid_multitouch rtsx_usb_sdmmc mmc_core rtsx_usb hid_logitech_hidpp
+> sr_mod cdrom sd_mod uas usb_storage hid_logitech_dj hid_generic usbhid
+> hid ahci serio_raw libahci atkbd libps2 libata xhci_pci scsi_mod
+> xhci_hcd crc32_pclmul i8042 serio f2fs [last unloaded: cfg80211]
+> [38491.963221] CPU: 7 PID: 175 Comm: kswapd0 Not tainted 5.3.0-rc5+149+=
+gbb7ba8069de9 #1
+> [38491.963222] Hardware name: Dell Inc. Inspiron 5570/09YTN7, BIOS 1.2.=
+3 05/15/2019
+> [38491.963226] RIP: 0010:set_task_reclaim_state+0x1e/0x40
+> [38491.963228] Code: 78 a9 e7 ff 0f 1f 84 00 00 00 00 00 0f 1f 44 00
+> 00 55 48 89 f5 53 48 89 fb 48 85 ed 48 8b 83 08 08 00 00 74 11 48 85
+> c0 74 02 <0f> 0b 48 89 ab 08 08 00 00 5b 5d c3 48 85 c0 75 f1 0f 0b 48
+> 89 ab
+> [38491.963229] RSP: 0018:ffff8c898031fc60 EFLAGS: 00010286
+> [38491.963230] RAX: ffff8c898031fe28 RBX: ffff892aa04ddc40 RCX: 0000000=
+000000000
+> [38491.963231] RDX: ffff8c898031fc60 RSI: ffff8c898031fcd0 RDI: ffff892=
+aa04ddc40
+> [38491.963233] RBP: ffff8c898031fcd0 R08: ffff8c898031fd48 R09: ffff892=
+79674b800
+> [38491.963234] R10: 00000000ffffffff R11: 0000000000000000 R12: ffff8c8=
+98031fd48
+> [38491.963235] R13: ffff892a842ef000 R14: ffff892aaf7fc000 R15: 0000000=
+000000000
+> [38491.963236] FS:  0000000000000000(0000) GS:ffff892aa33c0000(0000) kn=
+lGS:0000000000000000
+> [38491.963238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [38491.963239] CR2: 00007f90628fa000 CR3: 000000027ee0a002 CR4: 0000000=
+0003606e0
+> [38491.963239] Call Trace:
+> [38491.963246]  mem_cgroup_shrink_node+0x9b/0x1d0
+> [38491.963250]  mem_cgroup_soft_limit_reclaim+0x10c/0x3a0
+> [38491.963254]  balance_pgdat+0x276/0x540
+> [38491.963258]  kswapd+0x200/0x3f0
+> [38491.963261]  ? wait_woken+0x80/0x80
+> [38491.963265]  kthread+0xfd/0x130
+> [38491.963267]  ? balance_pgdat+0x540/0x540
+> [38491.963269]  ? kthread_park+0x80/0x80
+> [38491.963273]  ret_from_fork+0x35/0x40
+> [38491.963276] ---[ end trace 727343df67b2398a ]---
 
-I was really dumb on this. The actual issue this that kprobe on=20
-CONFIG_KPROBES_ON_FTRACE splits kernel text PMDs (0xffffffff81000000-).=20
+Save and restore reclaim state for global reclaimer as it
+can be clobbered by memcg.
 
-I will dig more into this.=20
+--- a/mm/vmscan.c
++++ b/bb/vmscan.c
+@@ -253,6 +253,22 @@ static void set_task_reclaim_state(struc
+ 	task->reclaim_state =3D rs;
+ }
+=20
++static struct reclaim_state *
++save_task_reclaim_state(struct task_struct *task)
++{
++	struct reclaim_state *rs =3D task->reclaim_state;
++	if (rs)
++		set_task_reclaim_state(task, NULL);
++	return rs;
++}
++
++static void restore_task_reclaim_state(struct task_struct *task,
++					struct reclaim_state *rs)
++{
++	if (rs)
++		set_task_reclaim_state(task, rs);
++}
++
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+ {
+@@ -3241,7 +3257,9 @@ unsigned long mem_cgroup_shrink_node(str
+ 		.may_shrinkslab =3D 1,
+ 	};
+ 	unsigned long lru_pages;
++	struct reclaim_state *rs;
+=20
++	rs =3D save_task_reclaim_state(current);
+ 	set_task_reclaim_state(current, &sc.reclaim_state);
+ 	sc.gfp_mask =3D (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+@@ -3261,6 +3279,7 @@ unsigned long mem_cgroup_shrink_node(str
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+=20
+ 	set_task_reclaim_state(current, NULL);
++	restore_task_reclaim_state(current, rs);
+ 	*nr_scanned =3D sc.nr_scanned;
+=20
+ 	return sc.nr_reclaimed;
+--
 
-Sorry for being silent, somehow I didn't see this email until just now.
-
-Song=
 
