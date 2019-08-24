@@ -2,139 +2,221 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C0A8C3A59E
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 03:41:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEE30C3A5A4
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 04:49:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB9142082E
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 03:41:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XK+VZ1iV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB9142082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 71D2F2133F
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 04:49:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71D2F2133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 473A96B04D4; Fri, 23 Aug 2019 23:41:47 -0400 (EDT)
+	id CF5076B04D6; Sat, 24 Aug 2019 00:49:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FE776B04D5; Fri, 23 Aug 2019 23:41:47 -0400 (EDT)
+	id CA6776B04D7; Sat, 24 Aug 2019 00:49:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C4636B04D6; Fri, 23 Aug 2019 23:41:47 -0400 (EDT)
+	id BBAA56B04D8; Sat, 24 Aug 2019 00:49:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
-	by kanga.kvack.org (Postfix) with ESMTP id 064E56B04D4
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 23:41:46 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id A50CE6125
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 03:41:46 +0000 (UTC)
-X-FDA: 75855922212.23.robin46_f7bc0ed27107
-X-HE-Tag: robin46_f7bc0ed27107
-X-Filterd-Recvd-Size: 5092
-Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 03:41:46 +0000 (UTC)
-Received: by mail-io1-f65.google.com with SMTP id p12so24770286iog.5
-        for <linux-mm@kvack.org>; Fri, 23 Aug 2019 20:41:46 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=k4JfOThgU1rKXkGTSmWuM/49rJOouhdAv0PQSZEcT8E=;
-        b=XK+VZ1iVfxgnbKguT+7cU89msBjcvPUQ3ycYVzyoHOjcWABcHh8bY1onqf4xYWwx0r
-         6zFiSXdqLXPrtwGw+qyxd7/HVupwGaZ3QCNqlrLdHFobNC1oSjNct0Vq0YQ2FuwfwkTA
-         OaARrvajKojascXHNlOxZdSNs1FQXn33nqLl3B8f6l3P7r7ELaUHqOHaTsAKGMqNObeP
-         tUMZy7BxTzau8ZMwO3u/Uncbg0GB+NUfaA6rzquorHGKAeIQQKH7zlnGgZ62EuukCXpY
-         gKFGlTGUcWsb/Ej/QBGQo7ShqalwblzlRVouLU/DYxBrAfnG5cHFOwHVGhMvWlieWRIi
-         AOPA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=k4JfOThgU1rKXkGTSmWuM/49rJOouhdAv0PQSZEcT8E=;
-        b=X8gKkycFQ1qOV6Is0MLl6yf/RNyS9WwyhmhAqP7VocFNAwCmbS+gFHT44uXo9lXYKx
-         jZ86jXJ93awjUZXL47yzRj/bjGmE7di3HxyniromHMzxAIBTDs0Y1DxUB8vu0aN8Zgs/
-         ndR2XTeTAXmWtpJ9LTKKWIek7rLJQOT2M1UyPZM7Wo7Ysr+TrQgKMpkhgYaWnhmyv2MP
-         kB+w/qXXFnexWudPqZv8UPwxJPd6d20nIWdc73DvmHY3dY3ApFhz8SYYWxvE6u9TFvzy
-         PliB40pKPh7xz3O/HiVgMtQ8sZUoMHici47GPM4OtG1jpurvI7+WLiXfOCcGi0IPB7vl
-         dHDQ==
-X-Gm-Message-State: APjAAAWDRcqFtXJu3EXpEAmMs3ZZeyYof2xdP1e5prKhzlyzqMquevEm
-	Qpj82MfFqGzcFwlAGftokLcAahhI4vzTS5anTgM=
-X-Google-Smtp-Source: APXvYqxj6hFHjPvE181WudeKU0q0Rg+0ht6n+KXE3Jr/bTBy/3xnAwRNTMAvQVi+f3UaypI8xYFlRrN9Z+gK1b3xvkU=
-X-Received: by 2002:a5d:934c:: with SMTP id i12mr4089843ioo.203.1566618105736;
- Fri, 23 Aug 2019 20:41:45 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0166.hostedemail.com [216.40.44.166])
+	by kanga.kvack.org (Postfix) with ESMTP id 988E26B04D6
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:49:16 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 30247180AD7C3
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 04:49:16 +0000 (UTC)
+X-FDA: 75856092312.09.sea20_168f68ea0fc39
+X-HE-Tag: sea20_168f68ea0fc39
+X-Filterd-Recvd-Size: 8695
+Received: from mga09.intel.com (mga09.intel.com [134.134.136.24])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 04:49:14 +0000 (UTC)
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Aug 2019 21:49:13 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,423,1559545200"; 
+   d="scan'208";a="354867531"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga005.jf.intel.com with ESMTP; 23 Aug 2019 21:49:12 -0700
+Date: Fri, 23 Aug 2019 21:49:12 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190824044911.GB1092@iweiny-DESK2.sc.intel.com>
+References: <20190819092409.GM7777@dread.disaster.area>
+ <20190819123841.GC5058@ziepe.ca>
+ <20190820011210.GP7777@dread.disaster.area>
+ <20190820115515.GA29246@ziepe.ca>
+ <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
+ <20190821181343.GH8653@ziepe.ca>
+ <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
+ <20190821194810.GI8653@ziepe.ca>
+ <20190821204421.GE5965@iweiny-DESK2.sc.intel.com>
+ <20190823032345.GG1119@dread.disaster.area>
 MIME-Version: 1.0
-References: <20190817004726.2530670-1-guro@fb.com> <20190823223257.GA22200@tower.DHCP.thefacebook.com>
-In-Reply-To: <20190823223257.GA22200@tower.DHCP.thefacebook.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 24 Aug 2019 11:41:09 +0800
-Message-ID: <CALOAHbAXzqGksOOCOfB8ykrMQQjo7g_h7hUexr2WdAQkh3N7zg@mail.gmail.com>
-Subject: Re: [PATCH] Partially revert "mm/memcontrol.c: keep local VM counters
- in sync with the hierarchical ones"
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190823032345.GG1119@dread.disaster.area>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 24, 2019 at 6:33 AM Roman Gushchin <guro@fb.com> wrote:
->
-> On Fri, Aug 16, 2019 at 05:47:26PM -0700, Roman Gushchin wrote:
-> > Commit 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync
-> > with the hierarchical ones") effectively decreased the precision of
-> > per-memcg vmstats_local and per-memcg-per-node lruvec percpu counters.
-> >
-> > That's good for displaying in memory.stat, but brings a serious regression
-> > into the reclaim process.
-> >
-> > One issue I've discovered and debugged is the following:
-> > lruvec_lru_size() can return 0 instead of the actual number of pages
-> > in the lru list, preventing the kernel to reclaim last remaining
-> > pages. Result is yet another dying memory cgroups flooding.
-> > The opposite is also happening: scanning an empty lru list
-> > is the waste of cpu time.
-> >
-> > Also, inactive_list_is_low() can return incorrect values, preventing
-> > the active lru from being scanned and freed. It can fail both because
-> > the size of active and inactive lists are inaccurate, and because
-> > the number of workingset refaults isn't precise. In other words,
-> > the result is pretty random.
-> >
-> > I'm not sure, if using the approximate number of slab pages in
-> > count_shadow_number() is acceptable, but issues described above
-> > are enough to partially revert the patch.
-> >
-> > Let's keep per-memcg vmstat_local batched (they are only used for
-> > displaying stats to the userspace), but keep lruvec stats precise.
-> > This change fixes the dead memcg flooding on my setup.
-> >
-> > Fixes: 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync with the hierarchical ones")
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Yafang Shao <laoar.shao@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
->
-> Any other concerns/comments here?
->
-> I'd prefer to fix the regression: we're likely leaking several pages
-> of memory for each created and destroyed memory cgroup. Plus
-> all internal structures, which are measured in hundreds of kb.
->
+On Fri, Aug 23, 2019 at 01:23:45PM +1000, Dave Chinner wrote:
+> On Wed, Aug 21, 2019 at 01:44:21PM -0700, Ira Weiny wrote:
+> > On Wed, Aug 21, 2019 at 04:48:10PM -0300, Jason Gunthorpe wrote:
+> > > On Wed, Aug 21, 2019 at 11:57:03AM -0700, Ira Weiny wrote:
+> > > 
+> > > > > Oh, I didn't think we were talking about that. Hanging the close of
+> > > > > the datafile fd contingent on some other FD's closure is a recipe for
+> > > > > deadlock..
+> > > > 
+> > > > The discussion between Jan and Dave was concerning what happens when a user
+> > > > calls
+> > > > 
+> > > > fd = open()
+> > > > fnctl(...getlease...)
+> > > > addr = mmap(fd...)
+> > > > ib_reg_mr() <pin>
+> > > > munmap(addr...)
+> > > > close(fd)
+> > > 
+> > > I don't see how blocking close(fd) could work.
+> > 
+> > Well Dave was saying this _could_ work. FWIW I'm not 100% sure it will but I
+> > can't prove it won't..
+> 
+> Right, I proposed it as a possible way of making sure application
+> developers don't do this. It _could_ be made to work (e.g. recording
+> longterm page pins on the vma->file), but this is tangential to 
+> the discussion of requiring active references to all resources
+> covered by the layout lease.
+> 
+> I think allowing applications to behave like the above is simply
+> poor system level design, regardless of the interaction with
+> filesystems and layout leases.
+> 
+> > Maybe we are all just touching a different part of this
+> > elephant[1] but the above scenario or one without munmap is very reasonably
+> > something a user would do.  So we can either allow the close to complete (my
+> > current patches) or try to make it block like Dave is suggesting.
 
-Hi Roman,
+My belief when writing the current series was that hanging the close would
+cause deadlock.  But it seems I was wrong because of the delayed __fput().
 
-As it really introduces issues, I agree with you that we should fix it first.
+So far, I have not been able to get RDMA to have an issue like Jason suggested
+would happen (or used to happen).  So from that perspective it may be ok to
+hang the close.
 
-So for your fix,
-Acked-by: Yafang Shao <laoar.shao@gmail.com>
+> > 
+> > I don't disagree with Dave with the semantics being nice and clean for the
+> > filesystem.
+> 
+> I'm not trying to make it "nice and clean for the filesystem".
+> 
+> The problem is not just RDMA/DAX - anything that is directly
+> accessing the block device under the filesystem has the same set of
+> issues. That is, the filesystem controls the life cycle of the
+> blocks in the block device, so direct access to the blocks by any
+> means needs to be co-ordinated with the filesystem. Pinning direct
+> access to a file via page pins attached to a hardware context that
+> the filesystem knows nothing about is not an access model that the
+> filesystems can support.
+> 
+> IOWs, anyone looking at this problem just from the RDMA POV of page
+> pins is not seeing all the other direct storage access mechainsms
+> that we need to support in the filesystems. RDMA on DAX is just one
+> of them.  pNFS is another. Remote acces via NVMeOF is another. XDP
+> -> DAX (direct file data placement from the network hardware) is
+> another. There are /lots/ of different direct storage access
+> mechanisms that filesystems need to support and we sure as hell do
+> not want to have to support special case semantics for every single
+> one of them.
 
-Thanks
-Yafang
+My use of struct file was based on the fact that FDs are a primary interface
+for linux and my thought was that they would be more universal than having file
+pin information stored in an RDMA specific structure.
+
+XDP is not as direct; it uses sockets.  But sockets also have a struct file
+which I believe could be used in a similar manner.  I'm not 100% sure of the
+xdp_umem lifetime yet but it seems that my choice of using struct file was a
+good one in this respect.
+
+> 
+> Hence if we don't start with a sane model for arbitrating direct
+> access to the storage at the filesystem level we'll never get this
+> stuff to work reliably, let alone work together coherently.  An
+> application that wants a direct data path to storage should have a
+> single API that enables then to safely access the storage,
+> regardless of how they are accessing the storage.
+> 
+> From that perspective, what we are talking about here with RDMA
+> doing "mmap, page pin, unmap, close" and "pass page pins via
+> SCM_RIGHTS" are fundamentally unworkable from the filesystem
+> perspective. They are use-after-free situations from the filesystem
+> perspective - they do not hold direct references to anything in the
+> filesystem, and so the filesytem is completely unaware of them.
+
+I see your point of view but looking at it from a different point of view I
+don't see this as a "use after free".
+
+The user has explicitly registered this memory (and layout) with another direct
+access subsystem (RDMA for example) so why do they need to keep the FD around?
+
+> 
+> The filesystem needs to be aware of /all users/ of it's resources if
+> it's going to manage them sanely.
+
+From the way I look at it the underlying filesystem _is_ aware of the leases
+with my patch set.  And so to is the user.  It is just not through the original
+"data file fd".
+
+And the owner of the lease becomes the subsystem object ("RDMA FD" in this
+case) which is holding the pins.  Furthermore, the lease is maintained and
+transferred automatically through the normal FD processing.
+
+(Furthermore, tracking of these pins is available for whatever subsystem by
+tracking them with struct file; _not_ just RDMA).  When those subsystem objects
+are released the "data file lease" will be released as well.  That was the
+design.
+
+> 
+> > But the fact that RDMA, and potentially others, can "pass the
+> > pins" to other processes is something I spent a lot of time trying to work out.
+> 
+> There's nothing in file layout lease architecture that says you
+> can't "pass the pins" to another process.  All the file layout lease
+> requirements say is that if you are going to pass a resource for
+> which the layout lease guarantees access for to another process,
+> then the destination process already have a valid, active layout
+> lease that covers the range of the pins being passed to it via the
+> RDMA handle.
+> 
+> i.e. as the pins pass from one process to another, they pass from
+> the protection of the lease process A holds to the protection that
+> the lease process B holds. This can probably even be done by
+> duplicating the lease fd and passing it by SCM_RIGHTS first.....
+
+My worry with this is how to enforce it.  As I said in the other thread I think
+we could potentially block SCM_RIGHTS use in the short term.  But I'm not sure
+about blocking every call which may "dup()" an FD to random processes.
+
+Ira
+
 
