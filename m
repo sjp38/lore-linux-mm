@@ -2,165 +2,136 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A528C3A5A4
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 05:08:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3172C3A59E
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 07:28:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 077752082F
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 05:08:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 077752082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 48ECB206E0
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 07:28:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Ilju32GZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48ECB206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B3B16B04D9; Sat, 24 Aug 2019 01:08:40 -0400 (EDT)
+	id E05256B04DC; Sat, 24 Aug 2019 03:28:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 93B2A6B04DB; Sat, 24 Aug 2019 01:08:40 -0400 (EDT)
+	id D8D776B04DD; Sat, 24 Aug 2019 03:28:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8024A6B04DC; Sat, 24 Aug 2019 01:08:40 -0400 (EDT)
+	id C557F6B04DE; Sat, 24 Aug 2019 03:28:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 594B16B04D9
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 01:08:40 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D4D3A180AD7C1
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 05:08:39 +0000 (UTC)
-X-FDA: 75856141158.17.vest28_2e5f9255a0c5f
-X-HE-Tag: vest28_2e5f9255a0c5f
-X-Filterd-Recvd-Size: 6074
-Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 05:08:38 +0000 (UTC)
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Aug 2019 22:08:37 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,424,1559545200"; 
-   d="scan'208";a="191147429"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 23 Aug 2019 22:08:36 -0700
-Date: Fri, 23 Aug 2019 22:08:36 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190824050836.GC1092@iweiny-DESK2.sc.intel.com>
-References: <20190820011210.GP7777@dread.disaster.area>
- <20190820115515.GA29246@ziepe.ca>
- <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
- <20190821181343.GH8653@ziepe.ca>
- <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
- <20190821194810.GI8653@ziepe.ca>
- <20190821204421.GE5965@iweiny-DESK2.sc.intel.com>
- <20190823032345.GG1119@dread.disaster.area>
- <20190823120428.GA12968@ziepe.ca>
- <20190824001124.GI1119@dread.disaster.area>
+Received: from forelay.hostedemail.com (smtprelay0157.hostedemail.com [216.40.44.157])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E69B6B04DC
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 03:28:09 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 407E6824CA3D
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 07:28:09 +0000 (UTC)
+X-FDA: 75856492698.24.cats96_643d695d75b21
+X-HE-Tag: cats96_643d695d75b21
+X-Filterd-Recvd-Size: 4892
+Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 07:28:08 +0000 (UTC)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7O79jwe056487;
+	Sat, 24 Aug 2019 07:27:40 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2019-08-05;
+ bh=mjq9fGw/Hlu3tLUadkrZ7NggHzDl6+rHr1rrLruw8us=;
+ b=Ilju32GZjRTvskRFshNjOiuBhCDV2zbgDlgGHvE2MqzcQcYsl71fGWXoj5iQzppsKLOn
+ qR/EBy6bOEe1mgx9RkBuXOF3MkHgBcEGxWcsmCkm28DAJl/vWc5/ZGD07PCwRnQuL79a
+ ysrnAObTapR9HN7ev4e4yHBX7xcA7uzsGcJpg1S7UW4PxaAwx8AFfJgqqThlbltt3ibh
+ sU0Pjcygcn6GXPkUJRbxzBeNfSYuElr5Nbicpr5zUSrMaG3AwA0AEiXQP1p1CTrO1Mue
+ ouz9DTbJd1NVvMc8+w9lScFW8z8/r9Bfgaa4q2J3mlhTElt9UJSgd35Ab67B5v8Uq4WP JA== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2120.oracle.com with ESMTP id 2ujw6yred3-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 24 Aug 2019 07:27:40 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7O7O4LK032311;
+	Sat, 24 Aug 2019 07:25:40 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3030.oracle.com with ESMTP id 2ujw6t445q-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 24 Aug 2019 07:25:40 +0000
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7O7PMi9019258;
+	Sat, 24 Aug 2019 07:25:23 GMT
+Received: from [192.168.43.36] (/172.58.30.166)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Sat, 24 Aug 2019 00:25:22 -0700
+Subject: Re: [RFC] mm: Proactive compaction
+To: Vlastimil Babka <vbabka@suse.cz>, Nitin Gupta <nigupta@nvidia.com>,
+        akpm@linux-foundation.org, mgorman@techsingularity.net,
+        mhocko@suse.com, dan.j.williams@intel.com
+Cc: Yu Zhao <yuzhao@google.com>, Matthew Wilcox <willy@infradead.org>,
+        Qian Cai <cai@lca.pw>, Andrey Ryabinin <aryabinin@virtuozzo.com>,
+        Roman Gushchin <guro@fb.com>,
+        Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>,
+        Kees Cook <keescook@chromium.org>, Jann Horn <jannh@google.com>,
+        Johannes Weiner <hannes@cmpxchg.org>, Arun KS <arunks@codeaurora.org>,
+        Janne Huttunen <janne.huttunen@nokia.com>,
+        Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190816214413.15006-1-nigupta@nvidia.com>
+ <87634ddc-8bfd-8311-46c4-35f7dc32d42f@suse.cz>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <ca33d8ea-71a4-282e-4d0f-6d06a30d3ecd@oracle.com>
+Date: Sat, 24 Aug 2019 01:24:50 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190824001124.GI1119@dread.disaster.area>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <87634ddc-8bfd-8311-46c4-35f7dc32d42f@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9358 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908240082
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9358 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908240080
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 24, 2019 at 10:11:24AM +1000, Dave Chinner wrote:
-> On Fri, Aug 23, 2019 at 09:04:29AM -0300, Jason Gunthorpe wrote:
-> > On Fri, Aug 23, 2019 at 01:23:45PM +1000, Dave Chinner wrote:
-> > 
-> > > > But the fact that RDMA, and potentially others, can "pass the
-> > > > pins" to other processes is something I spent a lot of time trying to work out.
-> > > 
-> > > There's nothing in file layout lease architecture that says you
-> > > can't "pass the pins" to another process.  All the file layout lease
-> > > requirements say is that if you are going to pass a resource for
-> > > which the layout lease guarantees access for to another process,
-> > > then the destination process already have a valid, active layout
-> > > lease that covers the range of the pins being passed to it via the
-> > > RDMA handle.
-> > 
-> > How would the kernel detect and enforce this? There are many ways to
-> > pass a FD.
-> 
-> AFAIC, that's not really a kernel problem. It's more of an
-> application design constraint than anything else. i.e. if the app
-> passes the IB context to another process without a lease, then the
-> original process is still responsible for recalling the lease and
-> has to tell that other process to release the IB handle and it's
-> resources.
-> 
-> > IMHO it is wrong to try and create a model where the file lease exists
-> > independently from the kernel object relying on it. In other words the
-> > IB MR object itself should hold a reference to the lease it relies
-> > upon to function properly.
-> 
-> That still doesn't work. Leases are not individually trackable or
-> reference counted objects objects - they are attached to a struct
-> file bUt, in reality, they are far more restricted than a struct
-> file.
-> 
-> That is, a lease specifically tracks the pid and the _open fd_ it
-> was obtained for, so it is essentially owned by a specific process
-> context.  Hence a lease is not able to be passed to a separate
-> process context and have it still work correctly for lease break
-> notifications.  i.e. the layout break signal gets delivered to
-> original process that created the struct file, if it still exists
-> and has the original fd still open. It does not get sent to the
-> process that currently holds a reference to the IB context.
->
+On 8/20/19 2:46 AM, Vlastimil Babka wrote:
+> +CC Khalid Aziz who proposed a different approach:
+> https://lore.kernel.org/linux-mm/20190813014012.30232-1-khalid.aziz@ora=
+cle.com/T/#u
+>=20
+> On 8/16/19 11:43 PM, Nitin Gupta wrote:
+>> The patch has plenty of rough edges but posting it early to see if I'm=
 
-The fcntl man page says:
+>> going in the right direction and to get some early feedback.
+>=20
+> That's a lot of control knobs - how is an admin supposed to tune them t=
+o their
+> needs?
+>=20
 
-"Leases are associated with an open file description (see open(2)).  This means
-that duplicate file descriptors (created by, for example, fork(2) or dup(2))
-refer to the same lease, and this lease may be modified or released using any
-of these descriptors.  Furthermore,  the lease is released by either an
-explicit F_UNLCK operation on any of these duplicate file descriptors, or when
-all such file descriptors have been closed."
+At a high level, this idea makes sense and is similar to the idea of
+watermarks for free pages. My concern is the same. We now have more
+knobs to tune and that increases complexity for sys admins as well as
+the chances of a misconfigured system.
 
-From this I took it that the child process FD would have the lease as well
-_and_ could release it.  I _assumed_ that applied to SCM_RIGHTS but it does not
-seem to work the same way as dup() so I'm not so sure.
+--
+Khalid
 
-Ira
 
-> 
-> So while a struct file passed to another process might still have
-> an active lease, and you can change the owner of the struct file
-> via fcntl(F_SETOWN), you can't associate the existing lease with a
-> the new fd in the new process and so layout break signals can't be
-> directed at the lease fd....
-> 
-> This really means that a lease can only be owned by a single process
-> context - it can't be shared across multiple processes (so I was
-> wrong about dup/pass as being a possible way of passing them)
-> because there's only one process that can "own" a struct file, and
-> that where signals are sent when the lease needs to be broken.
-> 
-> So, fundamentally, if you want to pass a resource that pins a file
-> layout between processes, both processes need to hold a layout lease
-> on that file range. And that means exclusive leases and passing
-> layouts between processes are fundamentally incompatible because you
-> can't hold two exclusive leases on the same file range....
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
 
