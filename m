@@ -2,159 +2,227 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12E6EC3A5A2
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:59:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29606C3A5A2
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 01:03:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D1E8021726
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 00:59:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1E8021726
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id CCFF921726
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 01:03:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCFF921726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 600F36B04C6; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
+	id 782D46B04C8; Fri, 23 Aug 2019 21:03:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B00B6B04C7; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
+	id 734DA6B04C9; Fri, 23 Aug 2019 21:03:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C6486B04C8; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
+	id 6221C6B04CA; Fri, 23 Aug 2019 21:03:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A2D6B04C6
-	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 20:59:36 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id C6567688F
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:59:35 +0000 (UTC)
-X-FDA: 75855513510.07.eye34_369f41361c122
-X-HE-Tag: eye34_369f41361c122
-X-Filterd-Recvd-Size: 5248
-Received: from Galois.linutronix.de (Galois.linutronix.de [193.142.43.55])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 00:59:35 +0000 (UTC)
-Received: from p5de0b6c5.dip0.t-ipconnect.de ([93.224.182.197] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1i1KOw-0003M2-0x; Sat, 24 Aug 2019 02:59:30 +0200
-Date: Sat, 24 Aug 2019 02:59:28 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Song Liu <songliubraving@fb.com>
-cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-    Linux MM <linux-mm@kvack.org>, Kernel Team <Kernel-team@fb.com>, 
-    "stable@vger.kernel.org" <stable@vger.kernel.org>, 
-    Joerg Roedel <jroedel@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, 
-    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
-    Rik van Riel <riel@surriel.com>
-Subject: Re: [PATCH v2] x86/mm/pti: in pti_clone_pgtable(), increase addr
- properly
-In-Reply-To: <alpine.DEB.2.21.1908211210160.2223@nanos.tec.linutronix.de>
-Message-ID: <alpine.DEB.2.21.1908240225320.1939@nanos.tec.linutronix.de>
-References: <20190820202314.1083149-1-songliubraving@fb.com> <2CB1A3FD-33EF-4D8B-B74A-CF35F9722993@fb.com> <alpine.DEB.2.21.1908211210160.2223@nanos.tec.linutronix.de>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+Received: from forelay.hostedemail.com (smtprelay0131.hostedemail.com [216.40.44.131])
+	by kanga.kvack.org (Postfix) with ESMTP id 40EC56B04C8
+	for <linux-mm@kvack.org>; Fri, 23 Aug 2019 21:03:40 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C99C0181AC9AE
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 01:03:39 +0000 (UTC)
+X-FDA: 75855523758.21.boat06_5a0c555530050
+X-HE-Tag: boat06_5a0c555530050
+X-Filterd-Recvd-Size: 10608
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com [47.88.44.36])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 01:03:38 +0000 (UTC)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R301e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TaFoS1c_1566608581;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TaFoS1c_1566608581)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sat, 24 Aug 2019 09:03:04 +0800
+Subject: Re: WARNINGs in set_task_reclaim_state with memory cgroup and full
+ memory usage
+To: Adric Blake <promarbler14@gmail.com>, akpm@linux-foundation.org
+Cc: ktkhai@virtuozzo.com, hannes@cmpxchg.org, mhocko@suse.com,
+ daniel.m.jordan@oracle.com, laoar.shao@gmail.com,
+ mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <CAE1jjeePxYPvw1mw2B3v803xHVR_BNnz0hQUY_JDMN8ny29M6w@mail.gmail.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <b9cd7603-2441-d351-156a-57d6c13b2c79@linux.alibaba.com>
+Date: Fri, 23 Aug 2019 18:03:01 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+In-Reply-To: <CAE1jjeePxYPvw1mw2B3v803xHVR_BNnz0hQUY_JDMN8ny29M6w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Aug 2019, Thomas Gleixner wrote:
-> On Wed, 21 Aug 2019, Song Liu wrote:
-> > > On Aug 20, 2019, at 1:23 PM, Song Liu <songliubraving@fb.com> wrote:
-> > > 
-> > > Before 32-bit support, pti_clone_pmds() always adds PMD_SIZE to addr.
-> > > This behavior changes after the 32-bit support:  pti_clone_pgtable()
-> > > increases addr by PUD_SIZE for pud_none(*pud) case, and increases addr by
-> > > PMD_SIZE for pmd_none(*pmd) case. However, this is not accurate because
-> > > addr may not be PUD_SIZE/PMD_SIZE aligned.
-> > > 
-> > > Fix this issue by properly rounding up addr to next PUD_SIZE/PMD_SIZE
-> > > in these two cases.
-> > 
-> > After poking around more, I found the following doesn't really make 
-> > sense. 
-> 
-> I'm glad you figured that out yourself. Was about to write up something to
-> that effect.
-> 
-> Still interesting questions remain:
-> 
->   1) How did you end up feeding an unaligned address into that which points
->      to a 0 PUD?
-> 
->   2) Is this related to Facebook specific changes and unlikely to affect any
->      regular kernel? I can't come up with a way to trigger that in mainline
-> 
->   3) As this is a user page table and the missing mapping is related to
->      mappings required by PTI, how is the machine going in/out of user
->      space in the first place? Or did I just trip over what you called
->      nonsense?
 
-And just because this ended in silence I looked at it myself after Peter
-told me that this was on a kernel with PTI disabled. Aside of that my built
-in distrust for debug war stories combined with fairy tale changelogs
-triggered my curiousity anyway.
 
-So that cannot be a kernel with PTI disabled compile time because in that
-case the functions are not available, unless it's FB hackery which I do not
-care about.
+On 8/23/19 3:00 PM, Adric Blake wrote:
+> Synopsis:
+> A WARN_ON_ONCE is hit twice in set_task_reclaim_state under the
+> following conditions:
+> - a memory cgroup has been created and a task assigned it it
+> - memory.limit_in_bytes has been set
+> - memory has filled up, likely from cache
+>
+> In my usage, I create a cgroup under the current session scope and
+> assign a task to it. I then set memory.limit_in_bytes and
+> memory.soft_limit_in_bytes for the cgroup to reasonable values, say
+> 1G/512M. The program accesses large files frequently and gradually
+> fills memory with the page cache. The warnings appears when the
+> entirety of the system memory is filled, presumably from other
+> programs.
+>
+> If I wait until the program has filled the entirety of system memory
+> with cache and then assign a memory limit, the warnings appear
+> immediately.
 
-So the only way this can be reached is when PTI is configured but disabled
-at boot time via pti=off or nopti.
+It looks the warning is triggered because kswapd set reclaim_state then 
+the memcg soft limit reclaim in the same kswapd set it again.
 
-For some silly reason and that goes back to before the 32bit support and
-Joern did not notice either when he introduced pti_finalize() this results
-in the following functions being called unconditionallY:
+But, kswapd and memcg soft limit uses different reclaim_state from 
+different scan control. It sounds not correct, they should use the same 
+reclaim_state if they come from the same context if my understanding is 
+correct.
 
-     pti_clone_entry_text()
-     pti_clone_kernel_text()
-
-pti_clone_kernel_text() was called unconditionally before the 32bit support
-already and the only reason why it did not have any effect in that
-situation is that it invokes pti_kernel_image_global_ok() and that returns
-false when PTI is disabled on the kernel command line. Oh well. It
-obviously never checked whether X86_FEATURE_PTI was disabled or enabled in
-the first place.
-
-Now 32bit moved that around into pti_finalize() and added the call to
-pti_clone_entry_text() which just runs unconditionally.
-
-Now there is still the interesting question why this matters. The to be
-cloned page table entries are mapped and the start address even if
-unaligned never points to something unmapped. The unmapped case only covers
-holes and holes are obviously aligned at the upper levels even if the
-address of the hole is unaligned.
-
-So colour me still confused what's wrong there but the proper fix is the
-trivial:
-
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -666,6 +666,8 @@ void __init pti_init(void)
-  */
- void pti_finalize(void)
- {
-+	if (!boot_cpu_has(X86_FEATURE_PTI))
-+		return;
- 	/*
- 	 * We need to clone everything (again) that maps parts of the
- 	 * kernel image.
-
-Hmm?
-
-I'm going to look whether that makes any difference in the page tables
-tomorrow with brain awake, but I wanted to share this before the .us
-vanishes into the weekend :)
-
-Thanks,
-
-	tglx
+>
+> I am building the linux git. I first noticed this issue with the
+> drm-tip 5.3rc3 and 5.3rc4 kernels, and tested linux master after
+> 5.3rc5 to confirm the bug more resoundingly.
+>
+> Here are the warnings.
+>
+> [38491.963105] WARNING: CPU: 7 PID: 175 at mm/vmscan.c:245
+> set_task_reclaim_state+0x1e/0x40
+> [38491.963106] Modules linked in: iwlmvm mac80211 libarc4 iwlwifi
+> cfg80211 xt_comment nls_iso8859_1 nls_cp437 vfat fat xfs jfs btrfs xor
+> raid6_pq libcrc32c ccm tun rfcomm fuse xt_tcpudp ip6t_REJECT
+> nf_reject_ipv6 ipt_REJECT nf_reject_ipv4 xt_multiport xt_owner
+> snd_hda_codec_hdmi ip6table_filter ip6_tables iptable_filter bnep ext4
+> crc32c_generic mbcache jbd2 snd_hda_codec_realtek
+> snd_hda_codec_generic snd_soc_skl snd_soc_hdac_hda snd_hda_ext_core
+> snd_soc_skl_ipc x86_pkg_temp_thermal intel_powerclamp snd_soc_sst_ipc
+> coretemp snd_soc_sst_dsp snd_soc_acpi_intel_match kvm_intel
+> snd_soc_acpi i915 snd_soc_core kvm snd_compress ac97_bus
+> snd_pcm_dmaengine snd_hda_intel i2c_algo_bit btusb irqbypass
+> drm_kms_helper btrtl snd_hda_codec dell_laptop btbcm crct10dif_pclmul
+> snd_hda_core crc32c_intel btintel iTCO_wdt ghash_clmulni_intel drm
+> ledtrig_audio aesni_intel iTCO_vendor_support snd_hwdep dell_wmi
+> rtsx_usb_ms r8169 dell_smbios aes_x86_64 mei_hdcp crypto_simd
+> intel_gtt bluetooth snd_pcm cryptd dcdbas
+> [38491.963155]  wmi_bmof dell_wmi_descriptor intel_rapl_msr
+> glue_helper snd_timer joydev intel_cstate snd realtek memstick
+> dell_smm_hwmon mousedev psmouse input_leds libphy intel_uncore
+> ecdh_generic ecc crc16 rfkill intel_rapl_perf soundcore i2c_i801
+> agpgart mei_me tpm_crb syscopyarea sysfillrect sysimgblt mei
+> intel_xhci_usb_role_switch fb_sys_fops idma64 tpm_tis roles
+> processor_thermal_device intel_rapl_common i2c_hid tpm_tis_core
+> int3403_thermal intel_soc_dts_iosf battery wmi intel_lpss_pci
+> intel_lpss intel_pch_thermal tpm int3400_thermal int3402_thermal
+> acpi_thermal_rel int340x_thermal_zone rng_core intel_hid ac
+> sparse_keymap evdev mac_hid crypto_user ip_tables x_tables
+> hid_multitouch rtsx_usb_sdmmc mmc_core rtsx_usb hid_logitech_hidpp
+> sr_mod cdrom sd_mod uas usb_storage hid_logitech_dj hid_generic usbhid
+> hid ahci serio_raw libahci atkbd libps2 libata xhci_pci scsi_mod
+> xhci_hcd crc32_pclmul i8042 serio f2fs [last unloaded: cfg80211]
+> [38491.963221] CPU: 7 PID: 175 Comm: kswapd0 Not tainted
+> 5.3.0-rc5+149+gbb7ba8069de9 #1
+> [38491.963222] Hardware name: Dell Inc. Inspiron 5570/09YTN7, BIOS
+> 1.2.3 05/15/2019
+> [38491.963226] RIP: 0010:set_task_reclaim_state+0x1e/0x40
+> [38491.963228] Code: 78 a9 e7 ff 0f 1f 84 00 00 00 00 00 0f 1f 44 00
+> 00 55 48 89 f5 53 48 89 fb 48 85 ed 48 8b 83 08 08 00 00 74 11 48 85
+> c0 74 02 <0f> 0b 48 89 ab 08 08 00 00 5b 5d c3 48 85 c0 75 f1 0f 0b 48
+> 89 ab
+> [38491.963229] RSP: 0018:ffff8c898031fc60 EFLAGS: 00010286
+> [38491.963230] RAX: ffff8c898031fe28 RBX: ffff892aa04ddc40 RCX: 0000000000000000
+> [38491.963231] RDX: ffff8c898031fc60 RSI: ffff8c898031fcd0 RDI: ffff892aa04ddc40
+> [38491.963233] RBP: ffff8c898031fcd0 R08: ffff8c898031fd48 R09: ffff89279674b800
+> [38491.963234] R10: 00000000ffffffff R11: 0000000000000000 R12: ffff8c898031fd48
+> [38491.963235] R13: ffff892a842ef000 R14: ffff892aaf7fc000 R15: 0000000000000000
+> [38491.963236] FS:  0000000000000000(0000) GS:ffff892aa33c0000(0000)
+> knlGS:0000000000000000
+> [38491.963238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [38491.963239] CR2: 00007f90628fa000 CR3: 000000027ee0a002 CR4: 00000000003606e0
+> [38491.963239] Call Trace:
+> [38491.963246]  mem_cgroup_shrink_node+0x9b/0x1d0
+> [38491.963250]  mem_cgroup_soft_limit_reclaim+0x10c/0x3a0
+> [38491.963254]  balance_pgdat+0x276/0x540
+> [38491.963258]  kswapd+0x200/0x3f0
+> [38491.963261]  ? wait_woken+0x80/0x80
+> [38491.963265]  kthread+0xfd/0x130
+> [38491.963267]  ? balance_pgdat+0x540/0x540
+> [38491.963269]  ? kthread_park+0x80/0x80
+> [38491.963273]  ret_from_fork+0x35/0x40
+> [38491.963276] ---[ end trace 727343df67b2398a ]---
+> [38492.129877] WARNING: CPU: 7 PID: 175 at mm/vmscan.c:248
+> set_task_reclaim_state+0x2f/0x40
+> [38492.129879] Modules linked in: iwlmvm mac80211 libarc4 iwlwifi
+> cfg80211 xt_comment nls_iso8859_1 nls_cp437 vfat fat xfs jfs btrfs xor
+> raid6_pq libcrc32c ccm tun rfcomm fuse xt_tcpudp ip6t_REJECT
+> nf_reject_ipv6 ipt_REJECT nf_reject_ipv4 xt_multiport xt_owner
+> snd_hda_codec_hdmi ip6table_filter ip6_tables iptable_filter bnep ext4
+> crc32c_generic mbcache jbd2 snd_hda_codec_realtek
+> snd_hda_codec_generic snd_soc_skl snd_soc_hdac_hda snd_hda_ext_core
+> snd_soc_skl_ipc x86_pkg_temp_thermal intel_powerclamp snd_soc_sst_ipc
+> coretemp snd_soc_sst_dsp snd_soc_acpi_intel_match kvm_intel
+> snd_soc_acpi i915 snd_soc_core kvm snd_compress ac97_bus
+> snd_pcm_dmaengine snd_hda_intel i2c_algo_bit btusb irqbypass
+> drm_kms_helper btrtl snd_hda_codec dell_laptop btbcm crct10dif_pclmul
+> snd_hda_core crc32c_intel btintel iTCO_wdt ghash_clmulni_intel drm
+> ledtrig_audio aesni_intel iTCO_vendor_support snd_hwdep dell_wmi
+> rtsx_usb_ms r8169 dell_smbios aes_x86_64 mei_hdcp crypto_simd
+> intel_gtt bluetooth snd_pcm cryptd dcdbas
+> [38492.129919]  wmi_bmof dell_wmi_descriptor intel_rapl_msr
+> glue_helper snd_timer joydev intel_cstate snd realtek memstick
+> dell_smm_hwmon mousedev psmouse input_leds libphy intel_uncore
+> ecdh_generic ecc crc16 rfkill intel_rapl_perf soundcore i2c_i801
+> agpgart mei_me tpm_crb syscopyarea sysfillrect sysimgblt mei
+> intel_xhci_usb_role_switch fb_sys_fops idma64 tpm_tis roles
+> processor_thermal_device intel_rapl_common i2c_hid tpm_tis_core
+> int3403_thermal intel_soc_dts_iosf battery wmi intel_lpss_pci
+> intel_lpss intel_pch_thermal tpm int3400_thermal int3402_thermal
+> acpi_thermal_rel int340x_thermal_zone rng_core intel_hid ac
+> sparse_keymap evdev mac_hid crypto_user ip_tables x_tables
+> hid_multitouch rtsx_usb_sdmmc mmc_core rtsx_usb hid_logitech_hidpp
+> sr_mod cdrom sd_mod uas usb_storage hid_logitech_dj hid_generic usbhid
+> hid ahci serio_raw libahci atkbd libps2 libata xhci_pci scsi_mod
+> xhci_hcd crc32_pclmul i8042 serio f2fs [last unloaded: cfg80211]
+> [38492.129961] CPU: 7 PID: 175 Comm: kswapd0 Tainted: G        W
+>    5.3.0-rc5+149+gbb7ba8069de9 #1
+> [38492.129962] Hardware name: Dell Inc. Inspiron 5570/09YTN7, BIOS
+> 1.2.3 05/15/2019
+> [38492.129965] RIP: 0010:set_task_reclaim_state+0x2f/0x40
+> [38492.129968] Code: 55 48 89 f5 53 48 89 fb 48 85 ed 48 8b 83 08 08
+> 00 00 74 11 48 85 c0 74 02 0f 0b 48 89 ab 08 08 00 00 5b 5d c3 48 85
+> c0 75 f1 <0f> 0b 48 89 ab 08 08 00 00 5b 5d c3 0f 1f 44 00 00 55 48 89
+> fd 53
+> [38492.129969] RSP: 0018:ffff8c898031fd88 EFLAGS: 00010246
+> [38492.129971] RAX: 0000000000000000 RBX: ffff892aa04ddc40 RCX: 0000000000000000
+> [38492.129972] RDX: 0000000000000001 RSI: 0000000000000000 RDI: ffff892aa04ddc40
+> [38492.129973] RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
+> [38492.129974] R10: ffff892aa33d7544 R11: 0000000000000000 R12: ffff8c898031fe40
+> [38492.129974] R13: 0000000000000200 R14: ffff8c898031fe40 R15: 0000000000000001
+> [38492.129976] FS:  0000000000000000(0000) GS:ffff892aa33c0000(0000)
+> knlGS:0000000000000000
+> [38492.129977] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [38492.129978] CR2: 00007fc3a2787010 CR3: 000000035c794001 CR4: 00000000003606e0
+> [38492.129979] Call Trace:
+> [38492.129985]  balance_pgdat+0x4e6/0x540
+> [38492.129991]  kswapd+0x200/0x3f0
+> [38492.129994]  ? wait_woken+0x80/0x80
+> [38492.129997]  kthread+0xfd/0x130
+> [38492.130000]  ? balance_pgdat+0x540/0x540
+> [38492.130001]  ? kthread_park+0x80/0x80
+> [38492.130005]  ret_from_fork+0x35/0x40
+> [38492.130008] ---[ end trace 727343df67b2398b ]---
+>
+> Thanks for reading. Please be gentle.
 
 
