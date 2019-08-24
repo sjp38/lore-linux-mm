@@ -2,103 +2,85 @@ Return-Path: <SRS0=KlKP=WU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.5 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12FB8C3A59E
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 13:05:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 848EFC3A59E
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 15:28:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 73AB92146E
-	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 13:05:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73AB92146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id 1F950206DD
+	for <linux-mm@archiver.kernel.org>; Sat, 24 Aug 2019 15:28:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="TJwImQZi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F950206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B31E26B04E2; Sat, 24 Aug 2019 09:05:35 -0400 (EDT)
+	id 632936B04DF; Sat, 24 Aug 2019 11:28:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE35A6B04E3; Sat, 24 Aug 2019 09:05:35 -0400 (EDT)
+	id 5BC436B04E5; Sat, 24 Aug 2019 11:28:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F9526B04E4; Sat, 24 Aug 2019 09:05:35 -0400 (EDT)
+	id 4ABA06B04E6; Sat, 24 Aug 2019 11:28:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0077.hostedemail.com [216.40.44.77])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E94F6B04E2
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 09:05:35 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0039.hostedemail.com [216.40.44.39])
+	by kanga.kvack.org (Postfix) with ESMTP id 226BA6B04DF
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 11:28:21 -0400 (EDT)
 Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 26A6F180AD7C3
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 13:05:35 +0000 (UTC)
-X-FDA: 75857343030.22.noise42_87de97a472638
-X-HE-Tag: noise42_87de97a472638
-X-Filterd-Recvd-Size: 2717
-Received: from mail3-167.sinamail.sina.com.cn (mail3-167.sinamail.sina.com.cn [202.108.3.167])
-	by imf21.hostedemail.com (Postfix) with SMTP
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 13:05:33 +0000 (UTC)
-Received: from unknown (HELO localhost.localdomain)([124.64.0.77])
-	by sina.com with ESMTP
-	id 5D6136180001A058; Sat, 24 Aug 2019 21:05:30 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 904413753887
-From: Hillf Danton <hdanton@sina.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Adric Blake <promarbler14@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Linux MM <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: WARNINGs in set_task_reclaim_state with memory cgroup andfullmemory usage
-Date: Sat, 24 Aug 2019 21:05:16 +0800
-Message-Id: <20190824130516.2540-1-hdanton@sina.com>
+	by forelay05.hostedemail.com (Postfix) with SMTP id 96175181AC9B6
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 15:28:20 +0000 (UTC)
+X-FDA: 75857702760.22.tray25_48ca5740f3608
+X-HE-Tag: tray25_48ca5740f3608
+X-Filterd-Recvd-Size: 2280
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 15:28:20 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=r+fW1Mxx/WIOu0q7eOdTyS41mAFDLJVl/S3haneWLp8=; b=TJwImQZiE0XYYd1CswYHKW5n6
+	jG39tv4RXZ9E9B3XED+e0S6SToGeMhKbPpp6dwYr5CxjxKxdgflwAfCVnFUwl/OeP0meDvFrlf75S
+	2o4ykmjqVh19ogfzTo/37YmlZ/g1Kwjf5arpB8hQiwMQGKQGQeP3VX0RdWSaK87+husw8zGa0+fZf
+	zlaWbbtggtuhd+5J4JY5k0MZHMXqGuVQlSGoqQ011ARiZHhj6NHN+5232GgXeRNNyHcbuikZkOJSs
+	sr71cua8POM0V9JPilHsDUDUMSdvCPrzlzrENXlVlCHwKgo74NgIO4PIFO8KcM97OLvPRuOqrrT9C
+	yWXLB2w8A==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i1Xxa-0002mp-NM; Sat, 24 Aug 2019 15:28:10 +0000
+Date: Sat, 24 Aug 2019 08:28:10 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, linux-fsdevel@vger.kernel.org, hch@lst.de,
+	linux-xfs@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v2 2/5] mm: Add file_offset_of_ helpers
+Message-ID: <20190824152810.GA28002@bombadil.infradead.org>
+References: <20190821003039.12555-3-willy@infradead.org>
+ <201908241913.Slt7yyks%lkp@intel.com>
 MIME-Version: 1.0
-Thread-Topic: Re: WARNINGs in set_task_reclaim_state with memory cgroup andfullmemory usage
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201908241913.Slt7yyks%lkp@intel.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, Aug 24, 2019 at 07:48:24PM +0800, kbuild test robot wrote:
+> Hi Matthew,
+> 
+> Thank you for the patch! Perhaps something to improve:
+> 
+> [auto build test WARNING on linus/master]
+> [cannot apply to v5.3-rc5 next-20190823]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-On Sat, 24 Aug 2019 16:15:38 +0800 Yafang Shao wrote:
->=20
-> The memcg soft reclaim is called from kswapd reclam path and direct
-> reclaim path,
-> so why not pass the scan_control from the callsite in these two
-> reclaim paths and use it in memcg soft reclaim ?
-> Seems there's no specially reason that we must introduce a new
-> scan_control here.
->=20
-To protect memcg from being over reclaimed?
-Victim memcg is selected one after another in a fair way, and punished
-by reclaiming one memcg a round no more than nr_to_reclaim =3D=3D
-SWAP_CLUSTER_MAX pages. And so is the flip-flop from global to memcg
-reclaiming. We can see similar protection activities in
-commit a394cb8ee632 ("memcg,vmscan: do not break out targeted reclaim
-without reclaimed pages") and
-commit 2bb0f34fe3c1 ("mm: vmscan: do not iterate all mem cgroups for
-global direct reclaim").
+It depends on various patches which are in -next, although I didn't
+generate them against -next.
 
-No preference seems in either way except for retaining
-nr_to_reclaim =3D=3D SWAP_CLUSTER_MAX and target_mem_cgroup =3D=3D memcg.
->=20
-> I have checked the hisotry why this order check is introduced here.
-> The first commit is 4e41695356fb ("memory controller: soft limit
-> reclaim on contention"),
-> but it didn't explained why.
-> At the first glance it is reasonable to remove it, but we should
-> understand why it was introduced at the first place.
-
-Reclaiming order can not make much sense in soft-limit reclaiming
-under the current protection.
-
-Thanks to Adric Blake again.
-
-Hillf
 
 
