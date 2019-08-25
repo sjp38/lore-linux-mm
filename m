@@ -7,58 +7,55 @@ X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FA5AC3A5A4
-	for <linux-mm@archiver.kernel.org>; Sun, 25 Aug 2019 00:54:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 274CCC3A59E
+	for <linux-mm@archiver.kernel.org>; Sun, 25 Aug 2019 00:54:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10E9822CE3
-	for <linux-mm@archiver.kernel.org>; Sun, 25 Aug 2019 00:54:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DD0AC2190F
+	for <linux-mm@archiver.kernel.org>; Sun, 25 Aug 2019 00:54:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="jmF1xqx0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10E9822CE3
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZlulVT9Q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD0AC2190F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B90086B04F7; Sat, 24 Aug 2019 20:54:43 -0400 (EDT)
+	id 8F7596B04F9; Sat, 24 Aug 2019 20:54:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B418F6B04F9; Sat, 24 Aug 2019 20:54:43 -0400 (EDT)
+	id 8A74E6B04FB; Sat, 24 Aug 2019 20:54:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A55FD6B04FA; Sat, 24 Aug 2019 20:54:43 -0400 (EDT)
+	id 7E50B6B04FC; Sat, 24 Aug 2019 20:54:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id 85A636B04F7
-	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 20:54:43 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 2B42052A2
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 00:54:43 +0000 (UTC)
-X-FDA: 75859130046.27.fog67_463cbf1e2813d
-X-HE-Tag: fog67_463cbf1e2813d
-X-Filterd-Recvd-Size: 6861
+Received: from forelay.hostedemail.com (smtprelay0200.hostedemail.com [216.40.44.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FA6F6B04F9
+	for <linux-mm@kvack.org>; Sat, 24 Aug 2019 20:54:46 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id EC4E2824CA26
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 00:54:45 +0000 (UTC)
+X-FDA: 75859130130.05.mass81_46ab5a7ae232d
+X-HE-Tag: mass81_46ab5a7ae232d
+X-Filterd-Recvd-Size: 3210
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 00:54:42 +0000 (UTC)
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 00:54:45 +0000 (UTC)
 Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 15A7C2190F;
-	Sun, 25 Aug 2019 00:54:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 55839206E0;
+	Sun, 25 Aug 2019 00:54:44 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566694481;
-	bh=/nAdXxZjqQ/vrNHjU8t4XxTxSowuJMyFyK6hvPaQ6CE=;
+	s=default; t=1566694484;
+	bh=L2S2GGnciDnwlnmsfC/b9WeIfalDn4jL2tsJvrWBT2o=;
 	h=Date:From:To:Subject:From;
-	b=jmF1xqx0OT0PfEa8XiLmdhk0hFX0KLqKmw5CTztQYjNQaoKpxpDZtGg0xTkOrlswV
-	 2Wi7ZfxB6whA/vjJWUxll0hGSvd317XB9SC5M92RZCX2Z/eHPff1E5LKh3e1QWfX13
-	 XCqtNLS2X0itSFt0YfD/EQdzuARNp4pdGowgA6Z0=
-Date: Sat, 24 Aug 2019 17:54:40 -0700
+	b=ZlulVT9QkC1VhYqJ8u8+nxxp00qAMhXD2GYAnYjfQPSe65KDXsAkUUN1g9jnPgv92
+	 Q2DgEYPCtR68irbFtQ0S2lYSl1pql4pI9Y+joYFpSO9SUQTnrTAbpTGN0aAPMHpKsA
+	 RB8WUL+qJwowEa0M7nV4kprv77fAx87FN/elR7Ow=
+Date: Sat, 24 Aug 2019 17:54:43 -0700
 From: akpm@linux-foundation.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org,
- m.mizuma@jp.fujitsu.com, mgorman@techsingularity.net,
- mm-commits@vger.kernel.org, n-horiguchi@ah.jp.nec.com,
- osalvador@suse.de, pavel.tatashin@microsoft.com, rientjes@google.com,
- stable@vger.kernel.org, torvalds@linux-foundation.org, vbabka@suse.cz
-Subject:  [patch 02/11] mm, page_alloc: move_freepages should not
- examine struct page of reserved memory
-Message-ID: <20190825005440.tdSQS605E%akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, cai@lca.pw, linux-mm@kvack.org,
+ linux@roeck-us.net, mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
+ torvalds@linux-foundation.org
+Subject:  [patch 03/11] parisc: fix compilation errrors
+Message-ID: <20190825005443.DjMnGU4bk%akpm@linux-foundation.org>
 User-Agent: s-nail v14.8.16
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -66,125 +63,60 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: David Rientjes <rientjes@google.com>
-Subject: mm, page_alloc: move_freepages should not examine struct page of reserved memory
+From: Qian Cai <cai@lca.pw>
+Subject: parisc: fix compilation errrors
 
-After commit 907ec5fca3dc ("mm: zero remaining unavailable struct pages"),
-struct page of reserved memory is zeroed.  This causes page->flags to be 0
-and fixes issues related to reading /proc/kpageflags, for example, of
-reserved memory.
+Commit 0cfaee2af3a0 ("include/asm-generic/5level-fixup.h: fix variable
+'p4d' set but not used") converted a few functions from macros to static
+inline, which causes parisc to complain,
 
-The VM_BUG_ON() in move_freepages_block(), however, assumes that
-page_zone() is meaningful even for reserved memory.  That assumption is no
-longer true after the aforementioned commit.
+In file included from ./include/asm-generic/4level-fixup.h:38:0,
+                 from ./arch/parisc/include/asm/pgtable.h:5,
+                 from ./arch/parisc/include/asm/io.h:6,
+                 from ./include/linux/io.h:13,
+                 from sound/core/memory.c:9:
+./include/asm-generic/5level-fixup.h:14:18: error: unknown type name
+'pgd_t'; did you mean 'pid_t'?
+ #define p4d_t    pgd_t
+                  ^
+./include/asm-generic/5level-fixup.h:24:28: note: in expansion of macro
+'p4d_t'
+ static inline int p4d_none(p4d_t p4d)
+                            ^~~~~
 
-There's no reason why move_freepages_block() should be testing the
-legitimacy of page_zone() for reserved memory; its scope is limited only
-to pages on the zone's freelist.
+It is because "4level-fixup.h" is included before "asm/page.h" where
+"pgd_t" is defined.
 
-Note that pfn_valid() can be true for reserved memory: there is a backing
-struct page.  The check for page_to_nid(page) is also buggy but reserved
-memory normally only appears on node 0 so the zeroing doesn't affect this.
-
-Move the debug checks to after verifying PageBuddy is true.  This isolates
-the scope of the checks to only be for buddy pages which are on the zone's
-freelist which move_freepages_block() is operating on.  In this case, an
-incorrect node or zone is a bug worthy of being warned about (and the
-examination of struct page is acceptable bcause this memory is not
-reserved).
-
-Why does move_freepages_block() gets called on reserved memory?  It's
-simply math after finding a valid free page from the per-zone free area to
-use as fallback.  We find the beginning and end of the pageblock of the
-valid page and that can bring us into memory that was reserved per the
-e820.  pfn_valid() is still true (it's backed by a struct page), but since
-it's zero'd we shouldn't make any inferences here about comparing its node
-or zone.  The current node check just happens to succeed most of the time
-by luck because reserved memory typically appears on node 0.
-
-The fix here is to validate that we actually have buddy pages before
-testing if there's any type of zone or node strangeness going on.
-
-We noticed it almost immediately after bringing 907ec5fca3dc in on
-CONFIG_DEBUG_VM builds.  It depends on finding specific free pages in
-the per-zone free area where the math in move_freepages() will bring
-the start or end pfn into reserved memory and wanting to claim that
-entire pageblock as a new migratetype.  So the path will be rare,
-require CONFIG_DEBUG_VM, and require fallback to a different
-migratetype.
-
-Some struct pages were already zeroed from reserve pages before
-907ec5fca3c so it theoretically could trigger before this commit.  I
-think it's rare enough under a config option that most people don't run
-that others may not have noticed.  I wouldn't argue against a stable
-tag and the backport should be easy enough, but probably wouldn't
-single out a commit that this is fixing.
-
-
-Mel said:
-
-: The overhead of the debugging check is higher with this patch although
-: it'll only affect debug builds and the path is not particularly hot. 
-: If this was a concern, I think it would be reasonable to simply remove
-: the debugging check as the zone boundaries are checked in
-: move_freepages_block and we never expect a zone/node to be smaller than
-: a pageblock and stuck in the middle of another zone.
-
-Link: http://lkml.kernel.org/r/alpine.DEB.2.21.1908122036560.10779@chino.kir.corp.google.com
-Signed-off-by: David Rientjes <rientjes@google.com>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: <stable@vger.kernel.org>
+Link: http://lkml.kernel.org/r/20190815205305.1382-1-cai@lca.pw
+Fixes: 0cfaee2af3a0 ("include/asm-generic/5level-fixup.h: fix variable 'p4d' set but not used")
+Signed-off-by: Qian Cai <cai@lca.pw>
+Reported-by: Guenter Roeck <linux@roeck-us.net>
+Tested-by: Guenter Roeck <linux@roeck-us.net>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/page_alloc.c |   19 ++++---------------
- 1 file changed, 4 insertions(+), 15 deletions(-)
+ arch/parisc/include/asm/pgtable.h |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
---- a/mm/page_alloc.c~mm-page_alloc-move_freepages-should-not-examine-struct-page-of-reserved-memory
-+++ a/mm/page_alloc.c
-@@ -2238,27 +2238,12 @@ static int move_freepages(struct zone *z
- 	unsigned int order;
- 	int pages_moved = 0;
+--- a/arch/parisc/include/asm/pgtable.h~parisc-fix-compilation-errrors
++++ a/arch/parisc/include/asm/pgtable.h
+@@ -2,6 +2,7 @@
+ #ifndef _PARISC_PGTABLE_H
+ #define _PARISC_PGTABLE_H
  
--#ifndef CONFIG_HOLES_IN_ZONE
--	/*
--	 * page_zone is not safe to call in this context when
--	 * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
--	 * anyway as we check zone boundaries in move_freepages_block().
--	 * Remove at a later date when no bug reports exist related to
--	 * grouping pages by mobility
--	 */
--	VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
--	          pfn_valid(page_to_pfn(end_page)) &&
--	          page_zone(start_page) != page_zone(end_page));
--#endif
- 	for (page = start_page; page <= end_page;) {
- 		if (!pfn_valid_within(page_to_pfn(page))) {
- 			page++;
- 			continue;
- 		}
++#include <asm/page.h>
+ #include <asm-generic/4level-fixup.h>
  
--		/* Make sure we are not inadvertently changing nodes */
--		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
+ #include <asm/fixmap.h>
+@@ -98,8 +99,6 @@ static inline void purge_tlb_entries(str
+ 
+ #endif /* !__ASSEMBLY__ */
+ 
+-#include <asm/page.h>
 -
- 		if (!PageBuddy(page)) {
- 			/*
- 			 * We assume that pages that could be isolated for
-@@ -2273,6 +2258,10 @@ static int move_freepages(struct zone *z
- 			continue;
- 		}
- 
-+		/* Make sure we are not inadvertently changing nodes */
-+		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
-+		VM_BUG_ON_PAGE(page_zone(page) != zone, page);
-+
- 		order = page_order(page);
- 		move_to_free_area(page, &zone->free_area[order], migratetype);
- 		page += 1 << order;
+ #define pte_ERROR(e) \
+ 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
+ #define pmd_ERROR(e) \
 _
 
