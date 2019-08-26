@@ -2,76 +2,71 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-5.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A8CEC3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:19:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B737EC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:25:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F840206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:19:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6109E2053B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:25:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hVGnkDM1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F840206E0
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rY7sUsK2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6109E2053B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3A006B0580; Mon, 26 Aug 2019 09:19:09 -0400 (EDT)
+	id C279A6B0581; Mon, 26 Aug 2019 09:25:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEAC06B0581; Mon, 26 Aug 2019 09:19:09 -0400 (EDT)
+	id BB18E6B0583; Mon, 26 Aug 2019 09:25:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD8C56B0582; Mon, 26 Aug 2019 09:19:09 -0400 (EDT)
+	id A789E6B0584; Mon, 26 Aug 2019 09:25:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0140.hostedemail.com [216.40.44.140])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B956B0580
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:19:09 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0200.hostedemail.com [216.40.44.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8085A6B0581
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:25:34 -0400 (EDT)
 Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 67BE6181AC9AE
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:19:09 +0000 (UTC)
-X-FDA: 75864634818.29.party64_4fe5bcdfab452
-X-HE-Tag: party64_4fe5bcdfab452
-X-Filterd-Recvd-Size: 3310
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2497C55F97
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:25:34 +0000 (UTC)
+X-FDA: 75864650988.29.rod70_87e0bb6c98e34
+X-HE-Tag: rod70_87e0bb6c98e34
+X-Filterd-Recvd-Size: 5889
 Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:19:08 +0000 (UTC)
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:25:33 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
 	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=+bgymjxTeTPqaFGWJ2AMHVWjnnle7Q/z0U8HHD/hi4E=; b=hVGnkDM1pOtFegv+JLKwElFh1
-	rG8IIiPdmVMJaBghnBwOEWK7b1abdsG3+9h0E281WSNP594lWFYR5Zy9gPyUIV665jQJ93Brtg6q1
-	b4ve8yBr3pLIySNScM1DAYcjEXx6ztoNASFIq+PG8nraiQdZovJ5nCIiO6/7NPPsVJRV3LoJzBPb9
-	WQeyyjDWRDI5qaYboiMVNiZuP1oIpEQh+flExFYEITNZsDeb0BV13X4wFnerlgF54QkNyzfMNCyaJ
-	hy51a9OWTDo5NLVu2SDcvGoVRaTOgpYUqoa/vU0mnN6LIu3utfE5O6XBz0x6a57W53p8hDNbghybs
-	UrAn07Bjw==;
+	 bh=BWRjHVQRGLyFlu9rSI7WqNlV2muwY0IwqbMe1Mkpa/o=; b=rY7sUsK2YmZcIRtuYisZuGx46
+	cLAh+wgbPeOaz/a1FiG+nqT08EjHxgXuTAfBPgPvzbcp6dGY4KAMsXpcm+3tfgkfeC2nuMZvPtpZF
+	GvJKYapV0EdIyA3huyFiCmEp0oE68pd2ARZYsWB7gZHI4/IVfMMGVnmH6xen9hHNb/rRj2Aa8x0R5
+	hq8kh65wmGtUL5MyEDmDDwu3HOMytRUKPzdgQHWOnNpRYpyQKrCdl2YJpvemWTQxQ822efqTIVAH6
+	TBAoZ9ua7u9/mLkfhAin8mSnc8m8CF39+Np9nNLDfDN3j3kH1yB7qbTRcTuM5fkFyKR0rNynQWBR+
+	ifujCZBXA==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1i2Ete-0004nK-Vo; Mon, 26 Aug 2019 13:18:58 +0000
-Date: Mon, 26 Aug 2019 06:18:58 -0700
+	id 1i2Ezy-0007rz-2S; Mon, 26 Aug 2019 13:25:30 +0000
+Date: Mon, 26 Aug 2019 06:25:29 -0700
 From: Matthew Wilcox <willy@infradead.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Will Deacon <will@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-	Dave Airlie <airlied@redhat.com>,
-	Thomas Hellstrom <thellstrom@vmware.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH] mm: replace is_zero_pfn with is_huge_zero_pmd for thp
-Message-ID: <20190826131858.GB15933@bombadil.infradead.org>
-References: <20190825200621.211494-1-yuzhao@google.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, Stephen Rothwell <sfr@canb.auug.org.au>,
+	"Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2] fs/proc/page: Skip uninitialized page when iterating
+ page structures
+Message-ID: <20190826132529.GC15933@bombadil.infradead.org>
+References: <20190826124336.8742-1-longman@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190825200621.211494-1-yuzhao@google.com>
+In-Reply-To: <20190826124336.8742-1-longman@redhat.com>
 User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -79,40 +74,76 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-Why did you not cc Gerald who wrote the patch?  You can't just
-run get_maintainers.pl and call it good.
-
-On Sun, Aug 25, 2019 at 02:06:21PM -0600, Yu Zhao wrote:
-> For hugely mapped thp, we use is_huge_zero_pmd() to check if it's
-> zero page or not.
+On Mon, Aug 26, 2019 at 08:43:36AM -0400, Waiman Long wrote:
+> It was found that on a dual-socket x86-64 system with nvdimm, reading
+> /proc/kpagecount may cause the system to panic:
 > 
-> We do fill ptes with my_zero_pfn() when we split zero thp pmd, but
->  this is not what we have in vm_normal_page_pmd().
-> pmd_trans_huge_lock() makes sure of it.
+> ===================
+> [   79.917682] BUG: unable to handle page fault for address: fffffffffffffffe
+> [   79.924558] #PF: supervisor read access in kernel mode
+> [   79.929696] #PF: error_code(0x0000) - not-present page
+> [   79.934834] PGD 87b60d067 P4D 87b60d067 PUD 87b60f067 PMD 0
+> [   79.940494] Oops: 0000 [#1] SMP NOPTI
+> [   79.944157] CPU: 89 PID: 3455 Comm: cp Not tainted 5.3.0-rc5-test+ #14
+> [   79.950682] Hardware name: Dell Inc. PowerEdge R740/07X9K0, BIOS 2.2.11 06/13/2019
+> [   79.958246] RIP: 0010:kpagecount_read+0xdb/0x1a0
+> [   79.962859] Code: e8 09 83 e0 3f 48 0f a3 02 73 2d 4c 89 f7 48 c1 e7 06 48 03 3d fe da de 00 74 1d 48 8b 57 08 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 75 06 83 7f 30 80 7d 62 31 c0 4c 89 f9 e8 5d c9
+> [   79.981603] RSP: 0018:ffffb0d9c950fe70 EFLAGS: 00010202
+> [   79.986830] RAX: fffffffffffffffe RBX: ffff8beebe5383c0 RCX: ffffb0d9c950ff00
+> [   79.993963] RDX: 0000000000000001 RSI: 00007fd85b29e000 RDI: ffffe77a22000000
+> [   80.001095] RBP: 0000000000020000 R08: 0000000000000001 R09: 0000000000000000
+> [   80.008226] R10: 0000000000000000 R11: 0000000000000001 R12: 00007fd85b29e000
+> [   80.015358] R13: ffffffff893f0480 R14: 0000000000880000 R15: 00007fd85b29e000
+> [   80.022491] FS:  00007fd85b312800(0000) GS:ffff8c359fb00000(0000) knlGS:0000000000000000
+> [   80.030576] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   80.036321] CR2: fffffffffffffffe CR3: 0000004f54a38001 CR4: 00000000007606e0
+> [   80.043455] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [   80.050586] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> [   80.057718] PKRU: 55555554
+> [   80.060428] Call Trace:
+> [   80.062877]  proc_reg_read+0x39/0x60
+> [   80.066459]  vfs_read+0x91/0x140
+> [   80.069686]  ksys_read+0x59/0xd0
+> [   80.072922]  do_syscall_64+0x59/0x1e0
+> [   80.076588]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> [   80.081637] RIP: 0033:0x7fd85a7f5d75
+> ===================
 > 
-> This is a trivial fix for /proc/pid/numa_maps, and AFAIK nobody
-> complains about it.
+> It turns out the panic was caused by the kpagecount_read() function
+> hitting an uninitialized page structure at PFN 0x880000 where all its
+> fields were set to -1. The compound_head value of -1 will mislead the
+> kernel to treat -2 as a pointer to the head page of the compound page
+> leading to the crash.
 > 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
+> The system have 12 GB of nvdimm ranging from PFN 0x880000-0xb7ffff.
+> However, only PFN 0x88c200-0xb7ffff are released by the nvdimm
+> driver to the kernel and initialized. IOW, PFN 0x880000-0x88c1ff
+> remain uninitialized. Perhaps these 196 MB of nvdimm are reserved for
+> internal use.
+> 
+> To fix the panic, we need to find out if a page structure has been
+> initialized. This is done now by checking if the PFN is in the range
+> of a memory zone assuming that pages in a zone is either correctly
+> marked as not present in the mem_section structure or have their page
+> structures initialized.
+> 
+> Signed-off-by: Waiman Long <longman@redhat.com>
 > ---
->  mm/memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e2bb51b6242e..ea3c74855b23 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -654,7 +654,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
->  
->  	if (pmd_devmap(pmd))
->  		return NULL;
-> -	if (is_zero_pfn(pfn))
-> +	if (is_huge_zero_pmd(pmd))
->  		return NULL;
->  	if (unlikely(pfn > highest_memmap_pfn))
->  		return NULL;
-> -- 
-> 2.23.0.187.g17f5b7556c-goog
-> 
+>  fs/proc/page.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++---
+>  1 file changed, 65 insertions(+), 3 deletions(-)
+
+Would this not work equally well?
+
++++ b/fs/proc/page.c
+@@ -46,7 +46,8 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
+                        ppage = pfn_to_page(pfn);
+                else
+                        ppage = NULL;
+-               if (!ppage || PageSlab(ppage) || page_has_type(ppage))
++               if (!ppage || PageSlab(ppage) || page_has_type(ppage) ||
++                               PagePoisoned(ppage))
+                        pcount = 0;
+                else
+                        pcount = page_mapcount(ppage);
+
 
