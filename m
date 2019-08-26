@@ -2,160 +2,135 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39BE8C3A5A4
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:43:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22874C3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:47:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0A39206B7
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:43:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0A39206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E397821852
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:47:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E397821852
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 871B56B0583; Mon, 26 Aug 2019 09:43:30 -0400 (EDT)
+	id AB8DA6B0586; Mon, 26 Aug 2019 09:47:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FC836B0585; Mon, 26 Aug 2019 09:43:30 -0400 (EDT)
+	id A68566B0587; Mon, 26 Aug 2019 09:47:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C1B56B0586; Mon, 26 Aug 2019 09:43:30 -0400 (EDT)
+	id 9A5DD6B0588; Mon, 26 Aug 2019 09:47:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
-	by kanga.kvack.org (Postfix) with ESMTP id 479966B0583
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:43:30 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 01C703CFB
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:43:30 +0000 (UTC)
-X-FDA: 75864696180.28.knot10_16702d0cfb38
-X-HE-Tag: knot10_16702d0cfb38
-X-Filterd-Recvd-Size: 6537
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:43:29 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 24EF210F23E6;
-	Mon, 26 Aug 2019 13:43:28 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2F33E5D9CD;
-	Mon, 26 Aug 2019 13:43:24 +0000 (UTC)
-Subject: Re: [PATCH v2] fs/proc/page: Skip uninitialized page when iterating
- page structures
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin"
- <mst@redhat.com>
-References: <20190826124336.8742-1-longman@redhat.com>
- <20190826132529.GC15933@bombadil.infradead.org>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <60464cac-6319-c3c1-47b8-d9b5cf586754@redhat.com>
-Date: Mon, 26 Aug 2019 09:43:24 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0214.hostedemail.com [216.40.44.214])
+	by kanga.kvack.org (Postfix) with ESMTP id 777D66B0586
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:47:00 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 2E00D824CA38
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:47:00 +0000 (UTC)
+X-FDA: 75864705000.12.shame41_1ffb2d3e50f53
+X-HE-Tag: shame41_1ffb2d3e50f53
+X-Filterd-Recvd-Size: 4206
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:46:59 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4C2D6B038;
+	Mon, 26 Aug 2019 13:46:57 +0000 (UTC)
+Message-ID: <027272c27398b950f207101a2c5dbc07a30a36bc.camel@suse.de>
+Subject: Re: [PATCH v2 01/11] asm-generic: add dma_zone_size
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: catalin.marinas@arm.com, eric@anholt.net,
+ linux-riscv@lists.infradead.org,  frowand.list@gmail.com,
+ m.szyprowski@samsung.com, linux-arch@vger.kernel.org, 
+ f.fainelli@gmail.com, will@kernel.org, devicetree@vger.kernel.org, Arnd
+ Bergmann <arnd@arndb.de>, marc.zyngier@arm.com, robh+dt@kernel.org, 
+ linux-rpi-kernel@lists.infradead.org, linux-arm-kernel@lists.infradead.org,
+  phill@raspberryi.org, mbrugger@suse.com, linux-mm@kvack.org, 
+ linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org,
+ wahrenst@gmx.net,  akpm@linux-foundation.org, Robin Murphy
+ <robin.murphy@arm.com>
+Date: Mon, 26 Aug 2019 15:46:52 +0200
+In-Reply-To: <20190826070939.GD11331@lst.de>
+References: <20190820145821.27214-1-nsaenzjulienne@suse.de>
+	 <20190820145821.27214-2-nsaenzjulienne@suse.de>
+	 <20190826070939.GD11331@lst.de>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-rvg1En4pB30QD7Cei8XS"
+User-Agent: Evolution 3.32.4 
 MIME-Version: 1.0
-In-Reply-To: <20190826132529.GC15933@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.66]); Mon, 26 Aug 2019 13:43:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/26/19 9:25 AM, Matthew Wilcox wrote:
-> On Mon, Aug 26, 2019 at 08:43:36AM -0400, Waiman Long wrote:
->> It was found that on a dual-socket x86-64 system with nvdimm, reading
->> /proc/kpagecount may cause the system to panic:
->>
->> ===================
->> [   79.917682] BUG: unable to handle page fault for address: fffffffffffffffe
->> [   79.924558] #PF: supervisor read access in kernel mode
->> [   79.929696] #PF: error_code(0x0000) - not-present page
->> [   79.934834] PGD 87b60d067 P4D 87b60d067 PUD 87b60f067 PMD 0
->> [   79.940494] Oops: 0000 [#1] SMP NOPTI
->> [   79.944157] CPU: 89 PID: 3455 Comm: cp Not tainted 5.3.0-rc5-test+ #14
->> [   79.950682] Hardware name: Dell Inc. PowerEdge R740/07X9K0, BIOS 2.2.11 06/13/2019
->> [   79.958246] RIP: 0010:kpagecount_read+0xdb/0x1a0
->> [   79.962859] Code: e8 09 83 e0 3f 48 0f a3 02 73 2d 4c 89 f7 48 c1 e7 06 48 03 3d fe da de 00 74 1d 48 8b 57 08 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 75 06 83 7f 30 80 7d 62 31 c0 4c 89 f9 e8 5d c9
->> [   79.981603] RSP: 0018:ffffb0d9c950fe70 EFLAGS: 00010202
->> [   79.986830] RAX: fffffffffffffffe RBX: ffff8beebe5383c0 RCX: ffffb0d9c950ff00
->> [   79.993963] RDX: 0000000000000001 RSI: 00007fd85b29e000 RDI: ffffe77a22000000
->> [   80.001095] RBP: 0000000000020000 R08: 0000000000000001 R09: 0000000000000000
->> [   80.008226] R10: 0000000000000000 R11: 0000000000000001 R12: 00007fd85b29e000
->> [   80.015358] R13: ffffffff893f0480 R14: 0000000000880000 R15: 00007fd85b29e000
->> [   80.022491] FS:  00007fd85b312800(0000) GS:ffff8c359fb00000(0000) knlGS:0000000000000000
->> [   80.030576] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [   80.036321] CR2: fffffffffffffffe CR3: 0000004f54a38001 CR4: 00000000007606e0
->> [   80.043455] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->> [   80.050586] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
->> [   80.057718] PKRU: 55555554
->> [   80.060428] Call Trace:
->> [   80.062877]  proc_reg_read+0x39/0x60
->> [   80.066459]  vfs_read+0x91/0x140
->> [   80.069686]  ksys_read+0x59/0xd0
->> [   80.072922]  do_syscall_64+0x59/0x1e0
->> [   80.076588]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
->> [   80.081637] RIP: 0033:0x7fd85a7f5d75
->> ===================
->>
->> It turns out the panic was caused by the kpagecount_read() function
->> hitting an uninitialized page structure at PFN 0x880000 where all its
->> fields were set to -1. The compound_head value of -1 will mislead the
->> kernel to treat -2 as a pointer to the head page of the compound page
->> leading to the crash.
->>
->> The system have 12 GB of nvdimm ranging from PFN 0x880000-0xb7ffff.
->> However, only PFN 0x88c200-0xb7ffff are released by the nvdimm
->> driver to the kernel and initialized. IOW, PFN 0x880000-0x88c1ff
->> remain uninitialized. Perhaps these 196 MB of nvdimm are reserved for
->> internal use.
->>
->> To fix the panic, we need to find out if a page structure has been
->> initialized. This is done now by checking if the PFN is in the range
->> of a memory zone assuming that pages in a zone is either correctly
->> marked as not present in the mem_section structure or have their page
->> structures initialized.
->>
->> Signed-off-by: Waiman Long <longman@redhat.com>
->> ---
->>  fs/proc/page.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++---
->>  1 file changed, 65 insertions(+), 3 deletions(-)
-> Would this not work equally well?
->
-> +++ b/fs/proc/page.c
-> @@ -46,7 +46,8 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
->                         ppage = pfn_to_page(pfn);
->                 else
->                         ppage = NULL;
-> -               if (!ppage || PageSlab(ppage) || page_has_type(ppage))
-> +               if (!ppage || PageSlab(ppage) || page_has_type(ppage) ||
-> +                               PagePoisoned(ppage))
->                         pcount = 0;
->                 else
->                         pcount = page_mapcount(ppage);
->
-That is my initial thought too. However, I couldn't find out where the
-memory of the uninitialized page structures may have been initialized
-somehow. The only thing I found is when vm_debug is on that the page
-structures are indeed poisoned. Without that it is probably just
-whatever the content that the memory have when booting up the kernel.
 
-It just happens on the test system that I used the memory of those page
-structures turned out to be -1. It may be different in other systems
-that can still crash the kernel, but not detected by the PagePoisoned()
-check. That is why I settle on the current scheme which is more general
-and don't rely on the memory get initialized in a certain way.
+--=-rvg1En4pB30QD7Cei8XS
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Cheers,
-Longman
+On Mon, 2019-08-26 at 09:09 +0200, Christoph Hellwig wrote:
+> On Tue, Aug 20, 2019 at 04:58:09PM +0200, Nicolas Saenz Julienne wrote:
+> > Some architectures have platform specific DMA addressing limitations.
+> > This will allow for hardware description code to provide the constraint=
+s
+> > in a generic manner, so as for arch code to properly setup it's memory
+> > zones and DMA mask.
+>=20
+> I know this just spreads the arm code, but I still kinda hate it.
+
+Rob's main concern was finding a way to pass the constraint from HW definit=
+ion
+to arch without widening fdt's architecture specific function surface. I'd =
+say
+it's fair to argue that having a generic mechanism makes sense as it'll now
+traverse multiple archs and subsystems.
+
+I get adding globals like this is not very appealing, yet I went with it as=
+ it
+was the easier to integrate with arm's code. Any alternative suggestions?
+
+> MAX_DMA_ADDRESS is such an oddly defined concepts.  We have the mm
+> code that uses it to start allocating after the dma zones, but
+> I think that would better be done using a function returning
+> 1 << max(zone_dma_bits, 32) or so.  Then we have about a handful
+> of drivers using it that all seem rather bogus, and one of which
+> I think are usable on arm64.
+
+Is it safe to assume DMA limitations will always be a power of 2? I ask as =
+RPi4
+kinda isn't: ZONE_DMA is 0x3c000000 bytes big, I'm approximating the zone m=
+ask
+to 30 as [0x3c000000 0x3fffffff] isn't defined as memory so it's unlikely t=
+hat
+we=C2=B4ll encounter buffers there. But I don't know how it could affect mm
+initialization code.
+
+This also rules out 'zone_dma_bits' as a mechanism to pass ZONE_DMA's size =
+from
+HW definition code to arch's.
+
+
+--=-rvg1En4pB30QD7Cei8XS
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl1j4swACgkQlfZmHno8
+x/7+5Qf/RG+HHfwkIbvgTeNBR6PGQMv7ZNDSxgeVo0caYiQnN2w01vHWnEXBnsNK
+sj6p2ip+d5CQbSOMO2oVO7qS4+BoOjcdnFTNSLH0uN5coZj6sr8u5N/FFdeb2cI+
+6B9opO7apUCnnuwaBeV5Ocepk1gr4rNoRnrOWmFwnqoc9dBRBuKV4ejcEB43ySw6
+wxwOswOu17wPR3o6969vTlP29cTItzXnrjmlTn+lKyQpR6pOzC0IpU1tmO0KkfHM
++U0Kypzbtb5Z9uCWvbS42mvT9oV3/El8iqrw1mPxbwRDgwDsBf2awc+fNmnQTsRK
+4pDSxPGJ5wST3O0WUjysQ9u+RJC+Cg==
+=y9Dx
+-----END PGP SIGNATURE-----
+
+--=-rvg1En4pB30QD7Cei8XS--
 
 
