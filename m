@@ -2,146 +2,184 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6253C3A5A6
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 20:14:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 225C8C3A5A4
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 20:44:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A59D2189D
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 20:14:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B036B2184D
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 20:44:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="QViZPMOC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A59D2189D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eg5LfXDw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B036B2184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AAA146B027D; Mon, 26 Aug 2019 16:14:40 -0400 (EDT)
+	id 22EFA6B027F; Mon, 26 Aug 2019 16:44:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9974B6B027F; Mon, 26 Aug 2019 16:14:40 -0400 (EDT)
+	id 1DE536B0281; Mon, 26 Aug 2019 16:44:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 885AC6B0280; Mon, 26 Aug 2019 16:14:40 -0400 (EDT)
+	id 0CC7B6B0282; Mon, 26 Aug 2019 16:44:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 62F4D6B027D
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:14:40 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 06DB9824CA3B
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 20:14:40 +0000 (UTC)
-X-FDA: 75865681920.07.hen34_45c9d513cf939
-X-HE-Tag: hen34_45c9d513cf939
-X-Filterd-Recvd-Size: 4857
-Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 20:14:39 +0000 (UTC)
-Received: by mail-ed1-f67.google.com with SMTP id t50so28194644edd.2
-        for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:14:39 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
+	by kanga.kvack.org (Postfix) with ESMTP id DA63D6B027F
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:44:35 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 89EBD181AC9AE
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 20:44:35 +0000 (UTC)
+X-FDA: 75865757310.09.door61_2804e809c0224
+X-HE-Tag: door61_2804e809c0224
+X-Filterd-Recvd-Size: 7588
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 20:44:34 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id w26so12527105pfq.12
+        for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:44:34 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=bUhdeRpbg8gRloy4w33VnXTSeooO5sqpvDT0wx5DMzY=;
-        b=QViZPMOCt4TCBDSlKAVCdrC+U37mohUaGpt7t54fKUAJnII/M30PJe3HVgsMvO32I/
-         JHmsQisAEo+uwv1GVmUHudMfC1x01ExLcWbO28gdRMZiZ/4jYiOIUrGZ6L9+5vRcVnku
-         F9YxwgBgX7xnEA70Wp+hl/fz9/FJFtPM7Z4dQ=
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1Fse6KfUwQK5pIfL54PeFWHLZR7X3tE0GyhbPlYXq/0=;
+        b=eg5LfXDwuRDQSPuSCfWN0+tMFtzeJMtHuaG+vg7hSeaFFi8e6uT5NZjXWhEbElNCIm
+         wQoMIFey3azHElIyf1v5hUZ8vDABYzU0+csFOrfao1YDcNwxazAuK1ne8XoZr9BVu+jC
+         LK+ArB2snj9xb9Da862ypDop4sCG1nfUpVXRUfq9hiLj6M8s8El4KfzHP+btClnTEOSE
+         3dy3vZa8fUTD55e2BSnv4dafcrYUcmNbQOlkfWdDZ5fwKh/BtoLeNmowCU8q+zk2Zy+q
+         e6/7InzJiwBJ4Prto1OonGBcGRd4aK6orEwmlsMPg63DcMIVNIkI0PA8DflKwjE4DAoK
+         /w1g==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=bUhdeRpbg8gRloy4w33VnXTSeooO5sqpvDT0wx5DMzY=;
-        b=FNOrI5rxnmPsSQQqYg0mBdy+O3wAwYTGLsr2QjnUwCAK5ZQcZruSbWTbBuf2yQX3gh
-         hXwGGEGZ8GkucKC1uyhcznp2CwWIYO+wd7FGd/QEJVJBW3poyi8SQa1hprdrMJ8qgWor
-         REpr+b/p0gVMtIe69ZduDZW9tyOqHUGJPb9KoVyr4uN0O/omOL/faAVp3/E8FvXK12b0
-         VuwesZvGQMRkCu+AFMZ/ouBMVZp8Sy7JFSeFIpUd+a92TITMOFN7SHK+YL3vJpbrPpZk
-         5N+o1R9zuvlDoyQx7CSdou9b/vlcMtmvJ5xF4wJTCE3gBDc+iUpzhTi5snolskwUth2H
-         K+TQ==
-X-Gm-Message-State: APjAAAXILrIkGwGTq6n7YSIvzzUCcE1gLkSu0yZ5Ih0FJ3nt5aEizp2x
-	qpY2j8Ec1+iXu+znEoY4D07EPA==
-X-Google-Smtp-Source: APXvYqwQX5rJn4xiT0PzmoOjk8RceDZHB/u+ViHnJA99I4EPasO1Ql6cGV43P/XDRPUyqHKPLLvlzQ==
-X-Received: by 2002:aa7:c552:: with SMTP id s18mr21104247edr.0.1566850478492;
-        Mon, 26 Aug 2019 13:14:38 -0700 (PDT)
-Received: from phenom.ffwll.local (212-51-149-96.fiber7.init7.net. [212.51.149.96])
-        by smtp.gmail.com with ESMTPSA id j25sm3000780ejb.49.2019.08.26.13.14.37
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 26 Aug 2019 13:14:37 -0700 (PDT)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	David Rientjes <rientjes@google.com>,
-	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: [PATCH 5/5] mm, notifier: annotate with might_sleep()
-Date: Mon, 26 Aug 2019 22:14:25 +0200
-Message-Id: <20190826201425.17547-6-daniel.vetter@ffwll.ch>
-X-Mailer: git-send-email 2.23.0
-In-Reply-To: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
-References: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=1Fse6KfUwQK5pIfL54PeFWHLZR7X3tE0GyhbPlYXq/0=;
+        b=qkuuUiWykerqshyQXdtMOL6gVzQkLkMTehk/XaUMpw97eXWsAx6CNxzrZBuDBYzrcQ
+         Ltcl2dokogtSWeQqBXEXzSzKBvnNbUDkjVKW05X2KGUdGoWFsM67BFP5zzHykhY6ehkt
+         xmRt//hfQe1KHAGbqPdfYTGFPCwXhqPTGFeYl5ySw666UJcWXhG47IeAiwAJ1+7OGAI8
+         mYXoXi1wjoN4Stdxezty3iQ6jg4zBJp30rzI/JXCJwv8CKHrPghMoo+bCEUt51r7jeRV
+         aTOqpA4Kk1/SPSv253h9EoMFxhoebpnuj2I1WBPYl8hfFCV7uTmChlT2eDZLGJKcox1q
+         na2g==
+X-Gm-Message-State: APjAAAVXGNdN6LbIGwQ2azPskNl2pvsn6wrQo4hO571Ij9AJWHEUFm5c
+	vkw4mcNV9cDLeFMzNyyd81w=
+X-Google-Smtp-Source: APXvYqyqg1Cr8t/t/2dwRRT3RJlOMKVgUhiN1s9LLhrk6lpZXH2sa5lk2BO1JqnXcc2rDF58x1Q6mQ==
+X-Received: by 2002:a63:9d8a:: with SMTP id i132mr7952728pgd.410.1566852273588;
+        Mon, 26 Aug 2019 13:44:33 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
+        by smtp.gmail.com with ESMTPSA id u7sm11140563pgr.94.2019.08.26.13.44.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Aug 2019 13:44:33 -0700 (PDT)
+Date: Tue, 27 Aug 2019 02:14:20 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, akpm@linux-foundation.org,
+	vbabka@suse.cz, mgorman@techsingularity.net,
+	dan.j.williams@intel.com, osalvador@suse.de,
+	richard.weiyang@gmail.com, hannes@cmpxchg.org,
+	arunks@codeaurora.org, rppt@linux.vnet.ibm.com, jgg@ziepe.ca,
+	amir73il@gmail.com, alexander.h.duyck@linux.intel.com,
+	linux-mm@kvack.org, linux-kernel-mentees@lists.linuxfoundation.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH 0/2] Add predictive memory reclamation and compaction
+Message-ID: <20190826204420.GA16800@bharath12345-Inspiron-5559>
+References: <20190813014012.30232-1-khalid.aziz@oracle.com>
+ <20190813140553.GK17933@dhcp22.suse.cz>
+ <3cb0af00-f091-2f3e-d6cc-73a5171e6eda@oracle.com>
+ <20190814085831.GS17933@dhcp22.suse.cz>
+ <d3895804-7340-a7ae-d611-62913303e9c5@oracle.com>
+ <20190815170215.GQ9477@dhcp22.suse.cz>
+ <2668ad2e-ee52-8c88-22c0-1952243af5a1@oracle.com>
+ <20190821140632.GI3111@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190821140632.GI3111@dhcp22.suse.cz>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since mmu notifiers don't exist for more processes, but could block in
-interesting places, add some annotations. This should help make sure
-core mm keeps up its end of the mmu notifier contract.
+Hi Michal,
 
-The checks here are outside of all notifier checks because of that.
-They compile away without CONFIG_DEBUG_ATOMIC_SLEEP.
+Here are some of my thoughts,
+On Wed, Aug 21, 2019 at 04:06:32PM +0200, Michal Hocko wrote:
+> On Thu 15-08-19 14:51:04, Khalid Aziz wrote:
+> > Hi Michal,
+> > 
+> > The smarts for tuning these knobs can be implemented in userspace and
+> > more knobs added to allow for what is missing today, but we get back to
+> > the same issue as before. That does nothing to make kernel self-tuning
+> > and adds possibly even more knobs to userspace. Something so fundamental
+> > to kernel memory management as making free pages available when they are
+> > needed really should be taken care of in the kernel itself. Moving it to
+> > userspace just means the kernel is hobbled unless one installs and tunes
+> > a userspace package correctly.
+> 
+> From my past experience the existing autotunig works mostly ok for a
+> vast variety of workloads. A more clever tuning is possible and people
+> are doing that already. Especially for cases when the machine is heavily
+> overcommited. There are different ways to achieve that. Your new
+> in-kernel auto tuning would have to be tested on a large variety of
+> workloads to be proven and riskless. So I am quite skeptical to be
+> honest.
+Could you give some references to such works regarding tuning the kernel? 
 
-Suggested by Jason.
+Essentially, Our idea here is to foresee potential memory exhaustion.
+This foreseeing is done by observing the workload, observing the memory
+usage of the workload. Based on this observations, we make a prediction
+whether or not memory exhaustion could occur. If memory exhaustion
+occurs, we reclaim some more memory. kswapd stops reclaim when
+hwmark is reached. hwmark is usually set to a fairly low percentage of
+total memory, in my system for zone Normal hwmark is 13% of total pages.
+So there is scope for reclaiming more pages to make sure system does not
+suffer from a lack of pages. 
 
-Cc: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: "Christian K=C3=B6nig" <christian.koenig@amd.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
----
- include/linux/mmu_notifier.h | 5 +++++
- 1 file changed, 5 insertions(+)
+Since we are "predicting", there could be mistakes in our prediction.
+The question is how bad are the mistakes? How much does a wrong
+prediction cost? 
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 3f9829a1f32e..8b71813417e7 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -345,6 +345,8 @@ static inline void mmu_notifier_change_pte(struct mm_=
-struct *mm,
- static inline void
- mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
- {
-+	might_sleep();
-+
- 	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
- 	if (mm_has_notifiers(range->mm)) {
- 		range->flags |=3D MMU_NOTIFIER_RANGE_BLOCKABLE;
-@@ -368,6 +370,9 @@ mmu_notifier_invalidate_range_start_nonblock(struct m=
-mu_notifier_range *range)
- static inline void
- mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
- {
-+	if (mmu_notifier_range_blockable(range))
-+		might_sleep();
-+
- 	if (mm_has_notifiers(range->mm))
- 		__mmu_notifier_invalidate_range_end(range, false);
- }
---=20
-2.23.0
+A right prediction would be a win. We rightfully predict that there could be
+exhaustion, this would lead to us reclaiming more memory(than hwmark)/compacting
+memory beforehand(unlike kcompactd which does it on demand).
 
+A wrong prediction on the other hand can be categorized into 2
+situations: 
+(i) We foresee memory exhaustion but there is no memory exhaustion in
+the future. In this case, we would be reclaiming more memory for not a lot
+of use. This situation is not entirely bad but we definitly waste a few
+clock cycles.
+(ii) We don't foresee memory exhaustion but there is memory exhaustion
+in the future. This is a bad case where we may end up going into direct
+compaction/reclaim. But it could be the case that the memory exhaustion
+is far in the future and even though we didnt see it, kswapd could have
+reclaimed that memory or drop_cache occured.
+
+How often we hit wrong predictions of type (ii) would really determine our
+efficiency. 
+
+Coming to your situation of provisioning vms. A situation where our work
+will come to good is when there is a cloud burst. When the demand for
+vms is super high, our algorithm could adapt to the increase in demand
+for these vms and reclaim more memory/compact more memory to reduce
+allocation stalls and improve performance.
+> Therefore I would really focus on discussing whether we have sufficient
+> APIs to tune the kernel to do the right thing when needed. That requires
+> to identify gaps in that area. 
+One thing that comes to my mind is based on the issue Khalid mentioned
+earlier on how his desktop took more than 30secs to boot up because of
+the caches using up a lot of memory.
+Rather than allowing any unused memory to be the page cache, would it be
+a good idea to fix a size for the caches and elastically change the size
+based on the workload?
+
+Thank you
+Bharath
+
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
