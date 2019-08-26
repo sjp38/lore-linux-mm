@@ -2,123 +2,121 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0220C3A5A3
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:37:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC017C3A5A4
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 03:06:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9289720815
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:37:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9289720815
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F64C206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 03:06:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=embeddedor.com header.i=@embeddedor.com header.b="k+L8HgGt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F64C206E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=embeddedor.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A1196B051A; Sun, 25 Aug 2019 22:37:23 -0400 (EDT)
+	id 2AEF06B051C; Sun, 25 Aug 2019 23:06:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 052D36B051B; Sun, 25 Aug 2019 22:37:23 -0400 (EDT)
+	id 239AE6B051D; Sun, 25 Aug 2019 23:06:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA8E06B051C; Sun, 25 Aug 2019 22:37:22 -0400 (EDT)
+	id 0D8D96B051E; Sun, 25 Aug 2019 23:06:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7CE6B051A
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:37:22 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 4A1D0180AD7C1
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:37:22 +0000 (UTC)
-X-FDA: 75863017524.25.bed04_5ffbd802f610
-X-HE-Tag: bed04_5ffbd802f610
-X-Filterd-Recvd-Size: 4418
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf44.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:37:21 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 19249344;
-	Sun, 25 Aug 2019 19:37:20 -0700 (PDT)
-Received: from [10.162.43.136] (p8cg001049571a15.blr.arm.com [10.162.43.136])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E19513F718;
-	Sun, 25 Aug 2019 19:37:09 -0700 (PDT)
-Subject: Re: [RFC V2 0/1] mm/debug: Add tests for architecture exported page
- table helpers
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
- <20190809101632.GM5482@bombadil.infradead.org>
- <a5aab7ff-f7fd-9cc1-6e37-e4185eee65ac@arm.com>
- <20190809135202.GN5482@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <7a88f6bb-e8c7-3ac7-2f92-1de752a01f33@arm.com>
-Date: Mon, 26 Aug 2019 08:07:13 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Received: from forelay.hostedemail.com (smtprelay0147.hostedemail.com [216.40.44.147])
+	by kanga.kvack.org (Postfix) with ESMTP id DB3516B051C
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 23:06:39 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 80AD8482C
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 03:06:39 +0000 (UTC)
+X-FDA: 75863091318.19.toe45_744584b47be12
+X-HE-Tag: toe45_744584b47be12
+X-Filterd-Recvd-Size: 3564
+Received: from gateway24.websitewelcome.com (gateway24.websitewelcome.com [192.185.51.56])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 03:06:38 +0000 (UTC)
+Received: from cm13.websitewelcome.com (cm13.websitewelcome.com [100.42.49.6])
+	by gateway24.websitewelcome.com (Postfix) with ESMTP id 03155C73A
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:06:38 -0500 (CDT)
+Received: from gator4166.hostgator.com ([108.167.133.22])
+	by cmsmtp with SMTP
+	id 25L3iSJZz3Qi025L3i84cc; Sun, 25 Aug 2019 22:06:38 -0500
+X-Authority-Reason: nr=8
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=embeddedor.com; s=default; h=Content-Type:MIME-Version:Message-ID:Subject:
+	Cc:To:From:Date:Sender:Reply-To:Content-Transfer-Encoding:Content-ID:
+	Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc
+	:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=Nhx5OiP7r0dYpbGQdFUd0gr/5YT1Ihavje6uRy4hWMQ=; b=k+L8HgGtHnF9vb85fjf0bIhaJn
+	4kLqVLiQtaUzgqgNobmb1ASxxWaChh7tMtQw/FPmX3uCLbhJmdn+huWyqQkRx9Yqd12R89xTe0kSW
+	Dy1Y9bxs4JWgQ3L3B865+CqSPt8sFZ8OaHtH5tIB+w3Jh618d5sPoM8CPB+4XSis/CURwp+BrVLBA
+	1sw2OEjFpOK8UWnJoNYxx5KxxENle5dDrH8oT9NjrpVQEbxigar/jEMF+uZudqwQeHmsvEI7sGZvO
+	i4Kxrlm1jSN5+1bcp1GzKsggsdhMIHn6eU2vrEurQd55dIbwlqk6DC5bPrfLw1Q8xB3EG6Z1JSXnO
+	bwGmxJAA==;
+Received: from [189.152.216.116] (port=45992 helo=embeddedor)
+	by gator4166.hostgator.com with esmtpa (Exim 4.92)
+	(envelope-from <gustavo@embeddedor.com>)
+	id 1i25L2-003wZG-0L; Sun, 25 Aug 2019 22:06:36 -0500
+Date: Sun, 25 Aug 2019 22:06:34 -0500
+From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Henry Burns <henryburns@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Subject: [PATCH] mm/z3fold.c: fix lock/unlock imbalance in z3fold_page_isolate
+Message-ID: <20190826030634.GA4379@embeddedor>
 MIME-Version: 1.0
-In-Reply-To: <20190809135202.GN5482@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-AntiAbuse: This header was added to track abuse, please include it with any abuse report
+X-AntiAbuse: Primary Hostname - gator4166.hostgator.com
+X-AntiAbuse: Original Domain - kvack.org
+X-AntiAbuse: Originator/Caller UID/GID - [47 12] / [47 12]
+X-AntiAbuse: Sender Address Domain - embeddedor.com
+X-BWhitelist: no
+X-Source-IP: 189.152.216.116
+X-Source-L: No
+X-Exim-ID: 1i25L2-003wZG-0L
+X-Source: 
+X-Source-Args: 
+X-Source-Dir: 
+X-Source-Sender: (embeddedor) [189.152.216.116]:45992
+X-Source-Auth: gustavo@embeddedor.com
+X-Email-Count: 3
+X-Source-Cap: Z3V6aWRpbmU7Z3V6aWRpbmU7Z2F0b3I0MTY2Lmhvc3RnYXRvci5jb20=
+X-Local-Domain: yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Fix lock/unlock imbalance by unlocking *zhdr* before return.
 
+Addresses-Coverity-ID: 1452811 ("Missing unlock")
+Fixes: d776aaa9895e ("mm/z3fold.c: fix race between migration and destruction")
+Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+---
+ mm/z3fold.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-On 08/09/2019 07:22 PM, Matthew Wilcox wrote:
-> On Fri, Aug 09, 2019 at 04:05:07PM +0530, Anshuman Khandual wrote:
->> On 08/09/2019 03:46 PM, Matthew Wilcox wrote:
->>> On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
->>>> Should alloc_gigantic_page() be made available as an interface for general
->>>> use in the kernel. The test module here uses very similar implementation from
->>>> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
->>>> needs to be exported through a header.
->>>
->>> Why are you allocating memory at all instead of just using some
->>> known-to-exist PFNs like I suggested?
->>
->> We needed PFN to be PUD aligned for pfn_pud() and PMD aligned for mk_pmd().
->> Now walking the kernel page table for a known symbol like kernel_init()
-> 
-> I didn't say to walk the kernel page table.  I said to call virt_to_pfn()
-> for a known symbol like kernel_init().
-> 
->> as you had suggested earlier we might encounter page table page entries at PMD
->> and PUD which might not be PMD or PUD aligned respectively. It seemed to me
->> that alignment requirement is applicable only for mk_pmd() and pfn_pud()
->> which create large mappings at those levels but that requirement does not
->> exist for page table pages pointing to next level. Is not that correct ? Or
->> I am missing something here ?
-> 
-> Just clear the bottom bits off the PFN until you get a PMD or PUD aligned
-> PFN.  It's really not hard.
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index e31cd9bd4ed5..75b7962439ff 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -1406,6 +1406,7 @@ static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
+ 				 * should freak out.
+ 				 */
+ 				WARN(1, "Z3fold is experiencing kref problems\n");
++				z3fold_page_unlock(zhdr);
+ 				return false;
+ 			}
+ 			z3fold_page_unlock(zhdr);
+-- 
+2.23.0
 
-As Mark pointed out earlier that might end up being just a synthetic PFN
-which might not even exist on a given system.
 
