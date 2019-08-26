@@ -7,52 +7,52 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01D42C3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAE65C3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:37:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C0EE2070B
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72B3B2070B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:37:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="Jsoj0/fX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C0EE2070B
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="OGMOvpyF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72B3B2070B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B17F76B000D; Mon, 26 Aug 2019 15:36:54 -0400 (EDT)
+	id B895F6B0010; Mon, 26 Aug 2019 15:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A277A6B0010; Mon, 26 Aug 2019 15:36:54 -0400 (EDT)
+	id AEC056B0269; Mon, 26 Aug 2019 15:36:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F0446B0266; Mon, 26 Aug 2019 15:36:54 -0400 (EDT)
+	id A01646B026A; Mon, 26 Aug 2019 15:36:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0196.hostedemail.com [216.40.44.196])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A24A6B000D
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:36:54 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1B521180AD7C3
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:54 +0000 (UTC)
-X-FDA: 75865586748.24.star94_1f0b02abf5656
-X-HE-Tag: star94_1f0b02abf5656
-X-Filterd-Recvd-Size: 12057
+Received: from forelay.hostedemail.com (smtprelay0084.hostedemail.com [216.40.44.84])
+	by kanga.kvack.org (Postfix) with ESMTP id 710F16B0010
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:36:55 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2546C4821
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:55 +0000 (UTC)
+X-FDA: 75865586790.04.fang79_1f351a94b8d05
+X-HE-Tag: fang79_1f351a94b8d05
+X-Filterd-Recvd-Size: 13719
 Received: from smtp.aristanetworks.com (mx.aristanetworks.com [162.210.129.12])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:53 +0000 (UTC)
+	by imf15.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:54 +0000 (UTC)
 Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 8C1D642A6BD;
-	Mon, 26 Aug 2019 12:37:37 -0700 (PDT)
+	by smtp.aristanetworks.com (Postfix) with ESMTP id 0509E42A6BE;
+	Mon, 26 Aug 2019 12:37:39 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
-	s=Arista-A; t=1566848257;
-	bh=Who4g7lElisyXvFR2DXEmjxe6bECx81sFNRmtx5D5wk=;
+	s=Arista-A; t=1566848259;
+	bh=L48sD6nFkDjGLDBmCFDb6hal2JR+spCJTQ1cHrIIfa0=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References;
-	b=Jsoj0/fXEwbzAOANpT/OYSU2tfItPLBjSxjXfTrqxmY4zIN6HUgfUAu+b84FYYRTq
-	 BZhhhRgslAa2HTcldir1ArL7/Ru0rIEx9lN5PD4xj2DS+L+LEGcT2G5bo6sasBKhop
-	 W4ec1RyweG5MYxp99a3eSMvUtQxW6UUUmWi3UG/VJcIbkbx+y04VWkkfmb+lyjVugG
-	 p8fR4mmA3IUDamKXBYWX7SXddx2oi0WyoeNGdcQsOJf15vEqiOLeylTFnEZMmNXS40
-	 3TDQewHVGDyhU47+opcrs+sSh6RruGxHeue7D8F8bnkGqflaz4Vp90OTzrhlqZIvG9
-	 UTVWJlVXU/m1Q==
+	b=OGMOvpyFR2MsBv+2Sj0RDaqNYBBylf7rCt/lgvPR81vA8DTKB+u8w2LK5P5tHSnoo
+	 EtHT558zFPUsUCToAHy1O1GgbBSGGOnhEPViRgYfHwPxCtbRz2d223h4Ee6qn/goPi
+	 X5hgbQBrtXrgLduk5CQq1RyGoRhMBbRo2F28jwHckgxhhDO2O7XA4bx+c3ondb9qq/
+	 9iO1RFUvnOCUVCaNbJcxabxOnG7F/sGJ1tZnfN+RqhT7d4L5mC5C28Us7jbIaZVEnH
+	 p5Pri5pkhbbJfHYfOlFxPDWS+oYnGhSMWr7BXgTcHMBbL8FNPfDoTKlEvkXUSsdXDy
+	 8urVyMV6IZZYA==
 Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 791D542A6B7;
-	Mon, 26 Aug 2019 12:37:37 -0700 (PDT)
+	by smtp.aristanetworks.com (Postfix) with ESMTP id E55BE42A6B7;
+	Mon, 26 Aug 2019 12:37:38 -0700 (PDT)
 From: Edward Chron <echron@arista.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.com>,
@@ -64,12 +64,10 @@ Cc: Michal Hocko <mhocko@suse.com>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	colona@arista.com,
-	Edward Chron <echron@arista.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	netdev@vger.kernel.org
-Subject: [PATCH 04/10] mm/oom_debug: Add ARP and ND Table Summary usage
-Date: Mon, 26 Aug 2019 12:36:32 -0700
-Message-Id: <20190826193638.6638-5-echron@arista.com>
+	Edward Chron <echron@arista.com>
+Subject: [PATCH 05/10] mm/oom_debug: Add Select Slabs Print
+Date: Mon, 26 Aug 2019 12:36:33 -0700
+Message-Id: <20190826193638.6638-6-echron@arista.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190826193638.6638-1-echron@arista.com>
 References: <20190826193638.6638-1-echron@arista.com>
@@ -81,300 +79,347 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Adds config options and code to support printing ARP Table usage and or
-Neighbour Discovery Table usage when an OOM event occurs. This summarized
-information provides the memory usage for each table when configured.
+Add OOM Debug code to allow select slab entries to be printed at the
+time of an OOM event. Linux has added printing slab entries on an
+OOM event, if the amount of memory used by slabs exceeds the amount
+of memory used by user processes. This OOM Debug option allows
+slab entries of a specified minimum entry size to be printed,
+limiting the amount of print output an OOM event generates for slab
+entries.
 
-Configuring these two OOM Debug Options
----------------------------------------
-Two OOM debug options: CONFIG_DEBUG_OOM_ARP_TBL, CONFIG_DEBUG_OOM_ND_TBL
-To get the output for both tables they both must be configured.
-The ARP Table uses the CONFIG_DEBUG_OOM_ARP_TBL kernel config option
-and the ND Table uses the CONFIG_DEBUG_OOM_ND_TBL kernel config option
-both of which are found in the kernel config under the entries:
-Kernel hacking, Memory Debugging, OOM Debugging entry. The ARP Table and
-ND Table are configured there with the options: DEBUG_OOM_ARP_TBL and
-DEBUG_OOM_ND_TBL respectively.
+Configuring this OOM Debug Option (DEBUG_OOM_SLAB_SELECT_PRINT)
+---------------------------------------------------------------
+To configure this OOM debug option it needs to be configured
+in the OOM Debugging configure menu. The kernel configuration entry
+can be found in the config at: Kernel hacking, Memory Debugging,
+OOM Debugging the DEBUG_OOM_SLAB_SELECT_PRINT config entry.
+
+Two dynamic OOM debug settings for this option: enable, tenthpercent
+--------------------------------------------------------------------
+The oom debugfs base directory is found at: /sys/kernel/debug/oom.
+The oom debugfs for this option is: slab_select_print_
+and for select options there are two files, the enable file and
+the tenthpercent file are the debugfs files.
 
 Dynamic disable or re-enable this OOM Debug option
 --------------------------------------------------
-The oom debugfs base directory is found at: /sys/kernel/debug/oom.
-The oom debugfs for this option are: arp_table_summary_ and
-nd_table_summary_ and there is just one enable file for each.
+This option may be disabled or re-enabled using the debugfs entry for
+this OOM debug option. The debugfs file to enable this entry is found
+at: /sys/kernel/debug/oom/slab_select_print_enabled where the enabled
+file's value determines whether the facility is enabled or disabled.
+A value of 1 is enabled (default) and a value of 0 is disabled. The
+default if configured is enabled.
 
-Either option may be disabled or re-enabled using the debugfs entry for
-the OOM debug option. The debugfs file to enable the ARP Table option
-is found at: /sys/kernel/debug/oom/arp_table_summary_enabled
-Similarly, the debugfs file to enable the ND Table option is found at:
-/sys/kernel/debug/oom/nd_table_summary_enabled
-For either option their enabled file's value determines whether the
-facility is enabled or disabled for that option. A value of 1 is enabled
-(default) and a value of 0 is disabled. When configured the default
-setting is set to enabled. Each option will produce 1 line of output.
+Specifying the minimum entry size (0-1000) in the tenthpercent file
+-------------------------------------------------------------------
+Also for DEBUG_OOM_SLAB_SELECT_PRINT the number of slab entries printed i=
+s
+adjustable. By default if the DEBUG_OOM_SLAB_SELECT_PRINT config option
+is enabled entries that use 1% or more of memory are printed. This can be
+adjusted to be entries as small as 0% of memory or as large as 100% of
+memory in which case only a summary line is printed, as no slab entry
+could possibly use 100% of memory. Adjustments are made in the debugfs
+file found at: /sys/kernel/debug/oom/slab_select_print_tenthpercent
+Entry values that are valid are 0 through 1000 which represent memory
+usage of 0% of memory to 100% of memory. A value of of 0 prints all
+slabs that have at least one slab in use, unused slabs are not printed.
 
-Content and format of ARP and Neighbour Discovery Tables Summary Output
------------------------------------------------------------------------
-  One line of output each for ARP and ND that includes:
-  - Table name
-  - Table size (max # entries)
-  - Key Length
-  - Entry Size
-  - Number of Entries
-  - Last Flush (in seconds)
-  - hash grows
-  - entry allocations
-  - entry destroys
-  - Number lookups
-  - Number of lookup hits
-  - Resolution failures
-  - Garbage Collection Forced Runs
-  - Table Full
-  - Proxy Queue Length
+Content of Slab Summary Records Output
+--------------------------------------
+Additional output consists of summary information that is printed
+at the end of the output. This summary information includes:
+  - # entries examined
+  - # entries selected and printed
+  - minimum entry size for selection
+  - Slabs total size (kB)
+  - Slabs reclaimable size (kB)
+  - Slabs unreclaimable size (kB)
 
-Sample Output:
+Sample Output
 -------------
-Here is sample output for both the ARP table and ND table:
+Output produced consists of the standard output currently produced
+by Linux for slab entries plus two lines of summary information.
+(The standard output provides a section header and entry per slab)
 
-Jul 23 23:26:34 yuorsystem kernel: neighbour: Table: arp_tbl size:   256
- keyLen:  4 entrySize: 360 entries:     9 lastFlush:  1721s
- hGrows:     1 allocs:     9 destroys:     0 lookups:   204 hits:   199
- resFailed:    38 gcRuns/Forced: 111 /  0 tblFull:  0 proxyQlen:  0
+Summary output (minsize =3D 0kB, all entries with > 0 slabs in use printe=
+d):
 
-Jul 23 23:26:34 yuorsystem kernel: neighbour: Table:  nd_tbl size:   128
- keyLen: 16 entrySize: 368 entries:     6 lastFlush:  1720s
- hGrows:     0 allocs:     7 destroys:     1 lookups:     0 hits:     0
- resFailed:     0 gcRuns/Forced: 110 /  0 tblFull:  0 proxyQlen:  0
+Jul 23 23:26:34 yoursystem kernel: Summary: Slab entries examined: 123
+ printed: 83 minsize: 0kB
+
+Jul 23 23:26:34 yoursystem kernel: Slabs Total: 151212kB Reclaim: 50632kB
+ Unreclaim: 100580kB
 
 
 Signed-off-by: Edward Chron <echron@arista.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: netdev@vger.kernel.org
 ---
- include/net/neighbour.h | 12 +++++++
- mm/Kconfig.debug        | 26 ++++++++++++++
- mm/oom_kill_debug.c     | 38 ++++++++++++++++++++
- net/core/neighbour.c    | 78 +++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 154 insertions(+)
+ mm/Kconfig.debug    | 30 +++++++++++++++++++++
+ mm/oom_kill.c       | 11 +++++++-
+ mm/oom_kill_debug.c | 42 +++++++++++++++++++++++++++++
+ mm/oom_kill_debug.h |  4 +++
+ mm/slab.h           |  4 +++
+ mm/slab_common.c    | 65 +++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 155 insertions(+), 1 deletion(-)
 
-diff --git a/include/net/neighbour.h b/include/net/neighbour.h
-index 50a67bd6a434..35fdecff2724 100644
---- a/include/net/neighbour.h
-+++ b/include/net/neighbour.h
-@@ -569,4 +569,16 @@ static inline void neigh_update_is_router(struct nei=
-ghbour *neigh, u32 flags,
- 		*notify =3D 1;
- 	}
- }
-+
-+#if defined(CONFIG_DEBUG_OOM_ARP_TBL) || defined(CONFIG_DEBUG_OOM_ND_TBL=
-)
-+/**
-+ * Routine used to print arp table and neighbour table statistics.
-+ * Output goes to dmesg along with all the other OOM related messages
-+ * when the config options DEBUG_OOM_ARP_TBL and DEBUG_ND_TBL are set to
-+ * yes, for the ARP table and Neighbour discovery table respectively.
-+ */
-+extern void neightbl_print_stats(const char * const tblname,
-+				 struct neigh_table * const neightable);
-+#endif /* CONFIG_DEBUG_OOM_ARP_TBL || CONFIG_DEBUG_OOM_ND_TBL */
-+
- #endif
 diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index fcbc5f9aa146..fe4bb5ce0a6d 100644
+index fe4bb5ce0a6d..c7d53ca95d32 100644
 --- a/mm/Kconfig.debug
 +++ b/mm/Kconfig.debug
-@@ -163,3 +163,29 @@ config DEBUG_OOM_TASKS_SUMMARY
+@@ -189,3 +189,33 @@ config DEBUG_OOM_ND_TBL
  	  A value of 1 is enabled (default) and a value of 0 is disabled.
 =20
  	  If unsure, say N.
 +
-+config DEBUG_OOM_ARP_TBL
-+	bool "Debug OOM ARP Table"
++config DEBUG_OOM_SLAB_SELECT_PRINT
++	bool "Debug OOM Select Slabs Print"
 +	depends on DEBUG_OOM
 +	help
-+	  When enabled, documents kernel memory usage by the ARP Table
-+	  entries at the time of an OOM event. Output is one line of
-+	  summarzied ARP Table usage. If configured it is enabled/disabled
-+	  by setting the enabled file entry in the debugfs OOM interface
-+	  at: /sys/kernel/debug/oom/arp_table_summary_enabled
++	  When enabled, allows the number of unreclaimable slab entries
++	  to be print rate limited based on the amount of memory the
++	  slab entry is consuming. By default all slab entries with more
++	  than one object in use are printed if the trigger condition is
++	  met to dump slab entries.
++
++	  If the option is configured it is enabled/disabled by setting
++	  the value of the file entry in the debugfs OOM interface at:
++	  /sys/kernel/debug/oom/slab_select_print_enabled
 +	  A value of 1 is enabled (default) and a value of 0 is disabled.
 +
-+	  If unsure, say N.
++	  When enabled entries are print limited by the amount of memory
++	  they consume. The setting value defines the minimum memory
++	  size consumed and are represented in tenths of a percent.
++	  Values supported are 0 to 1000 where 0 allows all entries to be
++	  printed, 1 would allow entries using 0.1% or more to be printed,
++	  10 would allow entries using 1% or more of memory to be printed.
 +
-+config DEBUG_OOM_ND_TBL
-+	bool "Debug OOM ND Table"
-+	depends on DEBUG_OOM
-+	help
-+	  When enabled, documents kernel memory usage by the ND Table
-+	  entries at the time of an OOM event. Output is one line of
-+	  summarzied ND Table usage. If configured it is enabled/disabled
-+	  by setting the enabled file entry in the debugfs OOM interface
-+	  at: /sys/kernel/debug/oom/nd_table_summary_enabled
-+	  A value of 1 is enabled (default) and a value of 0 is disabled.
++	  If configured and enabled the rate limiting memory percentage
++	  is specified by setting a value in the debugfs OOM interface at:
++	  /sys/kernel/debug/oom/slab_select_print_tenthpercent
++	  If configured the default settings are set to enabled and
++	  print limit value of 10 or 1% of memory.
 +
 +	  If unsure, say N.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index c10d61fe944f..9022297fa2ba 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -438,6 +438,15 @@ static void dump_tasks(struct oom_control *oc)
+ 	}
+ }
+=20
++static void oom_kill_unreclaimable_slabs_print(void)
++{
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++	if (oom_kill_debug_unreclaimable_slabs_print())
++		return;
++#endif
++	dump_unreclaimable_slab();
++}
++
+ static void dump_oom_summary(struct oom_control *oc, struct task_struct =
+*victim)
+ {
+ 	/* one line summary of the oom killer context. */
+@@ -464,7 +473,7 @@ static void dump_header(struct oom_control *oc, struc=
+t task_struct *p)
+ 	else {
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+ 		if (is_dump_unreclaim_slabs())
+-			dump_unreclaimable_slab();
++			oom_kill_unreclaimable_slabs_print();
+ 	}
+ #ifdef CONFIG_DEBUG_OOM
+ 	oom_kill_debug_oom_event_is();
 diff --git a/mm/oom_kill_debug.c b/mm/oom_kill_debug.c
-index 395b3307f822..c4a9117633fd 100644
+index c4a9117633fd..2b5245e1134d 100644
 --- a/mm/oom_kill_debug.c
 +++ b/mm/oom_kill_debug.c
-@@ -156,6 +156,16 @@
- #include <linux/sched/stat.h>
- #endif
-=20
-+#if defined(CONFIG_INET) && defined(CONFIG_DEBUG_OOM_ARP_TBL)
-+#include <net/arp.h>
-+#endif
-+#if defined(CONFIG_IPV6) && defined(CONFIG_DEBUG_OOM_ND_TBL)
-+#include <net/ndisc.h>
-+#endif
-+#if defined(CONFIG_DEBUG_OOM_ARP_TBL) || defined(CONFIG_DEBUG_OOM_ND_TBL=
+@@ -165,6 +165,9 @@
+ #if defined(CONFIG_DEBUG_OOM_ARP_TBL) || defined(CONFIG_DEBUG_OOM_ND_TBL=
 )
-+#include <net/neighbour.h>
+ #include <net/neighbour.h>
+ #endif
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++#include "slab.h"
 +#endif
-+
+=20
  #define OOMD_MAX_FNAME 48
  #define OOMD_MAX_OPTNAME 32
-=20
-@@ -192,6 +202,18 @@ static struct oom_debug_option oom_debug_options_tab=
+@@ -214,6 +217,12 @@ static struct oom_debug_option oom_debug_options_tab=
 le[] =3D {
- 		.option_name	=3D "tasks_summary_",
+ 		.option_name	=3D "nd_table_summary_",
  		.support_tpercent =3D false,
  	},
 +#endif
-+#ifdef CONFIG_DEBUG_OOM_ARP_TBL
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
 +	{
-+		.option_name	=3D "arp_table_summary_",
-+		.support_tpercent =3D false,
-+	},
-+#endif
-+#ifdef CONFIG_DEBUG_OOM_ND_TBL
-+	{
-+		.option_name	=3D "nd_table_summary_",
-+		.support_tpercent =3D false,
++		.option_name	=3D "slab_select_print_",
++		.support_tpercent =3D true,
 +	},
  #endif
  	{}
  };
-@@ -203,6 +225,12 @@ enum oom_debug_options_index {
+@@ -231,6 +240,9 @@ enum oom_debug_options_index {
  #endif
- #ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
- 	TASKS_STATE,
+ #ifdef CONFIG_DEBUG_OOM_ND_TBL
+ 	ND_STATE,
 +#endif
-+#ifdef CONFIG_DEBUG_OOM_ARP_TBL
-+	ARP_STATE,
-+#endif
-+#ifdef CONFIG_DEBUG_OOM_ND_TBL
-+	ND_STATE,
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++	SELECT_SLABS_STATE,
  #endif
  	OUT_OF_BOUNDS
  };
-@@ -351,6 +379,16 @@ u32 oom_kill_debug_oom_event_is(void)
- 		oom_kill_debug_system_summary_prt();
- #endif
+@@ -361,6 +373,36 @@ static void oom_kill_debug_system_summary_prt(void)
+ }
+ #endif /* CONFIG_DEBUG_OOM_SYSTEM_STATE */
 =20
-+#if defined(CONFIG_INET) && defined(CONFIG_DEBUG_OOM_ARP_TBL)
-+	if (oom_kill_debug_enabled(ARP_STATE))
-+		neightbl_print_stats("arp_tbl", &arp_tbl);
-+#endif
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++static inline u16 oom_kill_debug_slabs_tenthpercent(void)
++{
++	return oom_kill_debug_tenthpercent(SELECT_SLABS_STATE);
++}
 +
-+#if defined(CONFIG_IPV6) && defined(CONFIG_DEBUG_OOM_ND_TBL)
-+	if (oom_kill_debug_enabled(ND_STATE))
-+		neightbl_print_stats("nd_tbl", &nd_tbl);
-+#endif
++static void oom_kill_debug_slabs_and_summary_print(void)
++{
++	u16 pcttenth =3D oom_kill_debug_slabs_tenthpercent();
++	unsigned long minkb =3D (K(totalram_pages()) * pcttenth) / 1000;
++
++	slab_common_oom_debug_dump_unreclaimable(minkb);
++
++	pr_info("Slabs Total: %lukB Reclaim: %lukB Unreclaim: %lukB\n",
++		K((global_node_page_state(NR_SLAB_RECLAIMABLE) +
++		   global_node_page_state(NR_SLAB_UNRECLAIMABLE))),
++		K(global_node_page_state(NR_SLAB_RECLAIMABLE)),
++		K(global_node_page_state(NR_SLAB_UNRECLAIMABLE)));
++}
++
++bool oom_kill_debug_unreclaimable_slabs_print(void)
++{
++	if (oom_kill_debug_enabled(SELECT_SLABS_STATE)) {
++		oom_kill_debug_slabs_and_summary_print();
++		return true;
++	}
++	return false;
++}
++#endif /* CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT */
 +
  #ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
- 	if (oom_kill_debug_enabled(TASKS_STATE))
- 		oom_kill_debug_tasks_summary_print();
-diff --git a/net/core/neighbour.c b/net/core/neighbour.c
-index f79e61c570ea..9f5a579542a9 100644
---- a/net/core/neighbour.c
-+++ b/net/core/neighbour.c
-@@ -3735,3 +3735,81 @@ static int __init neigh_init(void)
+ static void oom_kill_debug_tasks_summary_print(void)
+ {
+diff --git a/mm/oom_kill_debug.h b/mm/oom_kill_debug.h
+index 7288969db9ce..549b8da179d0 100644
+--- a/mm/oom_kill_debug.h
++++ b/mm/oom_kill_debug.h
+@@ -9,6 +9,10 @@
+ #ifndef __MM_OOM_KILL_DEBUG_H__
+ #define __MM_OOM_KILL_DEBUG_H__
+=20
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++extern bool oom_kill_debug_unreclaimable_slabs_print(void);
++#endif
++
+ extern u32 oom_kill_debug_oom_event_is(void);
+ extern u32 oom_kill_debug_event(void);
+ extern bool oom_kill_debug_enabled(u16 index);
+diff --git a/mm/slab.h b/mm/slab.h
+index 9057b8056b07..703e914efedc 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -586,10 +586,14 @@ int memcg_slab_show(struct seq_file *m, void *p);
+=20
+ #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+ void dump_unreclaimable_slab(void);
++void slab_common_oom_debug_dump_unreclaimable(unsigned long minkb);
+ #else
+ static inline void dump_unreclaimable_slab(void)
+ {
+ }
++static inline void slab_common_oom_debug_dump_unreclaimable(unsigned lon=
+g minkb)
++{
++}
+ #endif
+=20
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr=
+);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 807490fe217a..9ddc95040b60 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1450,6 +1450,71 @@ void dump_unreclaimable_slab(void)
+ 	mutex_unlock(&slab_mutex);
  }
 =20
- subsys_initcall(neigh_init);
-+
-+#if defined(CONFIG_DEBUG_OOM_ARP_TBL) || defined(CONFIG_DEBUG_OOM_ND_TBL=
-)
-+void neightbl_print_stats(const char * const tblname,
-+			  struct neigh_table * const tbl)
++#ifdef CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT
++static void oom_debug_slab_header_print(void)
 +{
-+	struct neigh_hash_table *nht;
-+	struct ndt_stats ndst;
-+	u32 now;
-+	u32 flush_delta;
-+	u32 tblsize;
-+	u16 key_len;
-+	u16 entry_size;
-+	u32 entries;
-+	u32 last_flush;    /* delta to now in msecs */
-+	u32 hash_shift;
-+	u32 proxy_qlen;
-+	int cpu;
++	pr_info("Unreclaimable slab info:\n");
++	pr_info("Name                      Used          Total\n");
++}
 +
-+	read_lock_bh(&tbl->lock);
-+	now =3D jiffies;
-+	flush_delta =3D now - tbl->last_flush;
++static void oom_debug_slab_print(struct slabinfo *psi, struct kmem_cache=
+ *pkc)
++{
++	pr_info("%-17s %10luKB %10luKB\n", cache_name(pkc),
++		(psi->active_objs * pkc->size) / 1024,
++		(psi->num_objs * pkc->size) / 1024);
++}
 +
-+	key_len =3D tbl->key_len;
-+	if (tbl->entry_size)
-+		entry_size =3D tbl->entry_size;
-+	else
-+		entry_size =3D ALIGN(offsetof(struct neighbour, primary_key) +
-+				   key_len, NEIGH_PRIV_ALIGN);
++static bool oom_debug_slab_check(struct slabinfo *psi, struct kmem_cache=
+ *pkc,
++				 unsigned long min_kb)
++{
++	if (psi->num_objs > 0) {
++		if (((psi->active_objs * pkc->size) / 1024) >=3D min_kb) {
++			oom_debug_slab_print(psi, pkc);
++			return true;
++		}
++	}
++	return false;
++}
 +
-+	entries =3D atomic_read(&tbl->entries);
-+	if (entries =3D=3D 0)
-+		goto out_tbl_unlock;
++void slab_common_oom_debug_dump_unreclaimable(unsigned long minkb)
++{
++	struct kmem_cache *s, *s2;
++	struct slabinfo sinfo;
++	u32 slabs_examined =3D 0;
++	u32 slabs_printed =3D 0;
 +
-+	/* last flush was last_flush seconds ago */
-+	last_flush =3D jiffies_to_msecs(flush_delta) / 1000;
-+	proxy_qlen =3D tbl->proxy_queue.qlen;
-+
-+	rcu_read_lock_bh();
-+	nht =3D rcu_dereference_bh(tbl->nht);
-+	if (nht)
-+		hash_shift =3D nht->hash_shift + 1;
-+	rcu_read_unlock_bh();
-+	if (!nht)
-+		goto out_tbl_unlock;
-+
-+	memset(&ndst, 0, sizeof(ndst));
-+	for_each_possible_cpu(cpu) {
-+		struct neigh_statistics *st;
-+
-+		st =3D per_cpu_ptr(tbl->stats, cpu);
-+		ndst.ndts_allocs		+=3D st->allocs;
-+		ndst.ndts_destroys		+=3D st->destroys;
-+		ndst.ndts_hash_grows		+=3D st->hash_grows;
-+		ndst.ndts_res_failed		+=3D st->res_failed;
-+		ndst.ndts_lookups		+=3D st->lookups;
-+		ndst.ndts_hits			+=3D st->hits;
-+		ndst.ndts_periodic_gc_runs	+=3D st->periodic_gc_runs;
-+		ndst.ndts_forced_gc_runs	+=3D st->forced_gc_runs;
-+		ndst.ndts_table_fulls		+=3D st->table_fulls;
++	/*
++	 * Here acquiring slab_mutex is risky since we don't prefer to get
++	 * sleep in oom path. But, without mutex hold, it may introduce a
++	 * risk of crash.
++	 * Use mutex_trylock to protect the list traverse, dump nothing
++	 * without acquiring the mutex.
++	 */
++	if (!mutex_trylock(&slab_mutex)) {
++		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
++		return;
 +	}
 +
-+	read_unlock_bh(&tbl->lock);
-+	tblsize =3D (1 << hash_shift) * sizeof(struct neighbour *);
-+	if (tblsize > PAGE_SIZE)
-+		tblsize =3D get_order(tblsize);
++	oom_debug_slab_header_print();
 +
-+	pr_info("Table:%7s size:%5u keyLen:%2hu entrySize:%3hu entries:%5u last=
-Flush:%5us hGrows:%5llu allocs:%5llu destroys:%5llu lookups:%5llu hits:%5=
-llu resFailed:%5llu gcRuns/Forced:%3llu / %2llu tblFull:%2llu proxyQlen:%=
-2u\n",
-+		tblname, tblsize, key_len, entry_size, entries, last_flush,
-+		ndst.ndts_hash_grows, ndst.ndts_allocs, ndst.ndts_destroys,
-+		ndst.ndts_lookups, ndst.ndts_hits, ndst.ndts_res_failed,
-+		ndst.ndts_periodic_gc_runs, ndst.ndts_forced_gc_runs,
-+		ndst.ndts_table_fulls, proxy_qlen);
-+	return;
++	list_for_each_entry_safe(s, s2, &slab_caches, list) {
++		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
++			continue;
 +
-+out_tbl_unlock:
-+	read_unlock_bh(&tbl->lock);
++		get_slabinfo(s, &sinfo);
++
++		++slabs_examined;
++
++		if (oom_debug_slab_check(&sinfo, s, minkb))
++			++slabs_printed;
++	}
++	mutex_unlock(&slab_mutex);
++
++	pr_info("Summary: Slab entries examined:%u printed:%u minsize:%lukB\n",
++		slabs_examined, slabs_printed, minkb);
 +}
-+#endif /* CONFIG_DEBUG_OOM_ARP_TBL || CONFIG_DEBUG_OOM_ND_TBL */
++#endif  /* CONFIG_DEBUG_OOM_SLAB_SELECT_PRINT */
++
+ #if defined(CONFIG_MEMCG)
+ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+ {
 --=20
 2.20.1
 
