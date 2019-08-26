@@ -2,267 +2,213 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1829C3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 14:54:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3859CC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C38020679
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 14:54:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C38020679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id C67E52070B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="AhtZPSac";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="TlbDVYRd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C67E52070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E57BF6B0598; Mon, 26 Aug 2019 10:54:09 -0400 (EDT)
+	id 5E7876B0599; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE1416B0599; Mon, 26 Aug 2019 10:54:09 -0400 (EDT)
+	id 598616B059B; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C81236B059A; Mon, 26 Aug 2019 10:54:09 -0400 (EDT)
+	id 487986B059C; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
-	by kanga.kvack.org (Postfix) with ESMTP id A09FF6B0598
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 10:54:09 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 4A2BB180AD7C1
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 14:54:09 +0000 (UTC)
-X-FDA: 75864874218.13.heart09_242be1789c660
-X-HE-Tag: heart09_242be1789c660
-X-Filterd-Recvd-Size: 10460
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 14:54:08 +0000 (UTC)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7QErjvD060668
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 10:54:07 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2umfqpw6p4-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 10:54:07 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 26 Aug 2019 15:54:04 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 26 Aug 2019 15:53:52 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7QEro3t54460520
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 26 Aug 2019 14:53:50 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 503DD4C062;
-	Mon, 26 Aug 2019 14:53:50 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BCE2F4C044;
-	Mon, 26 Aug 2019 14:53:40 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.199.38.251])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon, 26 Aug 2019 14:53:40 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, David Hildenbrand <david@redhat.com>,
-        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Andy Lutomirski <luto@kernel.org>,
-        Anshuman Khandual <anshuman.khandual@arm.com>,
-        Arun KS <arunks@codeaurora.org>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Borislav Petkov <bp@alien8.de>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Christian Borntraeger <borntraeger@de.ibm.com>,
-        Christophe Leroy <christophe.leroy@c-s.fr>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Fenghua Yu <fenghua.yu@intel.com>,
-        Gerald Schaefer <gerald.schaefer@de.ibm.com>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Halil Pasic <pasic@linux.ibm.com>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-        Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Jun Yao <yaojun8558363@gmail.com>,
-        Logan Gunthorpe <logang@deltatee.com>,
-        Mark Rutland <mark.rutland@arm.com>,
-        Masahiro Yamada <yamada.masahiro@socionext.com>,
-        "Matthew Wilcox \(Oracle\)" <willy@infradead.org>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>,
-        Mike Rapoport <rppt@linux.ibm.com>, Oscar Salvador <osalvador@suse.de>,
-        Paul Mackerras <paulus@samba.org>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>,
-        Pavel Tatashin <pavel.tatashin@microsoft.com>,
-        Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
-        Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
-        Steve Capper <steve.capper@arm.com>,
+Received: from forelay.hostedemail.com (smtprelay0002.hostedemail.com [216.40.44.2])
+	by kanga.kvack.org (Postfix) with ESMTP id 27A5E6B0599
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id AB161824CA2F
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:34 +0000 (UTC)
+X-FDA: 75864913068.02.waste33_193d33201a41e
+X-HE-Tag: waste33_193d33201a41e
+X-Filterd-Recvd-Size: 10630
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:33 +0000 (UTC)
+Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x7QEoge2021842;
+	Mon, 26 Aug 2019 08:08:48 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
+ b=AhtZPSaceaDn+NePQq6CNmP+2Og3PfpyBGQG+RDKYQsWlVMC/EM4xftCo3kH3OKacFqp
+ eiOcIB4o8PiOq/hBo6uJcQX0254NjyfZtHs61Ro3lBNLExJoJuUa22odLpV+s19Knuf8
+ tMiPx3gtSC7xSSIbr8MjOhJ66OOrPphB4mM= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2ukmwdmhmf-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Mon, 26 Aug 2019 08:08:48 -0700
+Received: from ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) by
+ ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Mon, 26 Aug 2019 08:08:47 -0700
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.101) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
+ via Frontend Transport; Mon, 26 Aug 2019 08:08:47 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=T4rC90ZQJpdHORUvK+LcFrmAWpOOKUNDeKJY6wIXf11SJz81UOgOsy8uGevEGZvzAN3Aq10kSWV5IXuiqWyuqidkvF5yC+znUw47b7CawwXsJ2GuNg4pgqIhgJYVSobR98tbtieC6cMvtS6FydtTvWHP2EGYSQlJRdt7LSBmuuBiRyJHZgSwcZrdzxrIije7Yw7763bRTBq6dw340WxSYDXnXucCfTvutE1Z9adf165mgphzHIdhkgSpS5U36ZaSZ6+dnR8jRV/ib8cZXUI0wfL0Gfj4KZ8npzjAHAg9rFiCcu/Bjkku5BprspvCH6PCeQYcpfRFQuSyu9Sa0WiUpA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
+ b=Z93lo2wFMcL4ia+6f4RRQf0x5iv8ecmxvqCq9AXy6EjoU1IXTfRgB+OeCP8j6bXKUwTu53DOA4so7T1VYhpXYVSbAPYGj0uolNfAwAI1SyR9+fsbRg9vnfyDyEC39sGAC9Fog4mfIgCn/kDdC1gw1klwIKewlGnAAdS8GdPyGyyUh+dnooDhVKPUXlzVNJzeHvw295DZ2T0XrdIRF3loEJ4ojUJvXuGF5ZzyysQ34B545Egi9pN2/jgypajE7xPD9uCSzU8f4JgM1K0Qd7xhXMkvtu/65seAosCFZd7Tjmieof1fh+VI1twbBebJfNXzteFRABcfJHBCdcQ9IBRxgQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
+ header.d=fb.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
+ b=TlbDVYRdZYViEQO5uLnpov9fbnnxnpWlWQ12xmhmShKa6PLbf9YatEjv8+x8+WpNisluC50ibpPTFhFkCjExONp79AZH5NKQ55PYGl/bXjQuIZ8LHYNzw/7hHsnq3NtyfSYzp6kP4pAjZTwlDx7B+VXNPO7N2d/E7PS0F1STk4E=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1536.namprd15.prod.outlook.com (10.173.233.138) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2199.20; Mon, 26 Aug 2019 15:08:46 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::45ee:bc50:acfa:60a5]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::45ee:bc50:acfa:60a5%3]) with mapi id 15.20.2199.021; Mon, 26 Aug 2019
+ 15:08:46 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Peter Zijlstra <peterz@infradead.org>
+CC: Steven Rostedt <rostedt@goodmis.org>,
+        "sbsiddha@gmail.com"
+	<sbsiddha@gmail.com>,
+        Linux Kernel Mailing List
+	<linux-kernel@vger.kernel.org>,
+        Linux MM <linux-mm@kvack.org>, Kernel Team
+	<Kernel-team@fb.com>,
+        "stable@vger.kernel.org" <stable@vger.kernel.org>,
         Thomas Gleixner <tglx@linutronix.de>,
-        Tom Lendacky <thomas.lendacky@amd.com>,
-        Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>,
-        Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>,
-        Wei Yang <richardw.yang@linux.intel.com>,
-        Will Deacon <will@kernel.org>,
-        Yoshinori Sato <ysato@users.sourceforge.jp>,
-        Yu Zhao <yuzhao@google.com>
-Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when removing memory
-In-Reply-To: <20190826101012.10575-1-david@redhat.com>
-References: <20190826101012.10575-1-david@redhat.com>
-Date: Mon, 26 Aug 2019 20:23:38 +0530
+        Dave Hansen <dave.hansen@intel.com>,
+        Andy Lutomirski <luto@amacapital.net>
+Subject: Re: [PATCH] x86/mm: Do not split_large_page() for
+ set_kernel_text_rw()
+Thread-Topic: [PATCH] x86/mm: Do not split_large_page() for
+ set_kernel_text_rw()
+Thread-Index: AQHVWXL45hcGbMxBFEmxITCR8fhmlKcIeZ6AgARkOQCAAE74AIAAYJqA
+Date: Mon, 26 Aug 2019 15:08:45 +0000
+Message-ID: <0A94F7AA-7ECE-4363-B960-41F644CFE942@fb.com>
+References: <20190823052335.572133-1-songliubraving@fb.com>
+ <20190823093637.GH2369@hirez.programming.kicks-ass.net>
+ <164D1F08-80F7-4E13-94FC-78F33B3E299F@fb.com>
+ <20190826092300.GN2369@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190826092300.GN2369@hirez.programming.kicks-ass.net>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::7fd4]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 6b54e8fd-50dd-4050-27a0-08d72a374ac1
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1536;
+x-ms-traffictypediagnostic: MWHPR15MB1536:
+x-ms-exchange-transport-forked: True
+x-microsoft-antispam-prvs: <MWHPR15MB153626214FB065B39E7F91FDB3A10@MWHPR15MB1536.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 01415BB535
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(396003)(136003)(366004)(376002)(346002)(189003)(199004)(8936002)(76176011)(81166006)(81156014)(8676002)(7736002)(36756003)(2906002)(6116002)(305945005)(86362001)(66446008)(64756008)(6486002)(2616005)(6916009)(50226002)(76116006)(229853002)(66556008)(66946007)(6436002)(46003)(71190400001)(71200400001)(57306001)(478600001)(186003)(14454004)(66476007)(14444005)(256004)(54906003)(33656002)(6512007)(53546011)(6506007)(99286004)(446003)(102836004)(5660300002)(4326008)(53936002)(316002)(476003)(6246003)(486006)(11346002)(25786009);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1536;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: 92gs5wxDamNmmcF/tm3tO+xCps87zZ0l7VCNA7CELPxM+LJVr28ps1xZuMSOrHMQV6GpgXLcsPoXGD+PmZxjoLdTx3nydN1/6sJlLLxkzcvrYChrnp3JOHPIVqCr3JdaEBApEYsvCqK1wiu2OzwhOMnxOAXiG40inqKg/idCwBq7Cxngk4amV31Ch50AUEpsxNql2/I2IcGyU+bG/4cRvW4nocp3YrXZpc2GLCmSrai4fuo3o7psIYxNeBwVpF8nKpaq0cB+r+AXyPA8EDurTxlULuGvPokzgVu2YleOZMC/a65qatnzHtqQB5nyuyztbRkb2/vkOdrdspwMJ303HU0HciXa2Z2pK3yFakC87rpqSA7D2L+aH3aLwQuaK+fk7//HzpzBbecncREBE+F2JttvxA+NY/YBXtxTEe65n2Y=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <544B2A942A90EF4A8BFB49C5319B6FFC@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19082614-0020-0000-0000-000003642609
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19082614-0021-0000-0000-000021B96EB4
-Message-Id: <87pnksm0zx.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-26_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908260157
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6b54e8fd-50dd-4050-27a0-08d72a374ac1
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Aug 2019 15:08:45.9935
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: CdJWB4hsMqn+CxTrqafmUBWNfkk6CWqeZe6c8GCQv9GbbewVBl9+Iby4CavHr0y13wpqo9Lsvhw5CIQIDmsFrw==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1536
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:5.22.84,1.0.8
+ definitions=2019-08-26_08:2019-08-26,2019-08-26 signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 malwarescore=0
+ impostorscore=0 suspectscore=0 phishscore=0 spamscore=0 mlxscore=0
+ clxscore=1015 mlxlogscore=999 priorityscore=1501 bulkscore=0
+ lowpriorityscore=0 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.12.0-1906280000 definitions=main-1908260157
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Hildenbrand <david@redhat.com> writes:
 
-> Working on virtio-mem, I was able to trigger a kernel BUG (with debug
-> options enabled) when removing memory that was never onlined. I was able
-> to reproduce with DIMMs. As far as I can see the same can also happen
-> without debug configs enabled, if we're unlucky and the uninitialized
-> memmap contains selected garbage .
->
-> The root problem is that we should not try to derive the zone of memory we
-> are removing from the first PFN. The individual memory blocks of a DIMM
-> could be spanned by different ZONEs, multiple ZONES (after being offline and
-> re-onlined) or no ZONE at all (never onlined).
->
-> Let's process all applicable zones when removing memory so we're on the
-> safe side. In the long term, we want to resize the zones when offlining
-> memory (and before removing ZONE_DEVICE memory), however, that will require
-> more thought (and most probably a new SECTION_ACTIVE / pfn_active()
-> thingy). More details about that in patch #3.
->
-> Along with the fix, some related cleanups.
->
-> v1 -> v2:
-> - Include "mm: Introduce for_each_zone_nid()"
-> - "mm/memory_hotplug: Pass nid instead of zone to __remove_pages()"
-> -- Pass the nid instead of the zone and use it to reduce the number of
->    zones to process
->
-> --- snip ---
->
-> I gave this a quick test with a DIMM on x86-64:
->
-> Start with a NUMA-less node 1. Hotplug a DIMM (512MB) to Node 1.
-> 1st memory block is not onlined. 2nd and 4th is onlined MOVABLE.
-> 3rd is onlined NORMAL.
->
-> :/# echo "online_movable" > /sys/devices/system/memory/memory41/state
-> [...]
-> :/# echo "online_movable" > /sys/devices/system/memory/memory43/state
-> :/# echo "online_kernel" > /sys/devices/system/memory/memory42/state
-> :/# cat /sys/devices/system/memory/memory40/state
-> offline
->
-> :/# cat /proc/zoneinfo
-> Node 1, zone   Normal
->  [...]
->         spanned  32768
->         present  32768
->         managed  32768
->  [...]
-> Node 1, zone  Movable
->  [...]
->         spanned  98304
->         present  65536
->         managed  65536
->  [...]
->
-> Trigger hotunplug. If it succeeds (block 42 can be offlined):
->
-> :/# cat /proc/zoneinfo
->
-> Node 1, zone   Normal
->   pages free     0
->         min      0
->         low      0
->         high     0
->         spanned  0
->         present  0
->         managed  0
->         protection: (0, 0, 0, 0, 0)
-> Node 1, zone  Movable
->   pages free     0
->         min      0
->         low      0
->         high     0
->         spanned  0
->         present  0
->         managed  0
->         protection: (0, 0, 0, 0, 0)
->
-> So all zones were properly fixed up and we don't access the memmap of the
-> first, never-onlined memory block (garbage). I am no longer able to trigger
-> the BUG. I did a similar test with an already populated node.
->
 
-I did report a variant of the issue at
+> On Aug 26, 2019, at 2:23 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+>=20
+> So only the high mapping is ever executable; the identity map should not
+> be. Both should be RO.
+>=20
+>> kprobe (with CONFIG_KPROBES_ON_FTRACE) should work on kernel identity
+>> mapping.=20
+>=20
+> Please provide more information; kprobes shouldn't be touching either
+> mapping. That is, afaict kprobes uses text_poke() which uses a temporary
+> mapping (in 'userspace' even) to alias the high text mapping.
 
-https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
+kprobe without CONFIG_KPROBES_ON_FTRACE uses text_poke(). But kprobe with
+CONFIG_KPROBES_ON_FTRACE uses another path. The split happens with
+set_kernel_text_rw() -> ... -> __change_page_attr() -> split_large_page().
+The split is introduced by commit 585948f4f695. do_split in=20
+__change_page_attr() becomes true after commit 585948f4f695. This patch=20
+tries to fix/workaround this part.=20
 
-This patch series still doesn't handle the fact that struct page backing
-the start_pfn might not be initialized. ie, it results in crash like
-below
+>=20
+> I'm also not sure how it would then result in any 4k text maps. Yes the
+> alias is 4k, but it should not affect the actual high text map in any
+> way.
 
-    pc: c0000000004bc1ec: shrink_zone_span+0x1bc/0x290
-    lr: c0000000004bc1e8: shrink_zone_span+0x1b8/0x290
-    sp: c0000000dac7f910
-   msr: 800000000282b033
-  current = 0xc0000000da2fa000
-  paca    = 0xc00000000fffb300   irqmask: 0x03   irq_happened: 0x01
-    pid   = 1224, comm = ndctl
-kernel BUG at /home/kvaneesh/src/linux/include/linux/mm.h:1088!
-Linux version 5.3.0-rc6-17495-gc7727d815970-dirty (kvaneesh@ltc-boston123) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #183 SMP Mon Aug 26 09:37:32 CDT 2019
-enter ? for help
-[c0000000dac7f980] c0000000004bc574 __remove_zone+0x84/0xd0
-[c0000000dac7f9d0] c0000000004bc920 __remove_section+0x100/0x170
-[c0000000dac7fa30] c0000000004bec98 __remove_pages+0x168/0x220
-[c0000000dac7fa90] c00000000007dff8 arch_remove_memory+0x38/0x110
-[c0000000dac7fb00] c00000000050cb0c devm_memremap_pages_release+0x24c/0x2f0
-[c0000000dac7fb90] c000000000cfec00 devm_action_release+0x30/0x50
-[c0000000dac7fbb0] c000000000cffe7c release_nodes+0x24c/0x2c0
-[c0000000dac7fc20] c000000000cf8988 device_release_driver_internal+0x168/0x230
-[c0000000dac7fc60] c000000000cf5624 unbind_store+0x74/0x190
-[c0000000dac7fcb0] c000000000cf42a4 drv_attr_store+0x44/0x60
-[c0000000dac7fcd0] c000000000617d44 sysfs_kf_write+0x74/0xa0
+I am confused by the alias logic. set_kernel_text_rw() makes the high map
+rw, and split the PMD in the high map.=20
 
-I do have a few patches to handle the crashes eralier in
-devm_memremap_pages_release() 
+>=20
+> kprobes also allocates executable slots, but it does that in the module
+> range (afaict), so that, again, should not affect the high text mapping.
+>=20
+>> We found with 5.2 kernel (no CONFIG_PAGE_TABLE_ISOLATION, w/=20
+>> CONFIG_KPROBES_ON_FTRACE), a single kprobe will split _all_ PMDs in=20
+>> kernel text mapping into pte-mapped pages. This increases iTLB=20
+>> miss rate from about 300 per million instructions to about 700 per
+>> million instructions (for the application I test with).=20
+>>=20
+>> Per bisect, we found this behavior happens after commit 585948f4f695=20
+>> ("x86/mm/cpa: Avoid the 4k pages check completely"). That's why I=20
+>> proposed this PATCH to fix/workaround this issue. However, per
+>> Peter's comment and my study of the code, this doesn't seem the=20
+>> real problem or the only here.=20
+>>=20
+>> I also tested that the PMD split issue doesn't happen w/o=20
+>> CONFIG_KPROBES_ON_FTRACE.=20
+>=20
+> Right, because then ftrace doesn't flip the whole kernel map writable;
+> which it _really_ should stop doing anyway.
+>=20
+> But I'm still wondering what causes that first 4k split...
 
---- a/mm/memremap.c
-+++ b/mm/memremap.c
-@@ -121,7 +121,7 @@ static void devm_memremap_pages_release(void *data)
-        dev_pagemap_cleanup(pgmap);
- 
-        /* pages are dead and unused, undo the arch mapping */
--       nid = page_to_nid(pfn_to_page(PHYS_PFN(res->start)));
-+       nid = page_to_nid(pfn_to_page(pfn_first(pgmap)));
- 
+Please see above.=20
 
-and also for pfn_first
-
-https://www.mail-archive.com/linux-nvdimm@lists.01.org/msg16205.html
-
--aneesh
+Thanks,
+Song
 
 
