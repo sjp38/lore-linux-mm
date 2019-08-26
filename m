@@ -7,52 +7,52 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 527F9C3A5A6
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B56BCC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B15B2070B
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 71C5C2070B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 19:36:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="1IEjogex"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B15B2070B
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=arista.com header.i=@arista.com header.b="SkUBMpm0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71C5C2070B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39BE76B0007; Mon, 26 Aug 2019 15:36:52 -0400 (EDT)
+	id 176136B000A; Mon, 26 Aug 2019 15:36:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D4956B000A; Mon, 26 Aug 2019 15:36:52 -0400 (EDT)
+	id 12B6F6B000D; Mon, 26 Aug 2019 15:36:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19DEB6B000C; Mon, 26 Aug 2019 15:36:52 -0400 (EDT)
+	id 015E06B000E; Mon, 26 Aug 2019 15:36:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0187.hostedemail.com [216.40.44.187])
-	by kanga.kvack.org (Postfix) with ESMTP id E202A6B0007
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:36:51 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7616082437CF
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:51 +0000 (UTC)
-X-FDA: 75865586622.05.beam48_1eb30838e9a3f
-X-HE-Tag: beam48_1eb30838e9a3f
-X-Filterd-Recvd-Size: 8342
+Received: from forelay.hostedemail.com (smtprelay0253.hostedemail.com [216.40.44.253])
+	by kanga.kvack.org (Postfix) with ESMTP id CD39E6B000A
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:36:52 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 5FB835005
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:52 +0000 (UTC)
+X-FDA: 75865586664.16.fish77_1ed7852accb0a
+X-HE-Tag: fish77_1ed7852accb0a
+X-Filterd-Recvd-Size: 6900
 Received: from smtp.aristanetworks.com (mx.aristanetworks.com [162.210.129.12])
-	by imf39.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:50 +0000 (UTC)
+	by imf30.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 19:36:51 +0000 (UTC)
 Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 931FE42A6BB;
-	Mon, 26 Aug 2019 12:37:35 -0700 (PDT)
+	by smtp.aristanetworks.com (Postfix) with ESMTP id 8E35842A6BC;
+	Mon, 26 Aug 2019 12:37:36 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
-	s=Arista-A; t=1566848255;
-	bh=geOwB3duci2zbNvoXfDx+5+x5VtXw6E+x8+dOFZDgKM=;
+	s=Arista-A; t=1566848256;
+	bh=V/mOhY7XhS1f/Jh8Iiul8CdPIyA7jYqIKAUZG/uvnLY=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References;
-	b=1IEjogexzuQCB3SP38md7Eq7OAtVIB9hqKIwzdhXq9OKGIHvWKGuRq1zmfcN7hdXv
-	 fPd7SXHgFSThKuZJr8a5ZvI8CZib+v+FLCIf1jki8OhLBtTVx/ytVRHydiqzEaPagh
-	 JPZXB4AOFk4EUCpl73dyFdgL2f8/acMUXaPoGgYh99S7RPizNVGNqNcD82fpBjgmca
-	 flazzOdVEDUXatpff0Du/hlvWUAogblxYEhvPR1WAgw69bV/xHozqclJwsUctRMTH8
-	 4pRu4ak3SRjysHQc1ZDP3Z1ZnImD5ycT13vKdxOJltNyRZ12aXw0jyWapP9IW4qwY+
-	 ArpNl8dESBAlg==
+	b=SkUBMpm0614z4oh4Ou9RV1ZU4w8JPkL5Ew0hBhOK7lcaxxLe9Xd4qD5/Rz/ZiWcY6
+	 uq4GUTStXzVIAr+hAAqjXhFaAZAJip064kT3YHQz8mI1sXmMB1okUll8is5jtiUM0w
+	 8/WmdCPVtmgix0tSpJWQubuSF4D+ug99DItgnVD9dK26z8dHDPC627LWZukaHmgiWq
+	 Ngfw11gQ12y0SEp1SjpTY8DpuOyQm2MbD8jpv5PFw3xtgFMToxXkb1x9DoQRkDlKyg
+	 19FmT5ae959jy/s+yLPIFzxD3I+URuSO6ThZFZDMZw8UUz4rUqdK/HaJ/w+3IPktPa
+	 hd8EImz/dnIpg==
 Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 8537F42A6B7;
-	Mon, 26 Aug 2019 12:37:35 -0700 (PDT)
+	by smtp.aristanetworks.com (Postfix) with ESMTP id 8168442A6B7;
+	Mon, 26 Aug 2019 12:37:36 -0700 (PDT)
 From: Edward Chron <echron@arista.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.com>,
@@ -65,9 +65,9 @@ Cc: Michal Hocko <mhocko@suse.com>,
 	linux-kernel@vger.kernel.org,
 	colona@arista.com,
 	Edward Chron <echron@arista.com>
-Subject: [PATCH 02/10] mm/oom_debug: Add System State Summary
-Date: Mon, 26 Aug 2019 12:36:30 -0700
-Message-Id: <20190826193638.6638-3-echron@arista.com>
+Subject: [PATCH 03/10] mm/oom_debug: Add Tasks Summary
+Date: Mon, 26 Aug 2019 12:36:31 -0700
+Message-Id: <20190826193638.6638-4-echron@arista.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190826193638.6638-1-echron@arista.com>
 References: <20190826193638.6638-1-echron@arista.com>
@@ -79,201 +79,148 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When selected, prints the number of CPUs online at the time of the OOM
-event. Also prints nodename, domainname, machine type, kernel release
-and version, system uptime, total memory and swap size. Produces a
-single line of output holding this information.
+Adds config option and code to support printing a Process / Thread Summar=
+y
+of process / thread activity when an OOM event occurs. The information
+provided includes the number of process and threads active, the number
+of oom eligible and oom ineligible tasks, the total number of forks
+that have happened since the system booted and the number of runnable
+and I/O blocked processes. All values are at the time of the OOM event.
 
-This information is useful to help determine the state the system was
-in when the event was triggered which is helpful for debugging,
-performance measurements and security issues.
-
-Configuring this Debug Option (DEBUG_OOM_SYSTEM_STATE)
-------------------------------------------------------
-To enable the option it needs to be configured in the OOM Debugging
-configure menu. The kernel configuration entry can be found in the
-config at: Kernel hacking, Memory Debugging, OOM Debugging the
-DEBUG_OOM_SYSTEM_STATE config entry.
+Configuring this Debug Option (DEBUG_OOM_TASKS_SUMMARY)
+-------------------------------------------------------
+To get the tasks information summary this option must be configured.
+The Tasks Summary option uses the CONFIG_DEBUG_OOM_TASKS_SUMMARY
+kernel config option which is found in the kernel config under the entry:
+Kernel hacking, Memory Debugging, OOM Debugging entry. The config option
+to select is: DEBUG_OOM_TASKS_SUMMARY.
 
 Dynamic disable or re-enable this OOM Debug option
 --------------------------------------------------
 The oom debugfs base directory is found at: /sys/kernel/debug/oom.
-The oom debugfs for this option is: system_state_summary_
-and the file for this option is the enable file.
+The oom debugfs for this option is: tasks_summary_
+and there is just one file for this option, the enable file.
 
-This option may be disabled or re-enabled using the debugfs enable file
-for this OOM debug option. The debugfs file to enable this entry is found
-at: /sys/kernel/debug/oom/system_state_summary_enabled where the enabled
-file's value determines whether the facility is enabled or disabled.
-A value of 1 is enabled and a value of 0 is disabled.
-When configured the default setting is set to enabled.
+The option may be disabled or re-enabled using the debugfs entry for
+this OOM debug option. The debugfs file to enable this option is found at=
+:
+/sys/kernel/debug/oom/tasks_summary_enabled
+The option's enabled file value determines whether the facility is enable=
+d
+or disabled. A value of 1 is enabled (default) and a value of 0 is
+disabled. When configured the default setting is set to enabled.
 
-Content and format of System State Summary Output
--------------------------------------------------
-  One line of output that includes:
-  - Uptime (days, hour, minutes, seconds)
-  - Number CPUs
-  - Machine Type
-  - Node name
-  - Domain name
-  - Kernel Release
-  - Kernel Version
+Content and format of Tasks Summary Output
+------------------------------------------
+One line of output that includes:
+  - Number of Threads
+  - Number of processes
+  - Forks since boot
+  - Processes that are runnable
+  - Processes that are in iowait
 
 Sample Output:
 -------------
-Sample System State Summary message:
+Sample Tasks Summary message output:
 
-Jul 27 10:56:46 yoursystem kernel: System Uptime:0 days 00:17:27
- CPUs:4 Machine:x86_64 Node:yoursystem Domain:localdomain
- Kernel Release:5.3.0-rc2+ Version: #49 SMP Mon Jul 27 10:35:32 PDT 2019
+Aug 13 18:52:48 yoursystem kernel: Threads: 492 Processes: 248
+ forks_since_boot: 7786 procs_runable: 4 procs_iowait: 0
 
 
 Signed-off-by: Edward Chron <echron@arista.com>
 ---
- mm/Kconfig.debug    | 15 +++++++++
- mm/oom_kill_debug.c | 81 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 96 insertions(+)
+ mm/Kconfig.debug    | 16 ++++++++++++++++
+ mm/oom_kill_debug.c | 27 +++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
 
 diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 5610da5fa614..dbe599b67a3b 100644
+index dbe599b67a3b..fcbc5f9aa146 100644
 --- a/mm/Kconfig.debug
 +++ b/mm/Kconfig.debug
-@@ -132,3 +132,18 @@ config DEBUG_OOM
- 	  option is a prerequisite for selecting any OOM debugging options.
+@@ -147,3 +147,19 @@ config DEBUG_OOM_SYSTEM_STATE
+ 	  A value of 1 is enabled (default) and a value of 0 is disabled.
 =20
- 	  If unsure, say N
+ 	  If unsure, say N.
 +
-+config DEBUG_OOM_SYSTEM_STATE
-+	bool "Debug OOM System State"
++config DEBUG_OOM_TASKS_SUMMARY
++	bool "Debug OOM System Tasks Summary"
 +	depends on DEBUG_OOM
 +	help
-+	  When enabled, provides one line of output on an oom event to
-+	  document the state of the system when the oom event occurred.
-+	  Prints: uptime, # threads, # processes, system memory size in KiB
-+	  and swap space size in KiB, nodename, domainname, machine type,
-+	  kernel release and version. If configured it is enabled/disabled
-+	  by setting the enabled file entry in the debugfs OOM interface
-+	  at: /sys/kernel/debug/oom/system_state_summary_enabled
++	  When enabled, provides a kernel process/thread summary recording
++	  the system's process/thread activity at the time an OOM event.
++	  The number of processes and of threads, the number of runnable
++	  and I/O blocked threads, the number of forks since boot and the
++	  number of oom eligible and oom ineligble tasks are provided in
++	  the output. If configured it is enabled/disabled by setting the
++	  enabled file entry in the debugfs OOM interface at:
++	  /sys/kernel/debug/oom/tasks_summary_enabled
 +	  A value of 1 is enabled (default) and a value of 0 is disabled.
 +
 +	  If unsure, say N.
 diff --git a/mm/oom_kill_debug.c b/mm/oom_kill_debug.c
-index af07e662c808..6eeaad86fca8 100644
+index 6eeaad86fca8..395b3307f822 100644
 --- a/mm/oom_kill_debug.c
 +++ b/mm/oom_kill_debug.c
-@@ -144,6 +144,14 @@
- #include <linux/sysfs.h>
- #include "oom_kill_debug.h"
+@@ -152,6 +152,10 @@
+ #include <linux/sched/stat.h>
+ #endif
 =20
-+#ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
-+#include <linux/cpumask.h>
-+#include <linux/mm.h>
-+#include <linux/swap.h>
-+#include <linux/utsname.h>
++#ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
 +#include <linux/sched/stat.h>
 +#endif
 +
  #define OOMD_MAX_FNAME 48
  #define OOMD_MAX_OPTNAME 32
 =20
-@@ -169,11 +177,20 @@ struct oom_debug_option {
-=20
- /* Table of oom debug options, new options need to be added here */
- static struct oom_debug_option oom_debug_options_table[] =3D {
-+#ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
+@@ -182,6 +186,12 @@ static struct oom_debug_option oom_debug_options_tab=
+le[] =3D {
+ 		.option_name	=3D "system_state_summary_",
+ 		.support_tpercent =3D false,
+ 	},
++#endif
++#ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
 +	{
-+		.option_name	=3D "system_state_summary_",
++		.option_name	=3D "tasks_summary_",
 +		.support_tpercent =3D false,
 +	},
-+#endif
+ #endif
  	{}
  };
-=20
- /* Option index by name for order one-lookup, add new options entry here=
- */
+@@ -190,6 +200,9 @@ static struct oom_debug_option oom_debug_options_tabl=
+e[] =3D {
  enum oom_debug_options_index {
-+#ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
-+	SYSTEM_STATE,
+ #ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
+ 	SYSTEM_STATE,
 +#endif
++#ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
++	TASKS_STATE,
+ #endif
  	OUT_OF_BOUNDS
  };
-=20
-@@ -244,10 +261,74 @@ u32 oom_kill_debug_oom_event(void)
- 	return oom_kill_debug_oom_events;
+@@ -320,6 +333,15 @@ static void oom_kill_debug_system_summary_prt(void)
  }
+ #endif /* CONFIG_DEBUG_OOM_SYSTEM_STATE */
 =20
-+#ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
-+/*
-+ * oom_kill_debug_system_summary_prt - provides one line of output to do=
-cument
-+ *                      some of the system state at the time of an oom e=
-vent.
-+ *                      Output line includes: uptime, # threads, # proce=
-sses,
-+ *                      system memory size in KiB and swap space size in=
- KiB,
-+ *                      nodename, domainname, machine type, kernel relea=
-se
-+ *                      and version.
-+ */
-+static void oom_kill_debug_system_summary_prt(void)
++#ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
++static void oom_kill_debug_tasks_summary_print(void)
 +{
-+	struct new_utsname *p_uts;
-+	char domainname[256];
-+	unsigned long upsecs;
-+	unsigned short hours;
-+	struct timespec64 tp;
-+	unsigned short days;
-+	unsigned short mins;
-+	unsigned short secs;
-+	char nodename[256];
-+	size_t nodesize;
-+	char *p_wend;
-+	long uptime;
-+	int procs;
-+
-+	p_uts =3D utsname();
-+
-+	memset(nodename, 0, sizeof(nodename));
-+	memset(domainname, 0, sizeof(domainname));
-+
-+	p_wend =3D strchr(p_uts->nodename, '.');
-+	if (p_wend !=3D NULL) {
-+		nodesize =3D p_wend - p_uts->nodename;
-+		++p_wend;
-+		strncpy(nodename, p_uts->nodename, nodesize);
-+		strcpy(domainname, p_wend);
-+	} else {
-+		strcpy(nodename, p_uts->nodename);
-+		strcpy(domainname, "(none)");
-+	}
-+
-+	procs =3D nr_processes();
-+
-+	ktime_get_boottime_ts64(&tp);
-+	uptime =3D tp.tv_sec + (tp.tv_nsec ? 1 : 0);
-+
-+	days =3D uptime / 86400;
-+	upsecs =3D uptime - (days * 86400);
-+	hours =3D upsecs / 3600;
-+	upsecs =3D upsecs - (hours * 3600);
-+	mins =3D upsecs / 60;
-+	secs =3D upsecs - (mins * 60);
-+
-+	pr_info("System Uptime:%hu days %02hu:%02hu:%02hu CPUs:%u Machine:%s No=
-de:%s Domain:%s Kernel Release:%s Version:%s\n",
-+		days, hours, mins, secs, num_online_cpus(), p_uts->machine,
-+		nodename, domainname, p_uts->release, p_uts->version);
++	pr_info("Threads:%d Processes:%d forks_since_boot:%lu procs_runable:%lu=
+ procs_iowait:%lu\n",
++		nr_threads, nr_processes(),
++		total_forks, nr_running(), nr_iowait());
 +}
-+#endif /* CONFIG_DEBUG_OOM_SYSTEM_STATE */
++#endif /* CONFIG_DEBUG_OOM_TASKS_SUMMARY */
 +
  u32 oom_kill_debug_oom_event_is(void)
  {
  	++oom_kill_debug_oom_events;
+@@ -329,6 +351,11 @@ u32 oom_kill_debug_oom_event_is(void)
+ 		oom_kill_debug_system_summary_prt();
+ #endif
 =20
-+#ifdef CONFIG_DEBUG_OOM_SYSTEM_STATE
-+	if (oom_kill_debug_enabled(SYSTEM_STATE))
-+		oom_kill_debug_system_summary_prt();
++#ifdef CONFIG_DEBUG_OOM_TASKS_SUMMARY
++	if (oom_kill_debug_enabled(TASKS_STATE))
++		oom_kill_debug_tasks_summary_print();
 +#endif
 +
  	return oom_kill_debug_oom_events;
