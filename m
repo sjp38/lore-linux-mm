@@ -2,213 +2,158 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_2 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3859CC3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C14FBC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C67E52070B
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="AhtZPSac";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="TlbDVYRd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C67E52070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D4662070B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:09:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D4662070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E7876B0599; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
+	id 4138D6B059C; Mon, 26 Aug 2019 11:09:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 598616B059B; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
+	id 3EABB6B059D; Mon, 26 Aug 2019 11:09:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 487986B059C; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
+	id 3004A6B059E; Mon, 26 Aug 2019 11:09:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0002.hostedemail.com [216.40.44.2])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A5E6B0599
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:09:35 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id AB161824CA2F
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:34 +0000 (UTC)
-X-FDA: 75864913068.02.waste33_193d33201a41e
-X-HE-Tag: waste33_193d33201a41e
-X-Filterd-Recvd-Size: 10630
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:33 +0000 (UTC)
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x7QEoge2021842;
-	Mon, 26 Aug 2019 08:08:48 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
- b=AhtZPSaceaDn+NePQq6CNmP+2Og3PfpyBGQG+RDKYQsWlVMC/EM4xftCo3kH3OKacFqp
- eiOcIB4o8PiOq/hBo6uJcQX0254NjyfZtHs61Ro3lBNLExJoJuUa22odLpV+s19Knuf8
- tMiPx3gtSC7xSSIbr8MjOhJ66OOrPphB4mM= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ukmwdmhmf-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Mon, 26 Aug 2019 08:08:48 -0700
-Received: from ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) by
- ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Mon, 26 Aug 2019 08:08:47 -0700
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.101) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Mon, 26 Aug 2019 08:08:47 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=T4rC90ZQJpdHORUvK+LcFrmAWpOOKUNDeKJY6wIXf11SJz81UOgOsy8uGevEGZvzAN3Aq10kSWV5IXuiqWyuqidkvF5yC+znUw47b7CawwXsJ2GuNg4pgqIhgJYVSobR98tbtieC6cMvtS6FydtTvWHP2EGYSQlJRdt7LSBmuuBiRyJHZgSwcZrdzxrIije7Yw7763bRTBq6dw340WxSYDXnXucCfTvutE1Z9adf165mgphzHIdhkgSpS5U36ZaSZ6+dnR8jRV/ib8cZXUI0wfL0Gfj4KZ8npzjAHAg9rFiCcu/Bjkku5BprspvCH6PCeQYcpfRFQuSyu9Sa0WiUpA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
- b=Z93lo2wFMcL4ia+6f4RRQf0x5iv8ecmxvqCq9AXy6EjoU1IXTfRgB+OeCP8j6bXKUwTu53DOA4so7T1VYhpXYVSbAPYGj0uolNfAwAI1SyR9+fsbRg9vnfyDyEC39sGAC9Fog4mfIgCn/kDdC1gw1klwIKewlGnAAdS8GdPyGyyUh+dnooDhVKPUXlzVNJzeHvw295DZ2T0XrdIRF3loEJ4ojUJvXuGF5ZzyysQ34B545Egi9pN2/jgypajE7xPD9uCSzU8f4JgM1K0Qd7xhXMkvtu/65seAosCFZd7Tjmieof1fh+VI1twbBebJfNXzteFRABcfJHBCdcQ9IBRxgQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=E9gLohgp+44EL1sJIgx684fogNDAXGwjtAE5greLQUk=;
- b=TlbDVYRdZYViEQO5uLnpov9fbnnxnpWlWQ12xmhmShKa6PLbf9YatEjv8+x8+WpNisluC50ibpPTFhFkCjExONp79AZH5NKQ55PYGl/bXjQuIZ8LHYNzw/7hHsnq3NtyfSYzp6kP4pAjZTwlDx7B+VXNPO7N2d/E7PS0F1STk4E=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1536.namprd15.prod.outlook.com (10.173.233.138) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2199.20; Mon, 26 Aug 2019 15:08:46 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::45ee:bc50:acfa:60a5]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::45ee:bc50:acfa:60a5%3]) with mapi id 15.20.2199.021; Mon, 26 Aug 2019
- 15:08:46 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Peter Zijlstra <peterz@infradead.org>
-CC: Steven Rostedt <rostedt@goodmis.org>,
-        "sbsiddha@gmail.com"
-	<sbsiddha@gmail.com>,
-        Linux Kernel Mailing List
-	<linux-kernel@vger.kernel.org>,
-        Linux MM <linux-mm@kvack.org>, Kernel Team
-	<Kernel-team@fb.com>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Dave Hansen <dave.hansen@intel.com>,
-        Andy Lutomirski <luto@amacapital.net>
-Subject: Re: [PATCH] x86/mm: Do not split_large_page() for
- set_kernel_text_rw()
-Thread-Topic: [PATCH] x86/mm: Do not split_large_page() for
- set_kernel_text_rw()
-Thread-Index: AQHVWXL45hcGbMxBFEmxITCR8fhmlKcIeZ6AgARkOQCAAE74AIAAYJqA
-Date: Mon, 26 Aug 2019 15:08:45 +0000
-Message-ID: <0A94F7AA-7ECE-4363-B960-41F644CFE942@fb.com>
-References: <20190823052335.572133-1-songliubraving@fb.com>
- <20190823093637.GH2369@hirez.programming.kicks-ass.net>
- <164D1F08-80F7-4E13-94FC-78F33B3E299F@fb.com>
- <20190826092300.GN2369@hirez.programming.kicks-ass.net>
-In-Reply-To: <20190826092300.GN2369@hirez.programming.kicks-ass.net>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::7fd4]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 6b54e8fd-50dd-4050-27a0-08d72a374ac1
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1536;
-x-ms-traffictypediagnostic: MWHPR15MB1536:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <MWHPR15MB153626214FB065B39E7F91FDB3A10@MWHPR15MB1536.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01415BB535
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(396003)(136003)(366004)(376002)(346002)(189003)(199004)(8936002)(76176011)(81166006)(81156014)(8676002)(7736002)(36756003)(2906002)(6116002)(305945005)(86362001)(66446008)(64756008)(6486002)(2616005)(6916009)(50226002)(76116006)(229853002)(66556008)(66946007)(6436002)(46003)(71190400001)(71200400001)(57306001)(478600001)(186003)(14454004)(66476007)(14444005)(256004)(54906003)(33656002)(6512007)(53546011)(6506007)(99286004)(446003)(102836004)(5660300002)(4326008)(53936002)(316002)(476003)(6246003)(486006)(11346002)(25786009);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1536;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 92gs5wxDamNmmcF/tm3tO+xCps87zZ0l7VCNA7CELPxM+LJVr28ps1xZuMSOrHMQV6GpgXLcsPoXGD+PmZxjoLdTx3nydN1/6sJlLLxkzcvrYChrnp3JOHPIVqCr3JdaEBApEYsvCqK1wiu2OzwhOMnxOAXiG40inqKg/idCwBq7Cxngk4amV31Ch50AUEpsxNql2/I2IcGyU+bG/4cRvW4nocp3YrXZpc2GLCmSrai4fuo3o7psIYxNeBwVpF8nKpaq0cB+r+AXyPA8EDurTxlULuGvPokzgVu2YleOZMC/a65qatnzHtqQB5nyuyztbRkb2/vkOdrdspwMJ303HU0HciXa2Z2pK3yFakC87rpqSA7D2L+aH3aLwQuaK+fk7//HzpzBbecncREBE+F2JttvxA+NY/YBXtxTEe65n2Y=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <544B2A942A90EF4A8BFB49C5319B6FFC@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED3E6B059C
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:09:50 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id A34E31EF1
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:49 +0000 (UTC)
+X-FDA: 75864913698.03.burn59_1b8536b6e0312
+X-HE-Tag: burn59_1b8536b6e0312
+X-Filterd-Recvd-Size: 5618
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:09:48 +0000 (UTC)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7QF6uSD026618
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:09:47 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2umgtcju2h-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:09:47 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Mon, 26 Aug 2019 16:09:41 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 26 Aug 2019 16:09:37 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7QF9abA55836676
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 26 Aug 2019 15:09:36 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 307514C04A;
+	Mon, 26 Aug 2019 15:09:36 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B69734C04E;
+	Mon, 26 Aug 2019 15:09:35 +0000 (GMT)
+Received: from thinkpad (unknown [9.152.98.249])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon, 26 Aug 2019 15:09:35 +0000 (GMT)
+Date: Mon, 26 Aug 2019 17:09:34 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>,
+        Ralph Campbell <rcampbell@nvidia.com>,
+        =?UTF-8?B?SsOpcsO0bWU=?= Glisse
+ <jglisse@redhat.com>,
+        Will Deacon <will@kernel.org>, Peter Zijlstra
+ <peterz@infradead.org>,
+        "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
+        Dave Airlie <airlied@redhat.com>,
+        Thomas Hellstrom <thellstrom@vmware.com>,
+        Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: replace is_zero_pfn with is_huge_zero_pmd for thp
+In-Reply-To: <20190826131858.GB15933@bombadil.infradead.org>
+References: <20190825200621.211494-1-yuzhao@google.com>
+	<20190826131858.GB15933@bombadil.infradead.org>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 6b54e8fd-50dd-4050-27a0-08d72a374ac1
-X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Aug 2019 15:08:45.9935
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: CdJWB4hsMqn+CxTrqafmUBWNfkk6CWqeZe6c8GCQv9GbbewVBl9+Iby4CavHr0y13wpqo9Lsvhw5CIQIDmsFrw==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1536
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:5.22.84,1.0.8
- definitions=2019-08-26_08:2019-08-26,2019-08-26 signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 malwarescore=0
- impostorscore=0 suspectscore=0 phishscore=0 spamscore=0 mlxscore=0
- clxscore=1015 mlxlogscore=999 priorityscore=1501 bulkscore=0
- lowpriorityscore=0 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.12.0-1906280000 definitions=main-1908260157
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19082615-0028-0000-0000-0000039426E8
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19082615-0029-0000-0000-000024565C3E
+Message-Id: <20190826170934.7c2f4340@thinkpad>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-26_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=979 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908260158
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 26 Aug 2019 06:18:58 -0700
+Matthew Wilcox <willy@infradead.org> wrote:
 
+> Why did you not cc Gerald who wrote the patch?  You can't just
+> run get_maintainers.pl and call it good.
+> 
+> On Sun, Aug 25, 2019 at 02:06:21PM -0600, Yu Zhao wrote:
+> > For hugely mapped thp, we use is_huge_zero_pmd() to check if it's
+> > zero page or not.
+> > 
+> > We do fill ptes with my_zero_pfn() when we split zero thp pmd, but
+> >  this is not what we have in vm_normal_page_pmd().
+> > pmd_trans_huge_lock() makes sure of it.
+> > 
+> > This is a trivial fix for /proc/pid/numa_maps, and AFAIK nobody
+> > complains about it.
+> > 
+> > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> > ---
+> >  mm/memory.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index e2bb51b6242e..ea3c74855b23 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -654,7 +654,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+> >  
+> >  	if (pmd_devmap(pmd))
+> >  		return NULL;
+> > -	if (is_zero_pfn(pfn))
+> > +	if (is_huge_zero_pmd(pmd))
+> >  		return NULL;
+> >  	if (unlikely(pfn > highest_memmap_pfn))
+> >  		return NULL;
+> > -- 
+> > 2.23.0.187.g17f5b7556c-goog
+> >   
 
-> On Aug 26, 2019, at 2:23 AM, Peter Zijlstra <peterz@infradead.org> wrote:
->=20
-> So only the high mapping is ever executable; the identity map should not
-> be. Both should be RO.
->=20
->> kprobe (with CONFIG_KPROBES_ON_FTRACE) should work on kernel identity
->> mapping.=20
->=20
-> Please provide more information; kprobes shouldn't be touching either
-> mapping. That is, afaict kprobes uses text_poke() which uses a temporary
-> mapping (in 'userspace' even) to alias the high text mapping.
+Looks good to me. The "_pmd" versions for can_gather_numa_stats() and
+vm_normal_page() were introduced to avoid using pte_present/dirty() on
+pmds, which is not affected by this patch.
 
-kprobe without CONFIG_KPROBES_ON_FTRACE uses text_poke(). But kprobe with
-CONFIG_KPROBES_ON_FTRACE uses another path. The split happens with
-set_kernel_text_rw() -> ... -> __change_page_attr() -> split_large_page().
-The split is introduced by commit 585948f4f695. do_split in=20
-__change_page_attr() becomes true after commit 585948f4f695. This patch=20
-tries to fix/workaround this part.=20
+In fact, for vm_normal_page_pmd() I basically copied most of the code
+from vm_normal_page(), including the is_zero_pfn(pfn) check, which does
+look wrong to me now. Using is_huge_zero_pmd() should be correct.
 
->=20
-> I'm also not sure how it would then result in any 4k text maps. Yes the
-> alias is 4k, but it should not affect the actual high text map in any
-> way.
+Maybe the description could also mention the symptom of this bug?
+I would assume that it affects anon/dirty accounting in gather_pte_stats(),
+for huge mappings, if zero page mappings are not correctly recognized.
 
-I am confused by the alias logic. set_kernel_text_rw() makes the high map
-rw, and split the PMD in the high map.=20
-
->=20
-> kprobes also allocates executable slots, but it does that in the module
-> range (afaict), so that, again, should not affect the high text mapping.
->=20
->> We found with 5.2 kernel (no CONFIG_PAGE_TABLE_ISOLATION, w/=20
->> CONFIG_KPROBES_ON_FTRACE), a single kprobe will split _all_ PMDs in=20
->> kernel text mapping into pte-mapped pages. This increases iTLB=20
->> miss rate from about 300 per million instructions to about 700 per
->> million instructions (for the application I test with).=20
->>=20
->> Per bisect, we found this behavior happens after commit 585948f4f695=20
->> ("x86/mm/cpa: Avoid the 4k pages check completely"). That's why I=20
->> proposed this PATCH to fix/workaround this issue. However, per
->> Peter's comment and my study of the code, this doesn't seem the=20
->> real problem or the only here.=20
->>=20
->> I also tested that the PMD split issue doesn't happen w/o=20
->> CONFIG_KPROBES_ON_FTRACE.=20
->=20
-> Right, because then ftrace doesn't flip the whole kernel map writable;
-> which it _really_ should stop doing anyway.
->=20
-> But I'm still wondering what causes that first 4k split...
-
-Please see above.=20
-
-Thanks,
-Song
+Regards,
+Gerald
 
 
