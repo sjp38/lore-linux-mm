@@ -6,43 +6,43 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F5BBC3A5A1
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:29:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0220C3A5A3
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:37:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CDBB2070B
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:29:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CDBB2070B
+	by mail.kernel.org (Postfix) with ESMTP id 9289720815
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:37:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9289720815
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9596F6B0518; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
+	id 0A1196B051A; Sun, 25 Aug 2019 22:37:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 90AA66B0519; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
+	id 052D36B051B; Sun, 25 Aug 2019 22:37:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 820386B051A; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
+	id EA8E06B051C; Sun, 25 Aug 2019 22:37:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
-	by kanga.kvack.org (Postfix) with ESMTP id 6483A6B0518
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7CE6B051A
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:37:22 -0400 (EDT)
 Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1F7AB180AD7C1
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:29:46 +0000 (UTC)
-X-FDA: 75862998372.25.cent94_54ee38da8f34c
-X-HE-Tag: cent94_54ee38da8f34c
-X-Filterd-Recvd-Size: 4760
+	by forelay01.hostedemail.com (Postfix) with SMTP id 4A1D0180AD7C1
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:37:22 +0000 (UTC)
+X-FDA: 75863017524.25.bed04_5ffbd802f610
+X-HE-Tag: bed04_5ffbd802f610
+X-Filterd-Recvd-Size: 4418
 Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:29:43 +0000 (UTC)
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:37:21 +0000 (UTC)
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 77760344;
-	Sun, 25 Aug 2019 19:29:42 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 19249344;
+	Sun, 25 Aug 2019 19:37:20 -0700 (PDT)
 Received: from [10.162.43.136] (p8cg001049571a15.blr.arm.com [10.162.43.136])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8EB213F718;
-	Sun, 25 Aug 2019 19:29:32 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E19513F718;
+	Sun, 25 Aug 2019 19:37:09 -0700 (PDT)
 Subject: Re: [RFC V2 0/1] mm/debug: Add tests for architecture exported page
  table helpers
-To: Mark Rutland <mark.rutland@arm.com>, Matthew Wilcox <willy@infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
  Vlastimil Babka <vbabka@suse.cz>,
  Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
@@ -50,7 +50,8 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
  <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
  Dan Williams <dan.j.williams@intel.com>,
  Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Brown <broonie@kernel.org>, Steven Price <Steven.Price@arm.com>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
  Ard Biesheuvel <ard.biesheuvel@linaro.org>,
  Masahiro Yamada <yamada.masahiro@socionext.com>,
  Kees Cook <keescook@chromium.org>,
@@ -70,14 +71,15 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
  sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
 References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
  <20190809101632.GM5482@bombadil.infradead.org>
- <20190809114450.GF48423@lakrids.cambridge.arm.com>
+ <a5aab7ff-f7fd-9cc1-6e37-e4185eee65ac@arm.com>
+ <20190809135202.GN5482@bombadil.infradead.org>
 From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <652ae041-2033-1cf8-e559-6dcf85dd2fdd@arm.com>
-Date: Mon, 26 Aug 2019 07:59:36 +0530
+Message-ID: <7a88f6bb-e8c7-3ac7-2f92-1de752a01f33@arm.com>
+Date: Mon, 26 Aug 2019 08:07:13 +0530
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
  Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190809114450.GF48423@lakrids.cambridge.arm.com>
+In-Reply-To: <20190809135202.GN5482@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -89,46 +91,34 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 08/09/2019 05:14 PM, Mark Rutland wrote:
-> On Fri, Aug 09, 2019 at 03:16:33AM -0700, Matthew Wilcox wrote:
->> On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
->>> Should alloc_gigantic_page() be made available as an interface for general
->>> use in the kernel. The test module here uses very similar implementation from
->>> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
->>> needs to be exported through a header.
+On 08/09/2019 07:22 PM, Matthew Wilcox wrote:
+> On Fri, Aug 09, 2019 at 04:05:07PM +0530, Anshuman Khandual wrote:
+>> On 08/09/2019 03:46 PM, Matthew Wilcox wrote:
+>>> On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
+>>>> Should alloc_gigantic_page() be made available as an interface for general
+>>>> use in the kernel. The test module here uses very similar implementation from
+>>>> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
+>>>> needs to be exported through a header.
+>>>
+>>> Why are you allocating memory at all instead of just using some
+>>> known-to-exist PFNs like I suggested?
 >>
->> Why are you allocating memory at all instead of just using some
->> known-to-exist PFNs like I suggested?
+>> We needed PFN to be PUD aligned for pfn_pud() and PMD aligned for mk_pmd().
+>> Now walking the kernel page table for a known symbol like kernel_init()
 > 
-> IIUC the issue is that there aren't necessarily known-to-exist PFNs that
-> are sufficiently aligned -- they may not even exist.
+> I didn't say to walk the kernel page table.  I said to call virt_to_pfn()
+> for a known symbol like kernel_init().
 > 
-> For example, with 64K pages, a PMD covers 512M. The kernel image is
-> (generally) smaller than 512M, and will be mapped at page granularity.
-> In that case, any PMD entry for a kernel symbol address will point to
-> the PTE level table, and that will only necessarily be page-aligned, as
-> any P?D level table is only necessarily page-aligned.
-
-Right.
-
+>> as you had suggested earlier we might encounter page table page entries at PMD
+>> and PUD which might not be PMD or PUD aligned respectively. It seemed to me
+>> that alignment requirement is applicable only for mk_pmd() and pfn_pud()
+>> which create large mappings at those levels but that requirement does not
+>> exist for page table pages pointing to next level. Is not that correct ? Or
+>> I am missing something here ?
 > 
-> In the same configuration, you could have less than 512M of total
-> memory, and none of this memory is necessarily aligned to 512M. So
-> beyond the PTE level, I don't think you can guarantee a known-to-exist
-> valid PFN.
-Right a PMD aligned valid PFN might not even exist. This proposed patch
-which attempts to allocate memory chunk with required alignment will just
-fail indicating that such a valid PFN does not exist and hence will skip
-any relevant tests. At present this is done for PUD aligned allocation
-failure but we can similarly skip PMD relevant tests as well if PMD
-aligned memory chunk is not allocated.
+> Just clear the bottom bits off the PFN until you get a PMD or PUD aligned
+> PFN.  It's really not hard.
 
-> 
-> I also believe that synthetic PFNs could fail pfn_valid(), so that might
-> cause us pain too...
-
-Agreed. So do we have an agreement that it is better to use allocated
-memory with required alignment for the tests than known-to-exist PFNs ?
-
-- Anshuman
+As Mark pointed out earlier that might end up being just a synthetic PFN
+which might not even exist on a given system.
 
