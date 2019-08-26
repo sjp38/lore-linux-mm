@@ -2,48 +2,49 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95CE7C41514
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:20:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CEE4C3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:44:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57BF32173E
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:20:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57BF32173E
+	by mail.kernel.org (Postfix) with ESMTP id 28E3721852
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:44:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28E3721852
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3DFF6B05BD; Mon, 26 Aug 2019 12:20:26 -0400 (EDT)
+	id D905C6B05BF; Mon, 26 Aug 2019 12:44:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC7B96B05BF; Mon, 26 Aug 2019 12:20:26 -0400 (EDT)
+	id D3FBD6B05C1; Mon, 26 Aug 2019 12:44:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C1B4A6B05C0; Mon, 26 Aug 2019 12:20:26 -0400 (EDT)
+	id BE1306B05C2; Mon, 26 Aug 2019 12:44:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0083.hostedemail.com [216.40.44.83])
-	by kanga.kvack.org (Postfix) with ESMTP id 994536B05BD
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:20:26 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 332B5611B
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:20:26 +0000 (UTC)
-X-FDA: 75865091652.10.snow15_3dea165dafb09
-X-HE-Tag: snow15_3dea165dafb09
-X-Filterd-Recvd-Size: 9881
+Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D6FA6B05BF
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:44:36 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 3610C1269
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:44:36 +0000 (UTC)
+X-FDA: 75865152552.17.horse69_7f5a613b2c948
+X-HE-Tag: horse69_7f5a613b2c948
+X-Filterd-Recvd-Size: 13102
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:20:25 +0000 (UTC)
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:44:35 +0000 (UTC)
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 194D81108;
-	Mon, 26 Aug 2019 16:20:23 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E40A28980F4;
+	Mon, 26 Aug 2019 16:44:32 +0000 (UTC)
 Received: from [10.36.116.129] (ovpn-116-129.ams2.redhat.com [10.36.116.129])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B796A5D704;
-	Mon, 26 Aug 2019 16:20:12 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2953F5D6C8;
+	Mon, 26 Aug 2019 16:44:21 +0000 (UTC)
 Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
  removing memory
+From: David Hildenbrand <david@redhat.com>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
  linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@linux.intel.com>,
@@ -83,7 +84,7 @@ References: <20190826101012.10575-1-david@redhat.com>
  <87pnksm0zx.fsf@linux.ibm.com>
  <194da076-364e-267d-0d51-64940925e2e4@redhat.com>
  <a30b7156-7679-a04a-f74a-c5407b922979@linux.ibm.com>
-From: David Hildenbrand <david@redhat.com>
+ <dc850fea-32c1-a7ed-fad1-727a446a67ca@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -129,107 +130,207 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <dc850fea-32c1-a7ed-fad1-727a446a67ca@redhat.com>
-Date: Mon, 26 Aug 2019 18:20:11 +0200
+Message-ID: <f1f5d981-b633-dc39-0b92-3619e4b8f0a5@redhat.com>
+Date: Mon, 26 Aug 2019 18:44:20 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <a30b7156-7679-a04a-f74a-c5407b922979@linux.ibm.com>
+In-Reply-To: <dc850fea-32c1-a7ed-fad1-727a446a67ca@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Mon, 26 Aug 2019 16:20:24 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.67]); Mon, 26 Aug 2019 16:44:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26.08.19 18:01, Aneesh Kumar K.V wrote:
-> On 8/26/19 9:13 PM, David Hildenbrand wrote:
->> On 26.08.19 16:53, Aneesh Kumar K.V wrote:
->>> David Hildenbrand <david@redhat.com> writes:
+On 26.08.19 18:20, David Hildenbrand wrote:
+> On 26.08.19 18:01, Aneesh Kumar K.V wrote:
+>> On 8/26/19 9:13 PM, David Hildenbrand wrote:
+>>> On 26.08.19 16:53, Aneesh Kumar K.V wrote:
+>>>> David Hildenbrand <david@redhat.com> writes:
+>>>>
+>>>>>
+>>
+>> ....
+>>
+>>>>
+>>>> I did report a variant of the issue at
+>>>>
+>>>> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
+>>>>
+>>>> This patch series still doesn't handle the fact that struct page backing
+>>>> the start_pfn might not be initialized. ie, it results in crash like
+>>>> below
+>>>
+>>> Okay, that's a related but different issue I think.
+>>>
+>>> I can see that current shrink_zone_span() might read-access the
+>>> uninitialized struct page of a PFN if
+>>>
+>>> 1. The zone has holes and we check for "zone all holes". If we get
+>>> pfn_valid(pfn), we check if "page_zone(pfn_to_page(pfn)) != zone".
+>>>
+>>> 2. Via find_smallest_section_pfn() / find_biggest_section_pfn() find a
+>>> spanned pfn_valid(). We check
+>>> - pfn_to_nid(start_pfn) != nid
+>>> - zone != page_zone(pfn_to_page(start_pfn)
+>>>
+>>> So we don't actually use the zone/nid, only use it to sanity check. That
+>>> might result in false-positives (not that bad).
+>>>
+>>> It all boils down to shrink_zone_span() not working only on active
+>>> memory, for which the PFN is not only valid but also initialized
+>>> (something for which we need a new section flag I assume).
+>>>
+>>> Which access triggers the issue you describe? pfn_to_nid()?
 >>>
 >>>>
-> 
-> ....
-> 
+>>>>      pc: c0000000004bc1ec: shrink_zone_span+0x1bc/0x290
+>>>>      lr: c0000000004bc1e8: shrink_zone_span+0x1b8/0x290
+>>>>      sp: c0000000dac7f910
+>>>>     msr: 800000000282b033
+>>>>    current = 0xc0000000da2fa000
+>>>>    paca    = 0xc00000000fffb300   irqmask: 0x03   irq_happened: 0x01
+>>>>      pid   = 1224, comm = ndctl
+>>>> kernel BUG at /home/kvaneesh/src/linux/include/linux/mm.h:1088!
+>>>> Linux version 5.3.0-rc6-17495-gc7727d815970-dirty (kvaneesh@ltc-boston123) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #183 SMP Mon Aug 26 09:37:32 CDT 2019
+>>>> enter ? for help
 >>>
->>> I did report a variant of the issue at
->>>
->>> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
->>>
->>> This patch series still doesn't handle the fact that struct page backing
->>> the start_pfn might not be initialized. ie, it results in crash like
->>> below
+>>> Which exact kernel BUG are you hitting here? (my tree doesn't seem t
+>>> have any BUG statement around  include/linux/mm.h:1088). 
 >>
->> Okay, that's a related but different issue I think.
 >>
->> I can see that current shrink_zone_span() might read-access the
->> uninitialized struct page of a PFN if
 >>
->> 1. The zone has holes and we check for "zone all holes". If we get
->> pfn_valid(pfn), we check if "page_zone(pfn_to_page(pfn)) != zone".
->>
->> 2. Via find_smallest_section_pfn() / find_biggest_section_pfn() find a
->> spanned pfn_valid(). We check
->> - pfn_to_nid(start_pfn) != nid
->> - zone != page_zone(pfn_to_page(start_pfn)
->>
->> So we don't actually use the zone/nid, only use it to sanity check. That
->> might result in false-positives (not that bad).
->>
->> It all boils down to shrink_zone_span() not working only on active
->> memory, for which the PFN is not only valid but also initialized
->> (something for which we need a new section flag I assume).
->>
->> Which access triggers the issue you describe? pfn_to_nid()?
->>
->>>
->>>      pc: c0000000004bc1ec: shrink_zone_span+0x1bc/0x290
->>>      lr: c0000000004bc1e8: shrink_zone_span+0x1b8/0x290
->>>      sp: c0000000dac7f910
->>>     msr: 800000000282b033
->>>    current = 0xc0000000da2fa000
->>>    paca    = 0xc00000000fffb300   irqmask: 0x03   irq_happened: 0x01
->>>      pid   = 1224, comm = ndctl
->>> kernel BUG at /home/kvaneesh/src/linux/include/linux/mm.h:1088!
->>> Linux version 5.3.0-rc6-17495-gc7727d815970-dirty (kvaneesh@ltc-boston123) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #183 SMP Mon Aug 26 09:37:32 CDT 2019
->>> enter ? for help
->>
->> Which exact kernel BUG are you hitting here? (my tree doesn't seem t
->> have any BUG statement around  include/linux/mm.h:1088). 
+>> This is against upstream linus with your patches applied.
 > 
+> I'm
 > 
+>>
+>>
+>> static inline int page_to_nid(const struct page *page)
+>> {
+>> 	struct page *p = (struct page *)page;
+>>
+>> 	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+>> }
+>>
+>>
+>> #define PF_POISONED_CHECK(page) ({					\
+>> 		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
+>> 		page; })
+>> #
+>>
+>>
+>> It is the node id access.
 > 
-> This is against upstream linus with your patches applied.
+> A right. A temporary hack would be to assume in these functions
+> (shrink_zone_span() and friends) that we might have invalid NIDs /
+> zonenumbers and simply skip these. After all we're only using them for
+> finding zone boundaries. Not what we ultimately want, but I think until
+> we have a proper SECTION_ACTIVE, it might take a while.
+> 
 
-I'm
+I am talking about something as hacky as this:
 
-> 
-> 
-> static inline int page_to_nid(const struct page *page)
-> {
-> 	struct page *p = (struct page *)page;
-> 
-> 	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
-> }
-> 
-> 
-> #define PF_POISONED_CHECK(page) ({					\
-> 		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-> 		page; })
-> #
-> 
-> 
-> It is the node id access.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8d1c7313ab3f..57ed3dd76a4f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1099,6 +1099,7 @@ static inline int page_zone_id(struct page *page)
 
-A right. A temporary hack would be to assume in these functions
-(shrink_zone_span() and friends) that we might have invalid NIDs /
-zonenumbers and simply skip these. After all we're only using them for
-finding zone boundaries. Not what we ultimately want, but I think until
-we have a proper SECTION_ACTIVE, it might take a while.
+ #ifdef NODE_NOT_IN_PAGE_FLAGS
+ extern int page_to_nid(const struct page *page);
++#define __page_to_nid page_to_nid
+ #else
+ static inline int page_to_nid(const struct page *page)
+ {
+@@ -1106,6 +1107,10 @@ static inline int page_to_nid(const struct page
+*page)
+
+ 	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+ }
++static inline int __page_to_nid(const struct page *page)
++{
++	return ((page)->flags >> NODES_PGSHIFT) & NODES_MASK;
++}
+ #endif
+
+ #ifdef CONFIG_NUMA_BALANCING
+@@ -1249,6 +1254,12 @@ static inline struct zone *page_zone(const struct
+page *page)
+ 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+ }
+
++static inline struct zone *__page_zone(const struct page *page)
++{
++	return &NODE_DATA(__page_to_nid(page))->node_zones[page_zonenum(page)];
++}
++
++
+ static inline pg_data_t *page_pgdat(const struct page *page)
+ {
+ 	return NODE_DATA(page_to_nid(page));
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 49ca3364eb70..378b593d1fe1 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -334,10 +334,10 @@ static unsigned long find_smallest_section_pfn(int
+nid, struct zone *zone,
+ 		if (unlikely(!pfn_valid(start_pfn)))
+ 			continue;
+
+-		if (unlikely(pfn_to_nid(start_pfn) != nid))
++		/* We might have uninitialized memmaps */
++		if (unlikely(__page_to_nid(pfn_to_page(start_pfn)) != nid))
+ 			continue;
+-
+-		if (zone && zone != page_zone(pfn_to_page(start_pfn)))
++		if (zone && zone != __page_zone(pfn_to_page(start_pfn)))
+ 			continue;
+
+ 		return start_pfn;
+@@ -359,10 +359,10 @@ static unsigned long find_biggest_section_pfn(int
+nid, struct zone *zone,
+ 		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+
+-		if (unlikely(pfn_to_nid(pfn) != nid))
++		/* We might have uninitialized memmaps */
++		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
+ 			continue;
+-
+-		if (zone && zone != page_zone(pfn_to_page(pfn)))
++		if (zone && zone != __page_zone(pfn_to_page(pfn)))
+ 			continue;
+
+ 		return pfn;
+@@ -418,7 +418,10 @@ static void shrink_zone_span(struct zone *zone,
+unsigned long start_pfn,
+ 		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+
+-		if (page_zone(pfn_to_page(pfn)) != zone)
++		/* We might have uninitialized memmaps */
++		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
++			continue;
++		if (__page_zone(pfn_to_page(pfn)) != zone)
+ 			continue;
+
+ 		/* Skip range to be removed */
+@@ -483,7 +486,8 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+
+-		if (pfn_to_nid(pfn) != nid)
++		/* We might have uninitialized memmaps */
++		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
+ 			continue;
+
+ 		/* Skip range to be removed */
 
 -- 
 
