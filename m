@@ -2,95 +2,109 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F07E4C3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:57:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EFD0C3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:58:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B10AD21848
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:57:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 40FFB217F5
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 15:58:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="r1kTwVUB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B10AD21848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GnZUYkQ4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40FFB217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DA376B05A9; Mon, 26 Aug 2019 11:57:11 -0400 (EDT)
+	id CC8526B05AB; Mon, 26 Aug 2019 11:58:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B1CD6B05AB; Mon, 26 Aug 2019 11:57:11 -0400 (EDT)
+	id C78A06B05AD; Mon, 26 Aug 2019 11:58:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3C77D6B05AC; Mon, 26 Aug 2019 11:57:11 -0400 (EDT)
+	id B8FB06B05AE; Mon, 26 Aug 2019 11:58:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C116B05A9
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:57:11 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id BC0E0181AC9B6
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:57:10 +0000 (UTC)
-X-FDA: 75865033020.02.trick10_46b9a491ed08
-X-HE-Tag: trick10_46b9a491ed08
-X-Filterd-Recvd-Size: 2984
-Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:57:10 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=4NfHu2NwcaIl5KJfjUKcoltjlmMkEeidEpjbwYEixgE=; b=r1kTwVUB5QH1N5CenHdiuQMyL
-	epdJF8JRIsTjreqYtZ3jHgWB2dqS/ApoJxZUQSemx+9ZhkJXMCD4Sz8+GsJJrltATyTmlo/RNqwmI
-	cQORD6x35RxPARdeCAeJPXh5GimEVflKFll5aJMahzRfAvXyXucGhYDrb1XtVf+r8NtSzL2ksDmCN
-	ua6RsFBwDercls43+V2Ereka5jvkE7rsIGoB2diqEOvlvx/+Ndwi6wvJ4hiNzcL3im3zrFmm0PD/y
-	pQ/8pgOiW+8WYzFHE4DnG2mYOJsH6B7pHgseuEglCV6ut2GMwiB3uzM/MtgPMPKGTdYxV8n7dOV56
-	XCfs9tmrA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1i2HMV-0004Cw-6v; Mon, 26 Aug 2019 15:56:55 +0000
-Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(Client did not present a certificate)
-	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 5D42D301FF9;
-	Mon, 26 Aug 2019 17:56:18 +0200 (CEST)
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id DB56320C9570B; Mon, 26 Aug 2019 17:56:51 +0200 (CEST)
-Date: Mon, 26 Aug 2019 17:56:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Song Liu <songliubraving@fb.com>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	"kernel-team@fb.com" <kernel-team@fb.com>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Daniel Bristot de Oliveira <bristot@redhat.com>
-Subject: Re: [PATCH] x86/mm: Do not split_large_page() for
- set_kernel_text_rw()
-Message-ID: <20190826155651.GX2369@hirez.programming.kicks-ass.net>
-References: <20190823052335.572133-1-songliubraving@fb.com>
- <20190823093637.GH2369@hirez.programming.kicks-ass.net>
- <20190826073308.6e82589d@gandalf.local.home>
- <31AB5512-F083-4DC3-BA73-D5D65CBC410A@vmware.com>
+Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
+	by kanga.kvack.org (Postfix) with ESMTP id 986616B05AB
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 11:58:38 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 4E9036122
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:58:38 +0000 (UTC)
+X-FDA: 75865036716.18.lead03_112d9f60a3254
+X-HE-Tag: lead03_112d9f60a3254
+X-Filterd-Recvd-Size: 3754
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 15:58:37 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id 201so14418220qkm.9
+        for <linux-mm@kvack.org>; Mon, 26 Aug 2019 08:58:37 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ualaw3vnF7au6b9X5hx4CHQJfw3fBI27o57pEiUgbJo=;
+        b=GnZUYkQ4vVP/v3mu6UxwHdso20ta7Q+KhSdq+8YuwnxdWNjaUmry5GKa9icK1tWcPe
+         i/Pa4V+XigAXejuiA1uK/adIfsd3tDcx7eNQWCvIoM7+QHoz4QqAu7XMNSgL7N8+zqdE
+         Ok9jG1XQ3c//jnZbPEfKOODlmHb3a7fgG1xvkLv2WSTgnTZ0rDXfwKvAOEvY1x+5qNmd
+         pm1xCF4GvRicJfJDbO+EIuu1fTxJrTXW/dSfkGdSesws3Z7Jjp9PFSy+eyS5KifycqKL
+         eHHWeEryOX/9dFa/d+Z/gnxpRShYwQ/t30umzlPd2vtUN8mYXy8+GKymvgk7N/3qzv5V
+         v2Eg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
+         :references:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=ualaw3vnF7au6b9X5hx4CHQJfw3fBI27o57pEiUgbJo=;
+        b=hyoSM9kb8OY2hRiKGqJVmlxwBCxeW0A3XiS1HEAU5ERs+xyWiq1ZzTMuW8YbR/ohj8
+         HfxyVA2Tn6ppb6I5GbaO1k33nVL2A54D1f3ZWLBIs2VhgB8gksRTQQyOl+ABXUpohKes
+         rjvK0gDuSlBeRaX0FyKltTEeoriTjXDt2NW9JUS4oZOS1HGqSKczgAA/OE8lEdEYc8iB
+         4AOQItN7Mvajz6LnVoJNoKSnkvip6HHgwD803EqjLgbFepvwH8cZCaY9fmZW20hTN2H4
+         FtfZZ8lSnttbb0trhkxJj3Iw3uOD81T0qmg/6UaJn4qttuIBFBsSY1gx1JeeJR5Kk463
+         UdGQ==
+X-Gm-Message-State: APjAAAXzHGdJpo94HUu7imN4Q7FjnuPXnZMwTUro+OvqbtP9ZnxofD5Y
+	nj4+xTRgov0j9FZrexjI/qU=
+X-Google-Smtp-Source: APXvYqzk/P1DVpjgy0hFgeWPetp0WfMSK+IUiMif/29MeRJwYBpNW0Jt/njmIG/Lg9zleKegbXPjwA==
+X-Received: by 2002:a37:6290:: with SMTP id w138mr16091986qkb.139.1566835117260;
+        Mon, 26 Aug 2019 08:58:37 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::d081])
+        by smtp.gmail.com with ESMTPSA id y25sm7676497qkj.35.2019.08.26.08.58.36
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Aug 2019 08:58:36 -0700 (PDT)
+Date: Mon, 26 Aug 2019 08:58:34 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH v3 5/5] writeback, memcg: Implement foreign dirty flushing
+Message-ID: <20190826155834.GP2263813@devbig004.ftw2.facebook.com>
+References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
+ <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
+ <20190821210235.GN2263813@devbig004.ftw2.facebook.com>
+ <20190826135452.GF10614@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <31AB5512-F083-4DC3-BA73-D5D65CBC410A@vmware.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190826135452.GF10614@quack2.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2019 at 03:41:24PM +0000, Nadav Amit wrote:
+Hello, Jan.
 
-> For the record - here is my previous patch:
-> https://lkml.org/lkml/2018/12/5/211
+On Mon, Aug 26, 2019 at 03:54:52PM +0200, Jan Kara wrote:
+> As I've checked, you should be using get_jiffies_64() to get value of
+> jiffies_64. Also for comparisons of jiffie values, I think you should be
+> using time_after64() and similar functions instead of direct comparisons...
 
-Thanks!
+Yeah, good point.  I always forget that with jiffies_64.  Will post an
+updated series soon.
+
+Thanks.
+
+-- 
+tejun
 
