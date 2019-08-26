@@ -2,119 +2,197 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 903EBC3A5A4
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:13:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54639C3A59E
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:55:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2EC812080C
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:13:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="K1dR2BTg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EC812080C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 1324C21848
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:55:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1324C21848
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 97A7F6B0524; Mon, 26 Aug 2019 01:13:47 -0400 (EDT)
+	id 9A9866B0526; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 92C506B0525; Mon, 26 Aug 2019 01:13:47 -0400 (EDT)
+	id 95BDC6B0527; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 841436B0526; Mon, 26 Aug 2019 01:13:47 -0400 (EDT)
+	id 8212D6B0528; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0156.hostedemail.com [216.40.44.156])
-	by kanga.kvack.org (Postfix) with ESMTP id 641736B0524
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 01:13:47 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id E064252AA
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:13:46 +0000 (UTC)
-X-FDA: 75863411652.15.ghost97_3e0f214173b54
-X-HE-Tag: ghost97_3e0f214173b54
-X-Filterd-Recvd-Size: 4183
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:13:46 +0000 (UTC)
-Received: by mail-pg1-f193.google.com with SMTP id d1so9841095pgp.4
-        for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:13:46 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=RS54P8xWhN0WpqilfX3CeJTlw03oZ0bA+FF2sB+7VdE=;
-        b=K1dR2BTgQvrbOF9jRsFWIkPFShaGlCPz35NWloS4Fv+m6/EhuR6r9hhY22ZCmXh9nw
-         kMho4xHr1YYm9HYipqrdH03DaX8Y5T8ABJFwn/Bj5djDVplrze3YMP/rRJnYQBK3agjz
-         j/2nMTQ1ibl/XU4niUZX34IsaSjsYMktRp+9VB+fmx/e741XRl+bh+v5TNaAg/uaYOyr
-         rl+5noSQB64GhX2EutHURwwC1CTdpokKQLJ9YugJw0VkZNuI3DUpH0F3NQKM0T7eZvTA
-         FT43OfyGLj7Ip10kVzPL9y+Mx6HJL+s1iQgTZy/qAX5MLtmk9pF2d3XkJyFBVEO4shaa
-         PqJg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=RS54P8xWhN0WpqilfX3CeJTlw03oZ0bA+FF2sB+7VdE=;
-        b=pebLW56jCi7VjFqP9h+fFUJtdRnB0Y6W1USo0gofePFJk8Ps/je6R+djIYFXZskkxW
-         jzF8LzcP6tPRE6Tr2n82Sxowy5EuP1x3FnBjUhZf44yFrSPnBBHyNnlrjxS7VIEZM7vZ
-         sNlRJ54711d7WdXe31azyiUzezGqJ4M34eXxZ4zEhKDTtEjEDnM95DT/xCuCFH7WXCdZ
-         gWWEujRgyzfSXtZYVhEJ2WKaNW+OErMWkYMamG+EsHAN5fOGbzi67JdQ62hiZHEKVIYQ
-         p65pvuXnsFlySKQBbgKCoVRto/58vea3VMl/fZAROXyJpnpsllNpSZOnU2eHd8q8BkMF
-         P78A==
-X-Gm-Message-State: APjAAAVx4jI0w2YCh5/3nL1LcrAvEdv7nc6bJ/aR9W+tHOx8z70KJ8eK
-	PlX0cd+cEA5mvO7KTe88w4Sqxta0
-X-Google-Smtp-Source: APXvYqzsH1YZgcoQJAmfj/sq9jg7AkDH4XHU8wEYr6A3wUzKAcmf0uIlpnUP9bwKVzxF7h8VFXxPfA==
-X-Received: by 2002:a62:8745:: with SMTP id i66mr17899570pfe.259.1566796425463;
-        Sun, 25 Aug 2019 22:13:45 -0700 (PDT)
-Received: from localhost ([110.70.50.154])
-        by smtp.gmail.com with ESMTPSA id r4sm10753832pfl.127.2019.08.25.22.13.43
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 25 Aug 2019 22:13:44 -0700 (PDT)
-Date: Mon, 26 Aug 2019 14:13:40 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-To: Henry Burns <henrywolfeburns@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Henry Burns <henryburns@google.com>,
-	Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>,
-	Shakeel Butt <shakeelb@google.com>,
-	Jonathan Adams <jwadams@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2 v2] mm/zsmalloc.c: Fix race condition in
- zs_destroy_pool
-Message-ID: <20190826051340.GA26785@jagdpanzerIV>
-References: <20190809181751.219326-1-henryburns@google.com>
- <20190809181751.219326-2-henryburns@google.com>
- <20190820025939.GD500@jagdpanzerIV>
- <20190822162302.6fdda379ada876e46a14a51e@linux-foundation.org>
- <CADJK47M=4kU9SabcDsFD5qTQm-0rQdmage8eiFrV=LDMp7OCyQ@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BA356B0526
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id DFA64181AC9AE
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:55:19 +0000 (UTC)
+X-FDA: 75863516358.22.worm60_85bb91e327c00
+X-HE-Tag: worm60_85bb91e327c00
+X-Filterd-Recvd-Size: 7957
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:55:18 +0000 (UTC)
+Received: from dread.disaster.area (pa49-181-255-194.pa.nsw.optusnet.com.au [49.181.255.194])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 1199A43F692;
+	Mon, 26 Aug 2019 15:55:12 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1i27yA-0002Rg-EJ; Mon, 26 Aug 2019 15:55:10 +1000
+Date: Mon, 26 Aug 2019 15:55:10 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190826055510.GL1119@dread.disaster.area>
+References: <20190820115515.GA29246@ziepe.ca>
+ <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
+ <20190821181343.GH8653@ziepe.ca>
+ <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
+ <20190821194810.GI8653@ziepe.ca>
+ <20190821204421.GE5965@iweiny-DESK2.sc.intel.com>
+ <20190823032345.GG1119@dread.disaster.area>
+ <20190823120428.GA12968@ziepe.ca>
+ <20190824001124.GI1119@dread.disaster.area>
+ <20190824050836.GC1092@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CADJK47M=4kU9SabcDsFD5qTQm-0rQdmage8eiFrV=LDMp7OCyQ@mail.gmail.com>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190824050836.GC1092@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0
+	a=YO9NNpcXwc8z/SaoS+iAiA==:117 a=YO9NNpcXwc8z/SaoS+iAiA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=7-415B0cAAAA:8 a=l-5HZ6ThFU8XlB48y_YA:9 a=qRlaua0cGjGJrKa9:21
+	a=OEwtXWmnxFRK9C0v:21 a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (08/23/19 04:10), Henry Burns wrote:
-> > Thanks.  So we have a couple of races which result in memory leaks?  Do
-> > we feel this is serious enough to justify a -stable backport of the
-> > fixes?
+On Fri, Aug 23, 2019 at 10:08:36PM -0700, Ira Weiny wrote:
+> On Sat, Aug 24, 2019 at 10:11:24AM +1000, Dave Chinner wrote:
+> > On Fri, Aug 23, 2019 at 09:04:29AM -0300, Jason Gunthorpe wrote:
+> > > On Fri, Aug 23, 2019 at 01:23:45PM +1000, Dave Chinner wrote:
+> > > 
+> > > > > But the fact that RDMA, and potentially others, can "pass the
+> > > > > pins" to other processes is something I spent a lot of time trying to work out.
+> > > > 
+> > > > There's nothing in file layout lease architecture that says you
+> > > > can't "pass the pins" to another process.  All the file layout lease
+> > > > requirements say is that if you are going to pass a resource for
+> > > > which the layout lease guarantees access for to another process,
+> > > > then the destination process already have a valid, active layout
+> > > > lease that covers the range of the pins being passed to it via the
+> > > > RDMA handle.
+> > > 
+> > > How would the kernel detect and enforce this? There are many ways to
+> > > pass a FD.
+> > 
+> > AFAIC, that's not really a kernel problem. It's more of an
+> > application design constraint than anything else. i.e. if the app
+> > passes the IB context to another process without a lease, then the
+> > original process is still responsible for recalling the lease and
+> > has to tell that other process to release the IB handle and it's
+> > resources.
+> > 
+> > > IMHO it is wrong to try and create a model where the file lease exists
+> > > independently from the kernel object relying on it. In other words the
+> > > IB MR object itself should hold a reference to the lease it relies
+> > > upon to function properly.
+> > 
+> > That still doesn't work. Leases are not individually trackable or
+> > reference counted objects objects - they are attached to a struct
+> > file bUt, in reality, they are far more restricted than a struct
+> > file.
+> > 
+> > That is, a lease specifically tracks the pid and the _open fd_ it
+> > was obtained for, so it is essentially owned by a specific process
+> > context.  Hence a lease is not able to be passed to a separate
+> > process context and have it still work correctly for lease break
+> > notifications.  i.e. the layout break signal gets delivered to
+> > original process that created the struct file, if it still exists
+> > and has the original fd still open. It does not get sent to the
+> > process that currently holds a reference to the IB context.
+> >
 > 
-> In this case a memory leak could lead to an eventual crash if
-> compaction hits the leaked page. I don't know what a -stable
-> backport entails, but this crash would only occur if people are
-> changing their zswap backend at runtime
-> (which eventually starts destruction).
+> The fcntl man page says:
+> 
+> "Leases are associated with an open file description (see open(2)).  This means
+> that duplicate file descriptors (created by, for example, fork(2) or dup(2))
+> refer to the same lease, and this lease may be modified or released using any
+> of these descriptors.  Furthermore,  the lease is released by either an
+> explicit F_UNLCK operation on any of these duplicate file descriptors, or when
+> all such file descriptors have been closed."
 
-Well, zram/zsmalloc is not only for swapping, but it's also a virtual
-block device which can be created or destroyed dynamically. So it looks
-like a potential -stable material.
+Right, the lease is attached to the struct file, so it follows
+where-ever the struct file goes. That doesn't mean it's actually
+useful when the struct file is duplicated and/or passed to another
+process. :/
 
-Minchan?
+AFAICT, the problem is that when we take another reference to the
+struct file, or when the struct file is passed to a different
+process, nothing updates the lease or lease state attached to that
+struct file.
 
-	-ss
+> From this I took it that the child process FD would have the lease as well
+> _and_ could release it.  I _assumed_ that applied to SCM_RIGHTS but it does not
+> seem to work the same way as dup() so I'm not so sure.
+
+Sure, that part works because the struct file is passed. It doesn't
+end up with the same fd number in the other process, though.
+
+The issue is that layout leases need to notify userspace when they
+are broken by the kernel, so a lease stores the owner pid/tid in the
+file->f_owner field via __f_setown(). It also keeps a struct fasync
+attached to the file_lock that records the fd that the lease was
+created on.  When a signal needs to be sent to userspace for that
+lease, we call kill_fasync() and that walks the list of fasync
+structures on the lease and calls:
+
+	send_sigio(fown, fa->fa_fd, band);
+
+And it does for every fasync struct attached to a lease. Yes, a
+lease can track multiple fds, but it can only track them in a single
+process context. The moment the struct file is shared with another
+process, the lease is no longer capable of sending notifications to
+all the lease holders.
+
+Yes, you can change the owning process via F_SETOWNER, but that's
+still only a single process context, and you can't change the fd in
+the fasync list. You can add new fd to an existing lease by calling
+F_SETLEASE on the new fd, but you still only have a single process
+owner context for signal delivery.
+
+As such, leases that require callbacks to userspace are currently
+only valid within the process context the lease was taken in.
+Indeed, even closing the fd the lease was taken on without
+F_UNLCKing it first doesn't mean the lease has been torn down if
+there is some other reference to the struct file. That means the
+original lease owner will still get SIGIO delivered to that fd on a
+lease break regardless of whether it is open or not. ANd if we
+implement "layout lease not released within SIGIO response timeout"
+then that process will get killed, despite the fact it may not even
+have a reference to that file anymore.
+
+So, AFAICT, leases that require userspace callbacks only work within
+their original process context while they original fd is still open.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
