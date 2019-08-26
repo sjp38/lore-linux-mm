@@ -2,126 +2,133 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0163C3A5A1
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 01:30:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F5BBC3A5A1
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:29:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 433622173E
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 01:30:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2ROtEnhR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 433622173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1CDBB2070B
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 02:29:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CDBB2070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 874106B0515; Sun, 25 Aug 2019 21:30:45 -0400 (EDT)
+	id 9596F6B0518; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FE9F6B0517; Sun, 25 Aug 2019 21:30:45 -0400 (EDT)
+	id 90AA66B0519; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69D6F6B0518; Sun, 25 Aug 2019 21:30:45 -0400 (EDT)
+	id 820386B051A; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FCEA6B0515
-	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 21:30:45 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E024C5010
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 01:30:44 +0000 (UTC)
-X-FDA: 75862849608.03.trade64_677fecd7e738
-X-HE-Tag: trade64_677fecd7e738
-X-Filterd-Recvd-Size: 4518
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 01:30:44 +0000 (UTC)
-Received: from localhost (unknown [40.117.208.15])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E832A20673;
-	Mon, 26 Aug 2019 01:30:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1566783043;
-	bh=ZJFP8htDlwZFVjYkf1uFTDjyJ/+1wk3SCOLTaEPbEc0=;
-	h=Date:From:To:To:To:Cc:Cc:Cc:Cc:Cc:Subject:In-Reply-To:References:
-	 From;
-	b=2ROtEnhRguLNd3FpbnmzNbPU3YL6w49l8IPRtiPeAQ0ZApUeP4OhftFe2R0vys+I4
-	 xND8e/nVa1mEWd8xz8PkPh9M+KDsw4VN/eg7bnQxJhqsYnripLd8OgYbJLj/a3nuHJ
-	 BY1iDap/VYEvX9VGP+SVBTsI3n5cf2248j3UktNQ=
-Date: Mon, 26 Aug 2019 01:30:42 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-To: akpm@linux-foundation.org, kirill@shutemov.name, linux-mm@kvack.org,
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: <stable@vger.kernel.org>
-Cc: stable@vger.kernel.org
-Subject: Re: [patch 08/11] mm, page_owner: handle THP splits correctly
-In-Reply-To: <20190825005459.Ik4Bi2G1I%akpm@linux-foundation.org>
-References: <20190825005459.Ik4Bi2G1I%akpm@linux-foundation.org>
-Message-Id: <20190826013042.E832A20673@mail.kernel.org>
+Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
+	by kanga.kvack.org (Postfix) with ESMTP id 6483A6B0518
+	for <linux-mm@kvack.org>; Sun, 25 Aug 2019 22:29:46 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1F7AB180AD7C1
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:29:46 +0000 (UTC)
+X-FDA: 75862998372.25.cent94_54ee38da8f34c
+X-HE-Tag: cent94_54ee38da8f34c
+X-Filterd-Recvd-Size: 4760
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:29:43 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 77760344;
+	Sun, 25 Aug 2019 19:29:42 -0700 (PDT)
+Received: from [10.162.43.136] (p8cg001049571a15.blr.arm.com [10.162.43.136])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8EB213F718;
+	Sun, 25 Aug 2019 19:29:32 -0700 (PDT)
+Subject: Re: [RFC V2 0/1] mm/debug: Add tests for architecture exported page
+ table helpers
+To: Mark Rutland <mark.rutland@arm.com>, Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Brown <broonie@kernel.org>, Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
+ <20190809101632.GM5482@bombadil.infradead.org>
+ <20190809114450.GF48423@lakrids.cambridge.arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <652ae041-2033-1cf8-e559-6dcf85dd2fdd@arm.com>
+Date: Mon, 26 Aug 2019 07:59:36 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
+MIME-Version: 1.0
+In-Reply-To: <20190809114450.GF48423@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-[This is an automated email]
-
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: a9627bc5e34e mm/page_owner: introduce split_page_owner and replace manual handling.
-
-The bot has tested the following trees: v5.2.9, v4.19.67, v4.14.139, v4.9.189.
-
-v5.2.9: Build OK!
-v4.19.67: Failed to apply! Possible dependencies:
-    426dcd4b600f ("hexagon: switch to NO_BOOTMEM")
-    46515fdb1adf ("ixgbe: move common Rx functions to ixgbe_txrx_common.h")
-    57c8a661d95d ("mm: remove include/linux/bootmem.h")
-    6471f52af786 ("alpha: switch to NO_BOOTMEM")
-    98fa15f34cb3 ("mm: replace all open encodings for NUMA_NO_NODE")
-    d0bcacd0a130 ("ixgbe: add AF_XDP zero-copy Rx support")
-    e0a9317d9004 ("hexagon: use generic dma_noncoherent_ops")
-    f406f222d4b2 ("hexagon: implement the sync_sg_for_device DMA operation")
-
-v4.14.139: Failed to apply! Possible dependencies:
-    01417c6cc7dc ("powerpc/64: Change soft_enabled from flag to bitmask")
-    0b63acf4a0eb ("powerpc/64: Move set_soft_enabled() and rename")
-    1696d0fb7fcd ("powerpc/64: Set DSCR default initially from SPR")
-    1af19331a3a1 ("powerpc/64s: Relax PACA address limitations")
-    4890aea65ae7 ("powerpc/64: Allocate pacas per node")
-    4e26bc4a4ed6 ("powerpc/64: Rename soft_enabled to irq_soft_mask")
-    8e0b634b1327 ("powerpc/64s: Do not allocate lppaca if we are not virtualized")
-    98fa15f34cb3 ("mm: replace all open encodings for NUMA_NO_NODE")
-    9f83e00f4cc1 ("powerpc/64: Improve inline asm in arch_local_irq_disable")
-    b5c1bd62c054 ("powerpc/64: Fix arch_local_irq_disable() prototype")
-    c2e480ba8227 ("powerpc/64: Add #defines for paca->soft_enabled flags")
-    ff967900c9d4 ("powerpc/64: Fix latency tracing for lazy irq replay")
-
-v4.9.189: Failed to apply! Possible dependencies:
-    010426079ec1 ("sched/headers: Prepare for new header dependencies before moving more code to <linux/sched/mm.h>")
-    2077be6783b5 ("arm64: Use __pa_symbol for kernel symbols")
-    39bc88e5e38e ("arm64: Disable TTBR0_EL1 during normal kernel execution")
-    3f07c0144132 ("sched/headers: Prepare for new header dependencies before moving code to <linux/sched/signal.h>")
-    68db0cf10678 ("sched/headers: Prepare for new header dependencies before moving code to <linux/sched/task_stack.h>")
-    7c0f6ba682b9 ("Replace <asm/uaccess.h> with <linux/uaccess.h> globally")
-    869dcfd10dfe ("arm64: Add cast for virt_to_pfn")
-    9164bb4a18df ("sched/headers: Prepare to move 'init_task' and 'init_thread_union' from <linux/sched.h> to <linux/sched/task.h>")
-    98fa15f34cb3 ("mm: replace all open encodings for NUMA_NO_NODE")
-    9cf09d68b89a ("arm64: xen: Enable user access before a privcmd hvc call")
-    bd38967d406f ("arm64: Factor out PAN enabling/disabling into separate uaccess_* macros")
 
 
-NOTE: The patch will not be queued to stable trees until it is upstream.
+On 08/09/2019 05:14 PM, Mark Rutland wrote:
+> On Fri, Aug 09, 2019 at 03:16:33AM -0700, Matthew Wilcox wrote:
+>> On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
+>>> Should alloc_gigantic_page() be made available as an interface for general
+>>> use in the kernel. The test module here uses very similar implementation from
+>>> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
+>>> needs to be exported through a header.
+>>
+>> Why are you allocating memory at all instead of just using some
+>> known-to-exist PFNs like I suggested?
+> 
+> IIUC the issue is that there aren't necessarily known-to-exist PFNs that
+> are sufficiently aligned -- they may not even exist.
+> 
+> For example, with 64K pages, a PMD covers 512M. The kernel image is
+> (generally) smaller than 512M, and will be mapped at page granularity.
+> In that case, any PMD entry for a kernel symbol address will point to
+> the PTE level table, and that will only necessarily be page-aligned, as
+> any P?D level table is only necessarily page-aligned.
 
-How should we proceed with this patch?
+Right.
 
---
-Thanks,
-Sasha
+> 
+> In the same configuration, you could have less than 512M of total
+> memory, and none of this memory is necessarily aligned to 512M. So
+> beyond the PTE level, I don't think you can guarantee a known-to-exist
+> valid PFN.
+Right a PMD aligned valid PFN might not even exist. This proposed patch
+which attempts to allocate memory chunk with required alignment will just
+fail indicating that such a valid PFN does not exist and hence will skip
+any relevant tests. At present this is done for PUD aligned allocation
+failure but we can similarly skip PMD relevant tests as well if PMD
+aligned memory chunk is not allocated.
+
+> 
+> I also believe that synthetic PFNs could fail pfn_valid(), so that might
+> cause us pain too...
+
+Agreed. So do we have an agreement that it is better to use allocated
+memory with required alignment for the tests than known-to-exist PFNs ?
+
+- Anshuman
 
