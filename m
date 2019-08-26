@@ -2,197 +2,212 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54639C3A59E
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:55:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF083C3A5A4
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 06:59:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1324C21848
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 05:55:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1324C21848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 902732190F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 06:59:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="a2U8wbAF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 902732190F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A9866B0526; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
+	id 004776B0528; Mon, 26 Aug 2019 02:59:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 95BDC6B0527; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
+	id EF77F6B0529; Mon, 26 Aug 2019 02:59:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8212D6B0528; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
+	id E0C936B052A; Mon, 26 Aug 2019 02:59:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA356B0526
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 01:55:20 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id DFA64181AC9AE
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:55:19 +0000 (UTC)
-X-FDA: 75863516358.22.worm60_85bb91e327c00
-X-HE-Tag: worm60_85bb91e327c00
-X-Filterd-Recvd-Size: 7957
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 05:55:18 +0000 (UTC)
-Received: from dread.disaster.area (pa49-181-255-194.pa.nsw.optusnet.com.au [49.181.255.194])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 1199A43F692;
-	Mon, 26 Aug 2019 15:55:12 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1i27yA-0002Rg-EJ; Mon, 26 Aug 2019 15:55:10 +1000
-Date: Mon, 26 Aug 2019 15:55:10 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
-Message-ID: <20190826055510.GL1119@dread.disaster.area>
-References: <20190820115515.GA29246@ziepe.ca>
- <20190821180200.GA5965@iweiny-DESK2.sc.intel.com>
- <20190821181343.GH8653@ziepe.ca>
- <20190821185703.GB5965@iweiny-DESK2.sc.intel.com>
- <20190821194810.GI8653@ziepe.ca>
- <20190821204421.GE5965@iweiny-DESK2.sc.intel.com>
- <20190823032345.GG1119@dread.disaster.area>
- <20190823120428.GA12968@ziepe.ca>
- <20190824001124.GI1119@dread.disaster.area>
- <20190824050836.GC1092@iweiny-DESK2.sc.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190824050836.GC1092@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0
-	a=YO9NNpcXwc8z/SaoS+iAiA==:117 a=YO9NNpcXwc8z/SaoS+iAiA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=l-5HZ6ThFU8XlB48y_YA:9 a=qRlaua0cGjGJrKa9:21
-	a=OEwtXWmnxFRK9C0v:21 a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
+Received: from forelay.hostedemail.com (smtprelay0204.hostedemail.com [216.40.44.204])
+	by kanga.kvack.org (Postfix) with ESMTP id BFB276B0528
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 02:59:57 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 5B384180AD7C1
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 06:59:57 +0000 (UTC)
+X-FDA: 75863679234.03.flock83_73f923b130f5a
+X-HE-Tag: flock83_73f923b130f5a
+X-Filterd-Recvd-Size: 5996
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 06:59:56 +0000 (UTC)
+Received: from guoren-Inspiron-7460.lan (unknown [223.93.147.148])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D782C217F4;
+	Mon, 26 Aug 2019 06:59:52 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1566802795;
+	bh=a5Ew7eb6cqPDgQY6v0geKQo8QWx+WuyGsAB/zRhoQ/I=;
+	h=From:To:Cc:Subject:Date:From;
+	b=a2U8wbAFJLIR89Zxq31tq9JRzjmOOjQJHb7wO5PTtR/bOZKg+M/C6mhPXZDDh007f
+	 r8q1YkZE0lzMS1O8W5bStqwkfe3mXUzmWAbDTUr2qH96+VAsPzDuWkPioZu+WjAdhs
+	 kri6KgWXXub6+7p2hRaG7E2NsdgXBq+M+xgvOta8=
+From: guoren@kernel.org
+To: arnd@arndb.de,
+	hch@infradead.org
+Cc: linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org,
+	linux-csky@vger.kernel.org,
+	linux-mm@kvack.org,
+	Guo Ren <ren_guo@c-sky.com>
+Subject: [RESEND PATCH V2] csky: Fixup 610 vipt cache flush mechanism
+Date: Mon, 26 Aug 2019 14:59:33 +0800
+Message-Id: <1566802773-24707-1-git-send-email-guoren@kernel.org>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 23, 2019 at 10:08:36PM -0700, Ira Weiny wrote:
-> On Sat, Aug 24, 2019 at 10:11:24AM +1000, Dave Chinner wrote:
-> > On Fri, Aug 23, 2019 at 09:04:29AM -0300, Jason Gunthorpe wrote:
-> > > On Fri, Aug 23, 2019 at 01:23:45PM +1000, Dave Chinner wrote:
-> > > 
-> > > > > But the fact that RDMA, and potentially others, can "pass the
-> > > > > pins" to other processes is something I spent a lot of time trying to work out.
-> > > > 
-> > > > There's nothing in file layout lease architecture that says you
-> > > > can't "pass the pins" to another process.  All the file layout lease
-> > > > requirements say is that if you are going to pass a resource for
-> > > > which the layout lease guarantees access for to another process,
-> > > > then the destination process already have a valid, active layout
-> > > > lease that covers the range of the pins being passed to it via the
-> > > > RDMA handle.
-> > > 
-> > > How would the kernel detect and enforce this? There are many ways to
-> > > pass a FD.
-> > 
-> > AFAIC, that's not really a kernel problem. It's more of an
-> > application design constraint than anything else. i.e. if the app
-> > passes the IB context to another process without a lease, then the
-> > original process is still responsible for recalling the lease and
-> > has to tell that other process to release the IB handle and it's
-> > resources.
-> > 
-> > > IMHO it is wrong to try and create a model where the file lease exists
-> > > independently from the kernel object relying on it. In other words the
-> > > IB MR object itself should hold a reference to the lease it relies
-> > > upon to function properly.
-> > 
-> > That still doesn't work. Leases are not individually trackable or
-> > reference counted objects objects - they are attached to a struct
-> > file bUt, in reality, they are far more restricted than a struct
-> > file.
-> > 
-> > That is, a lease specifically tracks the pid and the _open fd_ it
-> > was obtained for, so it is essentially owned by a specific process
-> > context.  Hence a lease is not able to be passed to a separate
-> > process context and have it still work correctly for lease break
-> > notifications.  i.e. the layout break signal gets delivered to
-> > original process that created the struct file, if it still exists
-> > and has the original fd still open. It does not get sent to the
-> > process that currently holds a reference to the IB context.
-> >
-> 
-> The fcntl man page says:
-> 
-> "Leases are associated with an open file description (see open(2)).  This means
-> that duplicate file descriptors (created by, for example, fork(2) or dup(2))
-> refer to the same lease, and this lease may be modified or released using any
-> of these descriptors.  Furthermore,  the lease is released by either an
-> explicit F_UNLCK operation on any of these duplicate file descriptors, or when
-> all such file descriptors have been closed."
+From: Guo Ren <ren_guo@c-sky.com>
 
-Right, the lease is attached to the struct file, so it follows
-where-ever the struct file goes. That doesn't mean it's actually
-useful when the struct file is duplicated and/or passed to another
-process. :/
+610 has vipt aliasing issue, so we need to finish the cache flush
+apis mentioned in cachetlb.rst to avoid data corruption.
 
-AFAICT, the problem is that when we take another reference to the
-struct file, or when the struct file is passed to a different
-process, nothing updates the lease or lease state attached to that
-struct file.
+Here is the list of modified apis in the patch:
 
-> From this I took it that the child process FD would have the lease as well
-> _and_ could release it.  I _assumed_ that applied to SCM_RIGHTS but it does not
-> seem to work the same way as dup() so I'm not so sure.
+ - flush_kernel_dcache_page      (new add)
+ - flush_dcache_mmap_lock        (new add)
+ - flush_dcache_mmap_unlock      (new add)
+ - flush_kernel_vmap_range       (new add)
+ - invalidate_kernel_vmap_range  (new add)
+ - flush_anon_page               (new add)
+ - flush_cache_range             (new add)
+ - flush_cache_vmap              (flush all)
+ - flush_cache_vunmap            (flush all)
+ - flush_cache_mm                (only dcache flush)
+ - flush_icache_page             (just nop)
+ - copy_from_user_page           (remove no need flush)
+ - copy_to_user_page             (remove no need flush)
 
-Sure, that part works because the struct file is passed. It doesn't
-end up with the same fd number in the other process, though.
+Change to V2:
+ - Fixup compile error with xa_lock*(&mapping->i_pages)
 
-The issue is that layout leases need to notify userspace when they
-are broken by the kernel, so a lease stores the owner pid/tid in the
-file->f_owner field via __f_setown(). It also keeps a struct fasync
-attached to the file_lock that records the fd that the lease was
-created on.  When a signal needs to be sent to userspace for that
-lease, we call kill_fasync() and that walks the list of fasync
-structures on the lease and calls:
+Signed-off-by: Guo Ren <ren_guo@c-sky.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Christoph Hellwig <hch@infradead.org>
+---
+ arch/csky/abiv1/cacheflush.c         | 20 ++++++++++++++++++
+ arch/csky/abiv1/inc/abi/cacheflush.h | 41 +++++++++++++++++++++++++-----------
+ 2 files changed, 49 insertions(+), 12 deletions(-)
 
-	send_sigio(fown, fa->fa_fd, band);
-
-And it does for every fasync struct attached to a lease. Yes, a
-lease can track multiple fds, but it can only track them in a single
-process context. The moment the struct file is shared with another
-process, the lease is no longer capable of sending notifications to
-all the lease holders.
-
-Yes, you can change the owning process via F_SETOWNER, but that's
-still only a single process context, and you can't change the fd in
-the fasync list. You can add new fd to an existing lease by calling
-F_SETLEASE on the new fd, but you still only have a single process
-owner context for signal delivery.
-
-As such, leases that require callbacks to userspace are currently
-only valid within the process context the lease was taken in.
-Indeed, even closing the fd the lease was taken on without
-F_UNLCKing it first doesn't mean the lease has been torn down if
-there is some other reference to the struct file. That means the
-original lease owner will still get SIGIO delivered to that fd on a
-lease break regardless of whether it is open or not. ANd if we
-implement "layout lease not released within SIGIO response timeout"
-then that process will get killed, despite the fact it may not even
-have a reference to that file anymore.
-
-So, AFAICT, leases that require userspace callbacks only work within
-their original process context while they original fd is still open.
-
-Cheers,
-
-Dave.
+diff --git a/arch/csky/abiv1/cacheflush.c b/arch/csky/abiv1/cacheflush.c
+index fee99fc..9f1fe80 100644
+--- a/arch/csky/abiv1/cacheflush.c
++++ b/arch/csky/abiv1/cacheflush.c
+@@ -54,3 +54,23 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
+ 			icache_inv_all();
+ 	}
+ }
++
++void flush_kernel_dcache_page(struct page *page)
++{
++	struct address_space *mapping;
++
++	mapping = page_mapping_file(page);
++
++	if (!mapping || mapping_mapped(mapping))
++		dcache_wbinv_all();
++}
++EXPORT_SYMBOL(flush_kernel_dcache_page);
++
++void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
++	unsigned long end)
++{
++	dcache_wbinv_all();
++
++	if (vma->vm_flags & VM_EXEC)
++		icache_inv_all();
++}
+diff --git a/arch/csky/abiv1/inc/abi/cacheflush.h b/arch/csky/abiv1/inc/abi/cacheflush.h
+index fce5604..79ef9e8 100644
+--- a/arch/csky/abiv1/inc/abi/cacheflush.h
++++ b/arch/csky/abiv1/inc/abi/cacheflush.h
+@@ -4,26 +4,49 @@
+ #ifndef __ABI_CSKY_CACHEFLUSH_H
+ #define __ABI_CSKY_CACHEFLUSH_H
+ 
+-#include <linux/compiler.h>
++#include <linux/mm.h>
+ #include <asm/string.h>
+ #include <asm/cache.h>
+ 
+ #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
+ extern void flush_dcache_page(struct page *);
+ 
+-#define flush_cache_mm(mm)			cache_wbinv_all()
++#define flush_cache_mm(mm)			dcache_wbinv_all()
+ #define flush_cache_page(vma, page, pfn)	cache_wbinv_all()
+ #define flush_cache_dup_mm(mm)			cache_wbinv_all()
+ 
++#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
++extern void flush_kernel_dcache_page(struct page *);
++
++#define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
++#define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
++
++static inline void flush_kernel_vmap_range(void *addr, int size)
++{
++	dcache_wbinv_all();
++}
++static inline void invalidate_kernel_vmap_range(void *addr, int size)
++{
++	dcache_wbinv_all();
++}
++
++#define ARCH_HAS_FLUSH_ANON_PAGE
++static inline void flush_anon_page(struct vm_area_struct *vma,
++			 struct page *page, unsigned long vmaddr)
++{
++	if (PageAnon(page))
++		cache_wbinv_all();
++}
++
+ /*
+  * if (current_mm != vma->mm) cache_wbinv_range(start, end) will be broken.
+  * Use cache_wbinv_all() here and need to be improved in future.
+  */
+-#define flush_cache_range(vma, start, end)	cache_wbinv_all()
+-#define flush_cache_vmap(start, end)		cache_wbinv_range(start, end)
+-#define flush_cache_vunmap(start, end)		cache_wbinv_range(start, end)
++extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
++#define flush_cache_vmap(start, end)		cache_wbinv_all()
++#define flush_cache_vunmap(start, end)		cache_wbinv_all()
+ 
+-#define flush_icache_page(vma, page)		cache_wbinv_all()
++#define flush_icache_page(vma, page)		do {} while (0);
+ #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
+ 
+ #define flush_icache_user_range(vma,page,addr,len) \
+@@ -31,19 +54,13 @@ extern void flush_dcache_page(struct page *);
+ 
+ #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
+ do { \
+-	cache_wbinv_all(); \
+ 	memcpy(dst, src, len); \
+-	cache_wbinv_all(); \
+ } while (0)
+ 
+ #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
+ do { \
+-	cache_wbinv_all(); \
+ 	memcpy(dst, src, len); \
+ 	cache_wbinv_all(); \
+ } while (0)
+ 
+-#define flush_dcache_mmap_lock(mapping)		do {} while (0)
+-#define flush_dcache_mmap_unlock(mapping)	do {} while (0)
+-
+ #endif /* __ABI_CSKY_CACHEFLUSH_H */
 -- 
-Dave Chinner
-david@fromorbit.com
+2.7.4
+
 
