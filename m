@@ -2,133 +2,248 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4257AC3A5A4
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 12:21:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5BCAC3A5A4
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 12:43:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB0F9217F5
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 12:21:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB0F9217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B4B3B20828
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 12:43:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4B3B20828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 490F06B0574; Mon, 26 Aug 2019 08:21:14 -0400 (EDT)
+	id 4CD106B0575; Mon, 26 Aug 2019 08:43:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 440A96B0575; Mon, 26 Aug 2019 08:21:14 -0400 (EDT)
+	id 47D566B0577; Mon, 26 Aug 2019 08:43:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 357226B0576; Mon, 26 Aug 2019 08:21:14 -0400 (EDT)
+	id 3931A6B0578; Mon, 26 Aug 2019 08:43:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
-	by kanga.kvack.org (Postfix) with ESMTP id 142D36B0574
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 08:21:14 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B6EE6181AC9B4
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:21:13 +0000 (UTC)
-X-FDA: 75864488826.15.cause21_aabfd5328726
-X-HE-Tag: cause21_aabfd5328726
-X-Filterd-Recvd-Size: 4166
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:21:13 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3982BAF03;
-	Mon, 26 Aug 2019 12:21:11 +0000 (UTC)
-Date: Mon, 26 Aug 2019 14:21:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org,
-	Ingo Molnar <mingo@redhat.com>, Will Deacon <will@kernel.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	penguin-kernel@I-love.SAKURA.ne.jp
-Subject: Re: [PATCH 2/3] xfs: add kmem_alloc_io()
-Message-ID: <20190826122110.GB7659@dhcp22.suse.cz>
-References: <20190822003131.GR1119@dread.disaster.area>
- <20190822075948.GA31346@infradead.org>
- <20190822085130.GI2349@hirez.programming.kicks-ass.net>
- <20190822091057.GK2386@hirez.programming.kicks-ass.net>
- <20190822101441.GY1119@dread.disaster.area>
- <ddcdc274-be61-6e40-5a14-a4faa954f090@suse.cz>
- <20190822120725.GA1119@dread.disaster.area>
- <ad8037c8-d1af-fb4f-1226-af585df492d3@suse.cz>
- <20190822131739.GB1119@dread.disaster.area>
- <db4a1dae-d69a-0df4-4a71-02c2954ecd75@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <db4a1dae-d69a-0df4-4a71-02c2954ecd75@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Received: from forelay.hostedemail.com (smtprelay0231.hostedemail.com [216.40.44.231])
+	by kanga.kvack.org (Postfix) with ESMTP id 15E796B0575
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 08:43:57 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id B2429824CA22
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:43:56 +0000 (UTC)
+X-FDA: 75864546072.08.lunch01_3f7e633f4e201
+X-HE-Tag: lunch01_3f7e633f4e201
+X-Filterd-Recvd-Size: 8534
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:43:56 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 02FB1307CDEA;
+	Mon, 26 Aug 2019 12:43:54 +0000 (UTC)
+Received: from llong.com (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B53C9100194E;
+	Mon, 26 Aug 2019 12:43:47 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH v2] fs/proc/page: Skip uninitialized page when iterating page structures
+Date: Mon, 26 Aug 2019 08:43:36 -0400
+Message-Id: <20190826124336.8742-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Mon, 26 Aug 2019 12:43:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 22-08-19 16:26:42, Vlastimil Babka wrote:
-> On 8/22/19 3:17 PM, Dave Chinner wrote:
-> > On Thu, Aug 22, 2019 at 02:19:04PM +0200, Vlastimil Babka wrote:
-> >> On 8/22/19 2:07 PM, Dave Chinner wrote:
-> >> > On Thu, Aug 22, 2019 at 01:14:30PM +0200, Vlastimil Babka wrote:
-> >> > 
-> >> > No, the problem is this (using kmalloc as a general term for
-> >> > allocation, whether it be kmalloc, kmem_cache_alloc, alloc_page, etc)
-> >> > 
-> >> >    some random kernel code
-> >> >     kmalloc(GFP_KERNEL)
-> >> >      reclaim
-> >> >      PF_MEMALLOC
-> >> >      shrink_slab
-> >> >       xfs_inode_shrink
-> >> >        XFS_ILOCK
-> >> >         xfs_buf_allocate_memory()
-> >> >          kmalloc(GFP_KERNEL)
-> >> > 
-> >> > And so locks on inodes in reclaim are seen below reclaim. Then
-> >> > somewhere else we have:
-> >> > 
-> >> >    some high level read-only xfs code like readdir
-> >> >     XFS_ILOCK
-> >> >      xfs_buf_allocate_memory()
-> >> >       kmalloc(GFP_KERNEL)
-> >> >        reclaim
-> >> > 
-> >> > And this one throws false positive lockdep warnings because we
-> >> > called into reclaim with XFS_ILOCK held and GFP_KERNEL alloc
-> >> 
-> >> OK, and what exactly makes this positive a false one? Why can't it continue like
-> >> the first example where reclaim leads to another XFS_ILOCK, thus deadlock?
-> > 
-> > Because above reclaim we only have operations being done on
-> > referenced inodes, and below reclaim we only have unreferenced
-> > inodes. We never lock the same inode both above and below reclaim
-> > at the same time.
-> > 
-> > IOWs, an operation above reclaim cannot see, access or lock
-> > unreferenced inodes, except in inode write clustering, and that uses
-> > trylocks so cannot deadlock with reclaim.
-> > 
-> > An operation below reclaim cannot see, access or lock referenced
-> > inodes except during inode write clustering, and that uses trylocks
-> > so cannot deadlock with code above reclaim.
-> 
-> Thanks for elaborating. Perhaps lockdep experts (not me) would know how to
-> express that. If not possible, then replacing GFP_NOFS with __GFP_NOLOCKDEP
-> should indeed suppress the warning, while allowing FS reclaim.
+It was found that on a dual-socket x86-64 system with nvdimm, reading
+/proc/kpagecount may cause the system to panic:
 
-This was certainly my hope to happen when introducing __GFP_NOLOCKDEP.
-I couldn't have done the second step because that requires a deep
-understanding of the code in question which is beyond my capacity. It
-seems we still haven't found a brave soul to start converting GFP_NOFS
-to __GFP_NOLOCKDEP. And it would be really appreciated.
+===================
+[   79.917682] BUG: unable to handle page fault for address: fffffffffffffffe
+[   79.924558] #PF: supervisor read access in kernel mode
+[   79.929696] #PF: error_code(0x0000) - not-present page
+[   79.934834] PGD 87b60d067 P4D 87b60d067 PUD 87b60f067 PMD 0
+[   79.940494] Oops: 0000 [#1] SMP NOPTI
+[   79.944157] CPU: 89 PID: 3455 Comm: cp Not tainted 5.3.0-rc5-test+ #14
+[   79.950682] Hardware name: Dell Inc. PowerEdge R740/07X9K0, BIOS 2.2.11 06/13/2019
+[   79.958246] RIP: 0010:kpagecount_read+0xdb/0x1a0
+[   79.962859] Code: e8 09 83 e0 3f 48 0f a3 02 73 2d 4c 89 f7 48 c1 e7 06 48 03 3d fe da de 00 74 1d 48 8b 57 08 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 75 06 83 7f 30 80 7d 62 31 c0 4c 89 f9 e8 5d c9
+[   79.981603] RSP: 0018:ffffb0d9c950fe70 EFLAGS: 00010202
+[   79.986830] RAX: fffffffffffffffe RBX: ffff8beebe5383c0 RCX: ffffb0d9c950ff00
+[   79.993963] RDX: 0000000000000001 RSI: 00007fd85b29e000 RDI: ffffe77a22000000
+[   80.001095] RBP: 0000000000020000 R08: 0000000000000001 R09: 0000000000000000
+[   80.008226] R10: 0000000000000000 R11: 0000000000000001 R12: 00007fd85b29e000
+[   80.015358] R13: ffffffff893f0480 R14: 0000000000880000 R15: 00007fd85b29e000
+[   80.022491] FS:  00007fd85b312800(0000) GS:ffff8c359fb00000(0000) knlGS:0000000000000000
+[   80.030576] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   80.036321] CR2: fffffffffffffffe CR3: 0000004f54a38001 CR4: 00000000007606e0
+[   80.043455] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   80.050586] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[   80.057718] PKRU: 55555554
+[   80.060428] Call Trace:
+[   80.062877]  proc_reg_read+0x39/0x60
+[   80.066459]  vfs_read+0x91/0x140
+[   80.069686]  ksys_read+0x59/0xd0
+[   80.072922]  do_syscall_64+0x59/0x1e0
+[   80.076588]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[   80.081637] RIP: 0033:0x7fd85a7f5d75
+===================
 
-Thanks.
+It turns out the panic was caused by the kpagecount_read() function
+hitting an uninitialized page structure at PFN 0x880000 where all its
+fields were set to -1. The compound_head value of -1 will mislead the
+kernel to treat -2 as a pointer to the head page of the compound page
+leading to the crash.
+
+The system have 12 GB of nvdimm ranging from PFN 0x880000-0xb7ffff.
+However, only PFN 0x88c200-0xb7ffff are released by the nvdimm
+driver to the kernel and initialized. IOW, PFN 0x880000-0x88c1ff
+remain uninitialized. Perhaps these 196 MB of nvdimm are reserved for
+internal use.
+
+To fix the panic, we need to find out if a page structure has been
+initialized. This is done now by checking if the PFN is in the range
+of a memory zone assuming that pages in a zone is either correctly
+marked as not present in the mem_section structure or have their page
+structures initialized.
+
+Signed-off-by: Waiman Long <longman@redhat.com>
+---
+ fs/proc/page.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 544d1ee15aee..fee55ad95893 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -21,6 +21,64 @@
+ #define KPMMASK (KPMSIZE - 1)
+ #define KPMBITS (KPMSIZE * BITS_PER_BYTE)
+ 
++/*
++ * It is possible a page structure is contained in a mem_section that is
++ * regarded as valid but the page structure itself is not properly
++ * initialized. For example, portion of the device memory may be used
++ * internally by device driver or firmware without being managed by the
++ * kernel and hence their page structures may not be initialized.
++ *
++ * An uninitialized page structure may cause the PFN iteration code
++ * in this file to panic the system. To safe-guard against this
++ * possibility, an additional check of the PFN is done to make sure
++ * that it is in a valid range in one of the memory zones:
++ *
++ *	[zone_start_pfn, zone_start_pfn + spanned_pages)
++ *
++ * It is possible that some of the PFNs within a zone is not present.
++ * In this case, it will have to rely on the current mem_section check
++ * as well as the affected page structures are still properly initialized.
++ */
++struct zone_range {
++	unsigned long pfn_start;
++	unsigned long pfn_end;
++};
++
++static void find_next_zone_range(struct zone_range *range)
++{
++	unsigned long start, end;
++	pg_data_t *pgdat;
++	struct zone *zone;
++	int i;
++
++	/*
++	 * Scan all the zone structures to find the next closest one.
++	 */
++	start = end = -1UL;
++	for (pgdat = first_online_pgdat(); pgdat;
++	     pgdat = next_online_pgdat(pgdat)) {
++		for (zone = pgdat->node_zones, i = 0; i < MAX_NR_ZONES;
++		     zone++, i++) {
++			if (!zone->spanned_pages)
++				continue;
++			if ((zone->zone_start_pfn >= range->pfn_end) &&
++			    (zone->zone_start_pfn < start)) {
++				start = zone->zone_start_pfn;
++				end   = start + zone->spanned_pages;
++			}
++		}
++	}
++	range->pfn_start = start;
++	range->pfn_end   = end;
++}
++
++static inline bool pfn_in_zone(unsigned long pfn, struct zone_range *range)
++{
++	if (pfn >= range->pfn_end)
++		find_next_zone_range(range);
++	return pfn >= range->pfn_start && pfn < range->pfn_end;
++}
++
+ /* /proc/kpagecount - an array exposing page counts
+  *
+  * Each entry is a u64 representing the corresponding
+@@ -31,6 +89,7 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
+ {
+ 	u64 __user *out = (u64 __user *)buf;
+ 	struct page *ppage;
++	struct zone_range range = { 0, 0 };
+ 	unsigned long src = *ppos;
+ 	unsigned long pfn;
+ 	ssize_t ret = 0;
+@@ -42,10 +101,11 @@ static ssize_t kpagecount_read(struct file *file, char __user *buf,
+ 		return -EINVAL;
+ 
+ 	while (count > 0) {
+-		if (pfn_valid(pfn))
++		if (pfn_valid(pfn) && pfn_in_zone(pfn, &range))
+ 			ppage = pfn_to_page(pfn);
+ 		else
+ 			ppage = NULL;
++
+ 		if (!ppage || PageSlab(ppage) || page_has_type(ppage))
+ 			pcount = 0;
+ 		else
+@@ -206,6 +266,7 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
+ {
+ 	u64 __user *out = (u64 __user *)buf;
+ 	struct page *ppage;
++	struct zone_range range = { 0, 0 };
+ 	unsigned long src = *ppos;
+ 	unsigned long pfn;
+ 	ssize_t ret = 0;
+@@ -216,7 +277,7 @@ static ssize_t kpageflags_read(struct file *file, char __user *buf,
+ 		return -EINVAL;
+ 
+ 	while (count > 0) {
+-		if (pfn_valid(pfn))
++		if (pfn_valid(pfn) && pfn_in_zone(pfn, &range))
+ 			ppage = pfn_to_page(pfn);
+ 		else
+ 			ppage = NULL;
+@@ -250,6 +311,7 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
+ {
+ 	u64 __user *out = (u64 __user *)buf;
+ 	struct page *ppage;
++	struct zone_range range = { 0, 0 };
+ 	unsigned long src = *ppos;
+ 	unsigned long pfn;
+ 	ssize_t ret = 0;
+@@ -261,7 +323,7 @@ static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
+ 		return -EINVAL;
+ 
+ 	while (count > 0) {
+-		if (pfn_valid(pfn))
++		if (pfn_valid(pfn) && pfn_in_zone(pfn, &range))
+ 			ppage = pfn_to_page(pfn);
+ 		else
+ 			ppage = NULL;
 -- 
-Michal Hocko
-SUSE Labs
+2.18.1
+
 
