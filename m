@@ -2,355 +2,86 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67C1EC41514
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:54:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 094EDC3A59F
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 14:17:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26EFC206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 13:54:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26EFC206E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id CD34D20679
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 14:17:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD34D20679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8CB86B058C; Mon, 26 Aug 2019 09:54:58 -0400 (EDT)
+	id 8F4166B058D; Mon, 26 Aug 2019 10:17:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3EBB6B058D; Mon, 26 Aug 2019 09:54:58 -0400 (EDT)
+	id 87D646B058F; Mon, 26 Aug 2019 10:17:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92B3C6B058E; Mon, 26 Aug 2019 09:54:58 -0400 (EDT)
+	id 76BB56B0590; Mon, 26 Aug 2019 10:17:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0007.hostedemail.com [216.40.44.7])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EDB66B058C
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:54:58 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0A53B52C0
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:54:58 +0000 (UTC)
-X-FDA: 75864725076.19.cats38_6584ed9413d5b
-X-HE-Tag: cats38_6584ed9413d5b
-X-Filterd-Recvd-Size: 10222
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 13:54:57 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 572F8AD78;
-	Mon, 26 Aug 2019 13:54:56 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id DEBEE1E3DA1; Mon, 26 Aug 2019 15:54:52 +0200 (CEST)
-Date: Mon, 26 Aug 2019 15:54:52 +0200
-From: Jan Kara <jack@suse.cz>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH v3 5/5] writeback, memcg: Implement foreign dirty flushing
-Message-ID: <20190826135452.GF10614@quack2.suse.cz>
-References: <20190815195619.GA2263813@devbig004.ftw2.facebook.com>
- <20190815195930.GF2263813@devbig004.ftw2.facebook.com>
- <20190821210235.GN2263813@devbig004.ftw2.facebook.com>
+Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 579026B058D
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 10:17:33 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id EE8F8180AD7C3
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 14:17:32 +0000 (UTC)
+X-FDA: 75864781944.17.lift23_78c532b3273e
+X-HE-Tag: lift23_78c532b3273e
+X-Filterd-Recvd-Size: 2197
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com [115.124.30.133])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 14:17:31 +0000 (UTC)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=alex.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TaX0VPG_1566829040;
+Received: from IT-FVFX43SYHV2H.local(mailfrom:alex.shi@linux.alibaba.com fp:SMTPD_---0TaX0VPG_1566829040)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 26 Aug 2019 22:17:23 +0800
+Subject: Re: [PATCH 03/14] lru/memcg: using per lruvec lock in
+ un/lock_page_lru
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+ cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+ Vladimir Davydov <vdavydov.dev@gmail.com>, Hugh Dickins <hughd@google.com>
+References: <1566294517-86418-1-git-send-email-alex.shi@linux.alibaba.com>
+ <1566294517-86418-4-git-send-email-alex.shi@linux.alibaba.com>
+ <936eb865-d8da-8e53-3e2b-6858c586aa49@yandex-team.ru>
+From: Alex Shi <alex.shi@linux.alibaba.com>
+Message-ID: <bd44a613-d820-6085-0145-657078fd79cc@linux.alibaba.com>
+Date: Mon, 26 Aug 2019 22:16:58 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190821210235.GN2263813@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <936eb865-d8da-8e53-3e2b-6858c586aa49@yandex-team.ru>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 21-08-19 14:02:35, Tejun Heo wrote:
-> There's an inherent mismatch between memcg and writeback.  The former
-> trackes ownership per-page while the latter per-inode.  This was a
-> deliberate design decision because honoring per-page ownership in the
-> writeback path is complicated, may lead to higher CPU and IO overheads
-> and deemed unnecessary given that write-sharing an inode across
-> different cgroups isn't a common use-case.
-> 
-> Combined with inode majority-writer ownership switching, this works
-> well enough in most cases but there are some pathological cases.  For
-> example, let's say there are two cgroups A and B which keep writing to
-> different but confined parts of the same inode.  B owns the inode and
-> A's memory is limited far below B's.  A's dirty ratio can rise enough
-> to trigger balance_dirty_pages() sleeps but B's can be low enough to
-> avoid triggering background writeback.  A will be slowed down without
-> a way to make writeback of the dirty pages happen.
-> 
-> This patch implements foreign dirty recording and foreign mechanism so
-> that when a memcg encounters a condition as above it can trigger
-> flushes on bdi_writebacks which can clean its pages.  Please see the
-> comment on top of mem_cgroup_track_foreign_dirty_slowpath() for
-> details.
-> 
-> A reproducer follows.
-> 
-> write-range.c::
-> 
->   #include <stdio.h>
->   #include <stdlib.h>
->   #include <unistd.h>
->   #include <fcntl.h>
->   #include <sys/types.h>
-> 
->   static const char *usage = "write-range FILE START SIZE\n";
-> 
->   int main(int argc, char **argv)
->   {
-> 	  int fd;
-> 	  unsigned long start, size, end, pos;
-> 	  char *endp;
-> 	  char buf[4096];
-> 
-> 	  if (argc < 4) {
-> 		  fprintf(stderr, usage);
-> 		  return 1;
-> 	  }
-> 
-> 	  fd = open(argv[1], O_WRONLY);
-> 	  if (fd < 0) {
-> 		  perror("open");
-> 		  return 1;
-> 	  }
-> 
-> 	  start = strtoul(argv[2], &endp, 0);
-> 	  if (*endp != '\0') {
-> 		  fprintf(stderr, usage);
-> 		  return 1;
-> 	  }
-> 
-> 	  size = strtoul(argv[3], &endp, 0);
-> 	  if (*endp != '\0') {
-> 		  fprintf(stderr, usage);
-> 		  return 1;
-> 	  }
-> 
-> 	  end = start + size;
-> 
-> 	  while (1) {
-> 		  for (pos = start; pos < end; ) {
-> 			  long bread, bwritten = 0;
-> 
-> 			  if (lseek(fd, pos, SEEK_SET) < 0) {
-> 				  perror("lseek");
-> 				  return 1;
-> 			  }
-> 
-> 			  bread = read(0, buf, sizeof(buf) < end - pos ?
-> 					       sizeof(buf) : end - pos);
-> 			  if (bread < 0) {
-> 				  perror("read");
-> 				  return 1;
-> 			  }
-> 			  if (bread == 0)
-> 				  return 0;
-> 
-> 			  while (bwritten < bread) {
-> 				  long this;
-> 
-> 				  this = write(fd, buf + bwritten,
-> 					       bread - bwritten);
-> 				  if (this < 0) {
-> 					  perror("write");
-> 					  return 1;
-> 				  }
-> 
-> 				  bwritten += this;
-> 				  pos += bwritten;
-> 			  }
-> 		  }
-> 	  }
->   }
-> 
-> repro.sh::
-> 
->   #!/bin/bash
-> 
->   set -e
->   set -x
-> 
->   sysctl -w vm.dirty_expire_centisecs=300000
->   sysctl -w vm.dirty_writeback_centisecs=300000
->   sysctl -w vm.dirtytime_expire_seconds=300000
->   echo 3 > /proc/sys/vm/drop_caches
-> 
->   TEST=/sys/fs/cgroup/test
->   A=$TEST/A
->   B=$TEST/B
-> 
->   mkdir -p $A $B
->   echo "+memory +io" > $TEST/cgroup.subtree_control
->   echo $((1<<30)) > $A/memory.high
->   echo $((32<<30)) > $B/memory.high
-> 
->   rm -f testfile
->   touch testfile
->   fallocate -l 4G testfile
-> 
->   echo "Starting B"
-> 
->   (echo $BASHPID > $B/cgroup.procs
->    pv -q --rate-limit 70M < /dev/urandom | ./write-range testfile $((2<<30)) $((2<<30))) &
-> 
->   echo "Waiting 10s to ensure B claims the testfile inode"
->   sleep 5
->   sync
->   sleep 5
->   sync
->   echo "Starting A"
-> 
->   (echo $BASHPID > $A/cgroup.procs
->    pv < /dev/urandom | ./write-range testfile 0 $((2<<30)))
-> 
-> v2: Added comments explaining why the specific intervals are being used.
-> 
-> v3: Use 0 @nr when calling cgroup_writeback_by_id() to use best-effort
->     flushing while avoding possible livelocks.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
 
-The patch looks mostly good to me now. Just one thing:
 
-> +void mem_cgroup_track_foreign_dirty_slowpath(struct page *page,
-> +					     struct bdi_writeback *wb)
-> +{
-> +	struct mem_cgroup *memcg = page->mem_cgroup;
-> +	struct memcg_cgwb_frn *frn;
-> +	u64 now = jiffies_64;
+=E5=9C=A8 2019/8/26 =E4=B8=8B=E5=8D=884:30, Konstantin Khlebnikov =E5=86=99=
+=E9=81=93:
+>>
+>> =C2=A0=20
+>=20
+> What protects lruvec from freeing at this point?
+> After reading resolving lruvec page could be moved and cgroup deleted.
+>=20
+> In this old patches I've used RCU for that: https://lkml.org/lkml/2012/=
+2/20/276
+> Pointer to lruvec should be resolved under disabled irq.
+> Not sure this works these days.
 
-As I've checked, you should be using get_jiffies_64() to get value of
-jiffies_64. Also for comparisons of jiffie values, I think you should be
-using time_after64() and similar functions instead of direct comparisons...
+Thanks for reminder! I will reconsider this point and come up with change=
+s.
 
-								Honza
-
-> +	u64 oldest_at = now;
-> +	int oldest = -1;
-> +	int i;
-> +
-> +	/*
-> +	 * Pick the slot to use.  If there is already a slot for @wb, keep
-> +	 * using it.  If not replace the oldest one which isn't being
-> +	 * written out.
-> +	 */
-> +	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++) {
-> +		frn = &memcg->cgwb_frn[i];
-> +		if (frn->bdi_id == wb->bdi->id &&
-> +		    frn->memcg_id == wb->memcg_css->id)
-> +			break;
-> +		if (frn->at < oldest_at && atomic_read(&frn->done.cnt) == 1) {
-> +			oldest = i;
-> +			oldest_at = frn->at;
-> +		}
-> +	}
-> +
-> +	if (i < MEMCG_CGWB_FRN_CNT) {
-> +		/*
-> +		 * Re-using an existing one.  Update timestamp lazily to
-> +		 * avoid making the cacheline hot.  We want them to be
-> +		 * reasonably up-to-date and significantly shorter than
-> +		 * dirty_expire_interval as that's what expires the record.
-> +		 * Use the shorter of 1s and dirty_expire_interval / 8.
-> +		 */
-> +		unsigned long update_intv =
-> +			min_t(unsigned long, HZ,
-> +			      msecs_to_jiffies(dirty_expire_interval * 10) / 8);
-> +
-> +		if (frn->at < now - update_intv)
-> +			frn->at = now;
-> +	} else if (oldest >= 0) {
-> +		/* replace the oldest free one */
-> +		frn = &memcg->cgwb_frn[oldest];
-> +		frn->bdi_id = wb->bdi->id;
-> +		frn->memcg_id = wb->memcg_css->id;
-> +		frn->at = now;
-> +	}
-> +}
-> +
-> +/* issue foreign writeback flushes for recorded foreign dirtying events */
-> +void mem_cgroup_flush_foreign(struct bdi_writeback *wb)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
-> +	unsigned long intv = msecs_to_jiffies(dirty_expire_interval * 10);
-> +	u64 now = jiffies_64;
-> +	int i;
-> +
-> +	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++) {
-> +		struct memcg_cgwb_frn *frn = &memcg->cgwb_frn[i];
-> +
-> +		/*
-> +		 * If the record is older than dirty_expire_interval,
-> +		 * writeback on it has already started.  No need to kick it
-> +		 * off again.  Also, don't start a new one if there's
-> +		 * already one in flight.
-> +		 */
-> +		if (frn->at > now - intv && atomic_read(&frn->done.cnt) == 1) {
-> +			frn->at = 0;
-> +			cgroup_writeback_by_id(frn->bdi_id, frn->memcg_id, 0,
-> +					       WB_REASON_FOREIGN_FLUSH,
-> +					       &frn->done);
-> +		}
-> +	}
-> +}
-> +
->  #else	/* CONFIG_CGROUP_WRITEBACK */
->  
->  static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
-> @@ -4700,6 +4823,7 @@ static struct mem_cgroup *mem_cgroup_all
->  	struct mem_cgroup *memcg;
->  	unsigned int size;
->  	int node;
-> +	int __maybe_unused i;
->  
->  	size = sizeof(struct mem_cgroup);
->  	size += nr_node_ids * sizeof(struct mem_cgroup_per_node *);
-> @@ -4743,6 +4867,9 @@ static struct mem_cgroup *mem_cgroup_all
->  #endif
->  #ifdef CONFIG_CGROUP_WRITEBACK
->  	INIT_LIST_HEAD(&memcg->cgwb_list);
-> +	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-> +		memcg->cgwb_frn[i].done =
-> +			__WB_COMPLETION_INIT(&memcg_cgwb_frn_waitq);
->  #endif
->  	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
->  	return memcg;
-> @@ -4872,7 +4999,12 @@ static void mem_cgroup_css_released(stru
->  static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-> +	int __maybe_unused i;
->  
-> +#ifdef CONFIG_CGROUP_WRITEBACK
-> +	for (i = 0; i < MEMCG_CGWB_FRN_CNT; i++)
-> +		wb_wait_for_completion(&memcg->cgwb_frn[i].done);
-> +#endif
->  	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
->  		static_branch_dec(&memcg_sockets_enabled_key);
->  
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1667,6 +1667,8 @@ static void balance_dirty_pages(struct b
->  		if (unlikely(!writeback_in_progress(wb)))
->  			wb_start_background_writeback(wb);
->  
-> +		mem_cgroup_flush_foreign(wb);
-> +
->  		/*
->  		 * Calculate global domain's pos_ratio and select the
->  		 * global dtc by default.
-> @@ -2427,6 +2429,8 @@ void account_page_dirtied(struct page *p
->  		task_io_account_write(PAGE_SIZE);
->  		current->nr_dirtied++;
->  		this_cpu_inc(bdp_ratelimits);
-> +
-> +		mem_cgroup_track_foreign_dirty(page, wb);
->  	}
->  }
->  
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks
+Alex
 
