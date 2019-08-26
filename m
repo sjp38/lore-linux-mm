@@ -2,222 +2,159 @@ Return-Path: <SRS0=haCV=WW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2F1AC3A59F
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:03:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DDE2C3A5A6
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:07:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F6DA20674
-	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:03:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F6DA20674
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 329B920674
+	for <linux-mm@archiver.kernel.org>; Mon, 26 Aug 2019 16:07:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LSTEt2ds"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 329B920674
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D87156B05AD; Mon, 26 Aug 2019 12:03:13 -0400 (EDT)
+	id B140C6B05AF; Mon, 26 Aug 2019 12:07:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D10CC6B05AF; Mon, 26 Aug 2019 12:03:13 -0400 (EDT)
+	id AC50C6B05B1; Mon, 26 Aug 2019 12:07:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD8D56B05B0; Mon, 26 Aug 2019 12:03:13 -0400 (EDT)
+	id 98C286B05B2; Mon, 26 Aug 2019 12:07:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
-	by kanga.kvack.org (Postfix) with ESMTP id 93FC56B05AD
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:03:13 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 4034782437CF
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:03:13 +0000 (UTC)
-X-FDA: 75865048266.16.hole14_3920d3709a91c
-X-HE-Tag: hole14_3920d3709a91c
-X-Filterd-Recvd-Size: 8282
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:03:12 +0000 (UTC)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7QFmpRx058972;
-	Mon, 26 Aug 2019 12:02:23 -0400
-Received: from pps.reinject (localhost [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2umffnr0g8-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Mon, 26 Aug 2019 12:02:21 -0400
-Received: from m0098410.ppops.net (m0098410.ppops.net [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x7QFnNSd060609;
-	Mon, 26 Aug 2019 12:02:20 -0400
-Received: from ppma01wdc.us.ibm.com (fd.55.37a9.ip4.static.sl-reverse.com [169.55.85.253])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2umffnr0bm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Mon, 26 Aug 2019 12:02:19 -0400
-Received: from pps.filterd (ppma01wdc.us.ibm.com [127.0.0.1])
-	by ppma01wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x7QFofiZ028532;
-	Mon, 26 Aug 2019 16:02:09 GMT
-Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
-	by ppma01wdc.us.ibm.com with ESMTP id 2ujvv65reu-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Mon, 26 Aug 2019 16:02:09 +0000
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7QG28wN11273076
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 26 Aug 2019 16:02:08 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 55E7BB2078;
-	Mon, 26 Aug 2019 16:02:08 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3051CB2067;
-	Mon, 26 Aug 2019 16:01:54 +0000 (GMT)
-Received: from [9.199.38.251] (unknown [9.199.38.251])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Mon, 26 Aug 2019 16:01:53 +0000 (GMT)
-Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
- removing memory
-To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Andy Lutomirski
- <luto@kernel.org>,
-        Anshuman Khandual <anshuman.khandual@arm.com>,
-        Arun KS <arunks@codeaurora.org>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Borislav Petkov <bp@alien8.de>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Christian Borntraeger <borntraeger@de.ibm.com>,
-        Christophe Leroy <christophe.leroy@c-s.fr>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Fenghua Yu
- <fenghua.yu@intel.com>,
-        Gerald Schaefer <gerald.schaefer@de.ibm.com>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Halil Pasic <pasic@linux.ibm.com>,
-        Heiko Carstens
- <heiko.carstens@de.ibm.com>,
-        "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-        Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Jun Yao <yaojun8558363@gmail.com>,
-        Logan Gunthorpe <logang@deltatee.com>,
-        Mark Rutland <mark.rutland@arm.com>,
-        Masahiro Yamada <yamada.masahiro@socionext.com>,
-        "Matthew Wilcox (Oracle)" <willy@infradead.org>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>,
-        Mike Rapoport <rppt@linux.ibm.com>, Oscar Salvador <osalvador@suse.de>,
-        Paul Mackerras <paulus@samba.org>,
-        Pavel Tatashin
- <pasha.tatashin@soleen.com>,
-        Pavel Tatashin <pavel.tatashin@microsoft.com>,
-        Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
-        Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
-        Steve Capper <steve.capper@arm.com>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Tom Lendacky <thomas.lendacky@amd.com>,
-        Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>,
-        Vlastimil Babka <vbabka@suse.cz>, Wei Yang <richard.weiyang@gmail.com>,
-        Wei Yang <richardw.yang@linux.intel.com>,
-        Will Deacon <will@kernel.org>,
-        Yoshinori Sato <ysato@users.sourceforge.jp>,
-        Yu Zhao <yuzhao@google.com>
-References: <20190826101012.10575-1-david@redhat.com>
- <87pnksm0zx.fsf@linux.ibm.com>
- <194da076-364e-267d-0d51-64940925e2e4@redhat.com>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Message-ID: <a30b7156-7679-a04a-f74a-c5407b922979@linux.ibm.com>
-Date: Mon, 26 Aug 2019 21:31:52 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <194da076-364e-267d-0d51-64940925e2e4@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-26_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908260160
+Received: from forelay.hostedemail.com (smtprelay0030.hostedemail.com [216.40.44.30])
+	by kanga.kvack.org (Postfix) with ESMTP id 766D76B05AF
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 12:07:05 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 25B0B180AD7C1
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:07:05 +0000 (UTC)
+X-FDA: 75865058010.21.birth09_5ae9b53ae2852
+X-HE-Tag: birth09_5ae9b53ae2852
+X-Filterd-Recvd-Size: 5519
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 16:07:04 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id p13so14436069qkg.13
+        for <linux-mm@kvack.org>; Mon, 26 Aug 2019 09:07:04 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id;
+        bh=80iUPmrcBk2+ug2egAEGLlkODFGV0leLCrkusgfj0dU=;
+        b=LSTEt2dsSUlYWtlWtHYVxk6WiPYZB0AVIJmO+3gPCRgTrqkCUrWZefc5qQ5apUgEkp
+         vADQarLeBvm+BaIOAf8KITRCj1TAbo8LcAdF+bxTRJQQsho4D/mT/sksa81oE8flmju5
+         xH4lTv1fevqqW765jk941rjheBDMCuOsgBhRZ7zY1pBAV3YfRl2dEIH78cF7dgA71U4q
+         2iu6W5IQT7d2UO+E6DlYXJj0J1KYxYW1eppgkG9Yme6A1t7lcmddNA0kfe/KSxrYwoEk
+         OyRzDy2r1SrUyqYhr9pNvTkbsS4xl40SmuLHdraqT6RbdiUvQDtEC5a+31Vw1JuuTesp
+         C8Rg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:sender:from:to:cc:subject:date:message-id;
+        bh=80iUPmrcBk2+ug2egAEGLlkODFGV0leLCrkusgfj0dU=;
+        b=KDPLkpUibPDqLm1bxntEtSkJoHpfnuv0iWJWdtB4ANUaB1Wg7Ic5uCc6EpPIEhsCww
+         ltaZ31KDVUUWir5IyAOCvpgoQIJRWdYLIziMFrJwvXWGmfLxA9YzsuZJE6H9/4wokz4T
+         cqFd7mMcHlMKUHrOAX9ImfyK/xMdamB0nXUQV9qfeYiHwT42E65D7A6xILyBMh4JqCZT
+         4hQOiH9t2aomweSUqhQwhT5j0fD1eHerZT4FSv880zmw0zFB2tEJ8bmVcejCEFUfj+VS
+         To/GXmxwlpBSx2K5wvwxXydiF3yFn0hQ9t+I++H74A/EJCWtwt4qAQ3KfdvBtoZcWLpa
+         ElNg==
+X-Gm-Message-State: APjAAAWiO6IGj+Jjc9tJjyC/eMQiCxU8nzYIvjw7W+CFXAYdvdUPXdm6
+	p7g4N1TAsKddRY4oUAoJ0m0=
+X-Google-Smtp-Source: APXvYqyJYSpyqwcn0d/MgjayTJ75Ym21bRNWYcLg1zdLL8TKqRLxUjPZ3mnh4+Ch6vIyIqg+t+OpXg==
+X-Received: by 2002:a37:512:: with SMTP id 18mr15913097qkf.220.1566835623903;
+        Mon, 26 Aug 2019 09:07:03 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::d081])
+        by smtp.gmail.com with ESMTPSA id h1sm9711613qtc.92.2019.08.26.09.07.03
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Aug 2019 09:07:03 -0700 (PDT)
+From: Tejun Heo <tj@kernel.org>
+To: axboe@kernel.dk,
+	jack@suse.cz,
+	hannes@cmpxchg.org,
+	mhocko@kernel.org,
+	vdavydov.dev@gmail.com
+Cc: cgroups@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	kernel-team@fb.com,
+	guro@fb.com,
+	akpm@linux-foundation.org
+Subject: [PATCHSET v3] writeback, memcg: Implement foreign inode flushing
+Date: Mon, 26 Aug 2019 09:06:51 -0700
+Message-Id: <20190826160656.870307-1-tj@kernel.org>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/26/19 9:13 PM, David Hildenbrand wrote:
-> On 26.08.19 16:53, Aneesh Kumar K.V wrote:
->> David Hildenbrand <david@redhat.com> writes:
->>
->>> 
+Hello,
 
-....
+Changes from v1[1]:
 
->>
->> I did report a variant of the issue at
->>
->> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
->>
->> This patch series still doesn't handle the fact that struct page backing
->> the start_pfn might not be initialized. ie, it results in crash like
->> below
-> 
-> Okay, that's a related but different issue I think.
-> 
-> I can see that current shrink_zone_span() might read-access the
-> uninitialized struct page of a PFN if
-> 
-> 1. The zone has holes and we check for "zone all holes". If we get
-> pfn_valid(pfn), we check if "page_zone(pfn_to_page(pfn)) != zone".
-> 
-> 2. Via find_smallest_section_pfn() / find_biggest_section_pfn() find a
-> spanned pfn_valid(). We check
-> - pfn_to_nid(start_pfn) != nid
-> - zone != page_zone(pfn_to_page(start_pfn)
-> 
-> So we don't actually use the zone/nid, only use it to sanity check. That
-> might result in false-positives (not that bad).
-> 
-> It all boils down to shrink_zone_span() not working only on active
-> memory, for which the PFN is not only valid but also initialized
-> (something for which we need a new section flag I assume).
-> 
-> Which access triggers the issue you describe? pfn_to_nid()?
-> 
->>
->>      pc: c0000000004bc1ec: shrink_zone_span+0x1bc/0x290
->>      lr: c0000000004bc1e8: shrink_zone_span+0x1b8/0x290
->>      sp: c0000000dac7f910
->>     msr: 800000000282b033
->>    current = 0xc0000000da2fa000
->>    paca    = 0xc00000000fffb300   irqmask: 0x03   irq_happened: 0x01
->>      pid   = 1224, comm = ndctl
->> kernel BUG at /home/kvaneesh/src/linux/include/linux/mm.h:1088!
->> Linux version 5.3.0-rc6-17495-gc7727d815970-dirty (kvaneesh@ltc-boston123) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #183 SMP Mon Aug 26 09:37:32 CDT 2019
->> enter ? for help
-> 
-> Which exact kernel BUG are you hitting here? (my tree doesn't seem t
-> have any BUG statement around  include/linux/mm.h:1088). 
+* More comments explaining the parameters.
 
+* 0003-writeback-Separate-out-wb_get_lookup-from-wb_get_create.patch
+  added and avoid spuriously creating missing wbs for foreign
+  flushing.
 
+Changes from v2[2]:
 
-This is against upstream linus with your patches applied.
+* Added livelock avoidance and applied other smaller changes suggested
+  by Jan.
 
+There's an inherent mismatch between memcg and writeback.  The former
+trackes ownership per-page while the latter per-inode.  This was a
+deliberate design decision because honoring per-page ownership in the
+writeback path is complicated, may lead to higher CPU and IO overheads
+and deemed unnecessary given that write-sharing an inode across
+different cgroups isn't a common use-case.
 
-static inline int page_to_nid(const struct page *page)
-{
-	struct page *p = (struct page *)page;
+Combined with inode majority-writer ownership switching, this works
+well enough in most cases but there are some pathological cases.  For
+example, let's say there are two cgroups A and B which keep writing to
+different but confined parts of the same inode.  B owns the inode and
+A's memory is limited far below B's.  A's dirty ratio can rise enough
+to trigger balance_dirty_pages() sleeps but B's can be low enough to
+avoid triggering background writeback.  A will be slowed down without
+a way to make writeback of the dirty pages happen.
 
-	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
-}
+This patchset implements foreign dirty recording and foreign mechanism
+so that when a memcg encounters a condition as above it can trigger
+flushes on bdi_writebacks which can clean its pages.  Please see the
+last patch for more details.
 
+This patchset contains the following four patches.
 
-#define PF_POISONED_CHECK(page) ({					\
-		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-		page; })
-#
+ 0001-writeback-Generalize-and-expose-wb_completion.patch
+ 0002-bdi-Add-bdi-id.patch
+ 0003-writeback-Separate-out-wb_get_lookup-from-wb_get_create.patch
+ 0004-writeback-memcg-Implement-cgroup_writeback_by_id.patch
+ 0005-writeback-memcg-Implement-foreign-dirty-flushing.patch
 
+0001-0004 are prep patches which expose wb_completion and implement
+bdi->id and flushing by bdi and memcg IDs.
 
-It is the node id access.
+0005 implements foreign inode flushing.
 
--aneesh
+Thanks.  diffstat follows.
+
+ fs/fs-writeback.c                |  130 ++++++++++++++++++++++++++++---------
+ include/linux/backing-dev-defs.h |   23 ++++++
+ include/linux/backing-dev.h      |    5 +
+ include/linux/memcontrol.h       |   39 +++++++++++
+ include/linux/writeback.h        |    2 
+ mm/backing-dev.c                 |  120 +++++++++++++++++++++++++++++-----
+ mm/memcontrol.c                  |  134 +++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c              |    4 +
+ 8 files changed, 404 insertions(+), 53 deletions(-)
+
+--
+tejun
+
+[1] http://lkml.kernel.org/r/20190803140155.181190-1-tj@kernel.org
+[2] http://lkml.kenrel.org/r/20190815195619.GA2263813@devbig004.ftw2.facebook.com
+
 
