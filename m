@@ -2,166 +2,92 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CF6DC3A59F
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 01:41:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD2A8C3A5A4
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 01:55:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5B6462080C
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 01:41:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B6462080C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id 8932A206BB
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 01:55:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8932A206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08A0B6B0007; Mon, 26 Aug 2019 21:41:20 -0400 (EDT)
+	id 4A0056B000A; Mon, 26 Aug 2019 21:55:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 03B576B0008; Mon, 26 Aug 2019 21:41:19 -0400 (EDT)
+	id 44FE76B000C; Mon, 26 Aug 2019 21:55:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6B5F6B000A; Mon, 26 Aug 2019 21:41:19 -0400 (EDT)
+	id 3656A6B000D; Mon, 26 Aug 2019 21:55:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0092.hostedemail.com [216.40.44.92])
-	by kanga.kvack.org (Postfix) with ESMTP id C03076B0007
-	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 21:41:19 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 627D6485C
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 01:41:19 +0000 (UTC)
-X-FDA: 75866505078.17.face01_b54c38272c34
-X-HE-Tag: face01_b54c38272c34
-X-Filterd-Recvd-Size: 5407
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp [114.179.232.161])
-	by imf40.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 01:41:17 +0000 (UTC)
-Received: from mailgate02.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x7R1fB5g018428
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Tue, 27 Aug 2019 10:41:11 +0900
-Received: from mailsv02.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x7R1fBC7004398;
-	Tue, 27 Aug 2019 10:41:11 +0900
-Received: from mail03.kamome.nec.co.jp (mail03.kamome.nec.co.jp [10.25.43.7])
-	by mailsv02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x7R1f8NS009523;
-	Tue, 27 Aug 2019 10:41:11 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.150] [10.38.151.150]) by mail01b.kamome.nec.co.jp with ESMTP id BT-MMP-7897375; Tue, 27 Aug 2019 10:34:31 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC22GP.gisp.nec.co.jp ([10.38.151.150]) with mapi id 14.03.0439.000; Tue,
- 27 Aug 2019 10:34:29 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: Oscar Salvador <osalvador@suse.de>
-CC: "mhocko@kernel.org" <mhocko@kernel.org>,
-        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "vbabka@suse.cz" <vbabka@suse.cz>
-Subject: Re: poisoned pages do not play well in the buddy allocator
-Thread-Topic: poisoned pages do not play well in the buddy allocator
-Thread-Index: AQHVW/rikgbcCOwjjUKpu7s54tdytqcNoE2A
-Date: Tue, 27 Aug 2019 01:34:29 +0000
-Message-ID: <20190827013429.GA5125@hori.linux.bs1.fc.nec.co.jp>
-References: <20190826104144.GA7849@linux>
-In-Reply-To: <20190826104144.GA7849@linux>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.150]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <5C3D0DDFB19E7145A3A8CE56A8E69AE7@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0240.hostedemail.com [216.40.44.240])
+	by kanga.kvack.org (Postfix) with ESMTP id 17FAF6B000A
+	for <linux-mm@kvack.org>; Mon, 26 Aug 2019 21:55:06 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 8C2CD82437D7
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 01:55:05 +0000 (UTC)
+X-FDA: 75866539770.27.song90_83a9481f76649
+X-HE-Tag: song90_83a9481f76649
+X-Filterd-Recvd-Size: 2909
+Received: from ozlabs.org (bilbo.ozlabs.org [203.11.71.1])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 01:55:04 +0000 (UTC)
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 46HX4f0vmjz9s00;
+	Tue, 27 Aug 2019 11:54:58 +1000 (AEST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: David Sterba <dsterba@suse.cz>, Nikolay Borisov <nborisov@suse.com>
+Cc: dsterba@suse.cz, Christophe Leroy <christophe.leroy@c-s.fr>, erhard_f@mailbox.org, Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, stable@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org
+Subject: Re: [PATCH v2] btrfs: fix allocation of bitmap pages.
+In-Reply-To: <20190826164646.GX2752@twin.jikos.cz>
+References: <c3157c8e8e0e7588312b40c853f65c02fe6c957a.1566399731.git.christophe.leroy@c-s.fr> <20190826153757.GW2752@twin.jikos.cz> <a096d653-8b64-be15-3e81-581536a88e8a@suse.com> <20190826164646.GX2752@twin.jikos.cz>
+Date: Tue, 27 Aug 2019 11:54:57 +1000
+Message-ID: <871rx74bke.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2019 at 12:41:50PM +0200, Oscar Salvador wrote:
-> Hi,
->=20
-> When analyzing a problem reported by one of our customers, I stumbbled up=
-on an issue
-> that origins from the fact that poisoned pages end up in the buddy alloca=
-tor.
->=20
-> Let me break down the stepts that lie to the problem:
->=20
-> 1) We soft-offline a page
-> 2) Page gets flagged as HWPoison and is being sent to the buddy allocator=
-.
->    This is done through set_hwpoison_free_buddy_page().
-> 3) Kcompactd wakes up in order to perform some compaction.
-> 4) compact_zone() will call migrate_pages()
-> 5) migrate_pages() will try to get a new page from compaction_alloc() to =
-migrate to
-> 6) if cc->freelist is empty, compaction_alloc() will call isolate_free_pa=
-gesblock()
-> 7) isolate_free_pagesblock only checks for PageBuddy() to assume that a p=
-age is OK
->    to be used to migrate to. Since HWPoisoned page are also PageBuddy, we=
- add
->    the page to the list. (same problem exists in fast_isolate_freepages()=
-).
->=20
-> The outcome of that is that we end up happily handing poisoned pages in c=
-ompaction_alloc,
-> so if we ever got a fault on that page through *_fault, we will return VM=
-_FAULT_HWPOISON,
-> and the process will be killed.
->=20
-> I first though that I could get away with it by checking PageHWPoison in
-> {fast_isolate_freepages/isolate_free_pagesblock}, but not really.
-> It might be that the page we are checking is an order > 0 page, so the fi=
-rst page
-> might not be poisoned, but the one the follows might be, and we end up in=
- the
-> same situation.
+David Sterba <dsterba@suse.cz> writes:
+> On Mon, Aug 26, 2019 at 06:40:24PM +0300, Nikolay Borisov wrote:
+>> >> Link: https://bugzilla.kernel.org/show_bug.cgi?id=204371
+>> >> Fixes: 69d2480456d1 ("btrfs: use copy_page for copying pages instead of memcpy")
+>> >> Cc: stable@vger.kernel.org
+>> >> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+>> >> ---
+>> >> v2: Using kmem_cache instead of get_zeroed_page() in order to benefit from SLAB debugging features like redzone.
+>> > 
+>> > I'll take this version, thanks. Though I'm not happy about the allocator
+>> > behaviour. The kmem cache based fix can be backported independently to
+>> > 4.19 regardless of the SL*B fixes.
+>> > 
+>> >> +extern struct kmem_cache *btrfs_bitmap_cachep;
+>> > 
+>> > I've renamed the cache to btrfs_free_space_bitmap_cachep
+>> > 
+>> > Reviewed-by: David Sterba <dsterba@suse.com>
+>> 
+>> Isn't this obsoleted by
+>> 
+>> '[PATCH v2 0/2] guarantee natural alignment for kmalloc()' ?
+>
+> Yeah, but this would add maybe another whole dev cycle to merge and
+> release. The reporters of the bug seem to care enough to identify the
+> problem and propose the fix so I feel like adding the btrfs-specific fix
+> now is a little favor we can afford.
+>
+> The bug is reproduced on an architecture that's not widely tested so
+> from practical POV I think this adds more coverage which is desirable.
 
-Yes, this is a whole point of the current implementation.
+Thanks.
 
->=20
-> After some more thought, I really came to the conclusion that HWPoison pa=
-ges should not
-> really be in the buddy allocator, as this is only asking for problems.
-> In this case it is only compaction code, but it could be happening somewh=
-ere else,
-> and one would expect that the pages you got from the buddy allocator are =
-__ready__ to use.
->=20
-> I __think__ that we thought we were safe to put HWPoison pages in the bud=
-dy allocator as we
-> perform healthy checks when getting a page from there, so we skip poisone=
-d pages
->=20
-> Of course, this is not the end of the story, now that someone got a page,=
- if he frees it,
-> there is a high chance that this page ends up in a pcplist (I saw that).
-> Unless we are on CONFIG_VM_DEBUG, we do not check for the health of pages=
- got from pcplist,
-> as we do when getting a page from the buddy allocator.
->=20
-> I checked [1], and it seems that [2] was going towards fixing this kind o=
-f issue.
->=20
-> I think it is about time to revamp the whole thing.
->=20
-> @Naoya: I could give it a try if you are busy.
-
-Thanks for raising hand. That's really wonderful. I think that the series [=
-1] is not
-merge yet but not rejected yet, so feel free to reuse/update/revamp it.
-
->=20
-> [1] https://lore.kernel.org/linux-mm/1541746035-13408-1-git-send-email-n-=
-horiguchi@ah.jp.nec.com/
-> [2] https://lore.kernel.org/linux-mm/1541746035-13408-9-git-send-email-n-=
-horiguchi@ah.jp.nec.com/
->=20
-> --=20
-> Oscar Salvador
-> SUSE L3
-> =
-
+cheers
 
