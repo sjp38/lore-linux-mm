@@ -2,145 +2,156 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76BBAC3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 12:17:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DAE0C3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 12:20:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FC9620673
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 12:17:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 61D692184D
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 12:20:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="imq0LcQt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FC9620673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KVtpiXX+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61D692184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B31BC6B0006; Tue, 27 Aug 2019 08:17:40 -0400 (EDT)
+	id E1EFF6B0006; Tue, 27 Aug 2019 08:20:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B08666B000C; Tue, 27 Aug 2019 08:17:40 -0400 (EDT)
+	id DC5DB6B000C; Tue, 27 Aug 2019 08:20:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D0D96B000D; Tue, 27 Aug 2019 08:17:40 -0400 (EDT)
+	id CDC2C6B000D; Tue, 27 Aug 2019 08:20:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4296B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 08:17:40 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 252D268BE
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:17:40 +0000 (UTC)
-X-FDA: 75868108680.04.ear62_25c51abf0292c
-X-HE-Tag: ear62_25c51abf0292c
-X-Filterd-Recvd-Size: 5502
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:17:39 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id w5so31080311edl.8
-        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 05:17:39 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0187.hostedemail.com [216.40.44.187])
+	by kanga.kvack.org (Postfix) with ESMTP id AF16B6B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 08:20:12 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 6509B63F0
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:20:12 +0000 (UTC)
+X-FDA: 75868115064.24.tray10_3bf3af6f44425
+X-HE-Tag: tray10_3bf3af6f44425
+X-Filterd-Recvd-Size: 5808
+Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:20:11 +0000 (UTC)
+Received: by mail-io1-f65.google.com with SMTP id x4so45612331iog.13
+        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 05:20:11 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=FbGzDuD3RIJ23CO8zb5ApvjBQtLaEmsyKeBOr5aEVwk=;
-        b=imq0LcQtyoCAq4I0t8Dbrpw8qW3p9yhMU1fK7FXpWEAkChTCA/eOGL+sCo2A/5Vdhy
-         icR35TMDiD2XozCvk28c+t3qkmvleFbwayAzGcVkDjd8cEbvOQXsizvKLd3TJpRsc7cJ
-         g5CFwSbwijT5W50v67l+4k/pNFjK7gLJ4RLSEBNztBjjYSpe8HMYBbm3H88kvoD9nY1Y
-         DQc9iQ1MKP6lUqS7opFfw8u2BmSaWPVzNTQ0W0Ppb1AuiGo5HqYTjOkiRWttGHfU9D/3
-         5mtZSEGkk24Uu5ynKhR99hKzMK74T9FENLeMmtxBOXPfgmLGdEy40KiYF4IlHYPj7cs8
-         tKKQ==
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=JZZ/56kClmUu9u3Lz2o/WyytqKT9LHvtxY62+NNR8z4=;
+        b=KVtpiXX+jnNmjybRAgMq/v2UaZwJ8TQxwMhdPAdIblUW3hTj5KDbNBE+1U8XZrrqsD
+         bvaBfzdSJd4O6jptxaZwR3veMwyukJ6IK/y9Oapht5+UPyYAcCfUpf/scv+s7NsBo8E9
+         HHshJMGjEUwMyfZKGrBij9V+05AyT+6LD2+CYd/ELmgrnLDbigilxr759mZYDFLJUijN
+         lTafxftfeIz+n2j45oT3V/WlfqrQ9YtsdZfe0aXUV38hqqetZw1YVglXySEVouRtR/nA
+         xPuhta6YMWXVVN1R4GxNy0k1DADS4JvbLj9Bvq6vCV8Q0xR8QdQT/RC3+QOYg+nUbKs3
+         6v/w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=FbGzDuD3RIJ23CO8zb5ApvjBQtLaEmsyKeBOr5aEVwk=;
-        b=LG67xG9YWbjh4wv6joZ7NEwFsCg+LSQkBaAr/6UYdkGT8w8Kjn2YM08KZ4/l5g87Mj
-         Xb+fiCYV4FE2Rdq6xL49iG0jWBysAnbmD1mTw7Bbm3Tju2RhhwmjfUWuPWJASfu1T+p+
-         ckFqC0+V6MUw6Ivo8k5jcxgFbvLAqQrgjNHFit/EzG+KUX6WzWGbdh/3mg4SbNyor4Yr
-         rE2mPwkH7I2kL97vNBkvLQeGEQoSV+V1L505QgVV9GoEIqIKQVvwyHvKhXzTgfPMg9ua
-         sXxqnD9Lpdf/NVM3vzz+HWnV21eLEK4eHU8usqELafm786novJV1WT6V3GKX1EasclWy
-         +dRA==
-X-Gm-Message-State: APjAAAXmNae20B/LvbKYFSK0aj7jgiBK30UXyTVnpD45TrY3kdgrxX5E
-	aQWbJ0/shyKoefP0FGbuktKp6g==
-X-Google-Smtp-Source: APXvYqzX5zFQNMBVLvorfdtCo4ceiZTMT5GoTFrvYFVZ1XxJOiQHwWwe82lNcIwbXgct8DP82OccIg==
-X-Received: by 2002:a17:906:a3c4:: with SMTP id ca4mr20907390ejb.5.1566908258127;
-        Tue, 27 Aug 2019 05:17:38 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id v20sm1927306edl.35.2019.08.27.05.17.37
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Aug 2019 05:17:37 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id C36CA100746; Tue, 27 Aug 2019 15:17:39 +0300 (+03)
-Date: Tue, 27 Aug 2019 15:17:39 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com,
-	Yang Shi <yang.shi@linux.alibaba.com>, hannes@cmpxchg.org,
-	rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [v2 PATCH -mm] mm: account deferred split THPs into MemAvailable
-Message-ID: <20190827121739.bzbxjloq7bhmroeq@box>
-References: <1566410125-66011-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190822080434.GF12785@dhcp22.suse.cz>
- <ee048bbf-3563-d695-ea58-5f1504aee35c@suse.cz>
- <20190822152934.w6ztolutdix6kbvc@box>
- <20190826074035.GD7538@dhcp22.suse.cz>
- <20190826131538.64twqx3yexmhp6nf@box>
- <20190827060139.GM7538@dhcp22.suse.cz>
- <20190827110210.lpe36umisqvvesoa@box>
- <aaaf9742-56f7-44b7-c3db-ad078b7b2220@suse.cz>
- <20190827120923.GB7538@dhcp22.suse.cz>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=JZZ/56kClmUu9u3Lz2o/WyytqKT9LHvtxY62+NNR8z4=;
+        b=Q4eSEzKj6s5T5sleVhc36egSLQuoO5nKPzDeo5S2CYJxQWv5Txjvoc+5vlpe7a1UZL
+         7W0OAPMCg5XBMfQZ2pjPl2sWb3Tiz7Gp6lt6cFethxIgYndg33DuHeXEcs2xT0at1cYF
+         ENGvieWEMo+WHRL9+eY/bXsp0jAkrTm/ClrhYELp1QXTGQgm+B3GhigKg6HrVwq8qzn+
+         TVNz4+OzWqotoZhI6fNfyIo01puYcZJzE4iBHrTmwSpANioNmjpVqSREVIRLYOadQdMX
+         pY/J3WA1bo2ADMgCv+KmAfe3BiT5Su3wQam5XYNynHhdoA9UqInKllqUgxoLAPW1fexS
+         EqfQ==
+X-Gm-Message-State: APjAAAWcwb0LaVV2VT0gMuiGe6UcqBg46z/wJsGcyiE/Ra8nCJaf3/Kx
+	xufxO5j0vj8UcIewS/qfo05KbwBSnKeJrt3NYm0=
+X-Google-Smtp-Source: APXvYqxB8MslH6etRvDRLUd46ELBnidSNuloQ4pjR9WaeVYRpmCUEnHfXfiRR7Jcma77KFAblCBMNU0SZa/iXfGek7A=
+X-Received: by 2002:a6b:c38f:: with SMTP id t137mr8388942iof.137.1566908410262;
+ Tue, 27 Aug 2019 05:20:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190827120923.GB7538@dhcp22.suse.cz>
-User-Agent: NeoMutt/20180716
+References: <CAE1jjeePxYPvw1mw2B3v803xHVR_BNnz0hQUY_JDMN8ny29M6w@mail.gmail.com>
+ <b9cd7603-2441-d351-156a-57d6c13b2c79@linux.alibaba.com> <20190826105521.GF7538@dhcp22.suse.cz>
+ <20190827104313.GW7538@dhcp22.suse.cz> <CALOAHbBMWyPBw+Ciup4+YupbLrxcTW76w+Mfc-mGEm9kcWb8YQ@mail.gmail.com>
+ <20190827115014.GZ7538@dhcp22.suse.cz> <CALOAHbAtuQFB=GC41ZgSLXxheaEY4yz=fO9Zr5=rvTnyOYjF3A@mail.gmail.com>
+ <20190827120335.GA7538@dhcp22.suse.cz>
+In-Reply-To: <20190827120335.GA7538@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 27 Aug 2019 20:19:34 +0800
+Message-ID: <CALOAHbDbNxg1xxZAT0rf3=46DrM1PV2YEDEP6F9HMU9JvgvESA@mail.gmail.com>
+Subject: Re: WARNINGs in set_task_reclaim_state with memory cgroup and full
+ memory usage
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, Adric Blake <promarbler14@gmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 27, 2019 at 02:09:23PM +0200, Michal Hocko wrote:
-> On Tue 27-08-19 14:01:56, Vlastimil Babka wrote:
-> > On 8/27/19 1:02 PM, Kirill A. Shutemov wrote:
-> > > On Tue, Aug 27, 2019 at 08:01:39AM +0200, Michal Hocko wrote:
-> > >> On Mon 26-08-19 16:15:38, Kirill A. Shutemov wrote:
-> > >>>
-> > >>> Unmapped completely pages will be freed with current code. Deferred split
-> > >>> only applies to partly mapped THPs: at least on 4k of the THP is still
-> > >>> mapped somewhere.
-> > >>
-> > >> Hmm, I am probably misreading the code but at least current Linus' tree
-> > >> reads page_remove_rmap -> [page_remove_anon_compound_rmap ->\ deferred_split_huge_page even
-> > >> for fully mapped THP.
-> > > 
-> > > Well, you read correctly, but it was not intended. I screwed it up at some
-> > > point.
-> > > 
-> > > See the patch below. It should make it work as intened.
-> > > 
-> > > It's not bug as such, but inefficientcy. We add page to the queue where
-> > > it's not needed.
-> > 
-> > But that adding to queue doesn't affect whether the page will be freed
-> > immediately if there are no more partial mappings, right? I don't see
-> > deferred_split_huge_page() pinning the page.
-> > So your patch wouldn't make THPs freed immediately in cases where they
-> > haven't been freed before immediately, it just fixes a minor
-> > inefficiency with queue manipulation?
-> 
-> Ohh, right. I can see that in free_transhuge_page now. So fully mapped
-> THPs really do not matter and what I have considered an odd case is
-> really happening more often.
-> 
-> That being said this will not help at all for what Yang Shi is seeing
-> and we need a more proactive deferred splitting as I've mentioned
-> earlier.
+On Tue, Aug 27, 2019 at 8:03 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 27-08-19 19:56:16, Yafang Shao wrote:
+> > On Tue, Aug 27, 2019 at 7:50 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Tue 27-08-19 19:43:49, Yafang Shao wrote:
+> > > > On Tue, Aug 27, 2019 at 6:43 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > >
+> > > > > If there are no objection to the patch I will post it as a standalong
+> > > > > one.
+> > > >
+> > > > I have no objection to your patch. It could fix the issue.
+> > > >
+> > > > I still think that it is not proper to use a new scan_control here as
+> > > > it breaks the global reclaim context.
+> > > >
+> > > > This context switch from global reclaim to memcg reclaim is very
+> > > > subtle change to the subsequent processing, that may cause some
+> > > > unexpected behavior.
+> > >
+> > > Why would it break it? Could you be more specific please?
+> > >
+> >
+> > Hmm, I have explained it when replying to  Hillf's patch.
+> > The most suspcious one is settting target_mem_cgroup here, because we
+> > only use it to judge whether it is in global reclaim.
+> > While the memcg softlimit reclaim is really in global reclaims.
+>
+> But we are reclaim the target_mem_cgroup hierarchy. This is the whole
+> point of the soft reclaim. Push down that hierarchy below the configured
+> limit. And that is why we absolutely have to switch the reclaim context.
+>
 
-It was not intended to fix the issue. It's fix for current logic. I'm
-playing with the work approach now.
+One obvious issue is the reclaim couters may not correct.
+See shrink_inactive_list().
+The pages relcaimed in memcg softlimit will not be counted to
+PGSCAN_{DIRECT, KSWAPD} and
+PGSTEAL_{DIRECT, KSWAPD}.
+That may cause some misleading. For example, if these counters are not
+changed, we will think that direct relcaim doesn't occur, while it
+really occurs.
 
--- 
- Kirill A. Shutemov
+May issues are also in  some other code around the usage of
+global_reclaim(). I'm not sure of it.
+
+> > Another example the reclaim_idx, if is not same with reclaim_idx in
+> > page allocation context, the reclaimed pages may not be used by the
+> > allocator, especially in the direct reclaim.
+>
+> Again, we do not care about that as well. All we care about is to
+> reclaim _some_ memory to get below the soft limit. This is the semantic
+> that is not really great but this is how the Soft reclaim has
+> traditionally worked and why we keep claiming that people shouldn't
+> really use it. It does lead to over reclaim and that is a design rather
+> than a bug.
+>
+> > And some other things in scan_control.
+>
+> Like?
+> --
+> Michal Hocko
+> SUSE Labs
+>
 
