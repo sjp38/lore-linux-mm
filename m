@@ -2,166 +2,165 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA3FDC41514
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 18:39:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F12D4C3A5A6
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 18:41:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 748FD2186A
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 18:39:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kroah.com header.i=@kroah.com header.b="ERL0kigP";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="wMTir3CH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 748FD2186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kroah.com
+	by mail.kernel.org (Postfix) with ESMTP id A03CE21881
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 18:41:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A03CE21881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 074FD6B0006; Tue, 27 Aug 2019 14:39:47 -0400 (EDT)
+	id 22A956B000A; Tue, 27 Aug 2019 14:41:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 026986B0008; Tue, 27 Aug 2019 14:39:46 -0400 (EDT)
+	id 1D27C6B000C; Tue, 27 Aug 2019 14:41:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E565C6B000A; Tue, 27 Aug 2019 14:39:46 -0400 (EDT)
+	id 0E7B26B000D; Tue, 27 Aug 2019 14:41:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BAF886B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 14:39:46 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 2ADB5180AD7C1
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 18:39:46 +0000 (UTC)
-X-FDA: 75869071572.24.straw98_1b03a6c093e22
-X-HE-Tag: straw98_1b03a6c093e22
-X-Filterd-Recvd-Size: 6385
-Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com [66.111.4.230])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 18:39:45 +0000 (UTC)
-Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 101C528AD;
-	Tue, 27 Aug 2019 14:39:45 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute6.internal (MEProxy); Tue, 27 Aug 2019 14:39:45 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kroah.com; h=
-	date:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm1; bh=2Pi2UrTYWIZeSLhHDsmgNc73uGU
-	Eowqv9oRu+ZwsHGA=; b=ERL0kigPYO3OOz4tGQ+vEqkqh0JtqzICMMQfqdWbcU/
-	rytJcRaMGrU/T8owYvdVPhUKoDWhD0/ZOr1Z5wHQJE4Ug5/TmRzTt9/72pfzgiuL
-	Du1v8YcF7vi673FsOfHS3CwrD8BfytsPXZ9rD/wJe94ok9QIYzCYWXR7DkiwCU+T
-	cV7GGZDxvYZilkzclYwbHDf0a2VdjdCZJAOfJmPhaSHd7Yy1qGF3j1/edzsYmCHx
-	2DK47P8o90y3AcG9b8cWDMNx+XtBlahTB7SptqEo+PDdnYp+1uBj4YlurE/1aSjD
-	PmGDvqUtiNwcDXRucyXs/4vxz96WbU2QwLrkUr3ue8w==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm3; bh=2Pi2Ur
-	TYWIZeSLhHDsmgNc73uGUEowqv9oRu+ZwsHGA=; b=wMTir3CHsmW0knAj4jGavl
-	VA3aikjJIy/f6GBK9UNZuaKk7Whb35zv9Tk7sPLWnTsxGrI/w9jAcAVbOeOqD750
-	He9Pkdwp7mNCVN8qZkuPyI0wdsF6fDD5JzpVr4UpietVo1Y8/i8mJp18D3vHWjp0
-	ixBpcqJ6z8LZs5sO64y3Tq0eRdmn5Pnx2SdtHcU10vOqzSqDsmmDnkua58OkiGfG
-	ZOPrWiV2J2joUvQdfOpEItP3AXgoZ0Y2O6/rdVMJwsr3K180qg3c4xztZP35Yr+k
-	Vqw3ZcjK5GLwNwr1XwKnIfqUg1+UXhYgQDMur9W1zUXeq4WHy1Ju17TUrV8UY+Sw
-	==
-X-ME-Sender: <xms:73hlXfX7Vchuz9zmlBM56kYVBLGIQJHubf8MIvFsRBXXNJGdbaMu8Q>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduvddrudehkedgjeejucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
-    cujfgurhepfffhvffukfhfgggtuggjfgesthdtredttdervdenucfhrhhomhepifhrvghg
-    ucfmjfcuoehgrhgvgheskhhrohgrhhdrtghomheqnecuffhomhgrihhnpehkvghrnhgvlh
-    drohhrghenucfkphepkeefrdekiedrkeelrddutdejnecurfgrrhgrmhepmhgrihhlfhhr
-    ohhmpehgrhgvgheskhhrohgrhhdrtghomhenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:73hlXdH7YI8jCFkiLHviNcu0jCeAgL0xjiUisNijqqGoGNn19CErzw>
-    <xmx:73hlXafPM7yZFn7IJWAJdeE7G0lRiGGdAvdsBfdJhywjJDDgktYWtA>
-    <xmx:73hlXeqBLLjyr1V-zR_NyQdKihMQgf4PAihzAUEF3FGUVfCLeoENlQ>
-    <xmx:8XhlXTfghgODvyWc3J-F8F6rCiKefmXMXzgzjeMopFsEt6l7CsM9uw>
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	by mail.messagingengine.com (Postfix) with ESMTPA id ABAA580063;
-	Tue, 27 Aug 2019 14:39:42 -0400 (EDT)
-Date: Tue, 27 Aug 2019 20:39:40 +0200
-From: Greg KH <greg@kroah.com>
-To: Sasha Levin <sashal@kernel.org>, Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Backlund <tmb@mageia.org>,
+Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4CB6B000A
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 14:41:46 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 621427832
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 18:41:46 +0000 (UTC)
+X-FDA: 75869076612.13.hour69_2c85fc2ff6705
+X-HE-Tag: hour69_2c85fc2ff6705
+X-Filterd-Recvd-Size: 6197
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 18:41:45 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 37152AE2F;
+	Tue, 27 Aug 2019 18:41:44 +0000 (UTC)
+Date: Tue, 27 Aug 2019 20:41:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Kernel Team <Kernel-team@fb.com>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: Re: [PATCH] Partially revert "mm/memcontrol.c: keep local VM
- counters in sync with the hierarchical ones"
-Message-ID: <20190827183940.GA2924@kroah.com>
-References: <20190817004726.2530670-1-guro@fb.com>
- <20190817063616.GA11747@kroah.com>
- <20190817191518.GB11125@castle>
- <20190824125750.da9f0aac47cc0a362208f9ff@linux-foundation.org>
- <a082485b-8241-e73d-df09-5c878d181ddc@mageia.org>
- <20190827141016.GH7538@dhcp22.suse.cz>
- <20190827170618.GC21369@kroah.com>
- <20190827173950.GJ7538@dhcp22.suse.cz>
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: drop mark_page_access from the unmap path
+Message-ID: <20190827184142.GK7538@dhcp22.suse.cz>
+References: <20190731054447.GB155569@google.com>
+ <20190731072101.GX9330@dhcp22.suse.cz>
+ <20190806105509.GA94582@google.com>
+ <20190809124305.GQ18351@dhcp22.suse.cz>
+ <20190809183424.GA22347@cmpxchg.org>
+ <20190812080947.GA5117@dhcp22.suse.cz>
+ <20190812150725.GA3684@cmpxchg.org>
+ <20190813105143.GG17933@dhcp22.suse.cz>
+ <20190826120630.GI7538@dhcp22.suse.cz>
+ <20190827160026.GA27686@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190827173950.GJ7538@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190827160026.GA27686@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 27, 2019 at 07:39:50PM +0200, Michal Hocko wrote:
-> On Tue 27-08-19 19:06:18, Greg KH wrote:
-> > On Tue, Aug 27, 2019 at 04:10:16PM +0200, Michal Hocko wrote:
-> > > On Sat 24-08-19 23:23:07, Thomas Backlund wrote:
-> > > > Den 24-08-2019 kl. 22:57, skrev Andrew Morton:
-> > > > > On Sat, 17 Aug 2019 19:15:23 +0000 Roman Gushchin <guro@fb.com> wrote:
+On Tue 27-08-19 12:00:26, Johannes Weiner wrote:
+> On Mon, Aug 26, 2019 at 02:06:30PM +0200, Michal Hocko wrote:
+> > On Tue 13-08-19 12:51:43, Michal Hocko wrote:
+> > > On Mon 12-08-19 11:07:25, Johannes Weiner wrote:
+> > > > On Mon, Aug 12, 2019 at 10:09:47AM +0200, Michal Hocko wrote:
+> > [...]
+> > > > > > Maybe the refaults will be fine - but latency expectations around
+> > > > > > mapped page cache certainly are a lot higher than unmapped cache.
+> > > > > >
+> > > > > > So I'm a bit reluctant about this patch. If Minchan can be happy with
+> > > > > > the lock batching, I'd prefer that.
 > > > > > 
-> > > > > > > > Fixes: 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync with the hierarchical ones")
-> > > > > > > > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > > > > > > > Cc: Yafang Shao <laoar.shao@gmail.com>
-> > > > > > > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > > > > > > ---
-> > > > > > > >   mm/memcontrol.c | 8 +++-----
-> > > > > > > >   1 file changed, 3 insertions(+), 5 deletions(-)
-> > > > > > > 
-> > > > > > > <formletter>
-> > > > > > > 
-> > > > > > > This is not the correct way to submit patches for inclusion in the
-> > > > > > > stable kernel tree.  Please read:
-> > > > > > >      https://www.kernel.org/doc/html/latest/process/stable-kernel-rules.html
-> > > > > > > for how to do this properly.
-> > > > > > 
-> > > > > > Oh, I'm sorry, will read and follow next time. Thanks!
-> > > > > 
-> > > > > 766a4c19d880 is not present in 5.2 so no -stable backport is needed, yes?
-> > > > > 
+> > > > > Yes, it seems that the regular lock drop&relock helps in Minchan's case
+> > > > > but this is a kind of change that might have other subtle side effects.
+> > > > > E.g. will-it-scale has noticed a regression [1], likely because the
+> > > > > critical section is shorter and the overal throughput of the operation
+> > > > > decreases. Now, the w-i-s is an artificial benchmark so I wouldn't lose
+> > > > > much sleep over it normally but we have already seen real regressions
+> > > > > when the locking pattern has changed in the past so I would by a bit
+> > > > > cautious.
 > > > > 
-> > > > Unfortunately it got added in 5.2.7, so backport is needed.
+> > > > I'm much more concerned about fundamentally changing the aging policy
+> > > > of mapped page cache then about the lock breaking scheme. With locking
+> > > > we worry about CPU effects; with aging we worry about additional IO.
 > > > 
-> > > yet another example of patch not marked for stable backported to the
-> > > stable tree. yay...
+> > > But the later is observable and debuggable little bit easier IMHO.
+> > > People are quite used to watch for major faults from my experience
+> > > as that is an easy metric to compare.
+> 
+> Rootcausing additional (re)faults is really difficult. We're talking
+> about a slight trend change in caching behavior in a sea of millions
+> of pages. There could be so many factors causing this, and for most
+> you have to patch debugging stuff into the kernel to rule them out.
+> 
+> A CPU regression you can figure out with perf.
+> 
+> > > > > As I've said, this RFC is mostly to open a discussion. I would really
+> > > > > like to weigh the overhead of mark_page_accessed and potential scenario
+> > > > > when refaults would be visible in practice. I can imagine that a short
+> > > > > lived statically linked applications have higher chance of being the
+> > > > > only user unlike libraries which are often being mapped via several
+> > > > > ptes. But the main problem to evaluate this is that there are many other
+> > > > > external factors to trigger the worst case.
+> > > > 
+> > > > We can discuss the pros and cons, but ultimately we simply need to
+> > > > test it against real workloads to see if changing the promotion rules
+> > > > regresses the amount of paging we do in practice.
+> > > 
+> > > Agreed. Do you see other option than to try it out and revert if we see
+> > > regressions? We would get a workload description which would be helpful
+> > > for future regression testing when touching this area. We can start
+> > > slower and keep it in linux-next for a release cycle to catch any
+> > > fallouts early.
+> > > 
+> > > Thoughts?
 > > 
-> > If you do not want autobot to pick up patches for specific
-> > subsystems/files, just let us know and we will add them to the
-> > blacklist.
+> > ping...
 > 
-> Done that on several occasions over last year and so. I always get "yep
-> we are going to black list" and whoops and we are back there with
-> patches going to stable like nothing happened. We've been through this
-> discussion so many times I am tired of it and to be honest I simply do
-> not care anymore.
+> Personally, I'm not convinced by this patch. I think it's a pretty
+> drastic change in aging heuristics just to address a CPU overhead
+> problem that has simpler, easier to verify, alternative solutions.
 > 
-> I will keep encouraging people to mark patches for stable but I do not
-> give a wee bit about any reports for the stable tree. Nor do I care
-> whether something made it in and we should be careful to mark another
-> patch for stable as a fixup like this one.
+> It WOULD be great to clarify and improve the aging model for mapped
+> cache, to make it a bit easier to reason about.
 
-Sasha, can you add these to the blacklist for autosel?
+I fully agree with this! Do you have any specific ideas? I am afraid I
+am unlikely to find time for a larger project that this sounds to be but
+maybe others will find this as a good fit.
 
-thanks,
+> But this patch does
+> not really get there either. Instead of taking a serious look at
+> mapped cache lifetime and usage scenarios, the changelog is more in
+> "let's see what breaks if we take out this screw here" territory.
 
-greg k-h
+You know that I tend to be quite conservative. In this case I can see
+the cost which is not negligible and likely to hit many workloads
+because it is a common path. The immediate benefit is not really clear,
+though, at least to me. We can speculate and I would really love to hear
+from Nick what exactly led him to this change.
+ 
+> So I'm afraid I don't think the patch & changelog in its current shape
+> should go upstream.
+
+I will not insist of course but it would be really great to know and
+_document_ why we are doing this. I really hate how often we keep
+different heuristics and build more complex solutions on top just
+because nobody dares to change that.
+
+Our code is really hard to reason about.
+
+-- 
+Michal Hocko
+SUSE Labs
 
