@@ -2,172 +2,124 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53EABC3A5A6
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:00:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CF27C3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:34:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07DC52173E
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:00:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="eJUxPH8t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07DC52173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 10C2A214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:34:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10C2A214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 90FA86B0006; Tue, 27 Aug 2019 12:00:31 -0400 (EDT)
+	id 6D5916B0006; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B4B86B0008; Tue, 27 Aug 2019 12:00:31 -0400 (EDT)
+	id 69ED26B0008; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A3B86B000A; Tue, 27 Aug 2019 12:00:31 -0400 (EDT)
+	id 5B4D36B000A; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0214.hostedemail.com [216.40.44.214])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB226B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:00:31 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 05E64180AD7C3
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:00:31 +0000 (UTC)
-X-FDA: 75868670262.07.pan15_5bb9cfd779247
-X-HE-Tag: pan15_5bb9cfd779247
-X-Filterd-Recvd-Size: 7175
-Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:00:30 +0000 (UTC)
-Received: by mail-qt1-f196.google.com with SMTP id y26so21833650qto.4
-        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 09:00:29 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=rH/1tTvlYkg15K2136KKkCg35YWO5qbCo6KQMWJH/dA=;
-        b=eJUxPH8tUpDBeYhZKoy1hw88Tryl0kFC0GG9rM9jzV22IAdgol1wTRmxWg4HyfxiZy
-         5e9PjEgIMpLuv4RuwBmLILrM5KITh8zt1KBeQsyv1B5J3rWcKzRXPib3rHSsKxe3TsZC
-         VzBEUZBjsjw/qX33qi2GwcMNsdw55UJgk5Pzonzwvb3zUHqFkRwUjsXk2/qiWcPZgK6D
-         iMutWNGahYD3AzRn4yy3s+QRx9ffWar/LVjPdPIpzwIw6MRdC9WlonArFrGJ3EVS7II+
-         Cp/6bExywOnkSQa7rvwwTtT9nLJn3nfvwrWPWDdBApt50dONhmDfLC+OxSK8E0ACh5Su
-         hqvA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=rH/1tTvlYkg15K2136KKkCg35YWO5qbCo6KQMWJH/dA=;
-        b=YHwYWyistteIkbV7UmnwzH2Wyom0OpxL4yvc2HyXxY2IGbFdLyGG0xqT3XR4U3RGj9
-         OJwKyoN92s46EZ/Da1iG3CUsiXMBch7cHKyAQiVr6bV2sY9JayrGx4m91dE9TR74Kpwx
-         QzyhuDXH6QO4Cva94pYEucZ6zhqGyS3nH69nDvhRrqwv6BBziJFZZ3pxQkU7jvQNxZ4D
-         LjDWPBE7/f58la9uXV7H8QbvBsXTQuoIz2mQvFGJXg25ZbOFPa+U4n1in6X4RkkvLCkW
-         j+kG4mRYKNB5w6nkwXOrEx58XN8427YXLCsv05028HCfwTJM3bCH8gOqb0iPeX7GUSpH
-         zUAg==
-X-Gm-Message-State: APjAAAUPtEuMNoEWHOqj2ZErmoNqdSmXucn+X0vpgjPhYWrsjp9hyUon
-	wowpuMff4AXXkZygQYSFhbQdDA==
-X-Google-Smtp-Source: APXvYqw4XmVgosaFRnbyI5ViD/J6mQI+By7Nkk4W+/DmGJ4WHb2ZXey6VL5DjwigbWd69yP+VQKDiQ==
-X-Received: by 2002:ac8:b8e:: with SMTP id h14mr23859599qti.177.1566921629148;
-        Tue, 27 Aug 2019 09:00:29 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::3:3d13])
-        by smtp.gmail.com with ESMTPSA id 20sm8153707qkg.59.2019.08.27.09.00.27
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 27 Aug 2019 09:00:27 -0700 (PDT)
-Date: Tue, 27 Aug 2019 12:00:26 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [RFC PATCH] mm: drop mark_page_access from the unmap path
-Message-ID: <20190827160026.GA27686@cmpxchg.org>
-References: <20190730125751.GS9330@dhcp22.suse.cz>
- <20190731054447.GB155569@google.com>
- <20190731072101.GX9330@dhcp22.suse.cz>
- <20190806105509.GA94582@google.com>
- <20190809124305.GQ18351@dhcp22.suse.cz>
- <20190809183424.GA22347@cmpxchg.org>
- <20190812080947.GA5117@dhcp22.suse.cz>
- <20190812150725.GA3684@cmpxchg.org>
- <20190813105143.GG17933@dhcp22.suse.cz>
- <20190826120630.GI7538@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA146B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 7BD15879E
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:33:40 +0000 (UTC)
+X-FDA: 75868753800.24.walk19_5a3c02971913d
+X-HE-Tag: walk19_5a3c02971913d
+X-Filterd-Recvd-Size: 4479
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:33:39 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CA12B8077F2;
+	Tue, 27 Aug 2019 16:33:38 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.63])
+	by smtp.corp.redhat.com (Postfix) with SMTP id CE25B5C1D6;
+	Tue, 27 Aug 2019 16:33:36 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Tue, 27 Aug 2019 18:33:37 +0200 (CEST)
+Date: Tue, 27 Aug 2019 18:33:35 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Kefeng Wang <wangkefeng.wang@huawei.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>,
+	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
+Message-ID: <20190827163334.GB6291@redhat.com>
+References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190826120630.GI7538@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.67]); Tue, 27 Aug 2019 16:33:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2019 at 02:06:30PM +0200, Michal Hocko wrote:
-> On Tue 13-08-19 12:51:43, Michal Hocko wrote:
-> > On Mon 12-08-19 11:07:25, Johannes Weiner wrote:
-> > > On Mon, Aug 12, 2019 at 10:09:47AM +0200, Michal Hocko wrote:
-> [...]
-> > > > > Maybe the refaults will be fine - but latency expectations around
-> > > > > mapped page cache certainly are a lot higher than unmapped cache.
-> > > > >
-> > > > > So I'm a bit reluctant about this patch. If Minchan can be happy with
-> > > > > the lock batching, I'd prefer that.
-> > > > 
-> > > > Yes, it seems that the regular lock drop&relock helps in Minchan's case
-> > > > but this is a kind of change that might have other subtle side effects.
-> > > > E.g. will-it-scale has noticed a regression [1], likely because the
-> > > > critical section is shorter and the overal throughput of the operation
-> > > > decreases. Now, the w-i-s is an artificial benchmark so I wouldn't lose
-> > > > much sleep over it normally but we have already seen real regressions
-> > > > when the locking pattern has changed in the past so I would by a bit
-> > > > cautious.
-> > > 
-> > > I'm much more concerned about fundamentally changing the aging policy
-> > > of mapped page cache then about the lock breaking scheme. With locking
-> > > we worry about CPU effects; with aging we worry about additional IO.
-> > 
-> > But the later is observable and debuggable little bit easier IMHO.
-> > People are quite used to watch for major faults from my experience
-> > as that is an easy metric to compare.
+Hi Kefeng,
 
-Rootcausing additional (re)faults is really difficult. We're talking
-about a slight trend change in caching behavior in a sea of millions
-of pages. There could be so many factors causing this, and for most
-you have to patch debugging stuff into the kernel to rule them out.
-
-A CPU regression you can figure out with perf.
-
-> > > > As I've said, this RFC is mostly to open a discussion. I would really
-> > > > like to weigh the overhead of mark_page_accessed and potential scenario
-> > > > when refaults would be visible in practice. I can imagine that a short
-> > > > lived statically linked applications have higher chance of being the
-> > > > only user unlike libraries which are often being mapped via several
-> > > > ptes. But the main problem to evaluate this is that there are many other
-> > > > external factors to trigger the worst case.
-> > > 
-> > > We can discuss the pros and cons, but ultimately we simply need to
-> > > test it against real workloads to see if changing the promotion rules
-> > > regresses the amount of paging we do in practice.
-> > 
-> > Agreed. Do you see other option than to try it out and revert if we see
-> > regressions? We would get a workload description which would be helpful
-> > for future regression testing when touching this area. We can start
-> > slower and keep it in linux-next for a release cycle to catch any
-> > fallouts early.
-> > 
-> > Thoughts?
+On 08/13, Kefeng Wang wrote:
+>
+> Syzkaller reproducer:
+> # {Threaded:true Collide:true Repeat:false RepeatTimes:0 Procs:1 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true EnableNetDev:true EnableNetReset:false EnableCgroups:false EnableBinfmtMisc:true EnableCloseFds:true UseTmpDir:true HandleSegv:true Repro:false Trace:false}
+> r0 = userfaultfd(0x80800)
+> ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000000200))
+> ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000000080)={{&(0x7f0000ff2000/0xe000)=nil, 0xe000}, 0x1})
+> ioctl$UFFDIO_COPY(r0, 0xc028aa03, 0x0)
+> ioctl$UFFDIO_COPY(r0, 0xc028aa03, &(0x7f0000000000)={&(0x7f0000ffc000/0x3000)=nil, &(0x7f0000ffd000/0x2000)=nil, 0x3000})
+> syz_execute_func(&(0x7f00000000c0)="4134de984013e80f059532058300000071f3c4e18dd1ce5a65460f18320ce0b9977d8f64360f6e54e3a50fe53ff30fb837c42195dc42eddb8f087ca2a4d2c4017b708fa878c3e600f3266440d9a200000000c4016c5bdd7d0867dfe07f00f20f2b5f0009404cc442c102282cf2f20f51e22ef2e1291010f2262ef045814cb39700000000f32e3ef0fe05922f79a4000030470f3b58c1312fe7460f50ce0502338d00858526660f346253f6010f0f801d000000470f0f2c0a90c7c7df84feefff3636260fe02c98c8b8fcfc81fc51720a40400e700064660f71e70d2e0f57dfe819d0253f3ecaf06ad647608c41ffc42249bccb430f9bc8b7a042420f8d0042171e0f95ca9f7f921000d9fac4a27d5a1fc4a37961309de9000000003171460fc4d303c466410fd6389dc4426c456300c4233d4c922d92abf90ac6c34df30f5ee50909430f3a15e7776f6e866b0fdfdfc482797841cf6ffc842d9b9a516dc2e52ef2ac2636f20f114832d46231bffd4834eaeac4237d09d0003766420f160182c4a37d047882007f108f2808a6e68fc401505d6a82635d1467440fc7ba0c000000d4c482359652745300")
+> poll(&(0x7f00000000c0)=[{}], 0x1, 0x0)
 > 
-> ping...
+> ./syz-execprog -executor=./syz-executor -repeat=0 -procs=16 -cover=0 repofile
 
-Personally, I'm not convinced by this patch. I think it's a pretty
-drastic change in aging heuristics just to address a CPU overhead
-problem that has simpler, easier to verify, alternative solutions.
+I tried to reproduce using the C code provided by Tetsuo but it doesn't work
+for me.
 
-It WOULD be great to clarify and improve the aging model for mapped
-cache, to make it a bit easier to reason about. But this patch does
-not really get there either. Instead of taking a serious look at
-mapped cache lifetime and usage scenarios, the changelog is more in
-"let's see what breaks if we take out this screw here" territory.
+Could you run this test-case with the patch below? (on top of the fix you have
+already tested).
 
-So I'm afraid I don't think the patch & changelog in its current shape
-should go upstream.
+Oleg.
+
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -882,6 +882,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 	unsigned long new_flags;
+ 	bool still_valid;
+ 
++	file->private_data = (void*)0x6666;
++
+ 	WRITE_ONCE(ctx->released, true);
+ 
+ 	if (!mmget_not_zero(mm))
+@@ -1859,6 +1861,8 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+ 	int ret = -EINVAL;
+ 	struct userfaultfd_ctx *ctx = file->private_data;
+ 
++	BUG_ON(ctx == (void*)0x6666);
++
+ 	if (cmd != UFFDIO_API && ctx->state == UFFD_STATE_WAIT_API)
+ 		return -EINVAL;
+ 
+@@ -1882,6 +1886,8 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+ 		ret = userfaultfd_zeropage(ctx, arg);
+ 		break;
+ 	}
++
++	BUG_ON(ctx != file->private_data);
+ 	return ret;
+ }
+ 
+
 
