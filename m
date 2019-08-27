@@ -2,391 +2,245 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFF1AC3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:49:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 956DAC3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 11:02:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94D4F205C9
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:49:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94D4F205C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4BE6520828
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 11:02:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="s6DFBTmg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BE6520828
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E7B16B0007; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
+	id D3F006B0005; Tue, 27 Aug 2019 07:02:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29A896B0008; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
+	id CF02C6B0006; Tue, 27 Aug 2019 07:02:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1874E6B000A; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
+	id BDEB16B0007; Tue, 27 Aug 2019 07:02:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DF73D6B0007
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:49:26 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E8296B0005
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 07:02:11 -0400 (EDT)
 Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 6713D6124
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:49:26 +0000 (UTC)
-X-FDA: 75867886332.25.dogs74_8c41a41004953
-X-HE-Tag: dogs74_8c41a41004953
-X-Filterd-Recvd-Size: 15397
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:49:23 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C39F328;
-	Tue, 27 Aug 2019 03:49:22 -0700 (PDT)
-Received: from [10.1.197.57] (e110467-lin.cambridge.arm.com [10.1.197.57])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 7D3FC3F718;
-	Tue, 27 Aug 2019 03:49:14 -0700 (PDT)
-Subject: Re: [PATCH v2 6/6] mm/memory_hotplug: Pass nid instead of zone to
- __remove_pages()
-To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will@kernel.org>, Tony Luck <tony.luck@intel.com>,
- Fenghua Yu <fenghua.yu@intel.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, Vasily Gorbik
- <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
- <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>,
- Mark Rutland <mark.rutland@arm.com>, Steve Capper <steve.capper@arm.com>,
- Mike Rapoport <rppt@linux.ibm.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>, Yu Zhao <yuzhao@google.com>,
- Jun Yao <yaojun8558363@gmail.com>, Michal Hocko <mhocko@suse.com>,
- Oscar Salvador <osalvador@suse.de>,
- "Matthew Wilcox (Oracle)" <willy@infradead.org>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- Halil Pasic <pasic@linux.ibm.com>, Tom Lendacky <thomas.lendacky@amd.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Dan Williams <dan.j.williams@intel.com>, Wei Yang
- <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
- Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
- Ira Weiny <ira.weiny@intel.com>, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org
-References: <20190826101012.10575-1-david@redhat.com>
- <20190826101012.10575-7-david@redhat.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <3caaf386-a2fa-fbee-8159-fb32fdc57555@arm.com>
-Date: Tue, 27 Aug 2019 11:49:13 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+	by forelay04.hostedemail.com (Postfix) with SMTP id 47E882C8F
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 11:02:11 +0000 (UTC)
+X-FDA: 75867918462.25.club29_6a4eb69224a4a
+X-HE-Tag: club29_6a4eb69224a4a
+X-Filterd-Recvd-Size: 10070
+Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 11:02:10 +0000 (UTC)
+Received: by mail-ed1-f68.google.com with SMTP id h8so30830780edv.7
+        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 04:02:10 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=7fnPfQvHdj0cCNP+7IEvEZfVCE/dpJFzoNujaWzCQQQ=;
+        b=s6DFBTmgS6Yc0h0SlDz+odoUsq7fVE6ckLWOQ9B4676EawP55OiesX/CkBb2PcaSqx
+         4II3rHil2BZinimKMh7NnIYRqQuMh1dtHXD8fu09KgJrrb4dMj50RNDsXrKb15XLIPcJ
+         fDtRdYmszY76Z7L82+sJ/S9VAOGUbVAVMMyu9wXMyYMIj2NcjLGGerWy2B7S74N/XrcT
+         W6u1ueehHlNJoIYcnzb27i6FAQoj7FWy+C7Iome07z++tCj3h51lAAaV9/fCODgeEd0r
+         +qTx8YM+vRuEJddtY1iQBq0V3t58xtdyn5ccHLDne8wYGnbUeivy36XxEt1ITDZg1wJn
+         XLng==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=7fnPfQvHdj0cCNP+7IEvEZfVCE/dpJFzoNujaWzCQQQ=;
+        b=UWGlR6MPcgTeAL9X1vaU0tyGGfUvMg5EDK10fLyZQT4HS7ptDViveC2xinkHcq/f0Z
+         4U5l0RRW/mMOjiuvxYxb7fqUiSasIW9PkbV5Vy9K05Lb3dHkx/hX2g04B73tjFi+GyNf
+         w7Dir+4glqeqRpxBaGlTyM6AU08L/NBiRQp3Z+/kH6UUBGAfFiXIpYY5fbT5VH6jfDgS
+         7WZeqYSIsnWe7yzroAxRsqC0Kr63XuaE22aOUOTGC74RqkjFaKEzSMI9OlEOBuvhrZDX
+         c/Cz7edH7obYzf+awbRt43XsYNVbzhnEPy6XCyJ0+WxGKaCU4wr73ft69CJwR4/pzbI6
+         +M2g==
+X-Gm-Message-State: APjAAAVv+1QZa+Vh5TQtnG3vZduoBUr2Ge978TP5wf/Y08T3OhVGmhhq
+	NdUnCQSHtIsNRDIXG/vZH/DM3Q==
+X-Google-Smtp-Source: APXvYqw1xRlVWnZVVSBchXgBbxOyJjGLDPVUV8uy23WlamQ1eK8AXx5ktvNpSgsNEg2R7DkbIsMpyw==
+X-Received: by 2002:a17:906:4d8d:: with SMTP id s13mr20130220eju.86.1566903729183;
+        Tue, 27 Aug 2019 04:02:09 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id c6sm1933149edx.20.2019.08.27.04.02.07
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Aug 2019 04:02:08 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 5F8AE100746; Tue, 27 Aug 2019 14:02:10 +0300 (+03)
+Date: Tue, 27 Aug 2019 14:02:10 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com,
+	Yang Shi <yang.shi@linux.alibaba.com>, hannes@cmpxchg.org,
+	rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [v2 PATCH -mm] mm: account deferred split THPs into MemAvailable
+Message-ID: <20190827110210.lpe36umisqvvesoa@box>
+References: <1566410125-66011-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190822080434.GF12785@dhcp22.suse.cz>
+ <ee048bbf-3563-d695-ea58-5f1504aee35c@suse.cz>
+ <20190822152934.w6ztolutdix6kbvc@box>
+ <20190826074035.GD7538@dhcp22.suse.cz>
+ <20190826131538.64twqx3yexmhp6nf@box>
+ <20190827060139.GM7538@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190826101012.10575-7-david@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190827060139.GM7538@dhcp22.suse.cz>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26/08/2019 11:10, David Hildenbrand wrote:
-> The zone parameter is no longer in use. Replace it with the nid, which
-> we can now use the nid to limit the number of zones we have to process
-> (vie for_each_zone_nid()). The function signature of __remove_pages() now
-> looks much more similar to the one of __add_pages().
-
-FWIW I recall this being trivially easy to hit when first playing with 
-hotremove development for arm64 - since we only have 3 zones, the page 
-flags poison would cause page_zone() to dereference past the end of 
-node_zones[] and go all kinds of wrong. This looks like a definite 
-improvement in API terms.
-
-For arm64,
-
-Acked-by: Robin Murphy <robin.murphy@arm.com>
-
-Cheers,
-Robin.
-
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will@kernel.org>
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Vasily Gorbik <gor@linux.ibm.com>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-> Cc: Rich Felker <dalias@libc.org>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: x86@kernel.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Steve Capper <steve.capper@arm.com>
-> Cc: Mike Rapoport <rppt@linux.ibm.com>
-> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
-> Cc: Yu Zhao <yuzhao@google.com>
-> Cc: Jun Yao <yaojun8558363@gmail.com>
-> Cc: Robin Murphy <robin.murphy@arm.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: Halil Pasic <pasic@linux.ibm.com>
-> Cc: Tom Lendacky <thomas.lendacky@amd.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Wei Yang <richard.weiyang@gmail.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->   arch/arm64/mm/mmu.c            |  4 +---
->   arch/ia64/mm/init.c            |  4 +---
->   arch/powerpc/mm/mem.c          |  3 +--
->   arch/s390/mm/init.c            |  4 +---
->   arch/sh/mm/init.c              |  4 +---
->   arch/x86/mm/init_32.c          |  4 +---
->   arch/x86/mm/init_64.c          |  4 +---
->   include/linux/memory_hotplug.h |  2 +-
->   mm/memory_hotplug.c            | 17 +++++++++--------
->   mm/memremap.c                  |  3 +--
->   10 files changed, 18 insertions(+), 31 deletions(-)
+On Tue, Aug 27, 2019 at 08:01:39AM +0200, Michal Hocko wrote:
+> On Mon 26-08-19 16:15:38, Kirill A. Shutemov wrote:
+> > On Mon, Aug 26, 2019 at 09:40:35AM +0200, Michal Hocko wrote:
+> > > On Thu 22-08-19 18:29:34, Kirill A. Shutemov wrote:
+> > > > On Thu, Aug 22, 2019 at 02:56:56PM +0200, Vlastimil Babka wrote:
+> > > > > On 8/22/19 10:04 AM, Michal Hocko wrote:
+> > > > > > On Thu 22-08-19 01:55:25, Yang Shi wrote:
+> > > > > >> Available memory is one of the most important metrics for memory
+> > > > > >> pressure.
+> > > > > > 
+> > > > > > I would disagree with this statement. It is a rough estimate that tells
+> > > > > > how much memory you can allocate before going into a more expensive
+> > > > > > reclaim (mostly swapping). Allocating that amount still might result in
+> > > > > > direct reclaim induced stalls. I do realize that this is simple metric
+> > > > > > that is attractive to use and works in many cases though.
+> > > > > > 
+> > > > > >> Currently, the deferred split THPs are not accounted into
+> > > > > >> available memory, but they are reclaimable actually, like reclaimable
+> > > > > >> slabs.
+> > > > > >> 
+> > > > > >> And, they seems very common with the common workloads when THP is
+> > > > > >> enabled.  A simple run with MariaDB test of mmtest with THP enabled as
+> > > > > >> always shows it could generate over fifteen thousand deferred split THPs
+> > > > > >> (accumulated around 30G in one hour run, 75% of 40G memory for my VM).
+> > > > > >> It looks worth accounting in MemAvailable.
+> > > > > > 
+> > > > > > OK, this makes sense. But your above numbers are really worrying.
+> > > > > > Accumulating such a large amount of pages that are likely not going to
+> > > > > > be used is really bad. They are essentially blocking any higher order
+> > > > > > allocations and also push the system towards more memory pressure.
+> > > > > > 
+> > > > > > IIUC deferred splitting is mostly a workaround for nasty locking issues
+> > > > > > during splitting, right? This is not really an optimization to cache
+> > > > > > THPs for reuse or something like that. What is the reason this is not
+> > > > > > done from a worker context? At least THPs which would be freed
+> > > > > > completely sound like a good candidate for kworker tear down, no?
+> > > > > 
+> > > > > Agreed that it's a good question. For Kirill :) Maybe with kworker approach we
+> > > > > also wouldn't need the cgroup awareness?
+> > > > 
+> > > > I don't remember a particular locking issue, but I cannot say there's
+> > > > none :P
+> > > > 
+> > > > It's artifact from decoupling PMD split from compound page split: the same
+> > > > page can be mapped multiple times with combination of PMDs and PTEs. Split
+> > > > of one PMD doesn't need to trigger split of all PMDs and underlying
+> > > > compound page.
+> > > > 
+> > > > Other consideration is the fact that page split can fail and we need to
+> > > > have fallback for this case.
+> > > > 
+> > > > Also in most cases THP split would be just waste of time if we would do
+> > > > them at the spot. If you don't have memory pressure it's better to wait
+> > > > until process termination: less pages on LRU is still beneficial.
+> > > 
+> > > This might be true but the reality shows that a lot of THPs might be
+> > > waiting for the memory pressure that is essentially freeable on the
+> > > spot. So I am not really convinced that "less pages on LRUs" is really a
+> > > plausible justification. Can we free at least those THPs which are
+> > > unmapped completely without any pte mappings?
+> > 
+> > Unmapped completely pages will be freed with current code. Deferred split
+> > only applies to partly mapped THPs: at least on 4k of the THP is still
+> > mapped somewhere.
 > 
-> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> index e67bab4d613e..9a2d388314f3 100644
-> --- a/arch/arm64/mm/mmu.c
-> +++ b/arch/arm64/mm/mmu.c
-> @@ -1080,7 +1080,6 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct zone *zone;
->   
->   	/*
->   	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
-> @@ -1089,7 +1088,6 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
->   	 * unlocked yet.
->   	 */
-> -	zone = page_zone(pfn_to_page(start_pfn));
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   }
->   #endif
-> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> index bf9df2625bc8..ae6a3e718aa0 100644
-> --- a/arch/ia64/mm/init.c
-> +++ b/arch/ia64/mm/init.c
-> @@ -689,9 +689,7 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct zone *zone;
->   
-> -	zone = page_zone(pfn_to_page(start_pfn));
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   }
->   #endif
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index 9191a66b3bc5..af21e13529ce 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -130,10 +130,9 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct page *page = pfn_to_page(start_pfn) + vmem_altmap_offset(altmap);
->   	int ret;
->   
-> -	__remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   
->   	/* Remove htab bolted mappings for this section of memory */
->   	start = (unsigned long)__va(start);
-> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-> index 20340a03ad90..2a7373ed6ded 100644
-> --- a/arch/s390/mm/init.c
-> +++ b/arch/s390/mm/init.c
-> @@ -296,10 +296,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct zone *zone;
->   
-> -	zone = page_zone(pfn_to_page(start_pfn));
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   	vmem_remove_mapping(start, size);
->   }
->   #endif /* CONFIG_MEMORY_HOTPLUG */
-> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-> index dfdbaa50946e..32441b59297d 100644
-> --- a/arch/sh/mm/init.c
-> +++ b/arch/sh/mm/init.c
-> @@ -434,9 +434,7 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = PFN_DOWN(start);
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct zone *zone;
->   
-> -	zone = page_zone(pfn_to_page(start_pfn));
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   }
->   #endif /* CONFIG_MEMORY_HOTPLUG */
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index 4068abb9427f..2760e4bfbc56 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -865,10 +865,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct zone *zone;
->   
-> -	zone = page_zone(pfn_to_page(start_pfn));
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   }
->   #endif
->   
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index a6b5c653727b..99d92297f1cf 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1212,10 +1212,8 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
->   {
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	unsigned long nr_pages = size >> PAGE_SHIFT;
-> -	struct page *page = pfn_to_page(start_pfn) + vmem_altmap_offset(altmap);
-> -	struct zone *zone = page_zone(page);
->   
-> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
->   	kernel_physical_mapping_remove(start, start + size);
->   }
->   #endif /* CONFIG_MEMORY_HOTPLUG */
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index f46ea71b4ffd..c5b38e7dc8aa 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -125,7 +125,7 @@ static inline bool movable_node_is_enabled(void)
->   
->   extern void arch_remove_memory(int nid, u64 start, u64 size,
->   			       struct vmem_altmap *altmap);
-> -extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
-> +extern void __remove_pages(int nid, unsigned long start_pfn,
->   			   unsigned long nr_pages, struct vmem_altmap *altmap);
->   
->   /* reasonably generic interface to expand the physical pages */
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index e88c96cf9d77..49ca3364eb70 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -514,7 +514,7 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn,
->   	pgdat_resize_unlock(zone->zone_pgdat, &flags);
->   }
->   
-> -static void __remove_section(unsigned long pfn, unsigned long nr_pages,
-> +static void __remove_section(int nid, unsigned long pfn, unsigned long nr_pages,
->   			     unsigned long map_offset,
->   			     struct vmem_altmap *altmap)
->   {
-> @@ -525,14 +525,14 @@ static void __remove_section(unsigned long pfn, unsigned long nr_pages,
->   		return;
->   
->   	/* TODO: move zone handling out of memory removal path */
-> -	for_each_zone(zone)
-> +	for_each_zone_nid(zone, nid)
->   		__remove_zone(zone, pfn, nr_pages);
->   	sparse_remove_section(ms, pfn, nr_pages, map_offset, altmap);
->   }
->   
->   /**
->    * __remove_pages() - remove sections of pages from a zone
-> - * @zone: zone from which pages need to be removed
-> + * @nid: the nid all pages were added to
->    * @pfn: starting pageframe (must be aligned to start of a section)
->    * @nr_pages: number of pages to remove (must be multiple of section size)
->    * @altmap: alternative device page map or %NULL if default memmap is used
-> @@ -542,12 +542,13 @@ static void __remove_section(unsigned long pfn, unsigned long nr_pages,
->    * sure that pages are marked reserved and zones are adjust properly by
->    * calling offline_pages().
->    */
-> -void __remove_pages(struct zone *zone, unsigned long pfn,
-> -		    unsigned long nr_pages, struct vmem_altmap *altmap)
-> +void __remove_pages(int nid, unsigned long pfn, unsigned long nr_pages,
-> +		    struct vmem_altmap *altmap)
->   {
->   	const unsigned long end_pfn = pfn + nr_pages;
->   	unsigned long cur_nr_pages;
->   	unsigned long map_offset = 0;
-> +	struct zone *zone;
->   
->   	if (check_pfn_span(pfn, nr_pages, "remove"))
->   		return;
-> @@ -555,7 +556,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
->   	map_offset = vmem_altmap_offset(altmap);
->   
->   	/* TODO: move zone handling out of memory removal path */
-> -	for_each_zone(zone)
-> +	for_each_zone_nid(zone, nid)
->   		if (zone_intersects(zone, pfn, nr_pages))
->   			clear_zone_contiguous(zone);
->   
-> @@ -563,12 +564,12 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
->   		cond_resched();
->   		/* Select all remaining pages up to the next section boundary */
->   		cur_nr_pages = min(end_pfn - pfn, -(pfn | PAGE_SECTION_MASK));
-> -		__remove_section(pfn, cur_nr_pages, map_offset, altmap);
-> +		__remove_section(nid, pfn, cur_nr_pages, map_offset, altmap);
->   		map_offset = 0;
->   	}
->   
->   	/* TODO: move zone handling out of memory removal path */
-> -	for_each_zone(zone)
-> +	for_each_zone_nid(zone, nid)
->   		set_zone_contiguous(zone);
->   }
->   
-> diff --git a/mm/memremap.c b/mm/memremap.c
-> index 8a394552b5bd..292ef4c6b447 100644
-> --- a/mm/memremap.c
-> +++ b/mm/memremap.c
-> @@ -138,8 +138,7 @@ static void devm_memremap_pages_release(void *data)
->   	mem_hotplug_begin();
->   	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
->   		pfn = PHYS_PFN(res->start);
-> -		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
-> -				 PHYS_PFN(resource_size(res)), NULL);
-> +		__remove_pages(nid, pfn, PHYS_PFN(resource_size(res)), NULL);
->   	} else {
->   		arch_remove_memory(nid, res->start, resource_size(res),
->   				pgmap_altmap(pgmap));
+> Hmm, I am probably misreading the code but at least current Linus' tree
+> reads page_remove_rmap -> [page_remove_anon_compound_rmap ->\ deferred_split_huge_page even
+> for fully mapped THP.
+
+Well, you read correctly, but it was not intended. I screwed it up at some
+point.
+
+See the patch below. It should make it work as intened.
+
+It's not bug as such, but inefficientcy. We add page to the queue where
+it's not needed.
+
+> > > > Main source of partly mapped THPs comes from exit path. When PMD mapping
+> > > > of THP got split across multiple VMAs (for instance due to mprotect()),
+> > > > in exit path we unmap PTEs belonging to one VMA just before unmapping the
+> > > > rest of the page. It would be total waste of time to split the page in
+> > > > this scenario.
+> > > > 
+> > > > The whole deferred split thing still looks as a reasonable compromise
+> > > > to me.
+> > > 
+> > > Even when it leads to all other problems mentioned in this and memcg
+> > > deferred reclaim series?
+> > 
+> > Yes.
+> > 
+> > You would still need deferred split even if you *try* to split the page on
+> > the spot. split_huge_page() can fail (due to pin on the page) and you will
+> > need to have a way to try again later.
+> > 
+> > You'll not win anything in complexity by trying split_huge_page()
+> > immediately. I would ague you'll create much more complexity.
 > 
+> I am not arguing for in place split. I am arguing to do it ASAP rather
+> than to wait for memory pressure which might be in an unbound amount of
+> time. So let me ask again. Why cannot we do that in the worker context?
+> Essentially schedure the work item right away?
+
+Let me look into it.
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 003377e24232..45388f1bf317 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1271,12 +1271,20 @@ static void page_remove_anon_compound_rmap(struct page *page)
+ 	if (TestClearPageDoubleMap(page)) {
+ 		/*
+ 		 * Subpages can be mapped with PTEs too. Check how many of
+-		 * themi are still mapped.
++		 * them are still mapped.
+ 		 */
+ 		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
+ 			if (atomic_add_negative(-1, &page[i]._mapcount))
+ 				nr++;
+ 		}
++
++		/*
++		 * Queue the page for deferred split if at least one small
++		 * page of the compound page is unmapped, but at least one
++		 * small page is still mapped.
++		 */
++		if (nr && nr < HPAGE_PMD_NR)
++			deferred_split_huge_page(page);
+ 	} else {
+ 		nr = HPAGE_PMD_NR;
+ 	}
+@@ -1284,10 +1292,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
+ 	if (unlikely(PageMlocked(page)))
+ 		clear_page_mlock(page);
+ 
+-	if (nr) {
++	if (nr)
+ 		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, -nr);
+-		deferred_split_huge_page(page);
+-	}
+ }
+ 
+ /**
+-- 
+ Kirill A. Shutemov
 
