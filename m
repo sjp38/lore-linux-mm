@@ -2,55 +2,58 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEFCAC3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 07:07:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69F06C3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 07:08:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B951121872
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 07:07:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B951121872
+	by mail.kernel.org (Postfix) with ESMTP id 2901320828
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 07:08:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2901320828
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 627D26B000C; Tue, 27 Aug 2019 03:07:06 -0400 (EDT)
+	id C41576B000A; Tue, 27 Aug 2019 03:08:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D7E46B000D; Tue, 27 Aug 2019 03:07:06 -0400 (EDT)
+	id C231F6B000C; Tue, 27 Aug 2019 03:08:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C78A6B000E; Tue, 27 Aug 2019 03:07:06 -0400 (EDT)
+	id B093E6B000D; Tue, 27 Aug 2019 03:08:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D4776B000C
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 03:07:06 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id CC583180AD813
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 07:07:05 +0000 (UTC)
-X-FDA: 75867326010.10.roof42_5afaf356fb415
-X-HE-Tag: roof42_5afaf356fb415
-X-Filterd-Recvd-Size: 6083
+Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
+	by kanga.kvack.org (Postfix) with ESMTP id 92B466B000A
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 03:08:55 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 36B04181AC9AE
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 07:08:55 +0000 (UTC)
+X-FDA: 75867330630.13.rat65_6acd1bce9f854
+X-HE-Tag: rat65_6acd1bce9f854
+X-Filterd-Recvd-Size: 6704
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 07:07:05 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 07:08:53 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id EE3417FDCA;
-	Tue, 27 Aug 2019 07:07:03 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id AF93210F23F2;
+	Tue, 27 Aug 2019 07:08:52 +0000 (UTC)
 Received: from [10.36.117.50] (ovpn-117-50.ams2.redhat.com [10.36.117.50])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 89AD9196AE;
-	Tue, 27 Aug 2019 07:07:01 +0000 (UTC)
-Subject: Re: [PATCH 1/2] mm: Don't manually decrement num_poisoned_pages
-To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9B6956060D;
+	Tue, 27 Aug 2019 07:08:50 +0000 (UTC)
+Subject: Re: [PATCH 2/2] mm: don't hide potentially null memmap pointer in
+ sparse_remove_section
+To: Alastair D'Silva <alastair@d-silva.org>, Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
- Dan Williams <dan.j.williams@intel.com>, Mike Rapoport <rppt@linux.ibm.com>,
+ Oscar Salvador <osalvador@suse.de>, Mike Rapoport <rppt@linux.ibm.com>,
+ Dan Williams <dan.j.williams@intel.com>,
  Wei Yang <richardw.yang@linux.intel.com>, Qian Cai <cai@lca.pw>,
  linux-mm@kvack.org, linux-kernel@vger.kernel.org
 References: <20190827053656.32191-1-alastair@au1.ibm.com>
- <20190827053656.32191-2-alastair@au1.ibm.com>
+ <20190827053656.32191-3-alastair@au1.ibm.com>
+ <20190827062445.GO7538@dhcp22.suse.cz>
+ <befab2a0a9f160f8af8c1a412068060636a7a64c.camel@d-silva.org>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -97,58 +100,63 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <790eeffe-63bb-2e13-434f-0c309b4e4579@redhat.com>
-Date: Tue, 27 Aug 2019 09:07:00 +0200
+Message-ID: <4a08e3ec-1859-e4a7-6c08-5f36b09712d4@redhat.com>
+Date: Tue, 27 Aug 2019 09:08:49 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190827053656.32191-2-alastair@au1.ibm.com>
+In-Reply-To: <befab2a0a9f160f8af8c1a412068060636a7a64c.camel@d-silva.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 27 Aug 2019 07:07:04 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.66]); Tue, 27 Aug 2019 07:08:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 27.08.19 07:36, Alastair D'Silva wrote:
-> From: Alastair D'Silva <alastair@d-silva.org>
+On 27.08.19 09:00, Alastair D'Silva wrote:
+> On Tue, 2019-08-27 at 08:24 +0200, Michal Hocko wrote:
+>> On Tue 27-08-19 15:36:55, Alastair D'Silva wrote:
+>>> From: Alastair D'Silva <alastair@d-silva.org>
+>>>
+>>> By adding offset to memmap before passing it in to
+>>> clear_hwpoisoned_pages,
+>>> we hide a theoretically null memmap from the null check inside
+>>> clear_hwpoisoned_pages.
+>>
+>> Isn't that other way around? Calculating the offset struct page
+>> pointer
+>> will actually make the null check effective. Besides that I cannot
+>> really see how pfn_to_page would return NULL. I have to confess that
+>> I
+>> cannot really see how offset could lead to a NULL struct page either
+>> and
+>> I strongly suspect that the NULL check is not really needed. Maybe it
+>> used to be in the past.
+>>
 > 
-> Use the function written to do it instead.
+> You're probably right, but I didn't feel confident in removing the NULL
+> check. 
 > 
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> ---
->  mm/sparse.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+> While the NULL check remains though, I can't see how adding the offset
+> would turn a non-NULL pointer into a NULL unless the pointer is invalid
+> in the first place, and if this is the case, we should have a comment
+> explaining this.
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 72f010d9bff5..e41917a7e844 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -11,6 +11,8 @@
->  #include <linux/export.h>
->  #include <linux/spinlock.h>
->  #include <linux/vmalloc.h>
-> +#include <linux/swap.h>
-> +#include <linux/swapops.h>
->  
->  #include "internal.h"
->  #include <asm/dma.h>
-> @@ -898,7 +900,7 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  
->  	for (i = 0; i < nr_pages; i++) {
->  		if (PageHWPoison(&memmap[i])) {
-> -			atomic_long_sub(1, &num_poisoned_pages);
-> +			num_poisoned_pages_dec();
->  			ClearPageHWPoison(&memmap[i]);
->  		}
->  	}
+> The NULL check was added in commit:
+> 95a4774d055c ("memory-hotplug: update mce_bad_pages when removing the
+> memory")
+> where memmap was originally inited to NULL, and only conditionally
+> given a value.
+> 
+> With this in mind, since that situation is no longer true, I think we
+> could instead drop the NULL check.
 > 
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
+Makes sense to me.
 
 -- 
 
