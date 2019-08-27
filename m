@@ -2,144 +2,391 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18D7AC3A5A6
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:43:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFF1AC3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:49:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD696206BB
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:43:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD696206BB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 94D4F205C9
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 10:49:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94D4F205C9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 732F56B0007; Tue, 27 Aug 2019 06:43:17 -0400 (EDT)
+	id 2E7B16B0007; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 70ADA6B0008; Tue, 27 Aug 2019 06:43:17 -0400 (EDT)
+	id 29A896B0008; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 61F716B000A; Tue, 27 Aug 2019 06:43:17 -0400 (EDT)
+	id 1874E6B000A; Tue, 27 Aug 2019 06:49:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EE196B0007
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:43:17 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D4B2882437D2
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:43:16 +0000 (UTC)
-X-FDA: 75867870792.18.steam98_56cc17f42cb41
-X-HE-Tag: steam98_56cc17f42cb41
-X-Filterd-Recvd-Size: 4079
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:43:16 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1C68BAFD4;
-	Tue, 27 Aug 2019 10:43:15 +0000 (UTC)
-Date: Tue, 27 Aug 2019 12:43:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Adric Blake <promarbler14@gmail.com>, akpm@linux-foundation.org,
-	ktkhai@virtuozzo.com, hannes@cmpxchg.org,
-	daniel.m.jordan@oracle.com, laoar.shao@gmail.com,
-	mgorman@techsingularity.net, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: WARNINGs in set_task_reclaim_state with memory cgroup and full
- memory usage
-Message-ID: <20190827104313.GW7538@dhcp22.suse.cz>
-References: <CAE1jjeePxYPvw1mw2B3v803xHVR_BNnz0hQUY_JDMN8ny29M6w@mail.gmail.com>
- <b9cd7603-2441-d351-156a-57d6c13b2c79@linux.alibaba.com>
- <20190826105521.GF7538@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DF73D6B0007
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:49:26 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 6713D6124
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:49:26 +0000 (UTC)
+X-FDA: 75867886332.25.dogs74_8c41a41004953
+X-HE-Tag: dogs74_8c41a41004953
+X-Filterd-Recvd-Size: 15397
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 10:49:23 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C39F328;
+	Tue, 27 Aug 2019 03:49:22 -0700 (PDT)
+Received: from [10.1.197.57] (e110467-lin.cambridge.arm.com [10.1.197.57])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 7D3FC3F718;
+	Tue, 27 Aug 2019 03:49:14 -0700 (PDT)
+Subject: Re: [PATCH v2 6/6] mm/memory_hotplug: Pass nid instead of zone to
+ __remove_pages()
+To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will@kernel.org>, Tony Luck <tony.luck@intel.com>,
+ Fenghua Yu <fenghua.yu@intel.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>, Vasily Gorbik
+ <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
+ <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+ Mark Rutland <mark.rutland@arm.com>, Steve Capper <steve.capper@arm.com>,
+ Mike Rapoport <rppt@linux.ibm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>, Yu Zhao <yuzhao@google.com>,
+ Jun Yao <yaojun8558363@gmail.com>, Michal Hocko <mhocko@suse.com>,
+ Oscar Salvador <osalvador@suse.de>,
+ "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Halil Pasic <pasic@linux.ibm.com>, Tom Lendacky <thomas.lendacky@amd.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Dan Williams <dan.j.williams@intel.com>, Wei Yang
+ <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
+ Ira Weiny <ira.weiny@intel.com>, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org
+References: <20190826101012.10575-1-david@redhat.com>
+ <20190826101012.10575-7-david@redhat.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <3caaf386-a2fa-fbee-8159-fb32fdc57555@arm.com>
+Date: Tue, 27 Aug 2019 11:49:13 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190826105521.GF7538@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190826101012.10575-7-david@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If there are no objection to the patch I will post it as a standalong
-one.
+On 26/08/2019 11:10, David Hildenbrand wrote:
+> The zone parameter is no longer in use. Replace it with the nid, which
+> we can now use the nid to limit the number of zones we have to process
+> (vie for_each_zone_nid()). The function signature of __remove_pages() now
+> looks much more similar to the one of __add_pages().
 
-On Mon 26-08-19 12:55:21, Michal Hocko wrote:
-> From 59d128214a62bf2d83c2a2a9cde887b4817275e7 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Mon, 26 Aug 2019 12:43:15 +0200
-> Subject: [PATCH] mm, memcg: do not set reclaim_state on soft limit reclaim
-> 
-> Adric Blake has noticed the following warning:
-> [38491.963105] WARNING: CPU: 7 PID: 175 at mm/vmscan.c:245 set_task_reclaim_state+0x1e/0x40
-> [...]
-> [38491.963239] Call Trace:
-> [38491.963246]  mem_cgroup_shrink_node+0x9b/0x1d0
-> [38491.963250]  mem_cgroup_soft_limit_reclaim+0x10c/0x3a0
-> [38491.963254]  balance_pgdat+0x276/0x540
-> [38491.963258]  kswapd+0x200/0x3f0
-> [38491.963261]  ? wait_woken+0x80/0x80
-> [38491.963265]  kthread+0xfd/0x130
-> [38491.963267]  ? balance_pgdat+0x540/0x540
-> [38491.963269]  ? kthread_park+0x80/0x80
-> [38491.963273]  ret_from_fork+0x35/0x40
-> [38491.963276] ---[ end trace 727343df67b2398a ]---
-> 
-> which tells us that soft limit reclaim is about to overwrite the
-> reclaim_state configured up in the call chain (kswapd in this case but
-> the direct reclaim is equally possible). This means that reclaim stats
-> would get misleading once the soft reclaim returns and another reclaim
-> is done.
-> 
-> Fix the warning by dropping set_task_reclaim_state from the soft reclaim
-> which is always called with reclaim_state set up.
-> 
-> Reported-by: Adric Blake <promarbler14@gmail.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+FWIW I recall this being trivially easy to hit when first playing with 
+hotremove development for arm64 - since we only have 3 zones, the page 
+flags poison would cause page_zone() to dereference past the end of 
+node_zones[] and go all kinds of wrong. This looks like a definite 
+improvement in API terms.
+
+For arm64,
+
+Acked-by: Robin Murphy <robin.murphy@arm.com>
+
+Cheers,
+Robin.
+
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will@kernel.org>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Fenghua Yu <fenghua.yu@intel.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Vasily Gorbik <gor@linux.ibm.com>
+> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+> Cc: Rich Felker <dalias@libc.org>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: x86@kernel.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Steve Capper <steve.capper@arm.com>
+> Cc: Mike Rapoport <rppt@linux.ibm.com>
+> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
+> Cc: Yu Zhao <yuzhao@google.com>
+> Cc: Jun Yao <yaojun8558363@gmail.com>
+> Cc: Robin Murphy <robin.murphy@arm.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
+> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: Halil Pasic <pasic@linux.ibm.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Wei Yang <richard.weiyang@gmail.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: linux-ia64@vger.kernel.org
+> Cc: linuxppc-dev@lists.ozlabs.org
+> Cc: linux-s390@vger.kernel.org
+> Cc: linux-sh@vger.kernel.org
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 > ---
->  mm/vmscan.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
+>   arch/arm64/mm/mmu.c            |  4 +---
+>   arch/ia64/mm/init.c            |  4 +---
+>   arch/powerpc/mm/mem.c          |  3 +--
+>   arch/s390/mm/init.c            |  4 +---
+>   arch/sh/mm/init.c              |  4 +---
+>   arch/x86/mm/init_32.c          |  4 +---
+>   arch/x86/mm/init_64.c          |  4 +---
+>   include/linux/memory_hotplug.h |  2 +-
+>   mm/memory_hotplug.c            | 17 +++++++++--------
+>   mm/memremap.c                  |  3 +--
+>   10 files changed, 18 insertions(+), 31 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c77d1e3761a7..a6c5d0b28321 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3220,6 +3220,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  
->  #ifdef CONFIG_MEMCG
->  
-> +/* Only used by soft limit reclaim. Do not reuse for anything else. */
->  unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
->  						gfp_t gfp_mask, bool noswap,
->  						pg_data_t *pgdat,
-> @@ -3235,7 +3236,8 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
->  	};
->  	unsigned long lru_pages;
->  
-> -	set_task_reclaim_state(current, &sc.reclaim_state);
-> +	WARN_ON_ONCE(!current->reclaim_state);
-> +
->  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
->  
-> @@ -3253,7 +3255,6 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
->  
->  	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
->  
-> -	set_task_reclaim_state(current, NULL);
->  	*nr_scanned = sc.nr_scanned;
->  
->  	return sc.nr_reclaimed;
-> -- 
-> 2.20.1
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index e67bab4d613e..9a2d388314f3 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -1080,7 +1080,6 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct zone *zone;
+>   
+>   	/*
+>   	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
+> @@ -1089,7 +1088,6 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
+>   	 * unlocked yet.
+>   	 */
+> -	zone = page_zone(pfn_to_page(start_pfn));
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   }
+>   #endif
+> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> index bf9df2625bc8..ae6a3e718aa0 100644
+> --- a/arch/ia64/mm/init.c
+> +++ b/arch/ia64/mm/init.c
+> @@ -689,9 +689,7 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct zone *zone;
+>   
+> -	zone = page_zone(pfn_to_page(start_pfn));
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   }
+>   #endif
+> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+> index 9191a66b3bc5..af21e13529ce 100644
+> --- a/arch/powerpc/mm/mem.c
+> +++ b/arch/powerpc/mm/mem.c
+> @@ -130,10 +130,9 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct page *page = pfn_to_page(start_pfn) + vmem_altmap_offset(altmap);
+>   	int ret;
+>   
+> -	__remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   
+>   	/* Remove htab bolted mappings for this section of memory */
+>   	start = (unsigned long)__va(start);
+> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+> index 20340a03ad90..2a7373ed6ded 100644
+> --- a/arch/s390/mm/init.c
+> +++ b/arch/s390/mm/init.c
+> @@ -296,10 +296,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct zone *zone;
+>   
+> -	zone = page_zone(pfn_to_page(start_pfn));
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   	vmem_remove_mapping(start, size);
+>   }
+>   #endif /* CONFIG_MEMORY_HOTPLUG */
+> diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+> index dfdbaa50946e..32441b59297d 100644
+> --- a/arch/sh/mm/init.c
+> +++ b/arch/sh/mm/init.c
+> @@ -434,9 +434,7 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = PFN_DOWN(start);
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct zone *zone;
+>   
+> -	zone = page_zone(pfn_to_page(start_pfn));
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   }
+>   #endif /* CONFIG_MEMORY_HOTPLUG */
+> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+> index 4068abb9427f..2760e4bfbc56 100644
+> --- a/arch/x86/mm/init_32.c
+> +++ b/arch/x86/mm/init_32.c
+> @@ -865,10 +865,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct zone *zone;
+>   
+> -	zone = page_zone(pfn_to_page(start_pfn));
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   }
+>   #endif
+>   
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index a6b5c653727b..99d92297f1cf 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1212,10 +1212,8 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
+>   {
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	unsigned long nr_pages = size >> PAGE_SHIFT;
+> -	struct page *page = pfn_to_page(start_pfn) + vmem_altmap_offset(altmap);
+> -	struct zone *zone = page_zone(page);
+>   
+> -	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pages(nid, start_pfn, nr_pages, altmap);
+>   	kernel_physical_mapping_remove(start, start + size);
+>   }
+>   #endif /* CONFIG_MEMORY_HOTPLUG */
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index f46ea71b4ffd..c5b38e7dc8aa 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -125,7 +125,7 @@ static inline bool movable_node_is_enabled(void)
+>   
+>   extern void arch_remove_memory(int nid, u64 start, u64 size,
+>   			       struct vmem_altmap *altmap);
+> -extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
+> +extern void __remove_pages(int nid, unsigned long start_pfn,
+>   			   unsigned long nr_pages, struct vmem_altmap *altmap);
+>   
+>   /* reasonably generic interface to expand the physical pages */
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index e88c96cf9d77..49ca3364eb70 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -514,7 +514,7 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn,
+>   	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+>   }
+>   
+> -static void __remove_section(unsigned long pfn, unsigned long nr_pages,
+> +static void __remove_section(int nid, unsigned long pfn, unsigned long nr_pages,
+>   			     unsigned long map_offset,
+>   			     struct vmem_altmap *altmap)
+>   {
+> @@ -525,14 +525,14 @@ static void __remove_section(unsigned long pfn, unsigned long nr_pages,
+>   		return;
+>   
+>   	/* TODO: move zone handling out of memory removal path */
+> -	for_each_zone(zone)
+> +	for_each_zone_nid(zone, nid)
+>   		__remove_zone(zone, pfn, nr_pages);
+>   	sparse_remove_section(ms, pfn, nr_pages, map_offset, altmap);
+>   }
+>   
+>   /**
+>    * __remove_pages() - remove sections of pages from a zone
+> - * @zone: zone from which pages need to be removed
+> + * @nid: the nid all pages were added to
+>    * @pfn: starting pageframe (must be aligned to start of a section)
+>    * @nr_pages: number of pages to remove (must be multiple of section size)
+>    * @altmap: alternative device page map or %NULL if default memmap is used
+> @@ -542,12 +542,13 @@ static void __remove_section(unsigned long pfn, unsigned long nr_pages,
+>    * sure that pages are marked reserved and zones are adjust properly by
+>    * calling offline_pages().
+>    */
+> -void __remove_pages(struct zone *zone, unsigned long pfn,
+> -		    unsigned long nr_pages, struct vmem_altmap *altmap)
+> +void __remove_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+> +		    struct vmem_altmap *altmap)
+>   {
+>   	const unsigned long end_pfn = pfn + nr_pages;
+>   	unsigned long cur_nr_pages;
+>   	unsigned long map_offset = 0;
+> +	struct zone *zone;
+>   
+>   	if (check_pfn_span(pfn, nr_pages, "remove"))
+>   		return;
+> @@ -555,7 +556,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+>   	map_offset = vmem_altmap_offset(altmap);
+>   
+>   	/* TODO: move zone handling out of memory removal path */
+> -	for_each_zone(zone)
+> +	for_each_zone_nid(zone, nid)
+>   		if (zone_intersects(zone, pfn, nr_pages))
+>   			clear_zone_contiguous(zone);
+>   
+> @@ -563,12 +564,12 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
+>   		cond_resched();
+>   		/* Select all remaining pages up to the next section boundary */
+>   		cur_nr_pages = min(end_pfn - pfn, -(pfn | PAGE_SECTION_MASK));
+> -		__remove_section(pfn, cur_nr_pages, map_offset, altmap);
+> +		__remove_section(nid, pfn, cur_nr_pages, map_offset, altmap);
+>   		map_offset = 0;
+>   	}
+>   
+>   	/* TODO: move zone handling out of memory removal path */
+> -	for_each_zone(zone)
+> +	for_each_zone_nid(zone, nid)
+>   		set_zone_contiguous(zone);
+>   }
+>   
+> diff --git a/mm/memremap.c b/mm/memremap.c
+> index 8a394552b5bd..292ef4c6b447 100644
+> --- a/mm/memremap.c
+> +++ b/mm/memremap.c
+> @@ -138,8 +138,7 @@ static void devm_memremap_pages_release(void *data)
+>   	mem_hotplug_begin();
+>   	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+>   		pfn = PHYS_PFN(res->start);
+> -		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
+> -				 PHYS_PFN(resource_size(res)), NULL);
+> +		__remove_pages(nid, pfn, PHYS_PFN(resource_size(res)), NULL);
+>   	} else {
+>   		arch_remove_memory(nid, res->start, resource_size(res),
+>   				pgmap_altmap(pgmap));
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
-
--- 
-Michal Hocko
-SUSE Labs
 
