@@ -6,57 +6,64 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EF97C3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 06:01:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B62DC3A5A3
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 06:16:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 46E3C2070B
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 06:01:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46E3C2070B
+	by mail.kernel.org (Postfix) with ESMTP id 16E172173E
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 06:16:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16E172173E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C72D66B000A; Tue, 27 Aug 2019 02:01:42 -0400 (EDT)
+	id 9A9466B000A; Tue, 27 Aug 2019 02:16:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFCC06B000C; Tue, 27 Aug 2019 02:01:42 -0400 (EDT)
+	id 958AE6B000C; Tue, 27 Aug 2019 02:16:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE9576B000D; Tue, 27 Aug 2019 02:01:42 -0400 (EDT)
+	id 86F0D6B000D; Tue, 27 Aug 2019 02:16:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0152.hostedemail.com [216.40.44.152])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9596B000A
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 02:01:42 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 25FB46107
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:01:42 +0000 (UTC)
-X-FDA: 75867161244.04.songs58_661c120b13a61
-X-HE-Tag: songs58_661c120b13a61
-X-Filterd-Recvd-Size: 8176
+Received: from forelay.hostedemail.com (smtprelay0092.hostedemail.com [216.40.44.92])
+	by kanga.kvack.org (Postfix) with ESMTP id 68D1D6B000A
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 02:16:10 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 2361918DD
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:16:10 +0000 (UTC)
+X-FDA: 75867197700.11.rod07_52e7b1f40e445
+X-HE-Tag: rod07_52e7b1f40e445
+X-Filterd-Recvd-Size: 5639
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:01:41 +0000 (UTC)
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 06:16:09 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3ACDEB62C;
-	Tue, 27 Aug 2019 06:01:40 +0000 (UTC)
-Date: Tue, 27 Aug 2019 08:01:39 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 9400EB009;
+	Tue, 27 Aug 2019 06:16:07 +0000 (UTC)
+Date: Tue, 27 Aug 2019 08:16:06 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com,
-	Yang Shi <yang.shi@linux.alibaba.com>, hannes@cmpxchg.org,
-	rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, akpm@linux-foundation.org,
+	vbabka@suse.cz, mgorman@techsingularity.net,
+	dan.j.williams@intel.com, osalvador@suse.de,
+	richard.weiyang@gmail.com, hannes@cmpxchg.org,
+	arunks@codeaurora.org, rppt@linux.vnet.ibm.com, jgg@ziepe.ca,
+	amir73il@gmail.com, alexander.h.duyck@linux.intel.com,
+	linux-mm@kvack.org, linux-kernel-mentees@lists.linuxfoundation.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [v2 PATCH -mm] mm: account deferred split THPs into MemAvailable
-Message-ID: <20190827060139.GM7538@dhcp22.suse.cz>
-References: <1566410125-66011-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190822080434.GF12785@dhcp22.suse.cz>
- <ee048bbf-3563-d695-ea58-5f1504aee35c@suse.cz>
- <20190822152934.w6ztolutdix6kbvc@box>
- <20190826074035.GD7538@dhcp22.suse.cz>
- <20190826131538.64twqx3yexmhp6nf@box>
+Subject: Re: [RFC PATCH 0/2] Add predictive memory reclamation and compaction
+Message-ID: <20190827061606.GN7538@dhcp22.suse.cz>
+References: <20190813014012.30232-1-khalid.aziz@oracle.com>
+ <20190813140553.GK17933@dhcp22.suse.cz>
+ <3cb0af00-f091-2f3e-d6cc-73a5171e6eda@oracle.com>
+ <20190814085831.GS17933@dhcp22.suse.cz>
+ <d3895804-7340-a7ae-d611-62913303e9c5@oracle.com>
+ <20190815170215.GQ9477@dhcp22.suse.cz>
+ <2668ad2e-ee52-8c88-22c0-1952243af5a1@oracle.com>
+ <20190821140632.GI3111@dhcp22.suse.cz>
+ <20190826204420.GA16800@bharath12345-Inspiron-5559>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190826131538.64twqx3yexmhp6nf@box>
+In-Reply-To: <20190826204420.GA16800@bharath12345-Inspiron-5559>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -64,140 +71,81 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 26-08-19 16:15:38, Kirill A. Shutemov wrote:
-> On Mon, Aug 26, 2019 at 09:40:35AM +0200, Michal Hocko wrote:
-> > On Thu 22-08-19 18:29:34, Kirill A. Shutemov wrote:
-> > > On Thu, Aug 22, 2019 at 02:56:56PM +0200, Vlastimil Babka wrote:
-> > > > On 8/22/19 10:04 AM, Michal Hocko wrote:
-> > > > > On Thu 22-08-19 01:55:25, Yang Shi wrote:
-> > > > >> Available memory is one of the most important metrics for memory
-> > > > >> pressure.
-> > > > > 
-> > > > > I would disagree with this statement. It is a rough estimate that tells
-> > > > > how much memory you can allocate before going into a more expensive
-> > > > > reclaim (mostly swapping). Allocating that amount still might result in
-> > > > > direct reclaim induced stalls. I do realize that this is simple metric
-> > > > > that is attractive to use and works in many cases though.
-> > > > > 
-> > > > >> Currently, the deferred split THPs are not accounted into
-> > > > >> available memory, but they are reclaimable actually, like reclaimable
-> > > > >> slabs.
-> > > > >> 
-> > > > >> And, they seems very common with the common workloads when THP is
-> > > > >> enabled.  A simple run with MariaDB test of mmtest with THP enabled as
-> > > > >> always shows it could generate over fifteen thousand deferred split THPs
-> > > > >> (accumulated around 30G in one hour run, 75% of 40G memory for my VM).
-> > > > >> It looks worth accounting in MemAvailable.
-> > > > > 
-> > > > > OK, this makes sense. But your above numbers are really worrying.
-> > > > > Accumulating such a large amount of pages that are likely not going to
-> > > > > be used is really bad. They are essentially blocking any higher order
-> > > > > allocations and also push the system towards more memory pressure.
-> > > > > 
-> > > > > IIUC deferred splitting is mostly a workaround for nasty locking issues
-> > > > > during splitting, right? This is not really an optimization to cache
-> > > > > THPs for reuse or something like that. What is the reason this is not
-> > > > > done from a worker context? At least THPs which would be freed
-> > > > > completely sound like a good candidate for kworker tear down, no?
-> > > > 
-> > > > Agreed that it's a good question. For Kirill :) Maybe with kworker approach we
-> > > > also wouldn't need the cgroup awareness?
+On Tue 27-08-19 02:14:20, Bharath Vedartham wrote:
+> Hi Michal,
+> 
+> Here are some of my thoughts,
+> On Wed, Aug 21, 2019 at 04:06:32PM +0200, Michal Hocko wrote:
+> > On Thu 15-08-19 14:51:04, Khalid Aziz wrote:
+> > > Hi Michal,
 > > > 
-> > > I don't remember a particular locking issue, but I cannot say there's
-> > > none :P
-> > > 
-> > > It's artifact from decoupling PMD split from compound page split: the same
-> > > page can be mapped multiple times with combination of PMDs and PTEs. Split
-> > > of one PMD doesn't need to trigger split of all PMDs and underlying
-> > > compound page.
-> > > 
-> > > Other consideration is the fact that page split can fail and we need to
-> > > have fallback for this case.
-> > > 
-> > > Also in most cases THP split would be just waste of time if we would do
-> > > them at the spot. If you don't have memory pressure it's better to wait
-> > > until process termination: less pages on LRU is still beneficial.
+> > > The smarts for tuning these knobs can be implemented in userspace and
+> > > more knobs added to allow for what is missing today, but we get back to
+> > > the same issue as before. That does nothing to make kernel self-tuning
+> > > and adds possibly even more knobs to userspace. Something so fundamental
+> > > to kernel memory management as making free pages available when they are
+> > > needed really should be taken care of in the kernel itself. Moving it to
+> > > userspace just means the kernel is hobbled unless one installs and tunes
+> > > a userspace package correctly.
 > > 
-> > This might be true but the reality shows that a lot of THPs might be
-> > waiting for the memory pressure that is essentially freeable on the
-> > spot. So I am not really convinced that "less pages on LRUs" is really a
-> > plausible justification. Can we free at least those THPs which are
-> > unmapped completely without any pte mappings?
-> 
-> Unmapped completely pages will be freed with current code. Deferred split
-> only applies to partly mapped THPs: at least on 4k of the THP is still
-> mapped somewhere.
+> > From my past experience the existing autotunig works mostly ok for a
+> > vast variety of workloads. A more clever tuning is possible and people
+> > are doing that already. Especially for cases when the machine is heavily
+> > overcommited. There are different ways to achieve that. Your new
+> > in-kernel auto tuning would have to be tested on a large variety of
+> > workloads to be proven and riskless. So I am quite skeptical to be
+> > honest.
+> Could you give some references to such works regarding tuning the kernel? 
 
-Hmm, I am probably misreading the code but at least current Linus' tree
-reads page_remove_rmap -> [page_remove_anon_compound_rmap ->\ deferred_split_huge_page even
-for fully mapped THP.
+Talk to Facebook guys and their usage of PSI to control the memory
+distribution and OOM situations.
 
-> > > Main source of partly mapped THPs comes from exit path. When PMD mapping
-> > > of THP got split across multiple VMAs (for instance due to mprotect()),
-> > > in exit path we unmap PTEs belonging to one VMA just before unmapping the
-> > > rest of the page. It would be total waste of time to split the page in
-> > > this scenario.
-> > > 
-> > > The whole deferred split thing still looks as a reasonable compromise
-> > > to me.
-> > 
-> > Even when it leads to all other problems mentioned in this and memcg
-> > deferred reclaim series?
-> 
-> Yes.
-> 
-> You would still need deferred split even if you *try* to split the page on
-> the spot. split_huge_page() can fail (due to pin on the page) and you will
-> need to have a way to try again later.
-> 
-> You'll not win anything in complexity by trying split_huge_page()
-> immediately. I would ague you'll create much more complexity.
+> Essentially, Our idea here is to foresee potential memory exhaustion.
+> This foreseeing is done by observing the workload, observing the memory
+> usage of the workload. Based on this observations, we make a prediction
+> whether or not memory exhaustion could occur.
 
-I am not arguing for in place split. I am arguing to do it ASAP rather
-than to wait for memory pressure which might be in an unbound amount of
-time. So let me ask again. Why cannot we do that in the worker context?
-Essentially schedure the work item right away?
+I understand that and I am not disputing this can be useful. All I do
+argue here is that there is unlikely a good "crystall ball" for most/all
+workloads that would justify its inclusion into the kernel and that this
+is something better done in the userspace where you can experiment and
+tune the behavior for a particular workload of your interest.
 
-> > > We may have some kind of watermark and try to keep the number of deferred
-> > > split THP under it. But it comes with own set of problems: what if all
-> > > these pages are pinned for really long time and effectively not available
-> > > for split.
-> > 
-> > Again, why cannot we simply push the freeing where there are no other
-> > mappings? This should be pretty common case, right?
-> 
-> Partly mapped THP is not common case at all.
-> 
-> To get to this point you will need to create a mapping, fault in THP and
-> then unmap part of it. It requires very active memory management on
-> application side. This kind of applications usually knows if THP is a fit
-> for them.
+Therefore I would like to shift the discussion towards existing APIs and
+whether they are suitable for such an advance auto-tuning. I haven't
+heard any arguments about missing pieces.
 
-See other email by Yang Shi for practical examples.
+> If memory exhaustion
+> occurs, we reclaim some more memory. kswapd stops reclaim when
+> hwmark is reached. hwmark is usually set to a fairly low percentage of
+> total memory, in my system for zone Normal hwmark is 13% of total pages.
+> So there is scope for reclaiming more pages to make sure system does not
+> suffer from a lack of pages. 
 
-> > I am still not sure that waiting for the memory reclaim is a general
-> > win.
-> 
-> It wins CPU cycles by not doing the work that is likely unneeded.
-> split_huge_page() is not particularly lightweight operation from locking
-> and atomic ops POV.
-> 
-> > Do you have any examples of workloads that measurably benefit from
-> > this lazy approach without any other downsides? In other words how
-> > exactly do we measure cost/benefit model of this heuristic?
-> 
-> Example? Sure.
-> 
-> Compiling mm/memory.c in my setup generates 8 deferred split. 4 of them
-> triggered from exit path. The rest 4 comes from MADV_DONTNEED. It doesn't
-> make sense to convert any of them to in-place split: for short-lived
-> process any split if waste of time without any benefit.
+Yes and we have ways to control those watermarks that your monitoring
+tool can use to alter the reclaim behavior.
+ 
+[...]
+> > Therefore I would really focus on discussing whether we have sufficient
+> > APIs to tune the kernel to do the right thing when needed. That requires
+> > to identify gaps in that area. 
+> One thing that comes to my mind is based on the issue Khalid mentioned
+> earlier on how his desktop took more than 30secs to boot up because of
+> the caches using up a lot of memory.
+> Rather than allowing any unused memory to be the page cache, would it be
+> a good idea to fix a size for the caches and elastically change the size
+> based on the workload?
 
-Right, I understand that part. And again, I am not arguing for in place
-split up. All I do care about is _when_ to trigger the "cleanup" aka
-when we do free the memory or split the THP depending on its state. I
-argue that waiting for the memory pressure is too late and examples
-mentioned elsewhere in the thread confirm that.
+I do not think so. Limiting the pagecache is unlikely to help as it is
+really cheap to reclaim most of the time. In those cases when this is
+not the case (e.g. the underlying FS needs to flush and/or metadata)
+then the same would be possible in a restricted page cache situation
+and you could easily end up stalled waiting for pagecache (e.g. any
+executable/library) while there is a lot of memory.
+
+I cannot comment on the Khalid's example because there were no details
+there but I would be really surprised if the primary source of stall was
+the pagecache.
 -- 
 Michal Hocko
 SUSE Labs
