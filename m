@@ -2,124 +2,149 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CF27C3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:34:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76976C3A5A4
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 17:06:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10C2A214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 16:34:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10C2A214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A9652184D
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 17:06:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=kroah.com header.i=@kroah.com header.b="kugD2vcu";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="qy9816xr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A9652184D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kroah.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D5916B0006; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
+	id E9E9D6B0006; Tue, 27 Aug 2019 13:06:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69ED26B0008; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
+	id E4F4A6B0008; Tue, 27 Aug 2019 13:06:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B4D36B000A; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
+	id D3E3B6B000A; Tue, 27 Aug 2019 13:06:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA146B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 12:34:06 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 7BD15879E
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:33:40 +0000 (UTC)
-X-FDA: 75868753800.24.walk19_5a3c02971913d
-X-HE-Tag: walk19_5a3c02971913d
-X-Filterd-Recvd-Size: 4479
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:33:39 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CA12B8077F2;
-	Tue, 27 Aug 2019 16:33:38 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.63])
-	by smtp.corp.redhat.com (Postfix) with SMTP id CE25B5C1D6;
-	Tue, 27 Aug 2019 16:33:36 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Tue, 27 Aug 2019 18:33:37 +0200 (CEST)
-Date: Tue, 27 Aug 2019 18:33:35 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Kefeng Wang <wangkefeng.wang@huawei.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
-Message-ID: <20190827163334.GB6291@redhat.com>
-References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
+	by kanga.kvack.org (Postfix) with ESMTP id B1DCB6B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 13:06:23 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0D8DE180AD7C3
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 17:06:23 +0000 (UTC)
+X-FDA: 75868836246.14.magic52_54c0f07753113
+X-HE-Tag: magic52_54c0f07753113
+X-Filterd-Recvd-Size: 5393
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com [66.111.4.26])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 17:06:22 +0000 (UTC)
+Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
+	by mailout.nyi.internal (Postfix) with ESMTP id 0A9BA22200;
+	Tue, 27 Aug 2019 13:06:22 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute6.internal (MEProxy); Tue, 27 Aug 2019 13:06:22 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kroah.com; h=
+	date:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm1; bh=5nkEIGxasqd/7yw+ZF5/COJl223
+	XTMYfYLQZXHCUB7g=; b=kugD2vculIs2kPbSnws+e69oxwOX68Py+emRFuU2Tpi
+	69UIOdyVuNbnsT5rmYJ8lLa8njewkBBoa4+zb4faEeDiV6wwLrjQuqvpWIRwzKhe
+	cbAnXRnMME3laZ2tP3RBbq8fAcBA7Nsvqe5tRP06njHYRTbY3Sd/NBQBnw85E4mH
+	XHZ7+Muukvc2XbLwRhRuJ/glDgBDjnhrVQjqivKu5bhV71W36DiAS+0Fye6lo+CO
+	FW60sA1AsnHL6nv6FZDSBeBa66zyOrmVT8NHbL709TLUx1V2ithesWktuADUwNsp
+	VShLiV50fqlWPZ11QNzjt8nxPCTgV8AB5TSNYvdgMFw==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm3; bh=5nkEIG
+	xasqd/7yw+ZF5/COJl223XTMYfYLQZXHCUB7g=; b=qy9816xrwDMcFVLZuL87eS
+	RD3BB8UJ0myM9Ep0ruyj/gYm7dZzX0xX+B7JXFgH9IS68ZzjuCNDs7Dckm0XCROp
+	cFr+nu2E1o2HnnlMrp0fw7tT6qbPYXuJCSEmcePffWqqiaxvjG5NfHxLAHnnJMzy
+	sR3d8CyI/BAp6AvMTVvlKJ8lHq9HM9RtnWBR+6TI+eLXrlkMOA1ipSso0IZ4pqw/
+	ZyX6v+w26CmLoC189kmDkOBCWf0g+ODLTSXROITWi1Iw4aeLxa7mX5vidTTgy9TV
+	L8u4B+a3OlaBZuFoPwE8PG/4iEMdmtgW9ZxJLaG+1cNsk1Lbp56een9+78eVprBQ
+	==
+X-ME-Sender: <xms:DWNlXRCDJClRk-hEq5Qu42gb-Cc75xqggO8WMZ8SpDP3wmzEXOyLpw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduvddrudehkedgheejucetufdoteggodetrfdotf
+    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
+    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
+    cujfgurhepfffhvffukfhfgggtuggjfgesthdtredttdervdenucfhrhhomhepifhrvghg
+    ucfmjfcuoehgrhgvgheskhhrohgrhhdrtghomheqnecuffhomhgrihhnpehkvghrnhgvlh
+    drohhrghenucfkphepkeefrdekiedrkeelrddutdejnecurfgrrhgrmhepmhgrihhlfhhr
+    ohhmpehgrhgvgheskhhrohgrhhdrtghomhenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:DWNlXVilDt5E0R5ztZo5WlU-TEdXYF55JTBu9hApuYUdfjKksMvuCQ>
+    <xmx:DWNlXXbfqQVTr1eTL8zOopPat_2Kmwx1n_sMIMipMO2z58eLIEHSMQ>
+    <xmx:DWNlXek5Uh-JxPhoye92UBH_ibOJyXa99Yf8L6e8fpPLDVT46Bo-9Q>
+    <xmx:DmNlXcmjOdOwq3SzXLeHbGpJrqiJknWcxGrII7O5jpYEUNJxdN0vTA>
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	by mail.messagingengine.com (Postfix) with ESMTPA id BD4A68006C;
+	Tue, 27 Aug 2019 13:06:20 -0400 (EDT)
+Date: Tue, 27 Aug 2019 19:06:18 +0200
+From: Greg KH <greg@kroah.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Thomas Backlund <tmb@mageia.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Kernel Team <Kernel-team@fb.com>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: Re: [PATCH] Partially revert "mm/memcontrol.c: keep local VM
+ counters in sync with the hierarchical ones"
+Message-ID: <20190827170618.GC21369@kroah.com>
+References: <20190817004726.2530670-1-guro@fb.com>
+ <20190817063616.GA11747@kroah.com>
+ <20190817191518.GB11125@castle>
+ <20190824125750.da9f0aac47cc0a362208f9ff@linux-foundation.org>
+ <a082485b-8241-e73d-df09-5c878d181ddc@mageia.org>
+ <20190827141016.GH7538@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.67]); Tue, 27 Aug 2019 16:33:39 +0000 (UTC)
+In-Reply-To: <20190827141016.GH7538@dhcp22.suse.cz>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Kefeng,
-
-On 08/13, Kefeng Wang wrote:
->
-> Syzkaller reproducer:
-> # {Threaded:true Collide:true Repeat:false RepeatTimes:0 Procs:1 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true EnableNetDev:true EnableNetReset:false EnableCgroups:false EnableBinfmtMisc:true EnableCloseFds:true UseTmpDir:true HandleSegv:true Repro:false Trace:false}
-> r0 = userfaultfd(0x80800)
-> ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000000200))
-> ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000000080)={{&(0x7f0000ff2000/0xe000)=nil, 0xe000}, 0x1})
-> ioctl$UFFDIO_COPY(r0, 0xc028aa03, 0x0)
-> ioctl$UFFDIO_COPY(r0, 0xc028aa03, &(0x7f0000000000)={&(0x7f0000ffc000/0x3000)=nil, &(0x7f0000ffd000/0x2000)=nil, 0x3000})
-> syz_execute_func(&(0x7f00000000c0)="4134de984013e80f059532058300000071f3c4e18dd1ce5a65460f18320ce0b9977d8f64360f6e54e3a50fe53ff30fb837c42195dc42eddb8f087ca2a4d2c4017b708fa878c3e600f3266440d9a200000000c4016c5bdd7d0867dfe07f00f20f2b5f0009404cc442c102282cf2f20f51e22ef2e1291010f2262ef045814cb39700000000f32e3ef0fe05922f79a4000030470f3b58c1312fe7460f50ce0502338d00858526660f346253f6010f0f801d000000470f0f2c0a90c7c7df84feefff3636260fe02c98c8b8fcfc81fc51720a40400e700064660f71e70d2e0f57dfe819d0253f3ecaf06ad647608c41ffc42249bccb430f9bc8b7a042420f8d0042171e0f95ca9f7f921000d9fac4a27d5a1fc4a37961309de9000000003171460fc4d303c466410fd6389dc4426c456300c4233d4c922d92abf90ac6c34df30f5ee50909430f3a15e7776f6e866b0fdfdfc482797841cf6ffc842d9b9a516dc2e52ef2ac2636f20f114832d46231bffd4834eaeac4237d09d0003766420f160182c4a37d047882007f108f2808a6e68fc401505d6a82635d1467440fc7ba0c000000d4c482359652745300")
-> poll(&(0x7f00000000c0)=[{}], 0x1, 0x0)
+On Tue, Aug 27, 2019 at 04:10:16PM +0200, Michal Hocko wrote:
+> On Sat 24-08-19 23:23:07, Thomas Backlund wrote:
+> > Den 24-08-2019 kl. 22:57, skrev Andrew Morton:
+> > > On Sat, 17 Aug 2019 19:15:23 +0000 Roman Gushchin <guro@fb.com> wrote:
+> > > 
+> > > > > > Fixes: 766a4c19d880 ("mm/memcontrol.c: keep local VM counters in sync with the hierarchical ones")
+> > > > > > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > > > > > Cc: Yafang Shao <laoar.shao@gmail.com>
+> > > > > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > > > > ---
+> > > > > >   mm/memcontrol.c | 8 +++-----
+> > > > > >   1 file changed, 3 insertions(+), 5 deletions(-)
+> > > > > 
+> > > > > <formletter>
+> > > > > 
+> > > > > This is not the correct way to submit patches for inclusion in the
+> > > > > stable kernel tree.  Please read:
+> > > > >      https://www.kernel.org/doc/html/latest/process/stable-kernel-rules.html
+> > > > > for how to do this properly.
+> > > > 
+> > > > Oh, I'm sorry, will read and follow next time. Thanks!
+> > > 
+> > > 766a4c19d880 is not present in 5.2 so no -stable backport is needed, yes?
+> > > 
+> > 
+> > Unfortunately it got added in 5.2.7, so backport is needed.
 > 
-> ./syz-execprog -executor=./syz-executor -repeat=0 -procs=16 -cover=0 repofile
+> yet another example of patch not marked for stable backported to the
+> stable tree. yay...
 
-I tried to reproduce using the C code provided by Tetsuo but it doesn't work
-for me.
+If you do not want autobot to pick up patches for specific
+subsystems/files, just let us know and we will add them to the
+blacklist.
 
-Could you run this test-case with the patch below? (on top of the fix you have
-already tested).
+thanks,
 
-Oleg.
-
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -882,6 +882,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	unsigned long new_flags;
- 	bool still_valid;
- 
-+	file->private_data = (void*)0x6666;
-+
- 	WRITE_ONCE(ctx->released, true);
- 
- 	if (!mmget_not_zero(mm))
-@@ -1859,6 +1861,8 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
- 	int ret = -EINVAL;
- 	struct userfaultfd_ctx *ctx = file->private_data;
- 
-+	BUG_ON(ctx == (void*)0x6666);
-+
- 	if (cmd != UFFDIO_API && ctx->state == UFFD_STATE_WAIT_API)
- 		return -EINVAL;
- 
-@@ -1882,6 +1886,8 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
- 		ret = userfaultfd_zeropage(ctx, arg);
- 		break;
- 	}
-+
-+	BUG_ON(ctx != file->private_data);
- 	return ret;
- }
- 
-
+greg k-h
 
