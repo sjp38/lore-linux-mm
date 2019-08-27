@@ -2,128 +2,173 @@ Return-Path: <SRS0=oLae=WX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-19.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38C44C3A5A3
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 23:04:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 882F0C3A5A4
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 23:25:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB7B32186A
-	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 23:04:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4E44720856
+	for <linux-mm@archiver.kernel.org>; Tue, 27 Aug 2019 23:25:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="TXlm0q2x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB7B32186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GWIVi50/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E44720856
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 79EE96B0006; Tue, 27 Aug 2019 19:04:46 -0400 (EDT)
+	id B86866B0006; Tue, 27 Aug 2019 19:25:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 775D96B0008; Tue, 27 Aug 2019 19:04:46 -0400 (EDT)
+	id B375F6B0008; Tue, 27 Aug 2019 19:25:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 664DE6B000A; Tue, 27 Aug 2019 19:04:46 -0400 (EDT)
+	id A4D7C6B000A; Tue, 27 Aug 2019 19:25:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0115.hostedemail.com [216.40.44.115])
-	by kanga.kvack.org (Postfix) with ESMTP id 434496B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 19:04:46 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id B074E180AD803
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 23:04:45 +0000 (UTC)
-X-FDA: 75869739330.07.pail00_c6e2352ef253
-X-HE-Tag: pail00_c6e2352ef253
-X-Filterd-Recvd-Size: 4307
-Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 23:04:45 +0000 (UTC)
-Received: by mail-qk1-f194.google.com with SMTP id m2so707376qki.12
-        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:04:45 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
+	by kanga.kvack.org (Postfix) with ESMTP id 86BFD6B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 19:25:30 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 294C58243765
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 23:25:30 +0000 (UTC)
+X-FDA: 75869791620.21.eye10_2ff822a0ad00f
+X-HE-Tag: eye10_2ff822a0ad00f
+X-Filterd-Recvd-Size: 5763
+Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 23:25:29 +0000 (UTC)
+Received: by mail-pf1-f196.google.com with SMTP id d85so395631pfd.2
+        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 16:25:29 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=twfAj3jJ2iISvtECbV5aZw57c7oT5wmcKVNF5jtBKzw=;
-        b=TXlm0q2xcS7/T/OenFpz5vi4Yo1hovc71pjCHSJFZtpy8c9XUnNxETQI04ONVL0JIb
-         xjCg1ybda4kro9E97QJSZSC/ihNDktOyYrdT8R26XLgljCtsNC1Vrq1jHptibE/6c1Nf
-         EnImq/F6CeVQdv8DhnroTOVUgpGI4Q53Tzi+7QBPIjjUtOvPjrzPVX/jcKew3UlbKL90
-         uUttussOAeggtW9AKfycy76g+BnNBWpDYxb+G9wjbjpqMtDqXs7hiScwYsQlSR3G6afw
-         kwtNsqYgOSibPsNyIiq4ivvhuJDj/CXdeSuB6tWCMVfMG0Gr1JdzT+6jpEuRLfpulGpr
-         muWg==
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=C3Lh+/0FHXGNq2XvS9+HzZnHDnerotizKClAN2CZjKM=;
+        b=GWIVi50/b9qoWMgc0w6dan6EeuXkiS/wa2OU8GCVtmDmpXZF2gbr8cQzkvqZrRpECo
+         LMFbVstbTesHK2HmDy6GIzY0YyHeK4Q25QKY11usxlEnGqxiV1mijHsBqS2YhwFISzWY
+         aZIhkUZYCiMTyWARDlYeSRSpUyDHN4cpcDxevC+9TkfugR6++6o7phn73bJjWpNSzHm2
+         zXjusNoBhczPgvGq/i0fBeFta9ZJqw3rlCdx63i6EDPIUwDO5hNXyBZjc5Dfqa+16Fjq
+         P8KiHZR8g3IoDsBOWsOJUvGx58zEHy8QdcSpYC3LnjKteI1M43/13Yeailat0OlTZmT9
+         b5/w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=twfAj3jJ2iISvtECbV5aZw57c7oT5wmcKVNF5jtBKzw=;
-        b=oeozBoF1+UQnx3/wskw3zjs0h9lo4R4fxPPMbNylOxui7/unc/f0mvOkEOva4zU+KA
-         T1H1XnJq8XnAZhhfIrAjUNDyy951PBEsX80mrOswJC58+0dg1BngWagQIkASX49ohrkM
-         wSVJtyrzE9rGQQaUxmq/DF3SGXU4WZDy5EMaiEGX1tHWFS0gVQTjHcT+ijONkM3sNc3X
-         /vTFoD7ZpSeehRw4n3Qio7NymHKKozNvEmny+0fNsv3rXXRj1JiQskNURCrTXqYkzBFy
-         Hd1JVWi/B5mIpyd3Bhrn0RixQzUh3EWki1bOzqa30lu3rBtCx7ZJk4/LGY34T9QEtsid
-         Uw0Q==
-X-Gm-Message-State: APjAAAU+2SdCpiTCrP63+oUAvOiku0C10y2cNy58XtCXblwGKk2OyGVL
-	ne3G4NT4dIQ20qS7M2ySzK0t3LfvVwo=
-X-Google-Smtp-Source: APXvYqxETSoB7i089gEAZo3heQkfBeRm4nuAsZXEBqnzkt2y4Au7XwxwXBZ3oa3XifiOiixuSCRIRg==
-X-Received: by 2002:a37:3d8:: with SMTP id 207mr671091qkd.191.1566947084848;
-        Tue, 27 Aug 2019 16:04:44 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-142-167-216-168.dhcp-dynamic.fibreop.ns.bellaliant.net. [142.167.216.168])
-        by smtp.gmail.com with ESMTPSA id u28sm319212qtc.18.2019.08.27.16.04.44
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 27 Aug 2019 16:04:44 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1i2kW3-0007TV-VG; Tue, 27 Aug 2019 20:04:43 -0300
-Date: Tue, 27 Aug 2019 20:04:43 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>
-Subject: Re: [PATCH 0/5] mmu notifer debug annotations
-Message-ID: <20190827230443.GA28580@ziepe.ca>
-References: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=C3Lh+/0FHXGNq2XvS9+HzZnHDnerotizKClAN2CZjKM=;
+        b=Ly8dvjiiQ1gbu1XnBuRgdduKVEPtER1M4++tcWFHelo8NtJWUi6hxJ3YhJd8ZoVm+b
+         wu6ckCorQvGxVXMb4W+8SlCpCQjxuzJ96hJY0wKs2GzKYyJEZjadQ26WLLfq1NmdMx9A
+         s8uGBXJ/rntHEpvcSAkTqXO0bYOyg7/eIcTPqvDoHfI/LWG62VRsviIs4cOaxu4QCv9u
+         U5BYTquf1eVeWXajAsDtfV7+ctQepcyON+fzp9yo+8j89xewsA+I6gCPZiBZpV3QYVN6
+         zfqD7JtPw/bWiqPkgnhtdy8jeljO5+OG+A2SQ09cgJNVCpHd5wXpC86w/Xuw0DDDIz6G
+         ahjw==
+X-Gm-Message-State: APjAAAWonTIqxYlHjkkoZ9Z0Tn3IaidbzPmcwAAugfVI4mJxczGnxive
+	sxbA7AVc2Mx/n5M/SxoFU2alI8JXKDxF55dAb6leLQ==
+X-Google-Smtp-Source: APXvYqyNcjG5Dunca/fY3J5WjjGlFBlaU8uhKfiPQcptmXaOhOOJjgTB+dbJfrHZkMgVq2JBfoQN/wVpCALRvZhCJqA=
+X-Received: by 2002:aa7:984a:: with SMTP id n10mr1197241pfq.3.1566948328083;
+ Tue, 27 Aug 2019 16:25:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <1566920867-27453-1-git-send-email-cai@lca.pw>
+In-Reply-To: <1566920867-27453-1-git-send-email-cai@lca.pw>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Tue, 27 Aug 2019 16:25:16 -0700
+Message-ID: <CAKwvOdmEZ6ADQyquRYmr+uNFXyZ0wpBZxNCrQnn8qaRZADzjRw@mail.gmail.com>
+Subject: Re: [PATCH] mm: silence -Woverride-init/initializer-overrides
+To: Qian Cai <cai@lca.pw>, Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, 
+	clang-built-linux <clang-built-linux@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Mark Rutland <mark.rutland@arm.com>, Arnd Bergmann <arnd@arndb.de>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2019 at 10:14:20PM +0200, Daniel Vetter wrote:
-> Hi all,
-> 
-> Next round. Changes:
-> 
-> - I kept the two lockdep annotations patches since when I rebased this
->   before retesting linux-next didn't yet have them. Otherwise unchanged
->   except for a trivial conflict.
-> 
-> - Ack from Peter Z. on the kernel.h patch.
-> 
-> - Added annotations for non_block to invalidate_range_end. I can't test
->   that readily since i915 doesn't use it.
-> 
-> - Added might_sleep annotations to also make sure the mm side keeps up
->   it's side of the contract here around what's allowed and what's not.
-> 
-> Comments, feedback, review as usual very much appreciated.
-> 
-> 
-> Daniel Vetter (5):
->   mm, notifier: Add a lockdep map for invalidate_range_start/end
->   mm, notifier: Prime lockdep
->   mm, notifier: annotate with might_sleep()
+On Tue, Aug 27, 2019 at 8:49 AM Qian Cai <cai@lca.pw> wrote:
+>
+> When compiling a kernel with W=1, there are several of those warnings
+> due to arm64 override a field by purpose. Just disable those warnings
+> for both GCC and Clang of this file, so it will help dig "gems" hidden
+> in the W=1 warnings by reducing some noises.
+>
+> mm/init-mm.c:39:2: warning: initializer overrides prior initialization
+> of this subobject [-Winitializer-overrides]
+>         INIT_MM_CONTEXT(init_mm)
+>         ^~~~~~~~~~~~~~~~~~~~~~~~
+> ./arch/arm64/include/asm/mmu.h:133:9: note: expanded from macro
+> 'INIT_MM_CONTEXT'
+>         .pgd = init_pg_dir,
+>                ^~~~~~~~~~~
+> mm/init-mm.c:30:10: note: previous initialization is here
+>         .pgd            = swapper_pg_dir,
+>                           ^~~~~~~~~~~~~~
+>
+> Note: there is a side project trying to support explicitly allowing
+> specific initializer overrides in Clang, but there is no guarantee it
+> will happen or not.
+>
+> https://github.com/ClangBuiltLinux/linux/issues/639
+>
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+>  mm/Makefile | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/mm/Makefile b/mm/Makefile
+> index d0b295c3b764..5a30b8ecdc55 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
 
-I took these ones to hmm.git as they have a small conflict with hmm's
-changes.
+Hi Qian, thanks for the patch.
+Rather than disable the warning outright, and bury the disabling in a
+directory specific Makefile, why not move it to W=2 in
+scripts/Makefile.extrawarn?
 
->   kernel.h: Add non_block_start/end()
->   mm, notifier: Catch sleeping/blocking for !blockable
 
-Lets see about the checkpatch warning and review on these two please
+I think even better would be to use pragma's to disable the warning in
+mm/init.c.  Looks like __diag support was never ported for clang yet
+from include/linux/compiler-gcc.h to include/linux/compiler-clang.h.
 
+Then you could do:
+
+ 28 struct mm_struct init_mm = {
+ 29   .mm_rb    = RB_ROOT,
+ 30   .pgd    = swapper_pg_dir,
+ 31   .mm_users = ATOMIC_INIT(2),
+ 32   .mm_count = ATOMIC_INIT(1),
+ 33   .mmap_sem = __RWSEM_INITIALIZER(init_mm.mmap_sem),
+ 34   .page_table_lock =
+__SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+ 35   .arg_lock =  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
+ 36   .mmlist   = LIST_HEAD_INIT(init_mm.mmlist),
+ 37   .user_ns  = &init_user_ns,
+ 38   .cpu_bitmap = { [BITS_TO_LONGS(NR_CPUS)] = 0},
+__diag_push();
+__diag_ignore(CLANG, 4, "-Winitializer-overrides")
+ 39   INIT_MM_CONTEXT(init_mm)
+__diag_pop();
+ 40 };
+
+
+I mean, the arm64 case is not a bug, but I worry about turning this
+warning off.  I'd expect it to only warn once during an arm64 build,
+so does the warning really detract from "W=1 gem finding?"
+
+> @@ -21,6 +21,9 @@ KCOV_INSTRUMENT_memcontrol.o := n
+>  KCOV_INSTRUMENT_mmzone.o := n
+>  KCOV_INSTRUMENT_vmstat.o := n
+>
+> +CFLAGS_init-mm.o += $(call cc-disable-warning, override-init)
+
+-Woverride-init isn't mentioned in the commit message, so not sure if
+it's meant to ride along?
+
+> +CFLAGS_init-mm.o += $(call cc-disable-warning, initializer-overrides)
+> +
+
+-- 
 Thanks,
-Jason
+~Nick Desaulniers
 
