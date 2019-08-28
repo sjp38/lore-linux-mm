@@ -2,102 +2,116 @@ Return-Path: <SRS0=q8/f=WY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CCE0CC3A5A6
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:18:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E368C3A5A1
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:20:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A9BF2189D
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:18:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A9BF2189D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 49BB52341B
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:20:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OkB8WmnO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49BB52341B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 406B16B0003; Wed, 28 Aug 2019 10:18:48 -0400 (EDT)
+	id 95C426B0010; Wed, 28 Aug 2019 10:20:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B7406B0008; Wed, 28 Aug 2019 10:18:48 -0400 (EDT)
+	id 90D746B0266; Wed, 28 Aug 2019 10:20:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A6256B000C; Wed, 28 Aug 2019 10:18:48 -0400 (EDT)
+	id 84D106B0269; Wed, 28 Aug 2019 10:20:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0134.hostedemail.com [216.40.44.134])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9246B0003
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 10:18:48 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 9D9EB8E6C
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:18:47 +0000 (UTC)
-X-FDA: 75872042694.25.kiss24_86ed80d867700
-X-HE-Tag: kiss24_86ed80d867700
-X-Filterd-Recvd-Size: 3154
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:18:47 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 15783308123B;
-	Wed, 28 Aug 2019 14:18:46 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7DC1335F2;
-	Wed, 28 Aug 2019 14:18:42 +0000 (UTC)
-Subject: Re: [PATCH v2] fs/proc/page: Skip uninitialized page when iterating
- page structures
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dan Williams <dan.j.williams@gmail.com>,
- Alexey Dobriyan <adobriyan@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- Stephen Rothwell <sfr@canb.auug.org.au>, "Michael S. Tsirkin"
- <mst@redhat.com>, Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-References: <20190826124336.8742-1-longman@redhat.com>
- <20190827142238.GB10223@dhcp22.suse.cz>
- <20190828080006.GG7386@dhcp22.suse.cz>
- <8363a4ba-e26f-f88c-21fc-5dd1fe64f646@redhat.com>
- <20190828140938.GL28313@dhcp22.suse.cz>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <4367f507-97ba-a74e-6bf5-811cdd6ecdf9@redhat.com>
-Date: Wed, 28 Aug 2019 10:18:41 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0126.hostedemail.com [216.40.44.126])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1EA6B0010
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 10:20:12 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1637F8138
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:20:12 +0000 (UTC)
+X-FDA: 75872046264.05.books24_1b3e40a3d618
+X-HE-Tag: books24_1b3e40a3d618
+X-Filterd-Recvd-Size: 3193
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:20:11 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=zl4G8WtuziQvLKFqDgMdC9UCvqeacC6em8tdHCZigf0=; b=OkB8WmnON97oS6Y/JoC0YQ4U0E
+	IslxnmG7+sUaZwQg4Yi1yE68jOJc8TkEnEfgn7GdDAYmzNN+0GVCubBhKmjjcDXg/H32Nz8ZDKaTb
+	19DGkJh2XSDQ48/p5CJFqPFr7krGLZvjpZ460jfdJ+r61yH2Ng3CZyvliJ4Bawc4gKd/RwGomc08I
+	nHnqQ6SuMzevS/QTCFkiztqG2QNar+ZUvWNRYmSNrFc+gKZbX0qQ2TUR0qQ3pnnXA4CJ2OTC0S4Ql
+	nns156DI7AWQKjg5dAKWdppB4FbZNora49ZcfbYVr4aq4Uc1PccDeBxlA7zrI3veBTAk5a0neMhrV
+	h2OQOU2A==;
+Received: from [2001:4bb8:180:3f4c:863:2ead:e9d4:da9f] (helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i2ynu-0004SO-I3; Wed, 28 Aug 2019 14:20:06 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: =?UTF-8?q?Thomas=20Hellstr=C3=B6m?= <thomas@shipmail.org>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Steven Price <steven.price@arm.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Thomas Hellstrom <thellstrom@vmware.com>
+Subject: [PATCH 3/3] pagewalk: use lockdep_assert_held for locking validation
+Date: Wed, 28 Aug 2019 16:19:55 +0200
+Message-Id: <20190828141955.22210-4-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190828141955.22210-1-hch@lst.de>
+References: <20190828141955.22210-1-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20190828140938.GL28313@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 28 Aug 2019 14:18:46 +0000 (UTC)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/28/19 10:09 AM, Michal Hocko wrote:
-> On Wed 28-08-19 09:46:21, Waiman Long wrote:
->> On 8/28/19 4:00 AM, Michal Hocko wrote:
->>> On Tue 27-08-19 16:22:38, Michal Hocko wrote:
->>>> Dan, isn't this something we have discussed recently?
->>> This was http://lkml.kernel.org/r/20190725023100.31141-3-t-fukasawa@vx.jp.nec.com
->>> and talked about /proc/kpageflags but this is essentially the same thing
->>> AFAIU. I hope we get a consistent solution for both issues.
->>>
->> Yes, it is the same problem. The uninitialized page structure problem
->> affects all the 3 /proc/kpage{cgroup,count,flags) files.
->>
->> Toshiki's patch seems to fix it just for /proc/kpageflags, though.
-> Yup. I was arguing that whacking a mole kinda fix is far from good. Dan
-> had some arguments on why initializing those struct pages is a problem.
-> The discussion had a half open end though. I hoped that Dan would try
-> out the initialization side but I migh have misunderstood.
+Use lockdep to check for held locks instead of using home grown
+asserts.
 
-If the page structures of the reserved PFNs are always initialized, that
-will fix the problem too. I am not familiar with the zone device code.
-So I didn't attempt to do that.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Thomas Hellstrom <thellstrom@vmware.com>
+Reviewed-by: Steven Price <steven.price@arm.com>
+---
+ mm/pagewalk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Cheers,
-Longman
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index b8762b673a3d..d48c2a986ea3 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -317,7 +317,7 @@ int walk_page_range(struct mm_struct *mm, unsigned lo=
+ng start,
+ 	if (!walk.mm)
+ 		return -EINVAL;
+=20
+-	VM_BUG_ON_MM(!rwsem_is_locked(&walk.mm->mmap_sem), walk.mm);
++	lockdep_assert_held(&walk.mm->mmap_sem);
+=20
+ 	vma =3D find_vma(walk.mm, start);
+ 	do {
+@@ -367,7 +367,7 @@ int walk_page_vma(struct vm_area_struct *vma, const s=
+truct mm_walk_ops *ops,
+ 	if (!walk.mm)
+ 		return -EINVAL;
+=20
+-	VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
++	lockdep_assert_held(&walk.mm->mmap_sem);
+=20
+ 	err =3D walk_page_test(vma->vm_start, vma->vm_end, &walk);
+ 	if (err > 0)
+--=20
+2.20.1
 
 
