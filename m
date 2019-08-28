@@ -2,85 +2,74 @@ Return-Path: <SRS0=q8/f=WY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F2EFC3A5A6
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:13:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FFC1C3A5A3
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:14:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B782422DA7
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:13:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 62D0820856
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:14:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="cyI0K9bk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B782422DA7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="kxL5f0dW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62D0820856
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 394176B0006; Tue, 27 Aug 2019 21:13:35 -0400 (EDT)
+	id 1702B6B0006; Tue, 27 Aug 2019 21:14:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31D936B0008; Tue, 27 Aug 2019 21:13:35 -0400 (EDT)
+	id 149C56B0008; Tue, 27 Aug 2019 21:14:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E5616B000A; Tue, 27 Aug 2019 21:13:35 -0400 (EDT)
+	id 010696B000A; Tue, 27 Aug 2019 21:14:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
-	by kanga.kvack.org (Postfix) with ESMTP id EA7DC6B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 21:13:34 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 909D681D5
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:13:34 +0000 (UTC)
-X-FDA: 75870063948.30.lift01_767ac66e24c21
-X-HE-Tag: lift01_767ac66e24c21
-X-Filterd-Recvd-Size: 6846
-Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:13:34 +0000 (UTC)
-Received: by mail-io1-f66.google.com with SMTP id o9so2502565iom.3
-        for <linux-mm@kvack.org>; Tue, 27 Aug 2019 18:13:33 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=arista.com; s=googlenew;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=aXhUQnfZQDKleQOklf5FuJsDb1E8hBR8PFQqMhT/jws=;
-        b=cyI0K9bkR6g+jAhPEbl6uuV0FKncWBWE6TLnWHYS450ubtH0Xi4xGv/ijkZwhZlcTD
-         7TRhHA24RgNvGvbBH3phisksEKudVMv8Y2R/1rLD4+8eXRgPLNV/chNAtgO9wVMeNY67
-         HCuZPKR67XKQD3DpZnHBYgFaVwUPOOxB55F2Q3Mzn1mbKGyBBBl4yY57KgPe+MxfdWCL
-         xdk9eVK826eiC3SMt16fPjPoYtSiRf1BG1Vg+pE3zvQIpa4NnfHncYWXPVgLHI69j2ML
-         KdZOF/sMQ+3IgFKwo5Rf6WoY+0UTqDoCepxBCKJNDYSW1Fe9mVeC8nPMg7QTW3do3sUi
-         VgSg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc:content-transfer-encoding;
-        bh=aXhUQnfZQDKleQOklf5FuJsDb1E8hBR8PFQqMhT/jws=;
-        b=KWO+TZr5xTYVrsMQJQglBI7gA4HSpWg2xOdXNBkRsl9FGymcUaEFB7RjYY7HEhqC6x
-         +S561NBZii8bt3i4lrH7zn2OAi7rqVmYOX3B/G2JlCpttqPTHemvPvWyv+Ljm6D7YFXv
-         MF/YqwQElFvQC4rm1Egu/cIMLnCpBhMKJ4g6WJtQflrc8aO7Lfr99qZO+gvLDnVel841
-         uCZs0fLySanu3TCh+jv30umbfWJxDsqo5Ue5vOWx2IT7eVyC+u/O2ToJja7k5BhOb4my
-         18jxo+QfpIo1f2evPePWqCOyU5bm/v4rXO8mpZyT8VwZE9htqCC9keiw8dcF5o2Rmp/j
-         g69Q==
-X-Gm-Message-State: APjAAAV0Y76AWNVodr4sAzu1jLIK6K286lKK5v6AF0CHwV5j+WuWtqF5
-	ORMIhFHn6xdhG5TzmpGpZasd4BtIuMFb6v5QYoBVZyfD
-X-Google-Smtp-Source: APXvYqy42usK0sA9aVlheDFbqQtf6evzfcN8wANnTZqjyjI9/iPBjceViSHvUS7KuPtSr+9aZicp5tUEp3g73ooJGCE=
-X-Received: by 2002:a6b:f803:: with SMTP id o3mr1409378ioh.187.1566954812678;
- Tue, 27 Aug 2019 18:13:32 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0041.hostedemail.com [216.40.44.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D39DB6B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 21:14:44 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 7F79E8418
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:14:44 +0000 (UTC)
+X-FDA: 75870066888.24.bomb67_80a6ea6594e3a
+X-HE-Tag: bomb67_80a6ea6594e3a
+X-Filterd-Recvd-Size: 3729
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:14:43 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:Cc:From:References:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=hfSx8v0zhIV+bXC+CodQztxjQ/b6g4dcxtBZrzRlWPs=; b=kxL5f0dWo7sB0WNPrB0IaSLY7
+	MbNT2c+q6KEjvIRj65dBT3HQu0J0qW2J+yuxyG93K/X1w6GQYhWFiPDwTrlwGDIUhnpoXDKMhvKNh
+	G7keMO2VEKiqAmLzL1v0r3lUDWwvnxe3F/H2LTPH7MCTOE0WGt0F4b+sHbwkaLfLcoPSaA5Uvs6Sx
+	X/7vpKszkDmVggCa7+U58gqc2KS2enuH4tRmyaZjeVU0ObU1qsqmO0gl5TQf1edJhcqJ0MnvSTvK7
+	MreUZ+Ucmf+3ez2qvttBxfq8782KE01IEy+gsHiBcoqkRGj+kkaeVulwpjNrFKxEhZuo04pzKqX0u
+	w4QUJsD/g==;
+Received: from [2601:1c0:6200:6e8::4f71]
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1i2mXh-0001yi-EV; Wed, 28 Aug 2019 01:14:33 +0000
+Subject: Re: mmotm 2019-08-24-16-02 uploaded
+ (drivers/tty/serial/fsl_linflexuart.c:)
+To: akpm@linux-foundation.org, broonie@kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
+ mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
+ "open list:SERIAL DRIVERS" <linux-serial@vger.kernel.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+References: <20190824230323.REILuVBbY%akpm@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Cc: Fugang Duan <fugang.duan@nxp.com>
+Message-ID: <b082b200-7298-6cd5-6981-44439bc2d788@infradead.org>
+Date: Tue, 27 Aug 2019 18:14:32 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190826193638.6638-1-echron@arista.com> <1566909632.5576.14.camel@lca.pw>
- <CAM3twVQEMGWMQEC0dduri0JWt3gH6F2YsSqOmk55VQz+CZDVKg@mail.gmail.com> <79FC3DA1-47F0-4FFC-A92B-9A7EBCE3F15F@lca.pw>
-In-Reply-To: <79FC3DA1-47F0-4FFC-A92B-9A7EBCE3F15F@lca.pw>
-From: Edward Chron <echron@arista.com>
-Date: Tue, 27 Aug 2019 18:13:20 -0700
-Message-ID: <CAM3twVSdxJaEpmWXu2m_F1MxFMB58C6=LWWCDYNn5yT3Ns+0sQ@mail.gmail.com>
-Subject: Re: [PATCH 00/10] OOM Debug print selection and additional information
-To: Qian Cai <cai@lca.pw>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shakeel Butt <shakeelb@google.com>, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Ivan Delalande <colona@arista.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190824230323.REILuVBbY%akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -88,97 +77,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 27, 2019 at 5:50 PM Qian Cai <cai@lca.pw> wrote:
->
->
->
-> > On Aug 27, 2019, at 8:23 PM, Edward Chron <echron@arista.com> wrote:
-> >
-> >
-> >
-> > On Tue, Aug 27, 2019 at 5:40 AM Qian Cai <cai@lca.pw> wrote:
-> > On Mon, 2019-08-26 at 12:36 -0700, Edward Chron wrote:
-> > > This patch series provides code that works as a debug option through
-> > > debugfs to provide additional controls to limit how much information
-> > > gets printed when an OOM event occurs and or optionally print additio=
-nal
-> > > information about slab usage, vmalloc allocations, user process memor=
-y
-> > > usage, the number of processes / tasks and some summary information
-> > > about these tasks (number runable, i/o wait), system information
-> > > (#CPUs, Kernel Version and other useful state of the system),
-> > > ARP and ND Cache entry information.
-> > >
-> > > Linux OOM can optionally provide a lot of information, what's missing=
-?
-> > > ---------------------------------------------------------------------=
--
-> > > Linux provides a variety of detailed information when an OOM event oc=
-curs
-> > > but has limited options to control how much output is produced. The
-> > > system related information is produced unconditionally and limited pe=
-r
-> > > user process information is produced as a default enabled option. The
-> > > per user process information may be disabled.
-> > >
-> > > Slab usage information was recently added and is output only if slab
-> > > usage exceeds user memory usage.
-> > >
-> > > Many OOM events are due to user application memory usage sometimes in
-> > > combination with the use of kernel resource usage that exceeds what i=
-s
-> > > expected memory usage. Detailed information about how memory was bein=
-g
-> > > used when the event occurred may be required to identify the root cau=
-se
-> > > of the OOM event.
-> > >
-> > > However, some environments are very large and printing all of the
-> > > information about processes, slabs and or vmalloc allocations may
-> > > not be feasible. For other environments printing as much information
-> > > about these as possible may be needed to root cause OOM events.
-> > >
-> >
-> > For more in-depth analysis of OOM events, people could use kdump to sav=
-e a
-> > vmcore by setting "panic_on_oom", and then use the crash utility to ana=
-lysis the
-> >  vmcore which contains pretty much all the information you need.
-> >
-> > Certainly, this is the ideal. A full system dump would give you the max=
-imum amount of
-> > information.
-> >
-> > Unfortunately some environments may lack space to store the dump,
->
-> Kdump usually also support dumping to a remote target via NFS, SSH etc
->
-> > let alone the time to dump the storage contents and restart the system.=
- Some
->
-> There is also =E2=80=9Cmakedumpfile=E2=80=9D that could compress and filt=
-er unwanted memory to reduce
-> the vmcore size and speed up the dumping process by utilizing multi-threa=
-ds.
->
-> > systems can take many minutes to fully boot up, to reset and reinitiali=
-ze all the
-> > devices. So unfortunately this is not always an option, and we need an =
-OOM Report.
->
-> I am not sure how the system needs some minutes to reboot would be releva=
-nt  for the
-> discussion here. The idea is to save a vmcore and it can be analyzed offl=
-ine even on
-> another system as long as it having a matching =E2=80=9Cvmlinux.".
->
->
+On 8/24/19 4:03 PM, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2019-08-24-16-02 has been uploaded to
+>=20
+>    http://www.ozlabs.org/~akpm/mmotm/
+>=20
+> mmotm-readme.txt says
+>=20
+> README for mm-of-the-moment:
+>=20
+> http://www.ozlabs.org/~akpm/mmotm/
+>=20
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+>=20
+> You will need quilt to apply these patches to the latest Linus release =
+(5.x
+> or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated=
+ in
+> http://ozlabs.org/~akpm/mmotm/series
+>=20
+> The file broken-out.tar.gz contains two datestamp files: .DATE and
+> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss=
+,
+> followed by the base kernel version against which this patch series is =
+to
+> be applied.
+>=20
+> This tree is partially included in linux-next.  To see which patches ar=
+e
+> included in linux-next, consult the `series' file.  Only the patches
+> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included i=
+n
+> linux-next.
 
-If selecting a dump on an OOM event doesn't reboot the system and if
-it runs fast enough such
-that it doesn't slow processing enough to appreciably effect the
-system's responsiveness then
-then it would be ideal solution. For some it would be over kill but
-since it is an option it is a
-choice to consider or not.
+on i386:
+when CONFIG_PRINTK is not set/enabled:
+
+../drivers/tty/serial/fsl_linflexuart.c: In function =E2=80=98linflex_ear=
+lycon_putchar=E2=80=99:
+../drivers/tty/serial/fsl_linflexuart.c:608:31: error: =E2=80=98CONFIG_LO=
+G_BUF_SHIFT=E2=80=99 undeclared (first use in this function); did you mea=
+n =E2=80=98CONFIG_DEBUG_SHIRQ=E2=80=99?
+  if (earlycon_buf.len >=3D 1 << CONFIG_LOG_BUF_SHIFT)
+                               ^~~~~~~~~~~~~~~~~~~~
+                               CONFIG_DEBUG_SHIRQ
+
+
+--=20
+~Randy
 
