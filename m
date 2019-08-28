@@ -2,144 +2,220 @@ Return-Path: <SRS0=q8/f=WY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25899C3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 07:03:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EDBF9C3A5A1
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 07:08:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D41942173E
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 07:03:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="SRcswj1N"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D41942173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 8E7CF20828
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 07:08:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E7CF20828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C0C06B0008; Wed, 28 Aug 2019 03:03:43 -0400 (EDT)
+	id 23B166B0008; Wed, 28 Aug 2019 03:08:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 571FB6B000C; Wed, 28 Aug 2019 03:03:43 -0400 (EDT)
+	id 1EB506B000C; Wed, 28 Aug 2019 03:08:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 460726B000D; Wed, 28 Aug 2019 03:03:43 -0400 (EDT)
+	id 101FE6B000D; Wed, 28 Aug 2019 03:08:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0086.hostedemail.com [216.40.44.86])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B2D6B0008
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 03:03:43 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 98E458243762
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 07:03:42 +0000 (UTC)
-X-FDA: 75870946284.04.ice29_7797b5feb174e
-X-HE-Tag: ice29_7797b5feb174e
-X-Filterd-Recvd-Size: 5193
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 07:03:41 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=b0lWlRYuwpcJp7FZARuB7iv+wNKnjSY45sYdI3qTaw0=; b=SRcswj1NZftwI/XnJvFP3pShU
-	znc/n+mtlRHu6TFjynsrTcX7AJbxhiAxqbwLDQuGtAPg3JfrBRRm0ct4NUb75sMosNwo6zzPno6++
-	UalJ7tB/CF1fibAZwF3XnkUahC3vLwVicDfZaOzdUfznqQYyj4cqeEELzUx5OBLE/UoBVq4xNa3fb
-	MAGABj29H9rsz6o5r+c35Ec806uTVIFEp3KPjzXh72MNxZwttb5puS+/o9mL5A6kR9sqWGaybBoG8
-	jFsHa7toIBBHEB+Y8OPHVqgL3GH3gy6DAyVnffryEZ3lpK0XGznfntg42Nb/sbcfkNgDjX3ozypqN
-	oKJ6ql6IQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=noisy.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1i2rz6-0000Q5-2E; Wed, 28 Aug 2019 07:03:12 +0000
-Received: from hirez.programming.kicks-ass.net (hirez.programming.kicks-ass.net [192.168.1.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(Client did not present a certificate)
-	by noisy.programming.kicks-ass.net (Postfix) with ESMTPS id 95D553070F4;
-	Wed, 28 Aug 2019 09:02:34 +0200 (CEST)
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 7D7E02018508C; Wed, 28 Aug 2019 09:03:08 +0200 (CEST)
-Date: Wed, 28 Aug 2019 09:03:08 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
-	Dave Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v8 11/27] x86/mm: Introduce _PAGE_DIRTY_SW
-Message-ID: <20190828070308.GJ2332@hirez.programming.kicks-ass.net>
-References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
- <20190813205225.12032-12-yu-cheng.yu@intel.com>
- <20190823140233.GC2332@hirez.programming.kicks-ass.net>
- <6c3dc33e16c8bbb6d45c0a6ec7c684de197fa065.camel@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id E4B2C6B0008
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 03:08:49 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 7A373181AC9AE
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 07:08:49 +0000 (UTC)
+X-FDA: 75870959178.03.day23_12c5774c41c18
+X-HE-Tag: day23_12c5774c41c18
+X-Filterd-Recvd-Size: 7266
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf22.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 07:08:48 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5A944B06B;
+	Wed, 28 Aug 2019 07:08:47 +0000 (UTC)
+Date: Wed, 28 Aug 2019 09:08:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Edward Chron <echron@arista.com>
+Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
+Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
+ information
+Message-ID: <20190828070845.GC7386@dhcp22.suse.cz>
+References: <20190826193638.6638-1-echron@arista.com>
+ <1566909632.5576.14.camel@lca.pw>
+ <CAM3twVQEMGWMQEC0dduri0JWt3gH6F2YsSqOmk55VQz+CZDVKg@mail.gmail.com>
+ <79FC3DA1-47F0-4FFC-A92B-9A7EBCE3F15F@lca.pw>
+ <CAM3twVSdxJaEpmWXu2m_F1MxFMB58C6=LWWCDYNn5yT3Ns+0sQ@mail.gmail.com>
+ <2A1D8FFC-9E9E-4D86-9A0E-28F8263CC508@lca.pw>
+ <CAM3twVR5TVuuZSLM2qRJYnkCEKVZmA3XDNREaB+wdKH2Ne9vVA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <6c3dc33e16c8bbb6d45c0a6ec7c684de197fa065.camel@intel.com>
+In-Reply-To: <CAM3twVR5TVuuZSLM2qRJYnkCEKVZmA3XDNREaB+wdKH2Ne9vVA@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 27, 2019 at 03:37:12PM -0700, Yu-cheng Yu wrote:
-> On Fri, 2019-08-23 at 16:02 +0200, Peter Zijlstra wrote:
-> > On Tue, Aug 13, 2019 at 01:52:09PM -0700, Yu-cheng Yu wrote:
-> > 
-> > > +static inline pte_t pte_move_flags(pte_t pte, pteval_t from, pteval_t to)
-> > > +{
-> > > +	if (pte_flags(pte) & from)
-> > > +		pte = pte_set_flags(pte_clear_flags(pte, from), to);
-> > > +	return pte;
-> > > +}
-> > 
-> > Aside of the whole conditional thing (I agree it would be better to have
-> > this unconditionally); the function doesn't really do as advertised.
-> > 
-> > That is, if @from is clear, it doesn't endeavour to make sure @to is
-> > also clear.
-> > 
-> > Now it might be sufficient, but in that case it really needs a comment
-> > and or different name.
-> > 
-> > An implementation that actually moves the bit is something like:
-> > 
-> > 	pteval_t a,b;
-> > 
-> > 	a = native_pte_value(pte);
-> > 	b = (a >> from_bit) & 1;
-> > 	a &= ~((1ULL << from_bit) | (1ULL << to_bit));
-> > 	a |= b << to_bit;
-> > 	return make_native_pte(a);
-> 
-> There can be places calling pte_wrprotect() on a PTE that is already RO +
-> DIRTY_SW.  Then in pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW) we do not
->  want to clear _PAGE_DIRTY_SW.  But, I will look into this and make it more
-> obvious.
+On Tue 27-08-19 19:47:22, Edward Chron wrote:
+> On Tue, Aug 27, 2019 at 6:32 PM Qian Cai <cai@lca.pw> wrote:
+> >
+> >
+> >
+> > > On Aug 27, 2019, at 9:13 PM, Edward Chron <echron@arista.com> wrote=
+:
+> > >
+> > > On Tue, Aug 27, 2019 at 5:50 PM Qian Cai <cai@lca.pw> wrote:
+> > >>
+> > >>
+> > >>
+> > >>> On Aug 27, 2019, at 8:23 PM, Edward Chron <echron@arista.com> wro=
+te:
+> > >>>
+> > >>>
+> > >>>
+> > >>> On Tue, Aug 27, 2019 at 5:40 AM Qian Cai <cai@lca.pw> wrote:
+> > >>> On Mon, 2019-08-26 at 12:36 -0700, Edward Chron wrote:
+> > >>>> This patch series provides code that works as a debug option thr=
+ough
+> > >>>> debugfs to provide additional controls to limit how much informa=
+tion
+> > >>>> gets printed when an OOM event occurs and or optionally print ad=
+ditional
+> > >>>> information about slab usage, vmalloc allocations, user process =
+memory
+> > >>>> usage, the number of processes / tasks and some summary informat=
+ion
+> > >>>> about these tasks (number runable, i/o wait), system information
+> > >>>> (#CPUs, Kernel Version and other useful state of the system),
+> > >>>> ARP and ND Cache entry information.
+> > >>>>
+> > >>>> Linux OOM can optionally provide a lot of information, what's mi=
+ssing?
+> > >>>> ----------------------------------------------------------------=
+------
+> > >>>> Linux provides a variety of detailed information when an OOM eve=
+nt occurs
+> > >>>> but has limited options to control how much output is produced. =
+The
+> > >>>> system related information is produced unconditionally and limit=
+ed per
+> > >>>> user process information is produced as a default enabled option=
+. The
+> > >>>> per user process information may be disabled.
+> > >>>>
+> > >>>> Slab usage information was recently added and is output only if =
+slab
+> > >>>> usage exceeds user memory usage.
+> > >>>>
+> > >>>> Many OOM events are due to user application memory usage sometim=
+es in
+> > >>>> combination with the use of kernel resource usage that exceeds w=
+hat is
+> > >>>> expected memory usage. Detailed information about how memory was=
+ being
+> > >>>> used when the event occurred may be required to identify the roo=
+t cause
+> > >>>> of the OOM event.
+> > >>>>
+> > >>>> However, some environments are very large and printing all of th=
+e
+> > >>>> information about processes, slabs and or vmalloc allocations ma=
+y
+> > >>>> not be feasible. For other environments printing as much informa=
+tion
+> > >>>> about these as possible may be needed to root cause OOM events.
+> > >>>>
+> > >>>
+> > >>> For more in-depth analysis of OOM events, people could use kdump =
+to save a
+> > >>> vmcore by setting "panic_on_oom", and then use the crash utility =
+to analysis the
+> > >>> vmcore which contains pretty much all the information you need.
+> > >>>
+> > >>> Certainly, this is the ideal. A full system dump would give you t=
+he maximum amount of
+> > >>> information.
+> > >>>
+> > >>> Unfortunately some environments may lack space to store the dump,
+> > >>
+> > >> Kdump usually also support dumping to a remote target via NFS, SSH=
+ etc
+> > >>
+> > >>> let alone the time to dump the storage contents and restart the s=
+ystem. Some
+> > >>
+> > >> There is also =E2=80=9Cmakedumpfile=E2=80=9D that could compress a=
+nd filter unwanted memory to reduce
+> > >> the vmcore size and speed up the dumping process by utilizing mult=
+i-threads.
+> > >>
+> > >>> systems can take many minutes to fully boot up, to reset and rein=
+itialize all the
+> > >>> devices. So unfortunately this is not always an option, and we ne=
+ed an OOM Report.
+> > >>
+> > >> I am not sure how the system needs some minutes to reboot would be=
+ relevant  for the
+> > >> discussion here. The idea is to save a vmcore and it can be analyz=
+ed offline even on
+> > >> another system as long as it having a matching =E2=80=9Cvmlinux.".
+> > >>
+> > >>
+> > >
+> > > If selecting a dump on an OOM event doesn't reboot the system and i=
+f
+> > > it runs fast enough such
+> > > that it doesn't slow processing enough to appreciably effect the
+> > > system's responsiveness then
+> > > then it would be ideal solution. For some it would be over kill but
+> > > since it is an option it is a
+> > > choice to consider or not.
+> >
+> > It sounds like you are looking for more of this,
+>=20
+> If you want to supplement the OOM Report and keep the information
+> together than you could use EBPF to do that. If that really is the
+> preference it might make sense to put the entire report as an EBPF
+> script than you can modify the script however you choose. That would
+> be very flexible. You can change your configuration on the fly. As
+> long as it has access to everything you need it should work.
+>=20
+> Michal would know what direction OOM is headed and if he thinks that fi=
+ts with
+> where things are headed.
 
-Well, then the name 'move' is just wrong, because that is not the
-semantics you're looking for.
+It seems we have landed in the similar thinking here. As mentioned in my
+earlier email in this thread I can see the extensibility to be achieved
+by eBPF. Essentially we would have a base form of the oom report like
+now and scripts would then hook in there to provide whatever a specific
+usecase needs. My practical experience with eBPF is close to zero so I
+have no idea how that would actually work out though.
 
-So the thing is; if you provide a generic function that 'munges' two
-bits, then it's name had better be accurate. But AFAICT you only ever
-used this for the DIRTY bits, so it might be better to have a function
-specifically for that and with a comment that spells out the exact
-semantics and reasons for them.
+[...]
+> For production systems installing and updating EBPF scripts may someday
+> be very common, but I wonder how data center managers feel about it now=
+?
+> Developers are very excited about it and it is a very powerful tool but=
+ can I
+> get permission to add or replace an existing EBPF on production systems=
+?
+
+I am not sure I understand. There must be somebody trusted to take care
+of systems, right?
+--=20
+Michal Hocko
+SUSE Labs
 
