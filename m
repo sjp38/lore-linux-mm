@@ -2,150 +2,380 @@ Return-Path: <SRS0=q8/f=WY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62BC5C3A5A6
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 09:23:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78834C3A5A1
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 09:33:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FE6D2173E
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 09:23:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FE6D2173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 03DE1214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 09:33:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03DE1214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B254F6B0005; Wed, 28 Aug 2019 05:23:03 -0400 (EDT)
+	id 5EDB56B0005; Wed, 28 Aug 2019 05:33:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AAEEC6B000C; Wed, 28 Aug 2019 05:23:03 -0400 (EDT)
+	id 59E896B000C; Wed, 28 Aug 2019 05:33:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 975CC6B000D; Wed, 28 Aug 2019 05:23:03 -0400 (EDT)
+	id 418FA6B000D; Wed, 28 Aug 2019 05:33:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0225.hostedemail.com [216.40.44.225])
-	by kanga.kvack.org (Postfix) with ESMTP id 7156D6B0005
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 05:23:03 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 278A31A4A7
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 09:23:03 +0000 (UTC)
-X-FDA: 75871297446.27.ship63_1a78f06e9943c
-X-HE-Tag: ship63_1a78f06e9943c
-X-Filterd-Recvd-Size: 5803
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 09:23:01 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AC682337;
-	Wed, 28 Aug 2019 02:23:00 -0700 (PDT)
-Received: from [10.162.40.83] (p8cg001049571a15.blr.arm.com [10.162.40.83])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1BCFF3F59C;
-	Wed, 28 Aug 2019 02:22:50 -0700 (PDT)
-Subject: Re: [RFC V2 0/1] mm/debug: Add tests for architecture exported page
- table helpers
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+Received: from forelay.hostedemail.com (smtprelay0080.hostedemail.com [216.40.44.80])
+	by kanga.kvack.org (Postfix) with ESMTP id 187D66B0005
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 05:33:18 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id A5A8E22001
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 09:33:17 +0000 (UTC)
+X-FDA: 75871323234.02.burst99_73e6671f26e36
+X-HE-Tag: burst99_73e6671f26e36
+X-Filterd-Recvd-Size: 14830
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 09:33:16 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B15A93082B6D;
+	Wed, 28 Aug 2019 09:33:13 +0000 (UTC)
+Received: from [10.36.117.166] (ovpn-117-166.ams2.redhat.com [10.36.117.166])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2E3DB60BEC;
+	Wed, 28 Aug 2019 09:33:03 +0000 (UTC)
+Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
+ removing memory
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski
+ <luto@kernel.org>, Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
  Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Johannes Weiner <hannes@cmpxchg.org>,
+ Jun Yao <yaojun8558363@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
+ Mark Rutland <mark.rutland@arm.com>,
  Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
- <20190809101632.GM5482@bombadil.infradead.org>
- <a5aab7ff-f7fd-9cc1-6e37-e4185eee65ac@arm.com>
- <20190809135202.GN5482@bombadil.infradead.org>
- <7a88f6bb-e8c7-3ac7-2f92-1de752a01f33@arm.com>
- <20190826131308.GA15933@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <504f891e-7346-7328-74b0-7df3acc230e8@arm.com>
-Date: Wed, 28 Aug 2019 14:52:54 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+ "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>,
+ Mike Rapoport <rppt@linux.ibm.com>, Oscar Salvador <osalvador@suse.de>,
+ Paul Mackerras <paulus@samba.org>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
+ Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
+ Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Wei Yang <richard.weiyang@gmail.com>,
+ Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
+References: <20190826101012.10575-1-david@redhat.com>
+ <87pnksm0zx.fsf@linux.ibm.com>
+ <194da076-364e-267d-0d51-64940925e2e4@redhat.com>
+ <a30b7156-7679-a04a-f74a-c5407b922979@linux.ibm.com>
+ <dc850fea-32c1-a7ed-fad1-727a446a67ca@redhat.com>
+ <f1f5d981-b633-dc39-0b92-3619e4b8f0a5@redhat.com>
+ <87mufvma8p.fsf@linux.ibm.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <5f74b787-66c5-b149-9bda-b45030147b0c@redhat.com>
+Date: Wed, 28 Aug 2019 11:33:02 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190826131308.GA15933@bombadil.infradead.org>
+In-Reply-To: <87mufvma8p.fsf@linux.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 28 Aug 2019 09:33:15 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 08/26/2019 06:43 PM, Matthew Wilcox wrote:
-> On Mon, Aug 26, 2019 at 08:07:13AM +0530, Anshuman Khandual wrote:
->> On 08/09/2019 07:22 PM, Matthew Wilcox wrote:
->>> On Fri, Aug 09, 2019 at 04:05:07PM +0530, Anshuman Khandual wrote:
->>>> On 08/09/2019 03:46 PM, Matthew Wilcox wrote:
->>>>> On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
->>>>>> Should alloc_gigantic_page() be made available as an interface for general
->>>>>> use in the kernel. The test module here uses very similar implementation from
->>>>>> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
->>>>>> needs to be exported through a header.
->>>>>
->>>>> Why are you allocating memory at all instead of just using some
->>>>> known-to-exist PFNs like I suggested?
+On 27.08.19 07:46, Aneesh Kumar K.V wrote:
+> David Hildenbrand <david@redhat.com> writes:
+> 
+>> On 26.08.19 18:20, David Hildenbrand wrote:
+>>> On 26.08.19 18:01, Aneesh Kumar K.V wrote:
+>>>> On 8/26/19 9:13 PM, David Hildenbrand wrote:
+>>>>> On 26.08.19 16:53, Aneesh Kumar K.V wrote:
+>>>>>> David Hildenbrand <david@redhat.com> writes:
+>>>>>>
+>>>>>>>
 >>>>
->>>> We needed PFN to be PUD aligned for pfn_pud() and PMD aligned for mk_pmd().
->>>> Now walking the kernel page table for a known symbol like kernel_init()
+>>>> ....
+>>>>
+>>>>>>
+>>>>>> I did report a variant of the issue at
+>>>>>>
+>>>>>> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
+>>>>>>
+>>>>>> This patch series still doesn't handle the fact that struct page backing
+>>>>>> the start_pfn might not be initialized. ie, it results in crash like
+>>>>>> below
+>>>>>
+>>>>> Okay, that's a related but different issue I think.
+>>>>>
+>>>>> I can see that current shrink_zone_span() might read-access the
+>>>>> uninitialized struct page of a PFN if
+>>>>>
+>>>>> 1. The zone has holes and we check for "zone all holes". If we get
+>>>>> pfn_valid(pfn), we check if "page_zone(pfn_to_page(pfn)) != zone".
+>>>>>
+>>>>> 2. Via find_smallest_section_pfn() / find_biggest_section_pfn() find a
+>>>>> spanned pfn_valid(). We check
+>>>>> - pfn_to_nid(start_pfn) != nid
+>>>>> - zone != page_zone(pfn_to_page(start_pfn)
+>>>>>
+>>>>> So we don't actually use the zone/nid, only use it to sanity check. That
+>>>>> might result in false-positives (not that bad).
+>>>>>
+>>>>> It all boils down to shrink_zone_span() not working only on active
+>>>>> memory, for which the PFN is not only valid but also initialized
+>>>>> (something for which we need a new section flag I assume).
+>>>>>
+>>>>> Which access triggers the issue you describe? pfn_to_nid()?
+>>>>>
+>>>>>>
+>>>>>>      pc: c0000000004bc1ec: shrink_zone_span+0x1bc/0x290
+>>>>>>      lr: c0000000004bc1e8: shrink_zone_span+0x1b8/0x290
+>>>>>>      sp: c0000000dac7f910
+>>>>>>     msr: 800000000282b033
+>>>>>>    current = 0xc0000000da2fa000
+>>>>>>    paca    = 0xc00000000fffb300   irqmask: 0x03   irq_happened: 0x01
+>>>>>>      pid   = 1224, comm = ndctl
+>>>>>> kernel BUG at /home/kvaneesh/src/linux/include/linux/mm.h:1088!
+>>>>>> Linux version 5.3.0-rc6-17495-gc7727d815970-dirty (kvaneesh@ltc-boston123) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #183 SMP Mon Aug 26 09:37:32 CDT 2019
+>>>>>> enter ? for help
+>>>>>
+>>>>> Which exact kernel BUG are you hitting here? (my tree doesn't seem t
+>>>>> have any BUG statement around  include/linux/mm.h:1088). 
+>>>>
+>>>>
+>>>>
+>>>> This is against upstream linus with your patches applied.
 >>>
->>> I didn't say to walk the kernel page table.  I said to call virt_to_pfn()
->>> for a known symbol like kernel_init().
+>>> I'm
 >>>
->>>> as you had suggested earlier we might encounter page table page entries at PMD
->>>> and PUD which might not be PMD or PUD aligned respectively. It seemed to me
->>>> that alignment requirement is applicable only for mk_pmd() and pfn_pud()
->>>> which create large mappings at those levels but that requirement does not
->>>> exist for page table pages pointing to next level. Is not that correct ? Or
->>>> I am missing something here ?
+>>>>
+>>>>
+>>>> static inline int page_to_nid(const struct page *page)
+>>>> {
+>>>> 	struct page *p = (struct page *)page;
+>>>>
+>>>> 	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+>>>> }
+>>>>
+>>>>
+>>>> #define PF_POISONED_CHECK(page) ({					\
+>>>> 		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
+>>>> 		page; })
+>>>> #
+>>>>
+>>>>
+>>>> It is the node id access.
 >>>
->>> Just clear the bottom bits off the PFN until you get a PMD or PUD aligned
->>> PFN.  It's really not hard.
+>>> A right. A temporary hack would be to assume in these functions
+>>> (shrink_zone_span() and friends) that we might have invalid NIDs /
+>>> zonenumbers and simply skip these. After all we're only using them for
+>>> finding zone boundaries. Not what we ultimately want, but I think until
+>>> we have a proper SECTION_ACTIVE, it might take a while.
+>>>
 >>
->> As Mark pointed out earlier that might end up being just a synthetic PFN
->> which might not even exist on a given system.
+>> I am talking about something as hacky as this:
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 8d1c7313ab3f..57ed3dd76a4f 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1099,6 +1099,7 @@ static inline int page_zone_id(struct page *page)
+>>
+>>  #ifdef NODE_NOT_IN_PAGE_FLAGS
+>>  extern int page_to_nid(const struct page *page);
+>> +#define __page_to_nid page_to_nid
+>>  #else
+>>  static inline int page_to_nid(const struct page *page)
+>>  {
+>> @@ -1106,6 +1107,10 @@ static inline int page_to_nid(const struct page
+>> *page)
+>>
+>>  	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+>>  }
+>> +static inline int __page_to_nid(const struct page *page)
+>> +{
+>> +	return ((page)->flags >> NODES_PGSHIFT) & NODES_MASK;
+>> +}
+>>  #endif
+>>
+>>  #ifdef CONFIG_NUMA_BALANCING
+>> @@ -1249,6 +1254,12 @@ static inline struct zone *page_zone(const struct
+>> page *page)
+>>  	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+>>  }
+>>
+>> +static inline struct zone *__page_zone(const struct page *page)
+>> +{
+>> +	return &NODE_DATA(__page_to_nid(page))->node_zones[page_zonenum(page)];
+>> +}
 > 
-> And why would that matter?
+> We don't need that. We can always do an explicity __page_to_nid check
+> and break from the loop before doing a page_zone() ? Also if the struct
+> page is poisoned, we should not trust the page_zonenum()? 
+> 
+>> +
+>> +
+>>  static inline pg_data_t *page_pgdat(const struct page *page)
+>>  {
+>>  	return NODE_DATA(page_to_nid(page));
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 49ca3364eb70..378b593d1fe1 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -334,10 +334,10 @@ static unsigned long find_smallest_section_pfn(int
+>> nid, struct zone *zone,
+>>  		if (unlikely(!pfn_valid(start_pfn)))
+>>  			continue;
+>>
+>> -		if (unlikely(pfn_to_nid(start_pfn) != nid))
+>> +		/* We might have uninitialized memmaps */
+>> +		if (unlikely(__page_to_nid(pfn_to_page(start_pfn)) != nid))
+>>  			continue;
+> 
+> if we are here we got non poisoned struct page. Hence we don't need the
+> below change?
+> 
+>> -
+>> -		if (zone && zone != page_zone(pfn_to_page(start_pfn)))
+>> +		if (zone && zone != __page_zone(pfn_to_page(start_pfn)))
+>>  			continue;
+>>
+>>  		return start_pfn;
+>> @@ -359,10 +359,10 @@ static unsigned long find_biggest_section_pfn(int
+>> nid, struct zone *zone,
+>>  		if (unlikely(!pfn_valid(pfn)))
+>>  			continue;
+>>
+>> -		if (unlikely(pfn_to_nid(pfn) != nid))
+>> +		/* We might have uninitialized memmaps */
+>> +		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
+>>  			continue;
+> 
+> same as above
+> 
+>> -
+>> -		if (zone && zone != page_zone(pfn_to_page(pfn)))
+>> +		if (zone && zone != __page_zone(pfn_to_page(pfn)))
+>>  			continue;
+>>
+>>  		return pfn;
+>> @@ -418,7 +418,10 @@ static void shrink_zone_span(struct zone *zone,
+>> unsigned long start_pfn,
+>>  		if (unlikely(!pfn_valid(pfn)))
+>>  			continue;
+>>
+>> -		if (page_zone(pfn_to_page(pfn)) != zone)
+>> +		/* We might have uninitialized memmaps */
+>> +		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
+>> +			continue;
+> 
+> same as above? 
+> 
+>> +		if (__page_zone(pfn_to_page(pfn)) != zone)
+>>  			continue;
+>>
+>>  		/* Skip range to be removed */
+>> @@ -483,7 +486,8 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+>>  		if (unlikely(!pfn_valid(pfn)))
+>>  			continue;
+>>
+>> -		if (pfn_to_nid(pfn) != nid)
+>> +		/* We might have uninitialized memmaps */
+>> +		if (unlikely(__page_to_nid(pfn_to_page(pfn)) != nid))
+>>  			continue;
+>>
+>>  		/* Skip range to be removed */
+>>
+> 
+> 
+> But I am not sure whether this is the right approach.
+> 
+> -aneesh
 > 
 
-To start with the test uses struct page with mk_pte() and mk_pmd() while
-pfn gets used in pfn_pud() during pXX_basic_tests(). So we will not be able
-to derive a valid struct page from a synthetic pfn. Also if synthetic pfn is
-going to be used anyway then why derive it from a real kernel symbol like
-kernel_init(). Could not one be just made up with right alignment ?
+So I'm currently preparing and testing an intermediate solution that
+will not result in any false positives for !ZONE_DEVICE memory.
+ZONE_DEVICE memory is tricky, especially due to subsections - we have no
+easy way to check if a memmap was initialized. For !ZONE_DEVICE memory
+we can at least use SECTION_IS_ONLINE. Anyhow, on false positives with
+ZONE_DEVICE memory we should not crash.
 
-Currently the test allocates 'mm_struct' and other page table pages from real
-memory then why should it use synthetic pfn while creating actual page table
-entries ? Couple of benefits going with synthetic pfn will be..
+I think I'll even be able to move zone/node resizing to offlining code -
+for !ZONE_DEVICE memory. For ZONE_DEVICE memory it has to stay and we'll
+have to think of a way to check if memmaps are valid without false
+positives.
 
-- It simplifies the test a bit removing PUD_SIZE allocation helpers
-- It might enable the test to be run on systems without adequate memory
+Horribly complicated stuff.
 
-In the current proposal the allocation happens during boot making it much more
-likely to succeed than not and when it fails, respective tests will be skipped.
+-- 
 
-I am just wondering if being able to run complete set of tests on smaller
-systems with less memory weighs lot more in favor of going with synthetic
-pfn instead.
+Thanks,
+
+David / dhildenb
 
