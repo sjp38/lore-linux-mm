@@ -2,160 +2,144 @@ Return-Path: <SRS0=q8/f=WY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B95A4C3A5A1
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:40:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03023C3A5A1
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:42:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B82322CED
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:40:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B4FD72064A
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 14:42:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="MmMr419b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B82322CED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="BK/KEpQD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4FD72064A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15E946B000E; Wed, 28 Aug 2019 10:40:30 -0400 (EDT)
+	id 358756B0005; Wed, 28 Aug 2019 10:42:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10F656B0010; Wed, 28 Aug 2019 10:40:30 -0400 (EDT)
+	id 3308F6B0006; Wed, 28 Aug 2019 10:42:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F401B6B0269; Wed, 28 Aug 2019 10:40:29 -0400 (EDT)
+	id 246DB6B000E; Wed, 28 Aug 2019 10:42:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0216.hostedemail.com [216.40.44.216])
-	by kanga.kvack.org (Postfix) with ESMTP id D37886B000E
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 10:40:29 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 80D918150
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:40:29 +0000 (UTC)
-X-FDA: 75872097378.07.toad06_21462ea16e826
-X-HE-Tag: toad06_21462ea16e826
-X-Filterd-Recvd-Size: 7295
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140070.outbound.protection.outlook.com [40.107.14.70])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:40:28 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=OkRO1UkM2QfgRz43U0yG2LQ8U7lXYH8MPLxMukBx4GseRbAZ7h8DI60HmTgEDcmb9HP6AKWeuClZ8n2pXE6s/14SC4X9Nxxx43r/+v9jnLeqf9FcDi4my7OfAC4HEanTQ6Wdl6+asDiOxNb2r2QeA+rhQ/xDczBrzLsv5a3qeXyL5TbIzhsU1sG0DVgzuApTHa8tlSIeOUJuOUU/UiV3MTah0YTxo03qmx1Df00Pz8VwAlZTF90eLEgrLhEzxXFfebN9eHwfpZrKK5DOKSySs0CiiTfVIhrLTP9nWTCnC6d9N00QMc/uHR4wcxWyYlk+7t7BNAR8yTAVacAnMNCaog==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YZZI7TIhNJpTgpmQ3Ym9oRj66GBq3bIwhTuMAednhzk=;
- b=AxQ93Gt10N08eWQmhxVhoFsBvh9tEzTMUgE/ddKcidodSu9oc8L+CjNpycBzWWZ94gTGnCfkVHXMhAcsQ27Cjl1KvnXMm7yZTC4sjk4Blk+xx2ri6z0OOveUM75UXAZIvOKjKFn5xqFTzOBp9c9MxeZElQwum6bmdRz9HuWWTAWJfK5W8zYn4zPNBMLjB5raAwr5rhtYeLYjRN1qxMUvOrLfPhayVlf661B6MAg+m3p93WG7sBfIU7HPZDJ6ZSRsgqB9SolV8XVweL1csZViSwRc8v4QjLLVFNfcYmgMV+sfJW797nRU9warG2YQCzQ5yIM6nNAebWKkxqzVRzgKYw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YZZI7TIhNJpTgpmQ3Ym9oRj66GBq3bIwhTuMAednhzk=;
- b=MmMr419bfQPRTnvudqYdzRUSIuZdO0F2FE36dx+fttfoDjni8FMfIZWHKJuxHEA9DGPUWiK3elxq75kbK8RSpq84/vpJpn4VzvAsiL96wNTy0XRd+OP1g0lfaeZz8whu1UouTDsXCMOHbiezgwmiPMVDUVSvz4QmUC7h5u7UuD4=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5246.eurprd05.prod.outlook.com (20.178.11.11) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2178.16; Wed, 28 Aug 2019 14:40:25 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2199.021; Wed, 28 Aug 2019
- 14:40:25 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "daniel@ffwll.ch" <daniel@ffwll.ch>
-Subject: Re: [PATCH] mm: remove the __mmu_notifier_invalidate_range_start/end
- exports
-Thread-Topic: [PATCH] mm: remove the __mmu_notifier_invalidate_range_start/end
- exports
-Thread-Index: AQHVXavZqxXcfLyzmkeft6WFMi/zb6cQobAA
-Date: Wed, 28 Aug 2019 14:40:25 +0000
-Message-ID: <20190828144020.GI914@mellanox.com>
-References: <20190828142109.29012-1-hch@lst.de>
-In-Reply-To: <20190828142109.29012-1-hch@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YTBPR01CA0036.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b01:14::49) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [142.167.216.168]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: e9b0e95d-f896-4947-ddcd-08d72bc5a9b6
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5246;
-x-ms-traffictypediagnostic: VI1PR05MB5246:
-x-microsoft-antispam-prvs:
- <VI1PR05MB524688DFE20EED13B8873181CFA30@VI1PR05MB5246.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7219;
-x-forefront-prvs: 014304E855
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(346002)(376002)(39860400002)(136003)(396003)(366004)(199004)(189003)(4326008)(446003)(486006)(476003)(6506007)(2616005)(11346002)(4744005)(6486002)(8936002)(6512007)(99286004)(81166006)(102836004)(186003)(26005)(6436002)(2906002)(386003)(316002)(66066001)(52116002)(5660300002)(81156014)(8676002)(478600001)(14454004)(305945005)(66446008)(64756008)(6116002)(54906003)(66556008)(66946007)(7736002)(229853002)(256004)(1076003)(6916009)(71190400001)(71200400001)(53936002)(76176011)(33656002)(25786009)(36756003)(3846002)(66476007)(6246003)(86362001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5246;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- eyNg4HLZ52LGAV0ouvh0lK+YUWuSz+vviASvTi6u4tyfRkS+6crc8iuHsljQ85TIlyyZ2x67UYnb4k+XdopeWbFkEGkqXgOxvsB9Ufc3q8V7xdpca3PlD6/O920ZuL6nACpYjRxCQm83QoQnJaFhYvi2wIIK3EFtmYaDp//b5swB1lHKRzPNPhhd5XyietoaGNUcXcHgTVPfMZPGkV0tuVkq35Ott32oLpI0CEOx5UX34FoNrTC/uwQhZTCWcjLJ4uJ47JyvTE5jMk4KsnY7SSfjYn0GceWcrR2sZl/5shBSBlp4SF42RVQygjf/urBmGf9mEDLHswSEXIGb5+3geGwoHkAO7U6h1M+QmZIuGFAXt/pP/na4omnpj/TmXi9wqlfwgOXy8wjq6nBLEAebiO4wJVpCMiRA7rzg6QhPGLk=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <C1EA082325B7104A864499B49ABCE3F5@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0005.hostedemail.com [216.40.44.5])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C406B0005
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 10:42:35 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id B3AF38E7F
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:42:35 +0000 (UTC)
+X-FDA: 75872102670.02.hate95_33957ce7ce01f
+X-HE-Tag: hate95_33957ce7ce01f
+X-Filterd-Recvd-Size: 5587
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 14:42:34 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=yJoo2pNqTHPzZm0pkWr+dI3Wt26Ba0eR+Mp1ZOx/yp8=; b=BK/KEpQDOLfLlooeYZXzciO0Ih
+	KZ5wNCw5kNMwDJSk0pj1muklV9g/jk0KlTf/SwvC51pBQxSElrumaGBLZuHpQsR7SwxCq34Mot1XJ
+	7gmWkyODNqXa17KKkWyyY+vNZDlZzp8AS0rGYTV0F62iEnMONHSEdfZ7H9Etcl0AcgK8bEkyOlbQS
+	r0PBEi4ow8fP9ty81WDX7XQCZeJCQtgYLUTRfxVjcLjt8/fVN9n9I3tHAfoOBaAIjsYikU11xALWa
+	mL+x3tHE/3UAq8EByi15+eJvdwQ/XwnR0l5pqHnWOA++zmSEHyLZkNeHHwA8OtgBc5w/ZqUGkIWTV
+	GmBXUYFw==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i2ys3-0005kr-PD; Wed, 28 Aug 2019 14:24:23 +0000
+Date: Wed, 28 Aug 2019 07:24:23 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Mark Salyzyn <salyzyn@android.com>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com,
+	Jan Kara <jack@suse.cz>, Stephen Smalley <sds@tycho.nsa.gov>,
+	linux-security-module@vger.kernel.org, stable@vger.kernel.org,
+	Jonathan Corbet <corbet@lwn.net>, Gao Xiang <gaoxiang25@huawei.com>,
+	Chao Yu <yuchao0@huawei.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Latchesar Ionkov <lucho@ionkov.net>,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
+	Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>,
+	Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>,
+	Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>,
+	Theodore Ts'o <tytso@mit.edu>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Bob Peterson <rpeterso@redhat.com>,
+	Andreas Gruenbacher <agruenba@redhat.com>,
+	David Woodhouse <dwmw2@infradead.org>,
+	Richard Weinberger <richard@nod.at>,
+	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Anna Schumaker <anna.schumaker@netapp.com>,
+	Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Mike Marshall <hubcap@omnibond.com>,
+	Martin Brandenburg <martin@omnibond.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Phillip Lougher <phillip@squashfs.org.uk>,
+	Artem Bityutskiy <dedekind1@gmail.com>,
+	Adrian Hunter <adrian.hunter@intel.com>,
+	"Darrick J. Wong" <darrick.wong@oracle.com>,
+	linux-xfs@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Serge Hallyn <serge@hallyn.com>, James Morris <jmorris@namei.org>,
+	Mimi Zohar <zohar@linux.ibm.com>, Paul Moore <paul@paul-moore.com>,
+	Eric Paris <eparis@parisplace.org>,
+	Casey Schaufler <casey@schaufler-ca.com>,
+	"J. Bruce Fields" <bfields@redhat.com>,
+	Eric Biggers <ebiggers@google.com>,
+	Benjamin Coddington <bcodding@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mathieu Malaterre <malat@debian.org>,
+	Vyacheslav Dubeyko <slava@dubeyko.com>,
+	Bharath Vedartham <linux.bhar@gmail.com>,
+	Jann Horn <jannh@google.com>, Dave Chinner <dchinner@redhat.com>,
+	Allison Henderson <allison.henderson@oracle.com>,
+	Brian Foster <bfoster@redhat.com>,
+	Eric Sandeen <sandeen@sandeen.net>, linux-doc@vger.kernel.org,
+	linux-erofs@lists.ozlabs.org, devel@driverdev.osuosl.org,
+	v9fs-developer@lists.sourceforge.net, linux-afs@lists.infradead.org,
+	linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org,
+	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org,
+	ecryptfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org, cluster-devel@redhat.com,
+	linux-mtd@lists.infradead.org, jfs-discussion@lists.sourceforge.net,
+	linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
+	devel@lists.orangefs.org, linux-unionfs@vger.kernel.org,
+	reiserfs-devel@vger.kernel.org, linux-mm@kvack.org,
+	netdev@vger.kernel.org, linux-integrity@vger.kernel.org,
+	selinux@vger.kernel.org
+Subject: Re: [PATCH v8] Add flags option to get xattr method paired to
+ __vfs_getxattr
+Message-ID: <20190828142423.GA1955@infradead.org>
+References: <20190827150544.151031-1-salyzyn@android.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e9b0e95d-f896-4947-ddcd-08d72bc5a9b6
-X-MS-Exchange-CrossTenant-originalarrivaltime: 28 Aug 2019 14:40:25.3928
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: paxkgAgF/TdQvDco2/uuuH66Km0esr3MC2D1DEP+cnOd7FeoGG30D6ipyiwCCcAe4NujhpWsU5QDviXZjvfESw==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5246
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190827150544.151031-1-salyzyn@android.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 28, 2019 at 04:21:09PM +0200, Christoph Hellwig wrote:
-> Bo modular code uses these, which makes a lot of sense given the
-> wrappers around them are only called by core mm code.
+On Tue, Aug 27, 2019 at 08:05:15AM -0700, Mark Salyzyn wrote:
+> Replace arguments for get and set xattr methods, and __vfs_getxattr
+> and __vfs_setaxtr functions with a reference to the following now
+> common argument structure:
 
-/Bo/No/
-
-> Also remove the recently added __mmu_notifier_invalidate_range_start_map
-> export for which the same applies.
->=20
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
->  mm/mmu_notifier.c | 3 ---
->  1 file changed, 3 deletions(-)
->=20
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index 690f1ea639d5..240f4e14d42e 100644
-> +++ b/mm/mmu_notifier.c
-> @@ -25,7 +25,6 @@ DEFINE_STATIC_SRCU(srcu);
->  struct lockdep_map __mmu_notifier_invalidate_range_start_map =3D {
->  	.name =3D "mmu_notifier_invalidate_range_start"
->  };
-> -EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start_map);
->  #endif
-
-I inlined this hunk into Daniel's patch from yesterday
-
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-
-Applied to hmm.git..
-
-What about:
-
-EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
-
-elixir suggest this is not called outside mm/ either?
-
-Jason
+Yikes.  That looks like a mess.  Why can't we pass a kernel-only
+flag in the existing flags field for =E2=82=8B>set and add a flags field
+to ->get?  Passing methods by structure always tends to be a mess.
 
