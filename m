@@ -6,64 +6,63 @@ X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FFC1C3A5A3
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:14:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 143A2C3A5A3
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:28:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62D0820856
-	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:14:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B9F02214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 28 Aug 2019 01:28:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="kxL5f0dW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62D0820856
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NL0QwD9+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9F02214DA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1702B6B0006; Tue, 27 Aug 2019 21:14:45 -0400 (EDT)
+	id 696046B0006; Tue, 27 Aug 2019 21:28:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 149C56B0008; Tue, 27 Aug 2019 21:14:45 -0400 (EDT)
+	id 6475B6B0008; Tue, 27 Aug 2019 21:28:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 010696B000A; Tue, 27 Aug 2019 21:14:44 -0400 (EDT)
+	id 537C46B000A; Tue, 27 Aug 2019 21:28:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0041.hostedemail.com [216.40.44.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D39DB6B0006
-	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 21:14:44 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 7F79E8418
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:14:44 +0000 (UTC)
-X-FDA: 75870066888.24.bomb67_80a6ea6594e3a
-X-HE-Tag: bomb67_80a6ea6594e3a
-X-Filterd-Recvd-Size: 3729
+Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
+	by kanga.kvack.org (Postfix) with ESMTP id 334A66B0006
+	for <linux-mm@kvack.org>; Tue, 27 Aug 2019 21:28:06 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id BD930824CA28
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:28:05 +0000 (UTC)
+X-FDA: 75870100530.21.mist66_63bc29ac36648
+X-HE-Tag: mist66_63bc29ac36648
+X-Filterd-Recvd-Size: 3687
 Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:14:43 +0000 (UTC)
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 28 Aug 2019 01:28:05 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:Cc:From:References:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:
+	Subject:Sender:Reply-To:Cc:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=hfSx8v0zhIV+bXC+CodQztxjQ/b6g4dcxtBZrzRlWPs=; b=kxL5f0dWo7sB0WNPrB0IaSLY7
-	MbNT2c+q6KEjvIRj65dBT3HQu0J0qW2J+yuxyG93K/X1w6GQYhWFiPDwTrlwGDIUhnpoXDKMhvKNh
-	G7keMO2VEKiqAmLzL1v0r3lUDWwvnxe3F/H2LTPH7MCTOE0WGt0F4b+sHbwkaLfLcoPSaA5Uvs6Sx
-	X/7vpKszkDmVggCa7+U58gqc2KS2enuH4tRmyaZjeVU0ObU1qsqmO0gl5TQf1edJhcqJ0MnvSTvK7
-	MreUZ+Ucmf+3ez2qvttBxfq8782KE01IEy+gsHiBcoqkRGj+kkaeVulwpjNrFKxEhZuo04pzKqX0u
-	w4QUJsD/g==;
+	 bh=SsIBUUgqWoBft4g1qjISTKId449C/sPPvMGvzOhucFA=; b=NL0QwD9+KL+vnxXxnHD22icys
+	mAORzuHaSIFUSHIhL3+yR6+3Kw+Qw6J/6PoYN0NLBELIl+FOSjq3AKOVb+iL+oSavoNWl9TEY6MtG
+	ER7D89Yy16NJQ0AGslo98M6jwxfxiSGSs7N2/iUCcAJuhq0XUj+Cql+pHW58ej07QMxahlx7gxTr3
+	bZgEBi9/26cO2G+efQVHUSRUCfF2WAZ3RT2cIoL7eQvyTkU+ay4lxFe38y0ds4WEwvDUppyReQeiK
+	2/B425Y0hB/FAL3qGJg25iXIW4jLLKzEd7qJOMUDbQ5Jbav0vEpQGjFjIXP+Tn6sROyOQ47FbLVNk
+	zNEYwo2fg==;
 Received: from [2601:1c0:6200:6e8::4f71]
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1i2mXh-0001yi-EV; Wed, 28 Aug 2019 01:14:33 +0000
-Subject: Re: mmotm 2019-08-24-16-02 uploaded
- (drivers/tty/serial/fsl_linflexuart.c:)
+	id 1i2mkf-00068z-5y; Wed, 28 Aug 2019 01:27:57 +0000
+Subject: Re: mmotm 2019-08-24-16-02 uploaded (intel_drv.h header check)
 To: akpm@linux-foundation.org, broonie@kernel.org,
  linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
  linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
  mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
- "open list:SERIAL DRIVERS" <linux-serial@vger.kernel.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ intel-gfx <intel-gfx@lists.freedesktop.org>,
+ dri-devel <dri-devel@lists.freedesktop.org>
 References: <20190824230323.REILuVBbY%akpm@linux-foundation.org>
 From: Randy Dunlap <rdunlap@infradead.org>
-Cc: Fugang Duan <fugang.duan@nxp.com>
-Message-ID: <b082b200-7298-6cd5-6981-44439bc2d788@infradead.org>
-Date: Tue, 27 Aug 2019 18:14:32 -0700
+Message-ID: <b08dbe92-8e10-aa3a-7f92-12b53ee5b368@infradead.org>
+Date: Tue, 27 Aug 2019 18:27:56 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
@@ -111,17 +110,18 @@ e
 n
 > linux-next.
 
-on i386:
-when CONFIG_PRINTK is not set/enabled:
+on x86_64 or i386:
 
-../drivers/tty/serial/fsl_linflexuart.c: In function =E2=80=98linflex_ear=
-lycon_putchar=E2=80=99:
-../drivers/tty/serial/fsl_linflexuart.c:608:31: error: =E2=80=98CONFIG_LO=
-G_BUF_SHIFT=E2=80=99 undeclared (first use in this function); did you mea=
-n =E2=80=98CONFIG_DEBUG_SHIRQ=E2=80=99?
-  if (earlycon_buf.len >=3D 1 << CONFIG_LOG_BUF_SHIFT)
-                               ^~~~~~~~~~~~~~~~~~~~
-                               CONFIG_DEBUG_SHIRQ
+  CC      drivers/gpu/drm/i915/intel_drv.h.s
+In file included from <command-line>:0:0:
+./../drivers/gpu/drm/i915/intel_drv.h:402:24: error: field =E2=80=98force=
+_audio=E2=80=99 has incomplete type
+  enum hdmi_force_audio force_audio;
+                        ^~~~~~~~~~~
+./../drivers/gpu/drm/i915/intel_drv.h:1228:20: error: field =E2=80=98tc_t=
+ype=E2=80=99 has incomplete type
+  enum tc_port_type tc_type;
+                    ^~~~~~~
 
 
 --=20
