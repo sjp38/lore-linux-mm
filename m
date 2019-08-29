@@ -2,126 +2,103 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8205C3A5A6
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:56:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F95EC3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:59:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86FA0208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:56:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86FA0208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0FFCA215EA
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:59:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ut3y8nHD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FFCA215EA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D4FB6B0010; Thu, 29 Aug 2019 07:56:13 -0400 (EDT)
+	id A96106B0266; Thu, 29 Aug 2019 07:59:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 085296B0269; Thu, 29 Aug 2019 07:56:13 -0400 (EDT)
+	id A468E6B0269; Thu, 29 Aug 2019 07:59:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDD0A6B026A; Thu, 29 Aug 2019 07:56:12 -0400 (EDT)
+	id 9342F6B026A; Thu, 29 Aug 2019 07:59:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0056.hostedemail.com [216.40.44.56])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9666B0010
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:56:12 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7BB3C8243763
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:56:12 +0000 (UTC)
-X-FDA: 75875312184.04.cough77_705c84c8aad16
-X-HE-Tag: cough77_705c84c8aad16
-X-Filterd-Recvd-Size: 4070
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:56:12 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2026AB680;
-	Thu, 29 Aug 2019 11:56:09 +0000 (UTC)
-Date: Thu, 29 Aug 2019 13:56:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Edward Chron <echron@arista.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
-Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
- information
-Message-ID: <20190829115608.GD28313@dhcp22.suse.cz>
-References: <20190826193638.6638-1-echron@arista.com>
- <20190827071523.GR7538@dhcp22.suse.cz>
- <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
- <20190828065955.GB7386@dhcp22.suse.cz>
- <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
- <20190829071105.GQ28313@dhcp22.suse.cz>
- <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
+Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2216B0266
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:59:45 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 218149070
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:59:45 +0000 (UTC)
+X-FDA: 75875321130.15.wood38_8f4b4ba45df10
+X-HE-Tag: wood38_8f4b4ba45df10
+X-Filterd-Recvd-Size: 3121
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:59:44 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=hvvxWk91syqxpuQ6n+HNuHloyMZzn7A9DjJbU+vMf1E=; b=ut3y8nHDtL7vAft1lfDYM1LZ3
+	74FoUkUqEumlTKEMnbZRh3f0+k9xPSX82zm9avCxYNEVxww2IxT9DqVZ2heumzfzk2EQupwaBPdNU
+	2r48dsvvmOMTYXuBaTnMk+k+7qjW0JpXwcxRpihLJmcEWpg8p0QTJDkSOgG7NGrMgk21gx+ShZtNW
+	j8Vaxq4coWoCzgxm8XDgE42UR1VUyX0DDTUKYfqdzMyLSQLSu1/dwlsqzJVfM9iNCvpSbEGvNWUkM
+	h5kDjk1WR+KkLWkVFRQi1htAdAxcP8xSxfXJgxiqV/ZGIH33RMEpvnxetPBMPMLpJCJH894Rle29U
+	MI+uIxyvA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i3J5Y-0002qk-96; Thu, 29 Aug 2019 11:59:40 +0000
+Date: Thu, 29 Aug 2019 04:59:40 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, mgorman@suse.de
+Subject: Re: Truncate regression due to commit 69b6c1319b6
+Message-ID: <20190829115940.GD6590@bombadil.infradead.org>
+References: <20190226165628.GB24711@quack2.suse.cz>
+ <20190226172744.GH11592@bombadil.infradead.org>
+ <20190227112721.GB27119@quack2.suse.cz>
+ <20190227122451.GJ11592@bombadil.infradead.org>
+ <20190227165538.GD27119@quack2.suse.cz>
+ <20190228225317.GM11592@bombadil.infradead.org>
+ <20190314111012.GG16658@quack2.suse.cz>
+ <20190531190431.GA15496@bombadil.infradead.org>
+ <20190827132925.GA9061@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190827132925.GA9061@quack2.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 29-08-19 19:14:46, Tetsuo Handa wrote:
-> On 2019/08/29 16:11, Michal Hocko wrote:
-> > On Wed 28-08-19 12:46:20, Edward Chron wrote:
-> >> Our belief is if you really think eBPF is the preferred mechanism
-> >> then move OOM reporting to an eBPF.
+On Tue, Aug 27, 2019 at 03:29:25PM +0200, Jan Kara wrote:
+> On Fri 31-05-19 12:04:31, Matthew Wilcox wrote:
+> > On Thu, Mar 14, 2019 at 12:10:12PM +0100, Jan Kara wrote:
+> > > On Thu 28-02-19 14:53:17, Matthew Wilcox wrote:
+> > > > Here's what I'm currently looking at.  xas_store() becomes a wrapper
+> > > > around xas_replace() and xas_replace() avoids the xas_init_marks() and
+> > > > xas_load() calls:
+> > > 
+> > > This looks reasonable to me. Do you have some official series I could test
+> > > or where do we stand?
 > > 
-> > I've said that all this additional information has to be dynamically
-> > extensible rather than a part of the core kernel. Whether eBPF is the
-> > suitable tool, I do not know. I haven't explored that. There are other
-> > ways to inject code to the kernel. systemtap/kprobes, kernel modules and
-> > probably others.
+> > Hi Jan,
+> > 
+> > Sorry for the delay; I've put this into the xarray tree:
+> > 
+> > http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray
+> > 
+> > I'm planning to ask Linus to pull it in about a week.
 > 
-> As for SystemTap, guru mode (an expert mode which disables protection provided
-> by SystemTap; allowing kernel to crash when something went wrong) could be used
-> for holding spinlock. However, as far as I know, holding mutex (or doing any
-> operation that might sleep) from such dynamic hooks is not allowed. Also we will
-> need to export various symbols in order to allow access from such dynamic hooks.
+> Hum, I still don't see these xarray changes (the change to use
+> xas_replace() in particular) upstream. What has happened?
 
-This is the oom path and it should better not use any sleeping locks in
-the first place.
-
-> I'm not familiar with eBPF, but I guess that eBPF is similar.
-> 
-> But please be aware that, I REPEAT AGAIN, I don't think neither eBPF nor
-> SystemTap will be suitable for dumping OOM information. OOM situation means
-> that even single page fault event cannot complete, and temporary memory
-> allocation for reading from kernel or writing to files cannot complete.
-
-And I repeat that no such reporting is going to write to files. This is
-an OOM path afterall.
-
-> Therefore, we will need to hold all information in kernel memory (without
-> allocating any memory when OOM event happened). Dynamic hooks could hold
-> a few lines of output, but not all lines we want. The only possible buffer
-> which is preallocated and large enough would be printk()'s buffer. Thus,
-> I believe that we will have to use printk() in order to dump OOM information.
-> At that point,
-
-Yes, this is what I've had in mind.
-
-> 
->   static bool (*oom_handler)(struct oom_control *oc) = default_oom_killer;
-> 
->   bool out_of_memory(struct oom_control *oc)
->   {
->           return oom_handler(oc);
->   }
-> 
-> and let in-tree kernel modules override current OOM killer would be
-> the only practical choice (if we refuse adding many knobs).
-
-Or simply provide a hook with the oom_control to be called to report
-without replacing the whole oom killer behavior. That is not necessary.
--- 
-Michal Hocko
-SUSE Labs
+It had a bug and I decided to pull the patch for now rather than find
+the bug ... this regression is still on my mind.  Thanks for the ping.
 
