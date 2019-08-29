@@ -2,177 +2,180 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F1C7C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 18:44:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E16B5C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 18:52:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C34FE21726
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 18:44:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="dl9qohKF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C34FE21726
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id ABFA42166E
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 18:52:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABFA42166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 264856B0008; Thu, 29 Aug 2019 14:44:06 -0400 (EDT)
+	id 4CDBD6B000D; Thu, 29 Aug 2019 14:52:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 214956B000C; Thu, 29 Aug 2019 14:44:06 -0400 (EDT)
+	id 47EE56B000E; Thu, 29 Aug 2019 14:52:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 104536B000D; Thu, 29 Aug 2019 14:44:06 -0400 (EDT)
+	id 3941F6B0010; Thu, 29 Aug 2019 14:52:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0212.hostedemail.com [216.40.44.212])
-	by kanga.kvack.org (Postfix) with ESMTP id E15176B0008
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 14:44:05 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 96537181AC9B4
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:44:05 +0000 (UTC)
-X-FDA: 75876340050.10.lock95_23a9844495f17
-X-HE-Tag: lock95_23a9844495f17
-X-Filterd-Recvd-Size: 6194
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:44:04 +0000 (UTC)
-Received: by mail-qk1-f196.google.com with SMTP id i78so2439223qke.11
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:44:04 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=QDRi/Xd9XfnkQ5sOxj7EVRPPb6YjOhNvBvKil4zJw/0=;
-        b=dl9qohKF185MJTvsc/xIx5y2bsPkyUgeQyPr5ffE0hZoRxnas8wTSWNEjE47IMjSQt
-         ClxH/8EVTw9Ka+9M0wwX+9B/tIxd5c9tbC4bJVP6ZwyImFCUqm28A7X+yPLCqQJFBBAV
-         3DR877YtrSKP77RLHhkN9aaVXjjdSnAuMQixQQV6IvlbzoGtwvQjTLJTjwZMLpdTQDgx
-         ewvCMg70knxrpix/UuQ1dzA8dmHi5pooHb91SW/yA0O3o0XTnVkP1+7DUQVBU/n2yWRZ
-         YvrEv8swmwRvi3EEp2XB0vErOGppjRla558g1r6lB4UaSNmoXh8pnI+WpxL6iTq7jsfA
-         L4Hg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=QDRi/Xd9XfnkQ5sOxj7EVRPPb6YjOhNvBvKil4zJw/0=;
-        b=o5lZi6p6Yf87H8qshU86zIP26SduXEcQtpsiwNmB7m0MbeKKTwyOMynnk63uKJ99K7
-         1we1vLqVz8ZnxCO0E283fZBzPNakv9mob0EiJpSZ4gxckyXu/lau9OC7TZW+3GbbF5A2
-         SM9z9JksgjrGR60G+SuMiO0Yd2mfHbu8XofYBbtLBpbhUYLjpWBbsFb9oPtVxX3R9AcN
-         D7yrIURdd1TBIVisJs8vJIAYX5gf4Q95mn4fX7j5pi37WnzaRhwmqzfYVcynBZUk/W+A
-         WzLMz0og1lJ+sDTYKftpq+amWlK14tbDUsgT9GuudyvprUkCgq4Dk5Hoyi+UdvLVhgbp
-         WDjw==
-X-Gm-Message-State: APjAAAU+hLzyKeEmzEK9NP3HTqnk8E1EuttwRBVy8E7fjY+PUblvZSqq
-	ixNIp2u/hVsALWC0/hJuYBaFFg==
-X-Google-Smtp-Source: APXvYqzKqT4R8SObC1LwMgc7oT0iO2TSaMYUPaXWhrxP6+vgf7kWzLYoE22jClWrLF5LNRYQJ+U22A==
-X-Received: by 2002:a37:98f:: with SMTP id 137mr11278917qkj.188.1567104244278;
-        Thu, 29 Aug 2019 11:44:04 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id u7sm1494346qkj.113.2019.08.29.11.44.01
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Aug 2019 11:44:03 -0700 (PDT)
-Message-ID: <1567104241.5576.30.camel@lca.pw>
-Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
- information
-From: Qian Cai <cai@lca.pw>
-To: Edward Chron <echron@arista.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa
- <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton
- <akpm@linux-foundation.org>,  Roman Gushchin <guro@fb.com>, Johannes Weiner
- <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Shakeel Butt
- <shakeelb@google.com>, linux-mm@kvack.org,  linux-kernel@vger.kernel.org,
- Ivan Delalande <colona@arista.com>
-Date: Thu, 29 Aug 2019 14:44:01 -0400
-In-Reply-To: <CAM3twVSgJdFKbzkg1V+7voFMi-SYQTCz6jCBobLBQ72Cg8k5VQ@mail.gmail.com>
-References: <20190826193638.6638-1-echron@arista.com>
-	 <20190827071523.GR7538@dhcp22.suse.cz>
-	 <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
-	 <20190828065955.GB7386@dhcp22.suse.cz>
-	 <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
-	 <20190829071105.GQ28313@dhcp22.suse.cz>
-	 <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
-	 <20190829115608.GD28313@dhcp22.suse.cz>
-	 <CAM3twVSZm69U8Sg+VxQ67DeycHUMC5C3_f2EpND4_LC4UHx7BA@mail.gmail.com>
-	 <1567093344.5576.23.camel@lca.pw>
-	 <CAM3twVSgJdFKbzkg1V+7voFMi-SYQTCz6jCBobLBQ72Cg8k5VQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id 194006B000D
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 14:52:20 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id B61D7824CA3D
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:52:19 +0000 (UTC)
+X-FDA: 75876360798.14.run99_6b8252524f24e
+X-HE-Tag: run99_6b8252524f24e
+X-Filterd-Recvd-Size: 5723
+Received: from mga04.intel.com (mga04.intel.com [192.55.52.120])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:52:18 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Aug 2019 11:52:15 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,444,1559545200"; 
+   d="scan'208";a="180965850"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga008.fm.intel.com with ESMTP; 29 Aug 2019 11:52:15 -0700
+Date: Thu, 29 Aug 2019 11:52:15 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>,
+	linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>,
+	Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Jason Gunthorpe <jgg@ziepe.ca>, linux-fsdevel@vger.kernel.org,
+	Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 06/19] fs/ext4: Teach dax_layout_busy_page() to
+ operate on a sub-range
+Message-ID: <20190829185215.GC18249@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-7-ira.weiny@intel.com>
+ <20190823151826.GB11009@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190823151826.GB11009@redhat.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-08-29 at 09:09 -0700, Edward Chron wrote:
+On Fri, Aug 23, 2019 at 11:18:26AM -0400, Vivek Goyal wrote:
+> On Fri, Aug 09, 2019 at 03:58:20PM -0700, ira.weiny@intel.com wrote:
+> > From: Ira Weiny <ira.weiny@intel.com>
+> > 
+> > Callers of dax_layout_busy_page() are only rarely operating on the
+> > entire file of concern.
+> > 
+> > Teach dax_layout_busy_page() to operate on a sub-range of the
+> > address_space provided.  Specifying 0 - ULONG_MAX however, will continue
+> > to operate on the "entire file" and XFS is split out to a separate patch
+> > by this method.
+> > 
+> > This could potentially speed up dax_layout_busy_page() as well.
+> 
+> I need this functionality as well for virtio_fs and posted a patch for
+> this.
+> 
+> https://lkml.org/lkml/2019/8/21/825
+> 
+> Given this is an optimization which existing users can benefit from already,
+> this patch could probably be pushed upstream independently.
 
-> > Feel like you are going in circles to "sell" without any new informat=
-ion. If
-> > you
-> > need to deal with OOM that often, it might also worth working with FB=
- on
-> > oomd.
-> >=20
-> > https://github.com/facebookincubator/oomd
-> >=20
-> > It is well-known that kernel OOM could be slow and painful to deal wi=
-th, so
-> > I
-> > don't buy-in the argument that kernel OOM recover is better/faster th=
-an a
-> > kdump
-> > reboot.
-> >=20
-> > It is not unusual that when the system is triggering a kernel OOM, it=
- is
-> > almost
-> > trashed/dead. Although developers are working hard to improve the rec=
-overy
-> > after
-> > OOM, there are still many error-paths that are not going to survive w=
-hich
-> > would
-> > leak memories, introduce undefined behaviors, corrupt memory etc.
->=20
-> But as you have pointed out many people are happy with current OOM proc=
-essing
-> which is the report and recovery so for those people a kdump reboot is
-> overkill.
-> Making the OOM report at least optionally a bit more informative has va=
-lue.
-> Also
-> making sure it doesn't produce excessive output is desirable.
->=20
-> I do agree for developers having to have all the system state a kdump
-> provides that
-> and as long as you can reproduce the OOM event that works well. But
-> that is not the
-> common case as has already been discussed.
->=20
-> Also, OOM events that are due to kernel bugs could leak memory and over=
- time
-> and cause a crash, true. But that is not what we typically see. In
-> fact we've had
-> customers come back and report issues on systems that have been in cont=
-inuous
-> operation for years. No point in crashing their system. Linux if
-> properly maintained
-> is thankfully quite stable. But OOMs do happen and root causing them to
-> prevent
-> future occurrences is desired.
+I'm ok with that.
 
-This is not what I meant. After an OOM event happens, many kernel memory
-allocations could fail.=C2=A0Since very few people are testing those erro=
-r-paths due
-to allocation failures, it is considered one of those most buggy areas in=
- the
-kernel. Developers have mostly been focus on making sure the kernel OOM s=
-hould
-not happen in the first place.
+However, this patch does not apply cleanly to head as I had some other
+additions to dax.h.
 
-I still think the time is better spending on improving things like eBPF, =
-oomd
-and kdump etc to solve your problem, but leave the kernel OOM report code=
- alone.
+> 
+> > 
+> > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> > 
+> > ---
+> > Changes from RFC v1
+> > 	Fix 0-day build errors
+> > 
+> >  fs/dax.c            | 15 +++++++++++----
+> >  fs/ext4/ext4.h      |  2 +-
+> >  fs/ext4/extents.c   |  6 +++---
+> >  fs/ext4/inode.c     | 19 ++++++++++++-------
+> >  fs/xfs/xfs_file.c   |  3 ++-
+> >  include/linux/dax.h |  6 ++++--
+> >  6 files changed, 33 insertions(+), 18 deletions(-)
+> > 
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index a14ec32255d8..3ad19c384454 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -573,8 +573,11 @@ bool dax_mapping_is_dax(struct address_space *mapping)
+> >  EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
+> >  
+> >  /**
+> > - * dax_layout_busy_page - find first pinned page in @mapping
+> > + * dax_layout_busy_page - find first pinned page in @mapping within
+> > + *                        the range @off - @off + @len
+> >   * @mapping: address space to scan for a page with ref count > 1
+> > + * @off: offset to start at
+> > + * @len: length to scan through
+> >   *
+> >   * DAX requires ZONE_DEVICE mapped pages. These pages are never
+> >   * 'onlined' to the page allocator so they are considered idle when
+> > @@ -587,9 +590,13 @@ EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
+> >   * to be able to run unmap_mapping_range() and subsequently not race
+> >   * mapping_mapped() becoming true.
+> >   */
+> > -struct page *dax_layout_busy_page(struct address_space *mapping)
+> > +struct page *dax_layout_busy_page(struct address_space *mapping,
+> > +				  loff_t off, loff_t len)
+> >  {
+> > -	XA_STATE(xas, &mapping->i_pages, 0);
+> > +	unsigned long start_idx = off >> PAGE_SHIFT;
+> > +	unsigned long end_idx = (len == ULONG_MAX) ? ULONG_MAX
+> > +				: start_idx + (len >> PAGE_SHIFT);
+> > +	XA_STATE(xas, &mapping->i_pages, start_idx);
+> >  	void *entry;
+> >  	unsigned int scanned = 0;
+> >  	struct page *page = NULL;
+> > @@ -612,7 +619,7 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
+> >  	unmap_mapping_range(mapping, 0, 0, 1);
+> 
+> Should we unmap only those pages which fall in the range specified by caller.
+> Unmapping whole file seems to be less efficient.
+
+Seems reasonable to me.  I was focused on getting pages which were busy not
+necessarily on what got unmapped.  So I did not consider this.  Thanks for the
+suggestion.
+
+However, I don't understand the math you do for length?  Is this comment/code
+correct?
+
++  /* length is being calculated from lstart and not start.
++   * This is due to behavior of unmap_mapping_range(). If
++   * start is say 4094 and end is on 4093 then want to
++   * unamp two pages, idx 0 and 1. But unmap_mapping_range()
++   * will unmap only page at idx 0. If we calculate len
++   * from the rounded down start, this problem should not
++   * happen.
++   */
++  len = end - lstart + 1;
+
+
+How can end (4093) be < start (4094)?  Is that valid?  And why would a start of
+4094 unmap idx 0?
+
+Ira
 
 
