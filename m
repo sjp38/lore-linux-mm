@@ -2,170 +2,126 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0114C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:55:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8205C3A5A6
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:56:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8BE972073F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:55:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BE972073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 86FA0208C2
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:56:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86FA0208C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D0F16B0266; Thu, 29 Aug 2019 07:55:40 -0400 (EDT)
+	id 0D4FB6B0010; Thu, 29 Aug 2019 07:56:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 280D36B0269; Thu, 29 Aug 2019 07:55:40 -0400 (EDT)
+	id 085296B0269; Thu, 29 Aug 2019 07:56:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 172236B026A; Thu, 29 Aug 2019 07:55:40 -0400 (EDT)
+	id EDD0A6B026A; Thu, 29 Aug 2019 07:56:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0077.hostedemail.com [216.40.44.77])
-	by kanga.kvack.org (Postfix) with ESMTP id EBA3F6B0266
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:55:39 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 94212876F
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:55:39 +0000 (UTC)
-X-FDA: 75875310798.10.card35_6b768039c9f13
-X-HE-Tag: card35_6b768039c9f13
-X-Filterd-Recvd-Size: 7454
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:55:38 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8F76879704;
-	Thu, 29 Aug 2019 11:55:36 +0000 (UTC)
-Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 3403260872;
-	Thu, 29 Aug 2019 11:55:25 +0000 (UTC)
-Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
- removing memory
-To: Michal Hocko <mhocko@kernel.org>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski
- <luto@kernel.org>, Anshuman Khandual <anshuman.khandual@arm.com>,
- Arun KS <arunks@codeaurora.org>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
- Christian Borntraeger <borntraeger@de.ibm.com>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Dan Williams <dan.j.williams@intel.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Fenghua Yu
- <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
- <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
- Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Johannes Weiner <hannes@cmpxchg.org>,
- Jun Yao <yaojun8558363@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
- Mark Rutland <mark.rutland@arm.com>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- "Matthew Wilcox (Oracle)" <willy@infradead.org>,
- Mel Gorman <mgorman@techsingularity.net>,
- Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>,
- Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
- Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
- Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
- Vasily Gorbik <gor@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
- Wei Yang <richard.weiyang@gmail.com>,
- Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
-References: <20190826101012.10575-1-david@redhat.com>
- <87pnksm0zx.fsf@linux.ibm.com> <20190829083846.GC21880@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <3737c4bf-46ba-789b-b49e-7c5ad630a07b@redhat.com>
-Date: Thu, 29 Aug 2019 13:55:24 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0056.hostedemail.com [216.40.44.56])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9666B0010
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:56:12 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7BB3C8243763
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:56:12 +0000 (UTC)
+X-FDA: 75875312184.04.cough77_705c84c8aad16
+X-HE-Tag: cough77_705c84c8aad16
+X-Filterd-Recvd-Size: 4070
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:56:12 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 2026AB680;
+	Thu, 29 Aug 2019 11:56:09 +0000 (UTC)
+Date: Thu, 29 Aug 2019 13:56:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Edward Chron <echron@arista.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>,
+	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
+Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
+ information
+Message-ID: <20190829115608.GD28313@dhcp22.suse.cz>
+References: <20190826193638.6638-1-echron@arista.com>
+ <20190827071523.GR7538@dhcp22.suse.cz>
+ <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
+ <20190828065955.GB7386@dhcp22.suse.cz>
+ <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
+ <20190829071105.GQ28313@dhcp22.suse.cz>
+ <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20190829083846.GC21880@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 29 Aug 2019 11:55:37 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.08.19 10:38, Michal Hocko wrote:
-> On Mon 26-08-19 20:23:38, Aneesh Kumar K.V wrote:
-> [...]
->> I did report a variant of the issue at
->>
->> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
+On Thu 29-08-19 19:14:46, Tetsuo Handa wrote:
+> On 2019/08/29 16:11, Michal Hocko wrote:
+> > On Wed 28-08-19 12:46:20, Edward Chron wrote:
+> >> Our belief is if you really think eBPF is the preferred mechanism
+> >> then move OOM reporting to an eBPF.
+> > 
+> > I've said that all this additional information has to be dynamically
+> > extensible rather than a part of the core kernel. Whether eBPF is the
+> > suitable tool, I do not know. I haven't explored that. There are other
+> > ways to inject code to the kernel. systemtap/kprobes, kernel modules and
+> > probably others.
 > 
-> Is this an instance of the same problem noticed
-> http://lkml.kernel.org/r/20190725023100.31141-3-t-fukasawa@vx.jp.nec.com
-> and
-> http://lkml.kernel.org/r/20190828080006.GG7386@dhcp22.suse.cz
-> ?
+> As for SystemTap, guru mode (an expert mode which disables protection provided
+> by SystemTap; allowing kernel to crash when something went wrong) could be used
+> for holding spinlock. However, as far as I know, holding mutex (or doing any
+> operation that might sleep) from such dynamic hooks is not allowed. Also we will
+> need to export various symbols in order to allow access from such dynamic hooks.
+
+This is the oom path and it should better not use any sleeping locks in
+the first place.
+
+> I'm not familiar with eBPF, but I guess that eBPF is similar.
 > 
+> But please be aware that, I REPEAT AGAIN, I don't think neither eBPF nor
+> SystemTap will be suitable for dumping OOM information. OOM situation means
+> that even single page fault event cannot complete, and temporary memory
+> allocation for reading from kernel or writing to files cannot complete.
 
-I think it is related as far as I can tell. I think I could also use
-pfn_zone_device_reserved() to skip over uninitialized memmaps in the
-zone shrinking code.
+And I repeat that no such reporting is going to write to files. This is
+an OOM path afterall.
 
+> Therefore, we will need to hold all information in kernel memory (without
+> allocating any memory when OOM event happened). Dynamic hooks could hold
+> a few lines of output, but not all lines we want. The only possible buffer
+> which is preallocated and large enough would be printk()'s buffer. Thus,
+> I believe that we will have to use printk() in order to dump OOM information.
+> At that point,
+
+Yes, this is what I've had in mind.
+
+> 
+>   static bool (*oom_handler)(struct oom_control *oc) = default_oom_killer;
+> 
+>   bool out_of_memory(struct oom_control *oc)
+>   {
+>           return oom_handler(oc);
+>   }
+> 
+> and let in-tree kernel modules override current OOM killer would be
+> the only practical choice (if we refuse adding many knobs).
+
+Or simply provide a hook with the oom_control to be called to report
+without replacing the whole oom killer behavior. That is not necessary.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
