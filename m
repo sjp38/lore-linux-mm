@@ -2,70 +2,59 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0817C3A5A6
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 16:55:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D119C3A5A6
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 16:59:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 72A6120828
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 16:55:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72A6120828
+	by mail.kernel.org (Postfix) with ESMTP id 2F26221726
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 16:59:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F26221726
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC3E76B0005; Thu, 29 Aug 2019 12:55:52 -0400 (EDT)
+	id B3CC46B000C; Thu, 29 Aug 2019 12:59:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4C606B0006; Thu, 29 Aug 2019 12:55:52 -0400 (EDT)
+	id AED396B000D; Thu, 29 Aug 2019 12:59:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CED236B0008; Thu, 29 Aug 2019 12:55:52 -0400 (EDT)
+	id 9DBDE6B000E; Thu, 29 Aug 2019 12:59:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0013.hostedemail.com [216.40.44.13])
-	by kanga.kvack.org (Postfix) with ESMTP id A36186B0005
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:55:52 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 52191181AC9AE
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 16:55:52 +0000 (UTC)
-X-FDA: 75876067344.04.soda76_6d539de466912
-X-HE-Tag: soda76_6d539de466912
-X-Filterd-Recvd-Size: 13755
+Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C8516B000C
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:59:36 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 3329CABEA
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 16:59:36 +0000 (UTC)
+X-FDA: 75876076752.01.death70_8df9f22afd31d
+X-HE-Tag: death70_8df9f22afd31d
+X-Filterd-Recvd-Size: 10164
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 16:55:51 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 16:59:35 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CA98D31752B1;
-	Thu, 29 Aug 2019 16:55:49 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 80F262A09CD;
+	Thu, 29 Aug 2019 16:59:34 +0000 (UTC)
 Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7C88219C4F;
-	Thu, 29 Aug 2019 16:55:43 +0000 (UTC)
-Subject: Re: [PATCH v3 01/11] mm/memremap: Get rid of
- memmap_init_zone_device()
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- Dan Williams <dan.j.williams@intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
- "Matthew Wilcox (Oracle)" <willy@infradead.org>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Stephen Rothwell <sfr@canb.auug.org.au>, Dave Airlie <airlied@redhat.com>,
- Andrey Konovalov <andreyknvl@google.com>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Ira Weiny <ira.weiny@intel.com>, John Hubbard <jhubbard@nvidia.com>,
- Arun KS <arunks@codeaurora.org>, Souptick Joarder <jrdr.linux@gmail.com>,
- Robin Murphy <robin.murphy@arm.com>, Yang Shi <yang.shi@linux.alibaba.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
- Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Alexander Potapenko <glider@google.com>
-References: <20190829070019.12714-1-david@redhat.com>
- <20190829070019.12714-2-david@redhat.com>
- <CAKgT0UdKwYhF++=b=vN_Kw_SORtgJ3ehCAn8a9kp8tb79HknyQ@mail.gmail.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 99BDF600C1;
+	Thu, 29 Aug 2019 16:59:32 +0000 (UTC)
+Subject: Re: [PATCH v2 3/6] mm/memory_hotplug: Process all zones when removing
+ memory
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador
+ <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Wei Yang <richardw.yang@linux.intel.com>
+References: <20190826101012.10575-1-david@redhat.com>
+ <20190826101012.10575-4-david@redhat.com>
+ <20190829153936.GJ28313@dhcp22.suse.cz>
+ <c01ceaab-4032-49cd-3888-45838cb46e11@redhat.com>
+ <20190829162704.GL28313@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -112,221 +101,113 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <46b8e215-97d4-9097-9941-58e050c5efcc@redhat.com>
-Date: Thu, 29 Aug 2019 18:55:42 +0200
+Message-ID: <b5a9f070-b43a-c21d-081b-9926b2007f5c@redhat.com>
+Date: Thu, 29 Aug 2019 18:59:31 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UdKwYhF++=b=vN_Kw_SORtgJ3ehCAn8a9kp8tb79HknyQ@mail.gmail.com>
+In-Reply-To: <20190829162704.GL28313@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Thu, 29 Aug 2019 16:55:50 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 29 Aug 2019 16:59:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.08.19 18:39, Alexander Duyck wrote:
-> On Thu, Aug 29, 2019 at 12:00 AM David Hildenbrand <david@redhat.com> w=
-rote:
+On 29.08.19 18:27, Michal Hocko wrote:
+> On Thu 29-08-19 17:54:35, David Hildenbrand wrote:
+>> On 29.08.19 17:39, Michal Hocko wrote:
+>>> On Mon 26-08-19 12:10:09, David Hildenbrand wrote:
+>>>> It is easier than I though to trigger a kernel bug by removing memory that
+>>>> was never onlined. With CONFIG_DEBUG_VM the memmap is initialized with
+>>>> garbage, resulting in the detection of a broken zone when removing memory.
+>>>> Without CONFIG_DEBUG_VM it is less likely - but we could still have
+>>>> garbage in the memmap.
+>>>>
+>>>> :/# [   23.912993] BUG: unable to handle page fault for address: 000000000000353d
+>>>> [   23.914219] #PF: supervisor write access in kernel mode
+>>>> [   23.915199] #PF: error_code(0x0002) - not-present page
+>>>> [   23.916160] PGD 0 P4D 0
+>>>> [   23.916627] Oops: 0002 [#1] SMP PTI
+>>>> [   23.917256] CPU: 1 PID: 7 Comm: kworker/u8:0 Not tainted 5.3.0-rc5-next-20190820+ #317
+>>>> [   23.918900] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.12.1-0-ga5cab58e9a3f-prebuilt.qemu.4
+>>>> [   23.921194] Workqueue: kacpi_hotplug acpi_hotplug_work_fn
+>>>> [   23.922249] RIP: 0010:clear_zone_contiguous+0x5/0x10
+>>>> [   23.923173] Code: 48 89 c6 48 89 c3 e8 2a fe ff ff 48 85 c0 75 cf 5b 5d c3 c6 85 fd 05 00 00 01 5b 5d c3 0f 1f 840
+>>>> [   23.926876] RSP: 0018:ffffad2400043c98 EFLAGS: 00010246
+>>>> [   23.927928] RAX: 0000000000000000 RBX: 0000000200000000 RCX: 0000000000000000
+>>>> [   23.929458] RDX: 0000000000200000 RSI: 0000000000140000 RDI: 0000000000002f40
+>>>> [   23.930899] RBP: 0000000140000000 R08: 0000000000000000 R09: 0000000000000001
+>>>> [   23.932362] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000140000
+>>>> [   23.933603] R13: 0000000000140000 R14: 0000000000002f40 R15: ffff9e3e7aff3680
+>>>> [   23.934913] FS:  0000000000000000(0000) GS:ffff9e3e7bb00000(0000) knlGS:0000000000000000
+>>>> [   23.936294] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>>> [   23.937481] CR2: 000000000000353d CR3: 0000000058610000 CR4: 00000000000006e0
+>>>> [   23.938687] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>>>> [   23.939889] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+>>>> [   23.941168] Call Trace:
+>>>> [   23.941580]  __remove_pages+0x4b/0x640
+>>>> [   23.942303]  ? mark_held_locks+0x49/0x70
+>>>> [   23.943149]  arch_remove_memory+0x63/0x8d
+>>>> [   23.943921]  try_remove_memory+0xdb/0x130
+>>>> [   23.944766]  ? walk_memory_blocks+0x7f/0x9e
+>>>> [   23.945616]  __remove_memory+0xa/0x11
+>>>> [   23.946274]  acpi_memory_device_remove+0x70/0x100
+>>>> [   23.947308]  acpi_bus_trim+0x55/0x90
+>>>> [   23.947914]  acpi_device_hotplug+0x227/0x3a0
+>>>> [   23.948714]  acpi_hotplug_work_fn+0x1a/0x30
+>>>> [   23.949433]  process_one_work+0x221/0x550
+>>>> [   23.950190]  worker_thread+0x50/0x3b0
+>>>> [   23.950993]  kthread+0x105/0x140
+>>>> [   23.951644]  ? process_one_work+0x550/0x550
+>>>> [   23.952508]  ? kthread_park+0x80/0x80
+>>>> [   23.953367]  ret_from_fork+0x3a/0x50
+>>>> [   23.954025] Modules linked in:
+>>>> [   23.954613] CR2: 000000000000353d
+>>>> [   23.955248] ---[ end trace 93d982b1fb3e1a69 ]---
+>>>
+>>> Yes, this is indeed nasty. I didin't think of this when separating
+>>> memmap initialization from the hotremove. This means that the zone
+>>> pointer is a garbage in arch_remove_memory already. The proper fix is to
+>>> remove it from that level down. Moreover the zone is only needed for the
+>>> shrinking code and zone continuous thingy. The later belongs to offlining
+>>> code unless I am missing something. I can see that you are removing zone
+>>> parameter in a later patch but wouldn't it be just better to remove the
+>>> whole zone thing in a single patch and have this as a bug fix for a rare
+>>> bug with a fixes tag?
+>>>
 >>
->> As far as I can see, the original split wanted to speed up a duplicate
->> initialization. We now only initialize once - and we really should
->> initialize under the lock, when resizing the zones.
->=20
-> What do you mean by duplicate initialization? Basically the issue was
-> that we can have systems with massive memory footprints and I was just
-> trying to get the initialization time under a minute. The compromise I
-> made was to split the initialization so that we only initialized the
-> pages in the altmap and defer the rest so that they can be initialized
-> in parallel.
->=20
-> What this patch does is serialize the initialization so it will likely
-> take 2 to 4 minutes or more to initialize memory on a system where I
-> had brought the init time under about 30 seconds.
->=20
->> As soon as we drop the lock we might have memory unplug running, tryin=
-g
->> to shrink the zone again. In case the memmap was not properly initiali=
-zed,
->> the zone/node shrinking code might get false negatives when search for
->> the new zone/node boundaries - bad. We suddenly could no longer span t=
-he
->> memory we just added.
->=20
-> The issue as I see it is that we can have systems with multiple nodes
-> and each node can populate a fairly significant amount of data. By
-> pushing this all back under the hotplug lock you are serializing the
-> initialization for each node resulting in a 4x or 8x increase in
-> initialization time on some of these bigger systems.
->=20
->> Also, once we want to fix set_zone_contiguous(zone) inside
->> move_pfn_range_to_zone() to actually work with ZONE_DEVICE (instead of
->> always immediately stopping and never setting zone->contiguous) we hav=
-e
->> to have the whole memmap initialized at that point. (not sure if we
->> want that in the future, just a note)
+>> If I remember correctly, this patch already fixed the issue for me,
+> 
+> That might be the case because nothing else does access zone on the way.
+> But the pointer is simply bogus. Removing it is the proper way to fix
+> it. And I argue that zone shouldn't even be necessary. Re-evaluating
+> continuous status of the zone is really something for offlining phase.
+> Check how we use pfn_to_online_page there.
+
+Yeah I'm with you, I think you spotted patch 6/6 of this series and v3
+already that does exactly that. It's just a matter of rearranging things.
+
+> 
+>> without the other cleanup (removing the zone parameter). But I might be
+>> wrong.
 >>
->> Let's just keep things simple and initialize the memmap when resizing
->> the zones under the lock.
->>
->> If this is a real performance issue, we have to watch out for
->> alternatives.
->=20
-> My concern is that this is going to become a performance issue, but I
-> don't have access to the hardware at the moment to test how much of
-> one. I'll have to check to see if I can get access to a system to test
-> this patch set.
->=20
+>> Anyhow, I'll send a v4 shortly (either this evening or tomorrow), so you
+>> can safe yourself some review time and wait for that one :)
+> 
+> No rush, really... It seems this is quite unlikely event as most hotplug
+> usecases simply online memory before removing it later on.
+> 
 
-Thanks for having a look - I already dropped this patch again. We will
-rather stop shrinking the ZONE_DEVICE. So assume this patch is gone.
+I can trigger it reliably right now while working/testing virtio-mem, so
+I finally want to clean up this mess :) (has been on my list for a long
+time). I'll try to hunt for the right commit id's that broke it.
 
-[...]
-
-> So if you are moving this all under the lock then this is going to
-> serialize initialization and it is going to be quite expensive on bit
-> systems. I was only ever able to get the init time down to something
-> like ~20s with the optimized function. Since that has been torn apart
-> and you are back to doing things with memmap_init_zone we are probably
-> looking at more like 25-30s for each node, and on a 4 node system we
-> are looking at 2 minutes or so which may lead to issues if people are
-> mounting this.
->=20
-> Instead of forcing this all to be done under the hotplug lock is there
-> some way we could do this under the zone span_seqlock instead to
-> achieve the same result?
-
-I guess the right approach really is as Michal suggest to not shrink at
-all (at least ZONE_DEVICE) :)
-
->=20
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index c5d62f1c2851..44038665fe8e 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5845,7 +5845,7 @@ overlap_memmap_init(unsigned long zone, unsigned=
- long *pfn)
->>   */
->>  void __meminit memmap_init_zone(unsigned long size, int nid, unsigned=
- long zone,
->>                 unsigned long start_pfn, enum memmap_context context,
->> -               struct vmem_altmap *altmap)
->> +               struct dev_pagemap *pgmap)
->>  {
->>         unsigned long pfn, end_pfn =3D start_pfn + size;
->>         struct page *page;
->> @@ -5853,24 +5853,6 @@ void __meminit memmap_init_zone(unsigned long s=
-ize, int nid, unsigned long zone,
->>         if (highest_memmap_pfn < end_pfn - 1)
->>                 highest_memmap_pfn =3D end_pfn - 1;
->>
->> -#ifdef CONFIG_ZONE_DEVICE
->> -       /*
->> -        * Honor reservation requested by the driver for this ZONE_DEV=
-ICE
->> -        * memory. We limit the total number of pages to initialize to=
- just
->> -        * those that might contain the memory mapping. We will defer =
-the
->> -        * ZONE_DEVICE page initialization until after we have release=
-d
->> -        * the hotplug lock.
->> -        */
->> -       if (zone =3D=3D ZONE_DEVICE) {
->> -               if (!altmap)
->> -                       return;
->> -
->> -               if (start_pfn =3D=3D altmap->base_pfn)
->> -                       start_pfn +=3D altmap->reserve;
->> -               end_pfn =3D altmap->base_pfn + vmem_altmap_offset(altm=
-ap);
->> -       }
->> -#endif
->> -
->>         for (pfn =3D start_pfn; pfn < end_pfn; pfn++) {
->>                 /*
->>                  * There can be holes in boot-time mem_map[]s handed t=
-o this
->> @@ -5892,6 +5874,20 @@ void __meminit memmap_init_zone(unsigned long s=
-ize, int nid, unsigned long zone,
->>                 if (context =3D=3D MEMMAP_HOTPLUG)
->>                         __SetPageReserved(page);
->>
->> +#ifdef CONFIG_ZONE_DEVICE
->> +               if (zone =3D=3D ZONE_DEVICE) {
->> +                       WARN_ON_ONCE(!pgmap);
->> +                       /*
->> +                        * ZONE_DEVICE pages union ->lru with a ->pgma=
-p back
->> +                        * pointer and zone_device_data. It is a bug i=
-f a
->> +                        * ZONE_DEVICE page is ever freed or placed on=
- a driver
->> +                        * private list.
->> +                        */
->> +                       page->pgmap =3D pgmap;
->> +                       page->zone_device_data =3D NULL;
->> +               }
->> +#endif
->> +
->=20
-> So I am not sure this is right. Part of the reason for the split is
-> that the pages that were a part of the altmap had an LRU setup, not
-> the pgmap/zone_device_data setup. This is changing that.
-
-Yeah, you might be right, we would have to handle the altmap part
-separately.
-
->=20
-> Also, I am more a fan of just testing pgmap and if it is present then
-> assign page->pgmap and reset zone_device_data. Then you can avoid the
-> test for zone on every iteration and the WARN_ON_ONCE check, or at
-> least you could move it outside the loop so we don't incur the cost
-> with each page. Are there situations where you would have pgmap but
-> not a ZONE_DEVICE page?
-
-Don't think so. But I am definitely not a ZONE_DEVICE expert.
-
->=20
->>                 /*
->>                  * Mark the block movable so that blocks are reserved =
-for
->>                  * movable at startup. This will force kernel allocati=
-ons
->> @@ -5951,14 +5947,6 @@ void __ref memmap_init_zone_device(struct zone =
-*zone,
->>                  */
->>                 __SetPageReserved(page);
->>
->> -               /*
->> -                * ZONE_DEVICE pages union ->lru with a ->pgmap back p=
-ointer
->> -                * and zone_device_data.  It is a bug if a ZONE_DEVICE=
- page is
->> -                * ever freed or placed on a driver-private list.
->> -                */
->> -               page->pgmap =3D pgmap;
->> -               page->zone_device_data =3D NULL;
->> -
->>                 /*
->>                  * Mark the block movable so that blocks are reserved =
-for
->>                  * movable at startup. This will force kernel allocati=
-ons
->=20
-> Shouldn't you be removing this function instead of just gutting it?
-> I'm kind of surprised you aren't getting warnings about unused code
-> since you also pulled the declaration for it from the header.
->=20
-
-Don't ask me what went wrong here, I guess I messed this up while rebasin=
-g.
-
---=20
+-- 
 
 Thanks,
 
