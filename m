@@ -2,120 +2,178 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8C77C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:37:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 81CC6C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:39:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A4AC20828
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:37:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="h680x9OG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A4AC20828
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4303920828
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:39:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4303920828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0E26B6B000D; Thu, 29 Aug 2019 07:37:36 -0400 (EDT)
+	id E00C26B000D; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 093B46B000E; Thu, 29 Aug 2019 07:37:36 -0400 (EDT)
+	id D89F86B000E; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9CB16B0010; Thu, 29 Aug 2019 07:37:35 -0400 (EDT)
+	id C2A026B0010; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
-	by kanga.kvack.org (Postfix) with ESMTP id C7BCF6B000D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:37:35 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 682A2180AD7C1
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:37:35 +0000 (UTC)
-X-FDA: 75875265270.06.lead19_5f4faca4aa93c
-X-HE-Tag: lead19_5f4faca4aa93c
-X-Filterd-Recvd-Size: 3538
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com [209.85.221.65])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:37:34 +0000 (UTC)
-Received: by mail-wr1-f65.google.com with SMTP id c3so3067585wrd.7
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 04:37:34 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to:cc;
-        bh=wi+aEk/lw/SC/EWGJj1b2gUv3dj2gmXZvpclD3XWmxM=;
-        b=h680x9OGpM5D0HrHC0ResvENTHF6DUz9UMMsvEad9yRxXJxJ2pjr+CWYAeXvbwzS9F
-         i9dZjIlg5bMGzRIp+RmUFAuq3/xqzNKT8g+JGxOwBjaImT7Js5daWRH3QFb2uO1pURan
-         PBBc/11pFcKYs2TkLApCthIChjZPDNk/z3gY1yYOvFvHlM9pBbMRY38KbcX1Qa99R+7k
-         h7rHySUJcocyvK0Nd9HjME9/RLiaBVF4GxeE++2aMudRkgxh3IZHl7etfEqX2jwcpddC
-         D9O4/+K/j4RqzGO4qnq2nC2S7jM111uS5TsSe4CYwsm7T/b8VDjJ6gfhH2VYU9WP+m2x
-         YHcw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:from:date:message-id:subject:to:cc;
-        bh=wi+aEk/lw/SC/EWGJj1b2gUv3dj2gmXZvpclD3XWmxM=;
-        b=dKJP5fI7rJjthVoU+Ct5UKsLkreVbZRipo8wlT0u1EOhthzPV41QoqvRXw8l3Vq+sS
-         iDaRyok6yx8F20h1ixPrmmE+y0rf157ZiT1Ubu4anyz03ot4NBp7mSySyr1e9KvL2qQu
-         Jhi2XGRXSuoAiTJUEHgx8DBFWik9uHh1wzQvRgW909H446sy6QTOkPcKbmkV0uDkp5cZ
-         0ySzkmLSCihS45W/uLs+2uSD3c0KkYSUYcHDzF0ANM8yVkpcEBY+3YtIbvIeiLGtn65x
-         +1a03Zp6k9EamK700kF8WKVeeBlzL1uQv7xgjxKIeDlEf9hpDGVKaXd0G6tPVhhCkHtk
-         CidQ==
-X-Gm-Message-State: APjAAAW2ioK9x+JmbkDztUIWhHBjWk2WjZ/TjRYy1ivEZ3633fptmpeE
-	eKYgMFd0UGmATAXHtcBpEl/vBLLlUlvuaz/wDmU=
-X-Google-Smtp-Source: APXvYqwp0esAayMYR7QeT6qJZa7H6Kht3QsdHVcep8OrxN4J+qQh8oblAaUjk/f/vf9Wep6v/haceClU1LQfsday0ko=
-X-Received: by 2002:a5d:4a11:: with SMTP id m17mr675507wrq.40.1567078653582;
- Thu, 29 Aug 2019 04:37:33 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 99E3D6B000D
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 08F5C6D76
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:39:57 +0000 (UTC)
+X-FDA: 75875271234.14.birth58_73eb34b436639
+X-HE-Tag: birth58_73eb34b436639
+X-Filterd-Recvd-Size: 8005
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:39:56 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DFA6930872CA;
+	Thu, 29 Aug 2019 11:39:54 +0000 (UTC)
+Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 66A7A5C1D6;
+	Thu, 29 Aug 2019 11:39:43 +0000 (UTC)
+Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
+ removing memory
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski
+ <luto@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Johannes Weiner <hannes@cmpxchg.org>,
+ Jun Yao <yaojun8558363@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
+ Mark Rutland <mark.rutland@arm.com>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>,
+ Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
+ Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
+ Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Wei Yang <richard.weiyang@gmail.com>,
+ Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
+References: <20190826101012.10575-1-david@redhat.com>
+ <20190829083643.GV28313@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <0fba46e2-1a9e-05d5-1470-b285cac7db22@redhat.com>
+Date: Thu, 29 Aug 2019 13:39:42 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-From: zhigang lu <luzhigang001@gmail.com>
-Date: Thu, 29 Aug 2019 19:37:22 +0800
-Message-ID: <CABNBeK+6C9ToJcjhGBJQm5dDaddA0USOoRFmRckZ27PhLGUfQg@mail.gmail.com>
-Subject: [PATCH] mm/hugetlb: avoid looping to the same hugepage if !pages and !vmas
-To: mike.kravetz@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: tonnylu@tencent.com, hzhongzhang@tencent.com, knightzhang@tencent.com
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190829083643.GV28313@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 29 Aug 2019 11:39:55 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Zhigang Lu <tonnylu@tencent.com>
+On 29.08.19 10:36, Michal Hocko wrote:
+> On Mon 26-08-19 12:10:06, David Hildenbrand wrote:
+>> Working on virtio-mem, I was able to trigger a kernel BUG (with debug
+>> options enabled) when removing memory that was never onlined. I was ab=
+le
+>> to reproduce with DIMMs. As far as I can see the same can also happen
+>> without debug configs enabled, if we're unlucky and the uninitialized
+>> memmap contains selected garbage .
+>=20
+> Could you be more specific please?
+>=20
 
-This change greatly decrease the time of mmaping a file in hugetlbfs.
-With MAP_POPULATE flag, it takes about 50 milliseconds to mmap a
-existing 128GB file in hugetlbfs. With this change, it takes less
-then 1 millisecond.
+There is more detail in the patches. Also see the new series for more
+details.
 
-Signed-off-by: Zhigang Lu <tonnylu@tencent.com>
-Reviewed-by: Haozhong Zhang <hzhongzhang@tencent.com>
-Reviewed-by: Zongming Zhang <knightzhang@tencent.com>
----
- mm/hugetlb.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+When shrinking zones we look at all spanned pages to shrink as far as
+possible - to skip over holes. There, it might happen that we hit
+uninitialized memmaps. While "pfn_valid()" is true, the memmap is not
+initialized and doing a pfn_to_nid() or page_zone() will end badly.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6d7296d..2df941a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4391,6 +4391,17 @@ long follow_hugetlb_page(struct mm_struct *mm,
-struct vm_area_struct *vma,
-  break;
-  }
-  }
-+
-+ if (!pages && !vmas && !pfn_offset &&
-+     (vaddr + huge_page_size(h) < vma->vm_end) &&
-+     (remainder >= pages_per_huge_page(h))) {
-+ vaddr += huge_page_size(h);
-+ remainder -= pages_per_huge_page(h);
-+ i += pages_per_huge_page(h);
-+ spin_unlock(ptl);
-+ continue;
-+ }
-+
- same_page:
-  if (pages) {
-  pages[i] = mem_map_offset(page, pfn_offset);
--- 
-1.8.3.1
+For !ZONE_DEVICE we can check SECTION_IS_ONLINE. That is a guarantee
+that the whole memmap of the section is valid. For ZONE_DEVICE we don't
+have anything similar. As we allow subsection hotplug there (and
+therefore only subsection of the memmap are initialized) - we might even
+step on uninitialized memmaps without being able to detect this.
+
+--=20
+
+Thanks,
+
+David / dhildenb
 
