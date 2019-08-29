@@ -6,48 +6,45 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56167C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 12:15:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98C51C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 12:21:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1506E22CF5
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 12:15:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1506E22CF5
+	by mail.kernel.org (Postfix) with ESMTP id 63CAF22CF5
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 12:21:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63CAF22CF5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99FEF6B0006; Thu, 29 Aug 2019 08:15:23 -0400 (EDT)
+	id D6C2B6B0006; Thu, 29 Aug 2019 08:21:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 929706B000C; Thu, 29 Aug 2019 08:15:23 -0400 (EDT)
+	id D44266B000C; Thu, 29 Aug 2019 08:21:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7CAC26B000D; Thu, 29 Aug 2019 08:15:23 -0400 (EDT)
+	id C32A56B000D; Thu, 29 Aug 2019 08:21:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id 580736B0006
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 08:15:23 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id F136F824CA36
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:15:22 +0000 (UTC)
-X-FDA: 75875360484.29.ship88_86394ef5d4d1a
-X-HE-Tag: ship88_86394ef5d4d1a
-X-Filterd-Recvd-Size: 7297
+Received: from forelay.hostedemail.com (smtprelay0196.hostedemail.com [216.40.44.196])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F476B0006
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 08:21:03 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 443AF180AD7C1
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:21:03 +0000 (UTC)
+X-FDA: 75875374806.30.quill22_26403f1c3f02e
+X-HE-Tag: quill22_26403f1c3f02e
+X-Filterd-Recvd-Size: 3952
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:15:22 +0000 (UTC)
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 12:21:02 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 63250AF68;
-	Thu, 29 Aug 2019 12:15:20 +0000 (UTC)
-Date: Thu, 29 Aug 2019 14:15:15 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 23424AC97;
+	Thu, 29 Aug 2019 12:21:01 +0000 (UTC)
+Date: Thu, 29 Aug 2019 14:20:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Alexander Potapenko <glider@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
 	Andy Lutomirski <luto@kernel.org>,
 	Anshuman Khandual <anshuman.khandual@arm.com>,
 	Arun KS <arunks@codeaurora.org>,
@@ -56,7 +53,7 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	Catalin Marinas <catalin.marinas@arm.com>,
 	Christian Borntraeger <borntraeger@de.ibm.com>,
 	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Dave Airlie <airlied@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
 	Dave Hansen <dave.hansen@linux.intel.com>,
 	Fenghua Yu <fenghua.yu@intel.com>,
 	Gerald Schaefer <gerald.schaefer@de.ibm.com>,
@@ -65,9 +62,8 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	Heiko Carstens <heiko.carstens@de.ibm.com>,
 	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
 	Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	John Hubbard <jhubbard@nvidia.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
 	Jun Yao <yaojun8558363@gmail.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	Logan Gunthorpe <logang@deltatee.com>,
 	Mark Rutland <mark.rutland@arm.com>,
 	Masahiro Yamada <yamada.masahiro@socionext.com>,
@@ -75,16 +71,12 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	Mel Gorman <mgorman@techsingularity.net>,
 	Michael Ellerman <mpe@ellerman.id.au>,
 	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Oscar Salvador <osalvador@suse.com>,
 	Oscar Salvador <osalvador@suse.de>,
 	Paul Mackerras <paulus@samba.org>,
 	Pavel Tatashin <pasha.tatashin@soleen.com>,
 	Pavel Tatashin <pavel.tatashin@microsoft.com>,
 	Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
 	Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
 	Steve Capper <steve.capper@arm.com>,
 	Thomas Gleixner <tglx@linutronix.de>,
 	Tom Lendacky <thomas.lendacky@amd.com>,
@@ -93,21 +85,19 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	Wei Yang <richard.weiyang@gmail.com>,
 	Wei Yang <richardw.yang@linux.intel.com>,
 	Will Deacon <will@kernel.org>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
 	Yoshinori Sato <ysato@users.sourceforge.jp>,
 	Yu Zhao <yuzhao@google.com>
-Subject: Re: [PATCH v3 00/11] mm/memory_hotplug: Shrink zones before removing
- memory
-Message-ID: <20190829121515.GE28313@dhcp22.suse.cz>
-References: <20190829070019.12714-1-david@redhat.com>
- <20190829082323.GT28313@dhcp22.suse.cz>
- <ff42b158-11bb-5dd6-7c3b-0394b6b919bc@redhat.com>
- <ef4a4973-3df9-4368-cf50-463e2970348f@redhat.com>
- <90313ec8-a13e-5353-cc25-1c8993d5269c@redhat.com>
+Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
+ removing memory
+Message-ID: <20190829122059.GF28313@dhcp22.suse.cz>
+References: <20190826101012.10575-1-david@redhat.com>
+ <87pnksm0zx.fsf@linux.ibm.com>
+ <20190829083846.GC21880@dhcp22.suse.cz>
+ <3737c4bf-46ba-789b-b49e-7c5ad630a07b@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <90313ec8-a13e-5353-cc25-1c8993d5269c@redhat.com>
+In-Reply-To: <3737c4bf-46ba-789b-b49e-7c5ad630a07b@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -115,95 +105,27 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 29-08-19 14:08:48, David Hildenbrand wrote:
-> On 29.08.19 13:43, David Hildenbrand wrote:
-> > On 29.08.19 13:33, David Hildenbrand wrote:
-> >> On 29.08.19 10:23, Michal Hocko wrote:
-> >>> On Thu 29-08-19 09:00:08, David Hildenbrand wrote:
-> >>>> This is the successor of "[PATCH v2 0/6] mm/memory_hotplug: Consider all
-> >>>> zones when removing memory". I decided to go one step further and finally
-> >>>> factor out the shrinking of zones from memory removal code. Zones are now
-> >>>> fixed up when offlining memory/onlining of memory fails/before removing
-> >>>> ZONE_DEVICE memory.
-> >>>
-> >>> I was about to say Yay! but then reading...
+On Thu 29-08-19 13:55:24, David Hildenbrand wrote:
+> On 29.08.19 10:38, Michal Hocko wrote:
+> > On Mon 26-08-19 20:23:38, Aneesh Kumar K.V wrote:
+> > [...]
+> >> I did report a variant of the issue at
 > >>
-> >> Almost ;)
-> >>
-> >>>
-> >>>> Example:
-> >>>>
-> >>>> :/# cat /proc/zoneinfo
-> >>>> Node 1, zone  Movable
-> >>>>         spanned  0
-> >>>>         present  0
-> >>>>         managed  0
-> >>>> :/# echo "online_movable" > /sys/devices/system/memory/memory41/state 
-> >>>> :/# echo "online_movable" > /sys/devices/system/memory/memory43/state
-> >>>> :/# cat /proc/zoneinfo
-> >>>> Node 1, zone  Movable
-> >>>>         spanned  98304
-> >>>>         present  65536
-> >>>>         managed  65536
-> >>>> :/# echo 0 > /sys/devices/system/memory/memory43/online
-> >>>> :/# cat /proc/zoneinfo
-> >>>> Node 1, zone  Movable
-> >>>>         spanned  32768
-> >>>>         present  32768
-> >>>>         managed  32768
-> >>>> :/# echo 0 > /sys/devices/system/memory/memory41/online
-> >>>> :/# cat /proc/zoneinfo
-> >>>> Node 1, zone  Movable
-> >>>>         spanned  0
-> >>>>         present  0
-> >>>>         managed  0
-> >>>
-> >>> ... this made me realize that you are trying to fix it instead. Could
-> >>> you explain why do we want to do that? Why don't we simply remove all
-> >>> that crap? Why do we even care about zone boundaries when offlining or
-> >>> removing memory? Zone shrinking was mostly necessary with the previous
-> >>> onlining semantic when the zone type could be only changed on the
-> >>> boundary or unassociated memory. We can interleave memory zones now
-> >>> arbitrarily.
-> >>
-> >> Last time I asked whether we can just drop all that nasty
-> >> zone->contiguous handling I was being told that it does have a
-> >> significant performance impact and is here to stay. The boundaries are a
-> >> key component to detect whether a zone is contiguous.
-> >>
-> >> So yes, while we allow interleaved memory zones, having contiguous zones
-> >> is beneficial for performance. That's why also memory onlining code will
-> >> try to online memory as default to the zone that will keep/make zones
-> >> contiguous.
-> >>
-> >> Anyhow, I think with this series most of the zone shrinking code becomes
-> >> "digestible". Except minor issues with ZONE_DEVICE - which is acceptable.
-> >>
+> >> https://lore.kernel.org/linux-mm/20190514025354.9108-1-aneesh.kumar@linux.ibm.com/
 > > 
-> > Also, there are plenty of other users of
-> > node_spanned_pages/zone_spanned_pages etc.. I don't think this can go -
-> > not that easy :)
+> > Is this an instance of the same problem noticed
+> > http://lkml.kernel.org/r/20190725023100.31141-3-t-fukasawa@vx.jp.nec.com
+> > and
+> > http://lkml.kernel.org/r/20190828080006.GG7386@dhcp22.suse.cz
+> > ?
 > > 
 > 
-> ... re-reading, your suggestion is to drop the zone _shrinking_ code
-> only, sorry :) That makes more sense.
-> 
-> This would mean that once a zone was !contiguous, it will always remain
-> like that. Also, even empty zones after unplug would not result in
-> zone_empty() == true.
+> I think it is related as far as I can tell. I think I could also use
+> pfn_zone_device_reserved() to skip over uninitialized memmaps in the
+> zone shrinking code.
 
-exactly. We only need to care about not declaring zone !contigious when
-offlining from ends but that should be trivial.
-
-> I can see that some users of *_spanned_pages make certain assumptions
-> based on the size (snapshot, oom killer, ...), but that would already be
-> wrong in case the zone is very sparse.
-
-at least oom killer usage is certainly wrong. I will have a look.
-
-> I'll prepare something, then we can discuss.
-
-Thanks!
+No, we do not want to special case this. We should be able to make these
+struct page initialized.
 -- 
 Michal Hocko
 SUSE Labs
