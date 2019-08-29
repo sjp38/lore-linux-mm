@@ -2,288 +2,161 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DEC3DC3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 14:03:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D19CC3A5A3
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:03:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 957092189D
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 14:03:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1DC732080F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:03:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=infodatahub.biz header.i=@infodatahub.biz header.b="Z9e6dELe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 957092189D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infodatahub.biz
+	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="j6VdB171"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DC732080F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E5546B0006; Thu, 29 Aug 2019 10:03:28 -0400 (EDT)
+	id 922276B0008; Thu, 29 Aug 2019 11:03:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2961A6B000C; Thu, 29 Aug 2019 10:03:28 -0400 (EDT)
+	id 8D2806B000E; Thu, 29 Aug 2019 11:03:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 185156B000D; Thu, 29 Aug 2019 10:03:28 -0400 (EDT)
+	id 7991A6B0010; Thu, 29 Aug 2019 11:03:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0113.hostedemail.com [216.40.44.113])
-	by kanga.kvack.org (Postfix) with ESMTP id E53ED6B0006
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 10:03:27 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 646A525717
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 14:03:27 +0000 (UTC)
-X-FDA: 75875632854.19.sleep48_3b0bdfed1ee5f
-X-HE-Tag: sleep48_3b0bdfed1ee5f
-X-Filterd-Recvd-Size: 9721
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
-	by imf44.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 14:03:25 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id 196so2112566pfz.8
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:03:25 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0179.hostedemail.com [216.40.44.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 520B96B0008
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:03:34 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id E59A7180ACEE0
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:03:33 +0000 (UTC)
+X-FDA: 75875784306.20.coast55_1e17fa7ce934
+X-HE-Tag: coast55_1e17fa7ce934
+X-Filterd-Recvd-Size: 6407
+Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:03:32 +0000 (UTC)
+Received: by mail-io1-f65.google.com with SMTP id t6so7529537ios.7
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 08:03:32 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=infodatahub.biz; s=google;
-        h=from:to:references:in-reply-to:subject:date:message-id:mime-version
-         :thread-index:content-language:disposition-notification-to;
-        bh=hxZnPE5bvITY8/BrL149bp4vKKr5h70K8wTAmjOiyv8=;
-        b=Z9e6dELeXphSs/PR9AYJbQ3m9b+4xmogdIyN3gd9zJA7ica6c1w3nw741ZffUH0QWw
-         fL/HLc14Muyl6h5wcf14zGk4M4Whza9pFss8OZG/e+KnDI+WNgz8XuqLngAAxE5LikY6
-         gqDZ1y3mG9ob+K0gYlksQDziPVtEM+fOTMVa4=
+        d=arista.com; s=googlenew;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=9zORjbGk69oJ5dfKY3b1CqJAsKNTapFMC7SK80j7yvM=;
+        b=j6VdB1714vSF2YQaaX7iXfHmGH1RD43tZxcwSxpbEk0OT8d23Dt6hUkqGiY4nsTWGs
+         jlZ4H8W2hjcIVXH8dbCxGDpgm7G9HWEw8im9053hWj5MUJATS/KTjJ03vCtiAXSjdEDH
+         Ja69Qn4LE0sSvAzAx9TjEGiXitRltLabCr56GvucPKS66SMC3FieNAjDizJioIhhZUtK
+         u4ixXxOmfpbAiuxqEr20o59W6Bo2xopdUdi6icuPm42FGjclqj/hy4y3VkycolJNPKlC
+         /cCy7kqGQAUS+VX80aqwTyGbS9Pd9gaOhReHPGxJwgi9DoGgmIZ4F974fCXEWHLpGuLz
+         7spg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:references:in-reply-to:subject:date
-         :message-id:mime-version:thread-index:content-language
-         :disposition-notification-to;
-        bh=hxZnPE5bvITY8/BrL149bp4vKKr5h70K8wTAmjOiyv8=;
-        b=BQ9ftHBqWkNmSO91jzreIUnJMhS1B0oO0pXPUfZYQ6fOfjP5iK/c3m+JZgldYIJ1pQ
-         4wb/L4H5byWZuTyPkiEcz9+WrtGk0jQD3DhaMiI0n2E59N+CDE76xF67Mcf4+gUMqlYJ
-         Rld3qPpI2s5yRuyHI5U/9Y65x0kRJYUMz2zpGcl2iCMfPL6MwskBb6VUUfxiyptkZiOu
-         6+CNlpm53oaLn4lIEzexjJ6Mw9BL4s2xu/Lwe5wEKPY5a25S2QMX6VQzXBUCGCtuqjAL
-         oh2AvjebzZrqDTMhzPxQH0Qi7llUkRwC1Y8f59cYXFJnKZ4yE6SBPnDFIWeu3JVw2pg1
-         rUDQ==
-X-Gm-Message-State: APjAAAW+jV28pW/r3dWMgddlPPNYPcIrydu5L0rV3KSiEiNcwfiukqkS
-	YPgxVrcSAsYQMzSBw7nESDWMYpPf3cQOvQ==
-X-Google-Smtp-Source: APXvYqz9oZobET/iUTNCKPuvzkmg9nmOHQcj9fsJEXV81/UimM79jDhaZd7l5ou74gBabEL8h/sJVA==
-X-Received: by 2002:a63:607:: with SMTP id 7mr8444892pgg.240.1567087403933;
-        Thu, 29 Aug 2019 07:03:23 -0700 (PDT)
-Received: from STRATNEXT97 ([2001:fd0:3300:703::bc32])
-        by smtp.gmail.com with ESMTPSA id s7sm6025481pfb.138.2019.08.29.07.03.22
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 29 Aug 2019 07:03:23 -0700 (PDT)
-From: "Chelsey Bobby" <chelsey.bobby@infodatahub.biz>
-To: <linux-mm@kvack.org>
-References: 
-In-Reply-To: 
-Subject: RE: CPL
-Date: Thu, 29 Aug 2019 10:01:15 -0400
-Message-ID: <!&!AAAAAAAAAAAYAAAAAAAAANXmAQ9aI5ZIv7WSR9pTpgTCgAAAEAAAAHSK5e6ilvpLvg2I3FDOStQBAAAAAA==@infodatahub.biz>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=9zORjbGk69oJ5dfKY3b1CqJAsKNTapFMC7SK80j7yvM=;
+        b=Uqj342HSjM4Y9pOl2hrYSct5ckS1HH3oUCH3Wdq9B2ESQv7Ca34yW3r6G80xjTzNsP
+         aAVv8REzFLJkt7+fiRNlFQb3Xd1AC3PYWFrae4Z3NHZ/Lv0Q4a37xMY3npsHSmwll4Ly
+         CA4Y8w8TeCkUOLnGWmOs6JEr/goq72rZV3ZuJFi9NS/BP81PqGEEXQ/Tq/CUsUJPPp5P
+         tD/pxr35wjLpWFjhIto/qD1pxV7/p0fqbWH97GFhlUc2y7O4Ab5c0WAkmPWO8BN80NcK
+         mMg2NvtbLE0ep1iMkWmLTO8HGoQRFgTzqC0K623a8kL23YCyGYIIvubDtWKk/PxYrnGG
+         283Q==
+X-Gm-Message-State: APjAAAWTTF5gxVsNrcCQdxy40+VYZgaJN7ncwS8VR5grj3/pVq8JBr7I
+	eak6BYlv5FRd8p7gpOix3V63sJKP7T1vkqyFwoPHMg==
+X-Google-Smtp-Source: APXvYqx59i598mFm2GBgghGeivK6EaWlSPth0QzEwpZvp75pPj5w+oZSKXR7rqDv3ih969g1f7BxN8U/wVf1ecjdxpU=
+X-Received: by 2002:a6b:8b0b:: with SMTP id n11mr5437384iod.101.1567091011925;
+ Thu, 29 Aug 2019 08:03:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0DE7_01D55E51.0FF2CCF0"
-X-Mailer: Microsoft Outlook 15.0
-Thread-Index: AdVd2CdfeAj1oM8NRAum/iP1AlvYrwAmYEvA
-Content-Language: en-us
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.043072, version=1.2.4
+References: <20190826193638.6638-1-echron@arista.com> <20190827071523.GR7538@dhcp22.suse.cz>
+ <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
+ <20190828065955.GB7386@dhcp22.suse.cz> <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
+ <20190829071105.GQ28313@dhcp22.suse.cz> <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
+ <20190829115608.GD28313@dhcp22.suse.cz>
+In-Reply-To: <20190829115608.GD28313@dhcp22.suse.cz>
+From: Edward Chron <echron@arista.com>
+Date: Thu, 29 Aug 2019 08:03:19 -0700
+Message-ID: <CAM3twVSZm69U8Sg+VxQ67DeycHUMC5C3_f2EpND4_LC4UHx7BA@mail.gmail.com>
+Subject: Re: [PATCH 00/10] OOM Debug print selection and additional information
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
+	Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Ivan Delalande <colona@arista.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multipart message in MIME format.
+On Thu, Aug 29, 2019 at 4:56 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 29-08-19 19:14:46, Tetsuo Handa wrote:
+> > On 2019/08/29 16:11, Michal Hocko wrote:
+> > > On Wed 28-08-19 12:46:20, Edward Chron wrote:
+> > >> Our belief is if you really think eBPF is the preferred mechanism
+> > >> then move OOM reporting to an eBPF.
+> > >
+> > > I've said that all this additional information has to be dynamically
+> > > extensible rather than a part of the core kernel. Whether eBPF is the
+> > > suitable tool, I do not know. I haven't explored that. There are other
+> > > ways to inject code to the kernel. systemtap/kprobes, kernel modules and
+> > > probably others.
+> >
+> > As for SystemTap, guru mode (an expert mode which disables protection provided
+> > by SystemTap; allowing kernel to crash when something went wrong) could be used
+> > for holding spinlock. However, as far as I know, holding mutex (or doing any
+> > operation that might sleep) from such dynamic hooks is not allowed. Also we will
+> > need to export various symbols in order to allow access from such dynamic hooks.
+>
+> This is the oom path and it should better not use any sleeping locks in
+> the first place.
+>
+> > I'm not familiar with eBPF, but I guess that eBPF is similar.
+> >
+> > But please be aware that, I REPEAT AGAIN, I don't think neither eBPF nor
+> > SystemTap will be suitable for dumping OOM information. OOM situation means
+> > that even single page fault event cannot complete, and temporary memory
+> > allocation for reading from kernel or writing to files cannot complete.
+>
+> And I repeat that no such reporting is going to write to files. This is
+> an OOM path afterall.
+>
+> > Therefore, we will need to hold all information in kernel memory (without
+> > allocating any memory when OOM event happened). Dynamic hooks could hold
+> > a few lines of output, but not all lines we want. The only possible buffer
+> > which is preallocated and large enough would be printk()'s buffer. Thus,
+> > I believe that we will have to use printk() in order to dump OOM information.
+> > At that point,
+>
+> Yes, this is what I've had in mind.
+>
 
-------=_NextPart_000_0DE7_01D55E51.0FF2CCF0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
++1: It makes sense to keep the report going to the dmesg to persist.
+That is where it has always gone and there is no reason to change.
+You can have several OOMs back to back and you'd like to retain the output.
+All the information should be kept together in the OOM report.
 
-Hi,
+> >
+> >   static bool (*oom_handler)(struct oom_control *oc) = default_oom_killer;
+> >
+> >   bool out_of_memory(struct oom_control *oc)
+> >   {
+> >           return oom_handler(oc);
+> >   }
+> >
+> > and let in-tree kernel modules override current OOM killer would be
+> > the only practical choice (if we refuse adding many knobs).
+>
+> Or simply provide a hook with the oom_control to be called to report
+> without replacing the whole oom killer behavior. That is not necessary.
 
- 
+For very simple addition, to add a line of output this works.
+It would still be nice to address the fact the existing OOM Report prints
+all of the user processes or none. It would be nice to add some control
+for that. That's what we did.
 
-Can you let me know what type of Speciality/Specialists are you looking for?
-
- 
-
-I can send you data with all fields like (Email, phone number, company,
-designation etc..)
-
- 
-
-Awaiting your reply.
-
-- Chelsey
-
- 
-
- 
-
-From: Chelsey Bobby [mailto:chelsey.bobby@infodatahub.biz] 
-Sent: Wednesday, August 28, 2019 3:39 PM
-To: 'linux-mm@kvack.org'
-Subject: CPL
-
- 
-
-Hi,
-
- 
-
-Bring excellence to your campaigns with Codependency Professional's List
-which includes their contact and email addresses.  
-
- 
-
-If interested let me know the type of contact information that you are
-looking for.
-
- 
-
-If you are looking for any other type of Specialty/Specialists just let me
-know.
-
- 
-
-Waiting for your response.
-
- 
-
-Thanks and Regards,
-
-Chelsey Bobby.
-
-Sr. Marketing Manager 
-
- 
-
-Note: Before saying no to our product please check the quality and quantity
-of our product.
-
- 
-
-
-------=_NextPart_000_0DE7_01D55E51.0FF2CCF0
-Content-Type: text/html;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" =
-xmlns:o=3D"urn:schemas-microsoft-com:office:office" =
-xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:x=3D"urn:schemas-microsoft-com:office:excel" =
-xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" =
-xmlns=3D"http://www.w3.org/TR/REC-html40"><head><META =
-HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Dus-ascii"><meta name=3DGenerator content=3D"Microsoft Word 15 =
-(filtered medium)"><style><!--
-/* Font Definitions */
-@font-face
-	{font-family:"Cambria Math";
-	panose-1:2 4 5 3 5 4 6 3 2 4;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
-/* Style Definitions */
-p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0in;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:#0563C1;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:#954F72;
-	text-decoration:underline;}
-span.EmailStyle17
-	{mso-style-type:personal;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;
-	position:relative;
-	top:0pt;
-	mso-text-raise:0pt;
-	letter-spacing:0pt;
-	text-decoration:none none;}
-span.EmailStyle18
-	{mso-style-type:personal-reply;
-	font-family:"Calibri","sans-serif";
-	color:#1F497D;}
-.MsoChpDefault
-	{mso-style-type:export-only;
-	font-size:10.0pt;}
-@page WordSection1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.0in 1.0in 1.0in;}
-div.WordSection1
-	{page:WordSection1;}
---></style><!--[if gte mso 9]><xml>
-<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
-<o:shapelayout v:ext=3D"edit">
-<o:idmap v:ext=3D"edit" data=3D"1" />
-</o:shapelayout></xml><![endif]--></head><body lang=3DEN-US =
-link=3D"#0563C1" vlink=3D"#954F72"><div class=3DWordSection1><p =
-class=3DMsoNormal><span =
-style=3D'color:#1F497D'>Hi,<o:p></o:p></span></p><p =
-class=3DMsoNormal><span =
-style=3D'color:#1F497D'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span style=3D'color:#1F497D'>Can you let me know what =
-type of <b>Speciality/Specialists</b> are you looking =
-for?<o:p></o:p></span></p><p class=3DMsoNormal><span =
-style=3D'color:#1F497D'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span style=3D'color:#1F497D'>I can send you data with =
-all fields like (Email, phone number, company, designation =
-etc..)<o:p></o:p></span></p><p class=3DMsoNormal><span =
-style=3D'color:#1F497D'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span style=3D'color:#1F497D'>Awaiting your =
-reply.<o:p></o:p></span></p><p class=3DMsoNormal><span =
-style=3D'color:#1F497D'>-</span> <b><span =
-style=3D'color:#1F497D'>Chelsey</span></b><span =
-style=3D'color:#1F497D'><o:p></o:p></span></p><p class=3DMsoNormal><span =
-style=3D'color:#1F497D'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span =
-style=3D'color:#1F497D'><o:p>&nbsp;</o:p></span></p><div><div =
-style=3D'border:none;border-top:solid #E1E1E1 1.0pt;padding:3.0pt 0in =
-0in 0in'><p class=3DMsoNormal><b>From:</b> Chelsey Bobby =
-[mailto:chelsey.bobby@infodatahub.biz] <br><b>Sent:</b> Wednesday, =
-August 28, 2019 3:39 PM<br><b>To:</b> =
-'linux-mm@kvack.org'<br><b>Subject:</b> CPL<o:p></o:p></p></div></div><p =
-class=3DMsoNormal><o:p>&nbsp;</o:p></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'>Hi,<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span style=3D'color:#1F3864'>Bring excellence to your =
-campaigns with <b>Codependency Professional&#8217;s</b> <b>List</b> =
-which includes their contact and email addresses.&nbsp; =
-<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span style=3D'color:#1F3864'>If =
-interested let me know the type of contact information that you are =
-looking for.<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span style=3D'color:#1F3864'>If you are =
-looking for any other type of <b>Specialty/Specialists</b> just let me =
-know.<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span style=3D'color:#1F3864'>Waiting for =
-your response.<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span style=3D'color:#1F3864'>Thanks and =
-Regards,<o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><b><span style=3D'color:#1F3864'>Chelsey =
-Bobby.<o:p></o:p></span></b></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span style=3D'color:#1F3864'>Sr. =
-Marketing Manager <o:p></o:p></span></p><p class=3DMsoNormal =
-style=3D'text-autospace:none'><span =
-style=3D'color:#1F3864'><o:p>&nbsp;</o:p></span></p><p =
-class=3DMsoNormal><span style=3D'font-size:10.0pt;color:#1F4E79'>Note: =
-Before saying no to our product please check the quality and quantity of =
-our product.<o:p></o:p></span></p><p =
-class=3DMsoNormal><o:p>&nbsp;</o:p></p></div></body></html>
-------=_NextPart_000_0DE7_01D55E51.0FF2CCF0--
-
+> --
+> Michal Hocko
+> SUSE Labs
 
