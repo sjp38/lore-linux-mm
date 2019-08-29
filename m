@@ -6,59 +6,62 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 304ABC3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 07:11:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 058F2C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 07:18:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EFBCA2339E
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 07:11:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFBCA2339E
+	by mail.kernel.org (Postfix) with ESMTP id C16C6233A1
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 07:18:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C16C6233A1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94D3B6B0003; Thu, 29 Aug 2019 03:11:09 -0400 (EDT)
+	id 663AB6B0010; Thu, 29 Aug 2019 03:18:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8FD076B000C; Thu, 29 Aug 2019 03:11:09 -0400 (EDT)
+	id 612CE6B0266; Thu, 29 Aug 2019 03:18:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 812E06B000E; Thu, 29 Aug 2019 03:11:09 -0400 (EDT)
+	id 4D93B6B0269; Thu, 29 Aug 2019 03:18:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0062.hostedemail.com [216.40.44.62])
-	by kanga.kvack.org (Postfix) with ESMTP id 592E26B0003
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 03:11:09 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 01DEE180AD805
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:11:09 +0000 (UTC)
-X-FDA: 75874593858.06.peace55_61464fdd6df0c
-X-HE-Tag: peace55_61464fdd6df0c
-X-Filterd-Recvd-Size: 4617
+Received: from forelay.hostedemail.com (smtprelay0155.hostedemail.com [216.40.44.155])
+	by kanga.kvack.org (Postfix) with ESMTP id 248896B0010
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 03:18:10 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id C1329AF97
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:18:09 +0000 (UTC)
+X-FDA: 75874611498.09.low18_d05238c36e4e
+X-HE-Tag: low18_d05238c36e4e
+X-Filterd-Recvd-Size: 3355
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:11:08 +0000 (UTC)
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:18:09 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C7B2BAF3B;
-	Thu, 29 Aug 2019 07:11:06 +0000 (UTC)
-Date: Thu, 29 Aug 2019 09:11:05 +0200
+	by mx1.suse.de (Postfix) with ESMTP id EA865B116;
+	Thu, 29 Aug 2019 07:18:07 +0000 (UTC)
+Date: Thu, 29 Aug 2019 09:18:07 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Edward Chron <echron@arista.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
+To: Mina Almasry <almasrymina@google.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, shuah <shuah@kernel.org>,
 	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
-Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
- information
-Message-ID: <20190829071105.GQ28313@dhcp22.suse.cz>
-References: <20190826193638.6638-1-echron@arista.com>
- <20190827071523.GR7538@dhcp22.suse.cz>
- <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
- <20190828065955.GB7386@dhcp22.suse.cz>
- <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
+	Shakeel Butt <shakeelb@google.com>,
+	Greg Thelen <gthelen@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>, khalid.aziz@oracle.com,
+	open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-kselftest@vger.kernel.org, cgroups@vger.kernel.org,
+	Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>,
+	Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>,
+	Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
+	Li Zefan <lizefan@huawei.com>
+Subject: Re: [PATCH v3 0/6] hugetlb_cgroup: Add hugetlb_cgroup reservation
+ limits
+Message-ID: <20190829071807.GR28313@dhcp22.suse.cz>
+References: <20190826233240.11524-1-almasrymina@google.com>
+ <20190828112340.GB7466@dhcp22.suse.cz>
+ <CAHS8izPPhPoqh-J9LJ40NJUCbgTFS60oZNuDSHmgtMQiYw72RA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
+In-Reply-To: <CAHS8izPPhPoqh-J9LJ40NJUCbgTFS60oZNuDSHmgtMQiYw72RA@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -66,73 +69,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 28-08-19 12:46:20, Edward Chron wrote:
-[...]
-> Our belief is if you really think eBPF is the preferred mechanism
-> then move OOM reporting to an eBPF.
+[Cc cgroups maintainers]
 
-I've said that all this additional information has to be dynamically
-extensible rather than a part of the core kernel. Whether eBPF is the
-suitable tool, I do not know. I haven't explored that. There are other
-ways to inject code to the kernel. systemtap/kprobes, kernel modules and
-probably others.
-
-> I mentioned this before but I will reiterate this here.
+On Wed 28-08-19 10:58:00, Mina Almasry wrote:
+> On Wed, Aug 28, 2019 at 4:23 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 26-08-19 16:32:34, Mina Almasry wrote:
+> > >  mm/hugetlb.c                                  | 493 ++++++++++++------
+> > >  mm/hugetlb_cgroup.c                           | 187 +++++--
+> >
+> > This is a lot of changes to an already subtle code which hugetlb
+> > reservations undoubly are.
 > 
-> So how do we get there? Let's look at the existing report which we know
-> has issues.
+> For what it's worth, I think this patch series is a net decrease in
+> the complexity of the reservation code, especially the region_*
+> functions, which is where a lot of the complexity lies. I removed the
+> race between region_del and region_{add|chg}, refactored the main
+> logic into smaller code, moved common code to helpers and deleted the
+> duplicates, and finally added lots of comments to the hard to
+> understand pieces. I hope that when folks review the changes they will
+> see that! :)
+
+Post those improvements as standalone patches and sell them as
+improvements. We can talk about the net additional complexity of the
+controller much easier then.
+
+> > Moreover cgroupv1 is feature frozen and I am
+> > not aware of any plans to port the controller to v2.
 > 
-> Other than a few essential OOM messages the OOM code should produce,
-> such as the Killed process message message sequence being included,
-> you could have the entire OOM report moved to an eBPF script and
-> therefore make it customizable, configurable or if you prefer programmable.
+> Also for what it's worth, if porting the controller to v2 is a
+> requisite to take this, I'm happy to do that. As far as I understand
+> there is no reason hugetlb_cgroups shouldn't be in cgroups v2, and we
+> see value in them.
 
-I believe we should keep the current reporting in place and allow
-additional information via dynamic mechanism. Be it a registration
-mechanism that modules can hook into or other more dynamic way.
-The current reporting has proven to be useful in many typical oom
-situations in my past years of experience. It gives the rough state of
-the failing allocation, MM subsystem, tasks that are eligible and task
-that is killed so that you can understand why the event happened.
-
-I would argue that the eligible tasks should be printed on the opt-in
-bases because this is more of relict from the past when the victim
-selection was less deterministic. But that is another story.
-
-All the rest of dump_header should stay IMHO as a reasonable default and
-bare minimum.
-
-> Why? Because as we all agree, you'll never have a perfect OOM Report.
-> So if you believe this, than if you will, put your money where your mouth
-> is (so to speak) and make the entire OOM Report and eBPF script.
-> We'd be willing to help with this.
-> 
-> I'll give specific reasons why you want to do this.
-> 
->    - Don't want to maintain a lot of code in the kernel (eBPF code doesn't
->    count).
->    - Can't produce an ideal OOM report.
->    - Don't like configuring things but favor programmatic solutions.
->    - Agree the existing OOM report doesn't work for all environments.
->    - Want to allow flexibility but can't support everything people might
->    want.
->    - Then installing an eBPF for OOM Reporting isn't an option, it's
->    required.
-
-This is going into an extreme. We cannot serve all cases but that is
-true for any other heuristics/reporting in the kernel. We do care about
-most.
-
-> The last reason is huge for people who live in a world with large data
-> centers. Data center managers are very conservative. They don't want to
-> deviate from standard operating procedure unless absolutely necessary.
-> If loading an OOM Report eBPF is standard to get OOM Reporting output,
-> then they'll accept that.
-
-I have already responded to this kind of argumentation elsewhere. This
-is not a relevant argument for any kernel implementation. This is a data
-process management process.
-
+Talk to cgroups maintainers why the hugegetlb controller hasn't been
+enabled in v2. All I am saing is that v1 only features are really a hard
+sell. Even without adding a lot of code to hugetlb which is quite
+complex on its own.
 -- 
 Michal Hocko
 SUSE Labs
