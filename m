@@ -2,218 +2,159 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.2 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B811EC3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 22:42:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7850C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:34:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77E2E2189D
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 22:42:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="bay27Xp9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77E2E2189D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	by mail.kernel.org (Postfix) with ESMTP id 6BED621874
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:34:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BED621874
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 078896B0008; Thu, 29 Aug 2019 18:42:05 -0400 (EDT)
+	id B26CF6B0003; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 028F16B000C; Thu, 29 Aug 2019 18:42:04 -0400 (EDT)
+	id AD6BD6B0008; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E817B6B000D; Thu, 29 Aug 2019 18:42:04 -0400 (EDT)
+	id 9EDA46B000C; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0146.hostedemail.com [216.40.44.146])
-	by kanga.kvack.org (Postfix) with ESMTP id C76396B0008
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:42:04 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 6883482437C9
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 22:42:04 +0000 (UTC)
-X-FDA: 75876939768.11.show12_4c3a7a67f8656
-X-HE-Tag: show12_4c3a7a67f8656
-X-Filterd-Recvd-Size: 8864
-Received: from mail-io1-f67.google.com (mail-io1-f67.google.com [209.85.166.67])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 22:42:03 +0000 (UTC)
-Received: by mail-io1-f67.google.com with SMTP id u185so6411184iod.10
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:42:03 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=arista.com; s=googlenew;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RTNmKtMIyOKeRFWnzoE7Y4Kbo1rZA/2OLCV7CQcUZaA=;
-        b=bay27Xp9dhwp305KeWzqWGBJOrj4JYWn62Pav9CMuasFotcVgHgTvR74QRX8ySXuvu
-         nBO/oZf6XuALTkVOCJIkQHZ62D6opYjzsyUFgQ+MenLc0ruQ+KJoyXCcI0/otwTEKcsk
-         QIe9tBfHOFauh8gUyAVpZycZFnCyMHlz5TkRkGMZ9ZbNIQPwNKvuZpTlk2MbfYnZIuxU
-         jZHU4aLvN1KlQB4oFiVwaepvA3nd6LipqB8s42MhA7SPxpR5gh/TSRC31KYeef/+Gxns
-         A7RnJV0CLKIp6SlrqekzUytbP8YtaFg3I5rFB84lTwrOhCxFPs9d8nq273hYpku0suh7
-         1pSA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=RTNmKtMIyOKeRFWnzoE7Y4Kbo1rZA/2OLCV7CQcUZaA=;
-        b=BVOJozVwnEpAa6mmHifVMiY8PRRX70rMpAkq1ZjiRDFaHLu5JDTQ5nWU/yfKrJwWpM
-         CoMSg5GbXV4YZ8P62qbg0E3XLC4pBAsomHwg5DJ/DAibS8XdPMFryo2MXmcLOolP0TaC
-         wCW22AMMPUOEISg5BPlsBUCuZEgQkG00ooIzvTGcN74pNva2KdJu1YHIwvhdB0HlDq8y
-         5ecvU6dHBL05ZEcsa6n7iY/GsP7LT95W+UZKAN2BBhUDWsz2mDDPM5rszDTDok0aELZ4
-         0bfo5gHrSTkucZHX8mJX40Z+K//1H8L9PNF88LgNBlGVPn+t+o6vhjCsyqN3BQTNW5s6
-         KE4w==
-X-Gm-Message-State: APjAAAUamrr4ZAORrtsxl3rvhYDbATT3ZLN/AqT/9UE42hpLl4+6SRzQ
-	/Wo8/1YmUr1oIYjB8Zy69DXxVCpAQay1KswNlw+eug==
-X-Google-Smtp-Source: APXvYqyNrJWjy3x7Ur1kzMDcBvIhbe7fsLZ3D5JpqvF7N7XmX4yjLG0yJByx9Fibo1qWyc6xU0MlOCGXegbXTCQ8pXU=
-X-Received: by 2002:a6b:8b0b:: with SMTP id n11mr8118399iod.101.1567118522911;
- Thu, 29 Aug 2019 15:42:02 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E13F6B0003
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 2E04E1A4B6
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:34:12 +0000 (UTC)
+X-FDA: 75877071144.20.unit75_5ec7d3f6f1a60
+X-HE-Tag: unit75_5ec7d3f6f1a60
+X-Filterd-Recvd-Size: 5501
+Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:34:11 +0000 (UTC)
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Aug 2019 16:34:09 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,445,1559545200"; 
+   d="scan'208";a="172060373"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga007.jf.intel.com with ESMTP; 29 Aug 2019 16:34:08 -0700
+Date: Thu, 29 Aug 2019 16:34:08 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jeff Layton <jlayton@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 02/19] fs/locks: Add Exclusive flag to user Layout
+ lease
+Message-ID: <20190829233408.GD18249@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-3-ira.weiny@intel.com>
+ <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
+ <20190814215630.GQ6129@dread.disaster.area>
+ <e6f4f619967f4551adb5003d0364770fde2b8110.camel@kernel.org>
 MIME-Version: 1.0
-References: <20190826193638.6638-1-echron@arista.com> <20190827071523.GR7538@dhcp22.suse.cz>
- <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
- <20190828065955.GB7386@dhcp22.suse.cz> <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
- <20190829071105.GQ28313@dhcp22.suse.cz> <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
- <20190829115608.GD28313@dhcp22.suse.cz> <CAM3twVSZm69U8Sg+VxQ67DeycHUMC5C3_f2EpND4_LC4UHx7BA@mail.gmail.com>
- <1567093344.5576.23.camel@lca.pw> <CAM3twVSgJdFKbzkg1V+7voFMi-SYQTCz6jCBobLBQ72Cg8k5VQ@mail.gmail.com>
- <1567104241.5576.30.camel@lca.pw>
-In-Reply-To: <1567104241.5576.30.camel@lca.pw>
-From: Edward Chron <echron@arista.com>
-Date: Thu, 29 Aug 2019 15:41:50 -0700
-Message-ID: <CAM3twVTojKErZLBj4CmPfQLFNxQjPhQJJnHjkd5i5PTtAyLP4w@mail.gmail.com>
-Subject: Re: [PATCH 00/10] OOM Debug print selection and additional information
-To: Qian Cai <cai@lca.pw>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Ivan Delalande <colona@arista.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e6f4f619967f4551adb5003d0364770fde2b8110.camel@kernel.org>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 29, 2019 at 11:44 AM Qian Cai <cai@lca.pw> wrote:
->
-> On Thu, 2019-08-29 at 09:09 -0700, Edward Chron wrote:
->
-> > > Feel like you are going in circles to "sell" without any new information. If
-> > > you
-> > > need to deal with OOM that often, it might also worth working with FB on
-> > > oomd.
-> > >
-> > > https://github.com/facebookincubator/oomd
-> > >
-> > > It is well-known that kernel OOM could be slow and painful to deal with, so
-> > > I
-> > > don't buy-in the argument that kernel OOM recover is better/faster than a
-> > > kdump
-> > > reboot.
-> > >
-> > > It is not unusual that when the system is triggering a kernel OOM, it is
-> > > almost
-> > > trashed/dead. Although developers are working hard to improve the recovery
-> > > after
-> > > OOM, there are still many error-paths that are not going to survive which
-> > > would
-> > > leak memories, introduce undefined behaviors, corrupt memory etc.
-> >
-> > But as you have pointed out many people are happy with current OOM processing
-> > which is the report and recovery so for those people a kdump reboot is
-> > overkill.
-> > Making the OOM report at least optionally a bit more informative has value.
-> > Also
-> > making sure it doesn't produce excessive output is desirable.
-> >
-> > I do agree for developers having to have all the system state a kdump
-> > provides that
-> > and as long as you can reproduce the OOM event that works well. But
-> > that is not the
-> > common case as has already been discussed.
-> >
-> > Also, OOM events that are due to kernel bugs could leak memory and over time
-> > and cause a crash, true. But that is not what we typically see. In
-> > fact we've had
-> > customers come back and report issues on systems that have been in continuous
-> > operation for years. No point in crashing their system. Linux if
-> > properly maintained
-> > is thankfully quite stable. But OOMs do happen and root causing them to
-> > prevent
-> > future occurrences is desired.
->
-> This is not what I meant. After an OOM event happens, many kernel memory
-> allocations could fail. Since very few people are testing those error-paths due
-> to allocation failures, it is considered one of those most buggy areas in the
-> kernel. Developers have mostly been focus on making sure the kernel OOM should
-> not happen in the first place.
->
-> I still think the time is better spending on improving things like eBPF, oomd
-> and kdump etc to solve your problem, but leave the kernel OOM report code alone.
->
+Missed this.  sorry.
 
-Sure would rather spend my time doing other things.
-No argument about that. No one likes OOMs.
-If I never see another OOM I'd be quite happy.
+On Mon, Aug 26, 2019 at 06:41:07AM -0400, Jeff Layton wrote:
+> On Thu, 2019-08-15 at 07:56 +1000, Dave Chinner wrote:
+> > On Wed, Aug 14, 2019 at 10:15:06AM -0400, Jeff Layton wrote:
+> > > On Fri, 2019-08-09 at 15:58 -0700, ira.weiny@intel.com wrote:
+> > > > From: Ira Weiny <ira.weiny@intel.com>
+> > > > 
+> > > > Add an exclusive lease flag which indicates that the layout mechanism
+> > > > can not be broken.
+> > > > 
+> > > > Exclusive layout leases allow the file system to know that pages may be
+> > > > GUP pined and that attempts to change the layout, ie truncate, should be
+> > > > failed.
+> > > > 
+> > > > A process which attempts to break it's own exclusive lease gets an
+> > > > EDEADLOCK return to help determine that this is likely a programming bug
+> > > > vs someone else holding a resource.
+> > .....
+> > > > diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
+> > > > index baddd54f3031..88b175ceccbc 100644
+> > > > --- a/include/uapi/asm-generic/fcntl.h
+> > > > +++ b/include/uapi/asm-generic/fcntl.h
+> > > > @@ -176,6 +176,8 @@ struct f_owner_ex {
+> > > >  
+> > > >  #define F_LAYOUT	16      /* layout lease to allow longterm pins such as
+> > > >  				   RDMA */
+> > > > +#define F_EXCLUSIVE	32      /* layout lease is exclusive */
+> > > > +				/* FIXME or shoudl this be F_EXLCK??? */
+> > > >  
+> > > >  /* operations for bsd flock(), also used by the kernel implementation */
+> > > >  #define LOCK_SH		1	/* shared lock */
+> > > 
+> > > This interface just seems weird to me. The existing F_*LCK values aren't
+> > > really set up to be flags, but are enumerated values (even if there are
+> > > some gaps on some arches). For instance, on parisc and sparc:
+> > 
+> > I don't think we need to worry about this - the F_WRLCK version of
+> > the layout lease should have these exclusive access semantics (i.e
+> > other ops fail rather than block waiting for lease recall) and hence
+> > the API shouldn't need a new flag to specify them.
+> > 
+> > i.e. the primary difference between F_RDLCK and F_WRLCK layout
+> > leases is that the F_RDLCK is a shared, co-operative lease model
+> > where only delays in operations will be seen, while F_WRLCK is a
+> > "guarantee exclusive access and I don't care what it breaks"
+> > model... :)
+> > 
+> 
+> Not exactly...
+> 
+> F_WRLCK and F_RDLCK leases can both be broken, and will eventually time
+> out if there is conflicting access. The F_EXCLUSIVE flag on the other
+> hand is there to prevent any sort of lease break from 
 
-But OOM events still happen and an OOM report gets generated.
-When it happens it is useful to get information that can help
-find the cause of the OOM so it can be fixed and won't happen again.
-We get tasked to root cause OOMs even though we'd rather do
-other things.
+Right EXCLUSIVE will not break for any reason.  It will fail truncate and hole
+punch as we discussed back in June.  This is for the use case where the user
+has handed this file/pages off to some hardware for which removing the lease
+would be impossible.  _And_ we don't anticipate any valid use case that someone
+will need to truncate short of killing the process to free up file system
+space.
 
-We've added a bit of output to the OOM Report and it has been helpful.
-We also reduce our total output by only printing larger entries
-with helpful summaries.
-We've been using and supporting this code for quite a few releases.
-We haven't had problems and we have a lot of systems in use.
+> 
+> I'm guessing what Ira really wants with the F_EXCLUSIVE flag is
+> something akin to what happens when we set fl_break_time to 0 in the
+> nfsd code. nfsd never wants the locks code to time out a lease of any
+> sort, since it handles that timeout itself.
+> 
+> If you're going to add this functionality, it'd be good to also convert
+> knfsd to use it as well, so we don't end up with multiple ways to deal
+> with that situation.
 
-Contributing to an open source project like Linux is good.
-If the code is not accepted its not the end of the world.
-I was told to offer our code upstream and to try to be helpful.
+Could you point me at the source for knfsd?  I looked in 
 
-I understand that processing an OOM event can be flakey.
-We add a few lines of OOM output but in fact we reduce our total
-output because we skip printing smaller entries and print
-summaries instead.
+git://git.linux-nfs.org/projects/steved/nfs-utils.git
 
-So if the volume of the output increases the likelihood of system
-failure during an OOM event, then we've actually increased our
-reliability. Maybe that is why we haven't had any problems.
+but I don't see anywhere leases are used in that source?
 
-As far as switching from generating an OOM report to taking
-a dump and restarting the system, the choice is not mine to
-decide. Way above my pay grade. When asked, I am
-happy to look at a dump but dumps plus restarts for
-the systems we work on take too long so I typically don't get
-a dump to look at. Have to make due with OOM output and
-logs.
+Thanks,
+Ira
 
-Also, and depending on what you work on, you may take
-satisfaction that OOM events are far less traumatic with
-newer versions of Linux, with our systems. The folks upstream
-do really good work, give credit where credit is due.
-Maybe tools like KASAN really help, which we also use.
-
-Sure people fix bugs all the time, Linux is huge and super
-complicated, but many of the bugs are not very common
-and we spend an amazing (to me anyway) amount of time
-testing and so when we take OOM events, even multiple
-OOM events back to back, the system almost always
-recovers and we don't seem to bleed memory. That is
-why we systems up for months and even years.
-
-Occasionally we see a watchdog timeout failure and that
-can be due to a low memory situation but just FYI a fair
-number of those do not involve OOM events so its not
-because of issues with OOM code, reporting or otherwise.
-
-Regardless, thank-you for your time and for your comments.
-Constructive feedback is useful and certainly appreciated.
-
-By the way we use oomd on some systems. It is helpful and
-in my experience it helps to reduce OOM events but sadly
-they still occur. For systems where it is not used, again that
-is not my choice to make.
-
-Edward Chron
-Arista Networks
 
