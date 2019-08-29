@@ -2,171 +2,577 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09770C41514
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 19:14:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD853C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 19:39:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFDBF2166E
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 19:14:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=embeddedor.com header.i=@embeddedor.com header.b="kLPXVhrI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFDBF2166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=embeddedor.com
+	by mail.kernel.org (Postfix) with ESMTP id 799402166E
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 19:39:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 799402166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.vnet.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 81A8E6B000D; Thu, 29 Aug 2019 15:14:47 -0400 (EDT)
+	id 018776B0006; Thu, 29 Aug 2019 15:39:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7CB216B000E; Thu, 29 Aug 2019 15:14:47 -0400 (EDT)
+	id F0B7C6B0008; Thu, 29 Aug 2019 15:39:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 692336B0010; Thu, 29 Aug 2019 15:14:47 -0400 (EDT)
+	id DF8D96B000C; Thu, 29 Aug 2019 15:39:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0021.hostedemail.com [216.40.44.21])
-	by kanga.kvack.org (Postfix) with ESMTP id 413CF6B000D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:14:47 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id EF030824CA3D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:14:46 +0000 (UTC)
-X-FDA: 75876417372.23.offer02_c82cb2907021
-X-HE-Tag: offer02_c82cb2907021
-X-Filterd-Recvd-Size: 6743
-Received: from gateway32.websitewelcome.com (gateway32.websitewelcome.com [192.185.145.182])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:14:45 +0000 (UTC)
-Received: from cm10.websitewelcome.com (cm10.websitewelcome.com [100.42.49.4])
-	by gateway32.websitewelcome.com (Postfix) with ESMTP id DFDBD2A307F
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 14:14:44 -0500 (CDT)
-Received: from gator4166.hostgator.com ([108.167.133.22])
-	by cmsmtp with SMTP
-	id 3PsaiEVC72PzO3PsaiC4xv; Thu, 29 Aug 2019 14:14:44 -0500
-X-Authority-Reason: nr=8
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=embeddedor.com; s=default; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:Subject:Sender
-	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=k7xn0AUPPL/ZJg+6uOv9inoLPdFTsfzIObBinlma0pA=; b=kLPXVhrI8N5TBjrLdzvfikIREa
-	tZaLK3ASUFQMMFiu6lgZawIXlWx1aDDvihiGi62NPoLcIfjRmH2JSozL3gugt5Hrb+xo4YhTTEH1u
-	89S+dyAzZYUDNTHp1iWrpZxCPgmLoLGkLBEgMQDFE+nnmhQk5Vb6x4RxM2aY3ApaPq2cLZyuFoh5W
-	ZHT6Sguemp6hxXaizhTGNYCr4FDJmp+eZA6Qefml3xJH8khCNNrQLkJPd3yAG6z/dIhLm7QZx+O+o
-	haUieZEmcglTFJTO3HoLP9xnjfN8eI3kxRAAtUlp5bY6mSw2+BGWmAbpuzv+4jbqHcumTsmYQj0rW
-	y/qDTS+A==;
-Received: from [189.152.216.116] (port=50614 helo=[192.168.43.131])
-	by gator4166.hostgator.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128)
-	(Exim 4.92)
-	(envelope-from <gustavo@embeddedor.com>)
-	id 1i3Psa-001wox-Bp; Thu, 29 Aug 2019 14:14:44 -0500
-Subject: Re: [PATCH] mm/z3fold.c: fix lock/unlock imbalance in
- z3fold_page_isolate
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Henry Burns <henryburns@google.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190826030634.GA4379@embeddedor>
- <20190826160515.446dabc587706fc80e5c6e6b@linux-foundation.org>
-From: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=gustavo@embeddedor.com; keydata=
- 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
- VtSixD1uOgytAP7RWS474w==
-Message-ID: <051d8e3b-b705-d34b-3193-550bef3b5c65@embeddedor.com>
-Date: Thu, 29 Aug 2019 14:14:40 -0500
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0186.hostedemail.com [216.40.44.186])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F6D6B0006
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:39:19 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 507CA82437CF
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:39:19 +0000 (UTC)
+X-FDA: 75876479238.14.wing78_51428475e995a
+X-HE-Tag: wing78_51428475e995a
+X-Filterd-Recvd-Size: 18892
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:39:18 +0000 (UTC)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7TJcjEi100708;
+	Thu, 29 Aug 2019 15:39:16 -0400
+Received: from pps.reinject (localhost [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2upj1rpu87-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 29 Aug 2019 15:39:16 -0400
+Received: from m0098410.ppops.net (m0098410.ppops.net [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x7TJcrPB101516;
+	Thu, 29 Aug 2019 15:39:16 -0400
+Received: from ppma02wdc.us.ibm.com (aa.5b.37a9.ip4.static.sl-reverse.com [169.55.91.170])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2upj1rpu7s-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 29 Aug 2019 15:39:15 -0400
+Received: from pps.filterd (ppma02wdc.us.ibm.com [127.0.0.1])
+	by ppma02wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x7TJZGkc030351;
+	Thu, 29 Aug 2019 19:39:14 GMT
+Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
+	by ppma02wdc.us.ibm.com with ESMTP id 2ujvv6x92t-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 29 Aug 2019 19:39:14 +0000
+Received: from b03ledav006.gho.boulder.ibm.com (b03ledav006.gho.boulder.ibm.com [9.17.130.237])
+	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7TJdDl250266478
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 29 Aug 2019 19:39:13 GMT
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id AE7F5C605A;
+	Thu, 29 Aug 2019 19:39:13 +0000 (GMT)
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 76FCCC6055;
+	Thu, 29 Aug 2019 19:39:13 +0000 (GMT)
+Received: from suka-w540.localdomain (unknown [9.70.94.45])
+	by b03ledav006.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Thu, 29 Aug 2019 19:39:13 +0000 (GMT)
+Received: by suka-w540.localdomain (Postfix, from userid 1000)
+	id D39762E10DA; Thu, 29 Aug 2019 12:39:11 -0700 (PDT)
+Date: Thu, 29 Aug 2019 12:39:11 -0700
+From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
+        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
+        jglisse@redhat.com, linuxram@us.ibm.com, cclaudio@linux.ibm.com,
+        hch@lst.de
+Subject: Re: [PATCH v7 1/7] kvmppc: Driver to manage pages of secure guest
+Message-ID: <20190829193911.GA26729@us.ibm.com>
+References: <20190822102620.21897-1-bharata@linux.ibm.com>
+ <20190822102620.21897-2-bharata@linux.ibm.com>
+ <20190829030219.GA17497@us.ibm.com>
+ <20190829065642.GA31913@in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190826160515.446dabc587706fc80e5c6e6b@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-AntiAbuse: This header was added to track abuse, please include it with any abuse report
-X-AntiAbuse: Primary Hostname - gator4166.hostgator.com
-X-AntiAbuse: Original Domain - kvack.org
-X-AntiAbuse: Originator/Caller UID/GID - [47 12] / [47 12]
-X-AntiAbuse: Sender Address Domain - embeddedor.com
-X-BWhitelist: no
-X-Source-IP: 189.152.216.116
-X-Source-L: No
-X-Exim-ID: 1i3Psa-001wox-Bp
-X-Source: 
-X-Source-Args: 
-X-Source-Dir: 
-X-Source-Sender: ([192.168.43.131]) [189.152.216.116]:50614
-X-Source-Auth: gustavo@embeddedor.com
-X-Email-Count: 11
-X-Source-Cap: Z3V6aWRpbmU7Z3V6aWRpbmU7Z2F0b3I0MTY2Lmhvc3RnYXRvci5jb20=
-X-Local-Domain: yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190829065642.GA31913@in.ibm.com>
+X-Operating-System: Linux 2.0.32 on an i486
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-29_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908290195
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 8/26/19 6:05 PM, Andrew Morton wrote:
+Bharata B Rao [bharata@linux.ibm.com] wrote:
+> On Wed, Aug 28, 2019 at 08:02:19PM -0700, Sukadev Bhattiprolu wrote:
+> > Some minor comments/questions below. Overall, the patches look
+> > fine to me.
+> > 
+> > > +#include <linux/pagemap.h>
+> > > +#include <linux/migrate.h>
+> > > +#include <linux/kvm_host.h>
+> > > +#include <asm/ultravisor.h>
+> > > +
+> > > +static struct dev_pagemap kvmppc_devm_pgmap;
+> > > +static unsigned long *kvmppc_devm_pfn_bitmap;
+> > > +static DEFINE_SPINLOCK(kvmppc_devm_pfn_lock);
+> > 
+> > Is this lock protecting just the pfn_bitmap?
 > 
+> Yes.
 > 
-> This is a bit silly:
-> 
-> 			if (..) {
-> 				...
-> 				z3fold_page_unlock(zhdr);
-> 				return false;
-> 			}
-> 			z3fold_page_unlock(zhdr);
-> 			return false;
-> 
-> but presumably the compiler will clean up after us.
-> 
+> > 
+> > > +
+> > > +struct kvmppc_devm_page_pvt {
+> > > +	unsigned long *rmap;
+> > > +	unsigned int lpid;
+> > > +	unsigned long gpa;
+> > > +};
+> > > +
+> > > +/*
+> > > + * Get a free device PFN from the pool
+> > > + *
+> > > + * Called when a normal page is moved to secure memory (UV_PAGE_IN). Device
+> > > + * PFN will be used to keep track of the secure page on HV side.
+> > > + *
+> > > + * @rmap here is the slot in the rmap array that corresponds to @gpa.
+> > > + * Thus a non-zero rmap entry indicates that the corresponding guest
+> > > + * page has become secure, and is not mapped on the HV side.
+> > > + *
+> > > + * NOTE: In this and subsequent functions, we pass around and access
+> > > + * individual elements of kvm_memory_slot->arch.rmap[] without any
+> > > + * protection. Should we use lock_rmap() here?
 
-I agree. I just sent a patch for that:
+Where do we serialize two threads attempting to H_SVM_PAGE_IN the same gfn
+at the same time? Or one thread issuing a H_SVM_PAGE_IN and another a
+H_SVM_PAGE_OUT for the same page?
 
-https://lore.kernel.org/lkml/20190829191312.GA20298@embeddedor/
+> > > + */
+> > > +static struct page *kvmppc_devm_get_page(unsigned long *rmap, unsigned long gpa,
+> > > +					 unsigned int lpid)
+> > > +{
+> > > +	struct page *dpage = NULL;
+> > > +	unsigned long bit, devm_pfn;
+> > > +	unsigned long flags;
+> > > +	struct kvmppc_devm_page_pvt *pvt;
+> > > +	unsigned long pfn_last, pfn_first;
+> > > +
+> > > +	if (kvmppc_rmap_is_devm_pfn(*rmap))
+> > > +		return NULL;
+> > > +
+> > > +	pfn_first = kvmppc_devm_pgmap.res.start >> PAGE_SHIFT;
+> > > +	pfn_last = pfn_first +
+> > > +		   (resource_size(&kvmppc_devm_pgmap.res) >> PAGE_SHIFT);
+> > > +	spin_lock_irqsave(&kvmppc_devm_pfn_lock, flags);
+> > 
+> > Blank lines around spin_lock() would help.
+> 
+> You mean blank line before lock and after unlock to clearly see
+> where the lock starts and ends?
+> 
+> > 
+> > > +	bit = find_first_zero_bit(kvmppc_devm_pfn_bitmap, pfn_last - pfn_first);
+> > > +	if (bit >= (pfn_last - pfn_first))
+> > > +		goto out;
+> > > +
+> > > +	bitmap_set(kvmppc_devm_pfn_bitmap, bit, 1);
+> > > +	devm_pfn = bit + pfn_first;
+> > 
+> > Can we drop the &kvmppc_devm_pfn_lock here or after the trylock_page()?
+> > Or does it also protect the ->zone_device_data' assignment below as well?
+> > If so, maybe drop the 'pfn_' from the name of the lock?
+> > 
+> > Besides, we don't seem to hold this lock when accessing ->zone_device_data
+> > in kvmppc_share_page(). Maybe &kvmppc_devm_pfn_lock just protects the bitmap?
+> 
+> Will move the unlock to appropriately.
+> 
+> > 
+> > 
+> > > +	dpage = pfn_to_page(devm_pfn);
+> > 
+> > Does this code and hence CONFIG_PPC_UV depend on a specific model like
+> > CONFIG_SPARSEMEM_VMEMMAP?
+> 
+> I don't think so. Irrespective of that pfn_to_page() should just work
+> for us.
+> 
+> > > +
+> > > +	if (!trylock_page(dpage))
+> > > +		goto out_clear;
+> > > +
+> > > +	*rmap = devm_pfn | KVMPPC_RMAP_DEVM_PFN;
+> > > +	pvt = kzalloc(sizeof(*pvt), GFP_ATOMIC);
+> > > +	if (!pvt)
+> > > +		goto out_unlock;
 
-Thanks
---
-Gustavo
+If we fail to alloc, we don't clear the KVMPPC_RMAP_DEVM_PFN?
+
+Also, when/where do we clear this flag on an uv-page-out?
+kvmppc_devm_drop_pages() drops the flag on a local variable but not
+in the rmap? If we don't clear the flag on page-out, would the
+subsequent H_SVM_PAGE_IN of this page fail?
+
+> > > +	pvt->rmap = rmap;
+> > > +	pvt->gpa = gpa;
+> > > +	pvt->lpid = lpid;
+> > > +	dpage->zone_device_data = pvt;
+> > 
+> > ->zone_device_data is set after locking the dpage here, but in
+> > kvmppc_share_page() and kvmppc_devm_fault_migrate_alloc_and_copy()
+> > it is accessed without locking the page?
+> > 
+> > > +	spin_unlock_irqrestore(&kvmppc_devm_pfn_lock, flags);
+> > > +
+> > > +	get_page(dpage);
+> > > +	return dpage;
+> > > +
+> > > +out_unlock:
+> > > +	unlock_page(dpage);
+> > > +out_clear:
+> > > +	bitmap_clear(kvmppc_devm_pfn_bitmap, devm_pfn - pfn_first, 1);
+> > > +out:
+> > > +	spin_unlock_irqrestore(&kvmppc_devm_pfn_lock, flags);
+> > > +	return NULL;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Alloc a PFN from private device memory pool and copy page from normal
+> > > + * memory to secure memory.
+> > > + */
+> > > +static int
+> > > +kvmppc_devm_migrate_alloc_and_copy(struct migrate_vma *mig,
+> > > +				   unsigned long *rmap, unsigned long gpa,
+> > > +				   unsigned int lpid, unsigned long page_shift)
+> > > +{
+> > > +	struct page *spage = migrate_pfn_to_page(*mig->src);
+> > > +	unsigned long pfn = *mig->src >> MIGRATE_PFN_SHIFT;
+> > > +	struct page *dpage;
+> > > +
+> > > +	*mig->dst = 0;
+> > > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
+> > > +		return 0;
+> > > +
+> > > +	dpage = kvmppc_devm_get_page(rmap, gpa, lpid);
+> > > +	if (!dpage)
+> > > +		return -EINVAL;
+> > > +
+> > > +	if (spage)
+> > > +		uv_page_in(lpid, pfn << page_shift, gpa, 0, page_shift);
+> > > +
+> > > +	*mig->dst = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+> > > +	return 0;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Move page from normal memory to secure memory.
+> > > + */
+> > > +unsigned long
+> > > +kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
+> > > +		     unsigned long flags, unsigned long page_shift)
+> > > +{
+> > > +	unsigned long addr, end;
+> > > +	unsigned long src_pfn, dst_pfn;
+> > 
+> > These are the host frame numbers correct? Trying to distinguish them
+> > from 'gfn' and 'gpa' used in the function.
+> 
+> Yes host pfns.
+> 
+> > 
+> > > +	struct migrate_vma mig;
+> > > +	struct vm_area_struct *vma;
+> > > +	int srcu_idx;
+> > > +	unsigned long gfn = gpa >> page_shift;
+> > > +	struct kvm_memory_slot *slot;
+> > > +	unsigned long *rmap;
+> > > +	int ret;
+> > > +
+> > > +	if (page_shift != PAGE_SHIFT)
+> > > +		return H_P3;
+> > > +
+> > > +	if (flags)
+> > > +		return H_P2;
+> > > +
+> > > +	ret = H_PARAMETER;
+> > > +	down_read(&kvm->mm->mmap_sem);
+> > > +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> > > +	slot = gfn_to_memslot(kvm, gfn);
+> > 
+> > Can slot be NULL? could be a bug in UV...
+> 
+> Will add a check to test this failure.
+> 
+> > 
+> > > +	rmap = &slot->arch.rmap[gfn - slot->base_gfn];
+> > > +	addr = gfn_to_hva(kvm, gpa >> page_shift);
+> > 
+> > Use 'gfn' as the second parameter? 
+> 
+> Yes.
+> 
+> > 
+> > Nit. for consistency with gpa and gfn, maybe rename 'addr' to
+> > 'hva' or to match 'end' maybe to 'start'.
+> 
+> Guess using hva improves readability, sure.
+> 
+> > 
+> > Also, can we check 'kvmppc_rmap_is_devm_pfn(*rmap)' here and bail out
+> > if its already shared? We currently do it further down the call chain
+> > in kvmppc_devm_get_page() after doing more work.
+> 
+> If the page is already shared, we just give the same back to UV if
+> UV indeed asks for it to be re-shared.
+> 
+> That said, I think we can have kvmppc_rmap_is_devm_pfn early in
+> regular page-in (non-shared case) path so that we don't even setup
+> anything required for migrate_vma_pages.
+> 
+> > 
+> > 
+> > > +	if (kvm_is_error_hva(addr))
+> > > +		goto out;
+> > > +
+> > > +	end = addr + (1UL << page_shift);
+> > > +	vma = find_vma_intersection(kvm->mm, addr, end);
+> > > +	if (!vma || vma->vm_start > addr || vma->vm_end < end)
+> > > +		goto out;
+> > > +
+> > > +	memset(&mig, 0, sizeof(mig));
+> > > +	mig.vma = vma;
+> > > +	mig.start = addr;
+> > > +	mig.end = end;
+> > > +	mig.src = &src_pfn;
+> > > +	mig.dst = &dst_pfn;
+> > > +
+> > > +	if (migrate_vma_setup(&mig))
+> > > +		goto out;
+> > > +
+> > > +	if (kvmppc_devm_migrate_alloc_and_copy(&mig, rmap, gpa,
+> > > +					       kvm->arch.lpid, page_shift))
+> > > +		goto out_finalize;
+> > > +
+> > > +	migrate_vma_pages(&mig);
+> > > +	ret = H_SUCCESS;
+> > > +out_finalize:
+> > > +	migrate_vma_finalize(&mig);
+> > > +out:
+> > > +	srcu_read_unlock(&kvm->srcu, srcu_idx);
+> > > +	up_read(&kvm->mm->mmap_sem);
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Provision a new page on HV side and copy over the contents
+> > > + * from secure memory.
+> > > + */
+> > > +static int
+> > > +kvmppc_devm_fault_migrate_alloc_and_copy(struct migrate_vma *mig,
+> > > +					 unsigned long page_shift)
+> > > +{
+> > > +	struct page *dpage, *spage;
+> > > +	struct kvmppc_devm_page_pvt *pvt;
+> > > +	unsigned long pfn;
+> > > +	int ret;
+> > > +
+> > > +	spage = migrate_pfn_to_page(*mig->src);
+> > > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
+> > > +		return 0;
+> > > +	if (!is_zone_device_page(spage))
+> > > +		return 0;
+> > 
+> > What does it mean if its not a zone_device page at this point? Caller
+> > would then proceed to migrage_vma_pages() if we return 0 right?
+> 
+> kvmppc_devm_fault_migrate_alloc_and_copy() can be called from two paths:
+> 
+> 1. Fault path when HV touches the secure page. In this case the page
+> has to be a device page.
+> 
+> 2. When page-out is issued for a page that is already paged-in. In this
+> case also it has be a device page.
+> 
+> For both the above cases, that check is redundant.
+> 
+> There is a 3rd case which is possible. If UV ever issues a page-out
+> for a shared page, this check will result in page-out hcall silently
+> succeeding w/o doing any migration (as we don't populate the dst_pfn)
+
+Ok. Nit. thought we can drop the "_fault" in the function name but would
+collide the other "alloc_and_copy" function used during H_SVM_PAGE_IN.
+If the two alloc_and_copy functions are symmetric, maybe they could
+have "page_in" and "page_out" in the (already long) names.
+
+> 
+> > 
+> > > +
+> > > +	dpage = alloc_page_vma(GFP_HIGHUSER, mig->vma, mig->start);
+> > > +	if (!dpage)
+> > > +		return -EINVAL;
+> > > +	lock_page(dpage);
+> > > +	pvt = spage->zone_device_data;
+> > > +
+> > > +	pfn = page_to_pfn(dpage);
+> > > +	ret = uv_page_out(pvt->lpid, pfn << page_shift, pvt->gpa, 0,
+> > > +			  page_shift);
+> > > +	if (ret == U_SUCCESS)
+> > > +		*mig->dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
+> > > +	else {
+> > > +		unlock_page(dpage);
+> > > +		__free_page(dpage);
+> > > +	}
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Fault handler callback when HV touches any page that has been
+> > > + * moved to secure memory, we ask UV to give back the page by
+> > > + * issuing a UV_PAGE_OUT uvcall.
+> > > + *
+> > > + * This eventually results in dropping of device PFN and the newly
+> > > + * provisioned page/PFN gets populated in QEMU page tables.
+> > > + */
+> > > +static vm_fault_t kvmppc_devm_migrate_to_ram(struct vm_fault *vmf)
+> > > +{
+> > > +	unsigned long src_pfn, dst_pfn = 0;
+> > > +	struct migrate_vma mig;
+> > > +	int ret = 0;
+> > > +
+> > > +	memset(&mig, 0, sizeof(mig));
+> > > +	mig.vma = vmf->vma;
+> > > +	mig.start = vmf->address;
+> > > +	mig.end = vmf->address + PAGE_SIZE;
+> > > +	mig.src = &src_pfn;
+> > > +	mig.dst = &dst_pfn;
+> > > +
+> > > +	if (migrate_vma_setup(&mig)) {
+> > > +		ret = VM_FAULT_SIGBUS;
+> > > +		goto out;
+> > > +	}
+> > > +
+> > > +	if (kvmppc_devm_fault_migrate_alloc_and_copy(&mig, PAGE_SHIFT)) {
+> > > +		ret = VM_FAULT_SIGBUS;
+> > > +		goto out_finalize;
+> > > +	}
+> > > +
+> > > +	migrate_vma_pages(&mig);
+> > > +out_finalize:
+> > > +	migrate_vma_finalize(&mig);
+> > > +out:
+> > > +	return ret;
+> > > +}
+> > > +
+> > > +/*
+> > > + * Release the device PFN back to the pool
+> > > + *
+> > > + * Gets called when secure page becomes a normal page during UV_PAGE_OUT.
+> > 
+> > Nit: Should that be H_SVM_PAGE_OUT?
+> 
+> Yes, will reword.
+> 
+> > 
+> > > + */
+> > > +static void kvmppc_devm_page_free(struct page *page)
+> > > +{
+> > > +	unsigned long pfn = page_to_pfn(page);
+> > > +	unsigned long flags;
+> > > +	struct kvmppc_devm_page_pvt *pvt;
+> > > +
+> > > +	spin_lock_irqsave(&kvmppc_devm_pfn_lock, flags);
+> > > +	pvt = page->zone_device_data;
+> > > +	page->zone_device_data = NULL;
+> > 
+> > If the pfn_lock only protects the bitmap, would be better to move
+> > it here?
+> 
+> Yes.
+> 
+> > 
+> > > +
+> > > +	bitmap_clear(kvmppc_devm_pfn_bitmap,
+> > > +		     pfn - (kvmppc_devm_pgmap.res.start >> PAGE_SHIFT), 1);
+> > > +	*pvt->rmap = 0;
+> > > +	spin_unlock_irqrestore(&kvmppc_devm_pfn_lock, flags);
+> > > +	kfree(pvt);
+> > > +}
+> > > +
+> > > +static const struct dev_pagemap_ops kvmppc_devm_ops = {
+> > > +	.page_free = kvmppc_devm_page_free,
+> > > +	.migrate_to_ram	= kvmppc_devm_migrate_to_ram,
+> > > +};
+> > > +
+> > > +/*
+> > > + * Move page from secure memory to normal memory.
+> > > + */
+> > > +unsigned long
+> > > +kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
+> > > +		      unsigned long flags, unsigned long page_shift)
+> > > +{
+> > > +	struct migrate_vma mig;
+> > > +	unsigned long addr, end;
+> > > +	struct vm_area_struct *vma;
+> > > +	unsigned long src_pfn, dst_pfn = 0;
+> > > +	int srcu_idx;
+> > > +	int ret;
+> > 
+> > Nit: Not sure its a coding style requirement, but many functions seem
+> > to "sort" these local variables in descending order of line length for
+> > appearance :-)  (eg: migrate_vma* functions).
+> 
+> It has ended up like this over multiple versions when variables got added,
+> moved and re-added.
+> 
+> > 
+> > > +
+> > > +	if (page_shift != PAGE_SHIFT)
+> > > +		return H_P3;
+> > > +
+> > > +	if (flags)
+> > > +		return H_P2;
+> > > +
+> > > +	ret = H_PARAMETER;
+> > > +	down_read(&kvm->mm->mmap_sem);
+> > > +	srcu_idx = srcu_read_lock(&kvm->srcu);
+> > > +	addr = gfn_to_hva(kvm, gpa >> page_shift);
+> > > +	if (kvm_is_error_hva(addr))
+> > > +		goto out;
+> > > +
+> > > +	end = addr + (1UL << page_shift);
+> > > +	vma = find_vma_intersection(kvm->mm, addr, end);
+> > > +	if (!vma || vma->vm_start > addr || vma->vm_end < end)
+> > > +		goto out;
+> > > +
+> > > +	memset(&mig, 0, sizeof(mig));
+> > > +	mig.vma = vma;
+> > > +	mig.start = addr;
+> > > +	mig.end = end;
+> > > +	mig.src = &src_pfn;
+> > > +	mig.dst = &dst_pfn;
+> > > +	if (migrate_vma_setup(&mig))
+> > > +		goto out;
+> > > +
+> > > +	ret = kvmppc_devm_fault_migrate_alloc_and_copy(&mig, page_shift);
+> > > +	if (ret)
+> > > +		goto out_finalize;
+> > > +
+> > > +	migrate_vma_pages(&mig);
+> > > +	ret = H_SUCCESS;
+> > 
+> > Nit: Blank line here?
+> 
+> With a blank like above the label line (which is blank for the most part),
+> it looks a bit too much of blank to me :)
+> 
+> However I do have blank line at a few other places. I have been removing
+> them whenever I touch the surrounding lines.
+> 
+> Thanks for your review.
+> 
+> Christoph - You did review this patch in the last iteration. Do you have
+> any additional comments?
+> 
+> Regards,
+> Bharata.
 
