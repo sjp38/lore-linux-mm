@@ -2,123 +2,225 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 274DBC3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 09:16:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4160AC3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:34:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA95A2073F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 09:16:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA95A2073F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id CCBCB2166E
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:34:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCBCB2166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5935D6B0006; Thu, 29 Aug 2019 05:16:58 -0400 (EDT)
+	id 356786B0006; Thu, 29 Aug 2019 07:34:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5439E6B000C; Thu, 29 Aug 2019 05:16:58 -0400 (EDT)
+	id 2E1876B000C; Thu, 29 Aug 2019 07:34:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4313D6B000D; Thu, 29 Aug 2019 05:16:58 -0400 (EDT)
+	id 15ADA6B000D; Thu, 29 Aug 2019 07:34:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0242.hostedemail.com [216.40.44.242])
-	by kanga.kvack.org (Postfix) with ESMTP id 2303E6B0006
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 05:16:58 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id B89BB62D1
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 09:16:57 +0000 (UTC)
-X-FDA: 75874910874.14.hook04_1f94bd936613a
-X-HE-Tag: hook04_1f94bd936613a
-X-Filterd-Recvd-Size: 3913
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 09:16:56 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 68BD828;
-	Thu, 29 Aug 2019 02:16:55 -0700 (PDT)
-Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 094843F246;
-	Thu, 29 Aug 2019 02:16:53 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm: split out a new pagewalk.h header from mm.h
-To: Mike Rapoport <rppt@linux.ibm.com>, Christoph Hellwig <hch@lst.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+Received: from forelay.hostedemail.com (smtprelay0037.hostedemail.com [216.40.44.37])
+	by kanga.kvack.org (Postfix) with ESMTP id E04E76B0006
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:34:05 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 8290482437D7
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:34:05 +0000 (UTC)
+X-FDA: 75875256450.20.hate28_40c49ac34f25c
+X-HE-Tag: hate28_40c49ac34f25c
+X-Filterd-Recvd-Size: 9587
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:34:04 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 438023082E66;
+	Thu, 29 Aug 2019 11:34:03 +0000 (UTC)
+Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 426B75D9C9;
+	Thu, 29 Aug 2019 11:33:49 +0000 (UTC)
+Subject: Re: [PATCH v3 00/11] mm/memory_hotplug: Shrink zones before removing
+ memory
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
  Andrew Morton <akpm@linux-foundation.org>,
- =?UTF-8?Q?Thomas_Hellstr=c3=b6m?= <thomas@shipmail.org>,
- Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Thomas Hellstrom <thellstrom@vmware.com>
-References: <20190828141955.22210-1-hch@lst.de>
- <20190828141955.22210-2-hch@lst.de> <20190829090551.GB16471@rapoport-lnx>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <ec851f20-b959-eff6-e91f-1a62619803c3@arm.com>
-Date: Thu, 29 Aug 2019 10:16:52 +0100
+ Dan Williams <dan.j.williams@intel.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Alexander Potapenko <glider@google.com>,
+ Andrey Konovalov <andreyknvl@google.com>, Andy Lutomirski <luto@kernel.org>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Arun KS <arunks@codeaurora.org>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>, Dave Airlie
+ <airlied@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>,
+ Fenghua Yu <fenghua.yu@intel.com>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <jhubbard@nvidia.com>,
+ Jun Yao <yaojun8558363@gmail.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Mark Rutland <mark.rutland@arm.com>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Oscar Salvador
+ <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>,
+ Paul Mackerras <paulus@samba.org>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
+ Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
+ Souptick Joarder <jrdr.linux@gmail.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Steve Capper
+ <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Wei Yang <richard.weiyang@gmail.com>,
+ Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
+ Yang Shi <yang.shi@linux.alibaba.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
+References: <20190829070019.12714-1-david@redhat.com>
+ <20190829082323.GT28313@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <ff42b158-11bb-5dd6-7c3b-0394b6b919bc@redhat.com>
+Date: Thu, 29 Aug 2019 13:33:48 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190829090551.GB16471@rapoport-lnx>
+In-Reply-To: <20190829082323.GT28313@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 29 Aug 2019 11:34:04 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29/08/2019 10:05, Mike Rapoport wrote:
-> On Wed, Aug 28, 2019 at 04:19:53PM +0200, Christoph Hellwig wrote:
-[...]
->> diff --git a/include/linux/pagewalk.h b/include/linux/pagewalk.h
->> new file mode 100644
->> index 000000000000..df278a94086d
->> --- /dev/null
->> +++ b/include/linux/pagewalk.h
->> @@ -0,0 +1,54 @@
->> +/* SPDX-License-Identifier: GPL-2.0 */
->> +#ifndef _LINUX_PAGEWALK_H
->> +#define _LINUX_PAGEWALK_H
->> +
->> +#include <linux/mm.h>
->> +
->> +/**
->> + * mm_walk - callbacks for walk_page_range
->> + * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
-> 
-> Sorry for jumping late, can we remove the level numbers here and below?
-> PUD can be non-existent, 2nd or 3rd (from top) and PTE can be from 2nd to
-> 5th...
-> 
-> I'd completely drop the numbers and mark PTE as "lowest level".
+On 29.08.19 10:23, Michal Hocko wrote:
+> On Thu 29-08-19 09:00:08, David Hildenbrand wrote:
+>> This is the successor of "[PATCH v2 0/6] mm/memory_hotplug: Consider a=
+ll
+>> zones when removing memory". I decided to go one step further and fina=
+lly
+>> factor out the shrinking of zones from memory removal code. Zones are =
+now
+>> fixed up when offlining memory/onlining of memory fails/before removin=
+g
+>> ZONE_DEVICE memory.
+>=20
+> I was about to say Yay! but then reading...
 
-This patch is just moving the code between, so it seems right to leave
-it alone for the moment. My series[1] (which I'm going to rebase on
-this, hopefully soon) will rename this:
+Almost ;)
 
->  /**
->   * mm_walk - callbacks for walk_page_range
-> - * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
-> - *	       this handler should only handle pud_trans_huge() puds.
-> - *	       the pmd_entry or pte_entry callbacks will be used for
-> - *	       regular PUDs.
-> - * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
-> + * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
-> + * @p4d_entry: if set, called for each non-empty P4D entry
-> + * @pud_entry: if set, called for each non-empty PUD entry
-> + * @pmd_entry: if set, called for each non-empty PMD entry
->   *	       this handler is required to be able to handle
->   *	       pmd_trans_huge() pmds.  They may simply choose to
->   *	       split_huge_page() instead of handling it explicitly.
-> - * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
-> + * @pte_entry: if set, called for each non-empty PTE (lowest-level) entry
->   * @pte_hole: if set, called for each hole at all levels
->   * @hugetlb_entry: if set, called for each hugetlb entry
->   * @test_walk: caller specific callback function to determine whether
+>=20
+>> Example:
+>>
+>> :/# cat /proc/zoneinfo
+>> Node 1, zone  Movable
+>>         spanned  0
+>>         present  0
+>>         managed  0
+>> :/# echo "online_movable" > /sys/devices/system/memory/memory41/state=20
+>> :/# echo "online_movable" > /sys/devices/system/memory/memory43/state
+>> :/# cat /proc/zoneinfo
+>> Node 1, zone  Movable
+>>         spanned  98304
+>>         present  65536
+>>         managed  65536
+>> :/# echo 0 > /sys/devices/system/memory/memory43/online
+>> :/# cat /proc/zoneinfo
+>> Node 1, zone  Movable
+>>         spanned  32768
+>>         present  32768
+>>         managed  32768
+>> :/# echo 0 > /sys/devices/system/memory/memory41/online
+>> :/# cat /proc/zoneinfo
+>> Node 1, zone  Movable
+>>         spanned  0
+>>         present  0
+>>         managed  0
+>=20
+> ... this made me realize that you are trying to fix it instead. Could
+> you explain why do we want to do that? Why don't we simply remove all
+> that crap? Why do we even care about zone boundaries when offlining or
+> removing memory? Zone shrinking was mostly necessary with the previous
+> onlining semantic when the zone type could be only changed on the
+> boundary or unassociated memory. We can interleave memory zones now
+> arbitrarily.
 
-Which matches your suggestion of just "top-level"/"lowest-level".
+Last time I asked whether we can just drop all that nasty
+zone->contiguous handling I was being told that it does have a
+significant performance impact and is here to stay. The boundaries are a
+key component to detect whether a zone is contiguous.
 
-Steve
+So yes, while we allow interleaved memory zones, having contiguous zones
+is beneficial for performance. That's why also memory onlining code will
+try to online memory as default to the zone that will keep/make zones
+contiguous.
 
-[1]
-https://lore.kernel.org/lkml/20190731154603.41797-12-steven.price@arm.com/
+Anyhow, I think with this series most of the zone shrinking code becomes
+"digestible". Except minor issues with ZONE_DEVICE - which is acceptable.
+
+--=20
+
+Thanks,
+
+David / dhildenb
 
