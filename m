@@ -2,159 +2,158 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.2 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7850C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:34:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BFEEC3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:37:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6BED621874
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:34:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BED621874
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C8DA2166E
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:37:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C8DA2166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B26CF6B0003; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
+	id C35BE6B000C; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD6BD6B0008; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
+	id BE4DF6B000D; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9EDA46B000C; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
+	id AFA456B000E; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E13F6B0003
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:34:12 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 2E04E1A4B6
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:34:12 +0000 (UTC)
-X-FDA: 75877071144.20.unit75_5ec7d3f6f1a60
-X-HE-Tag: unit75_5ec7d3f6f1a60
-X-Filterd-Recvd-Size: 5501
-Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:34:11 +0000 (UTC)
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Aug 2019 16:34:09 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,445,1559545200"; 
-   d="scan'208";a="172060373"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga007.jf.intel.com with ESMTP; 29 Aug 2019 16:34:08 -0700
-Date: Thu, 29 Aug 2019 16:34:08 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
-	linux-ext4@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 02/19] fs/locks: Add Exclusive flag to user Layout
- lease
-Message-ID: <20190829233408.GD18249@iweiny-DESK2.sc.intel.com>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-3-ira.weiny@intel.com>
- <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
- <20190814215630.GQ6129@dread.disaster.area>
- <e6f4f619967f4551adb5003d0364770fde2b8110.camel@kernel.org>
+Received: from forelay.hostedemail.com (smtprelay0219.hostedemail.com [216.40.44.219])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C826B000C
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 3861F824CA3E
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:37:42 +0000 (UTC)
+X-FDA: 75877079964.21.cats22_7d4d1849a355a
+X-HE-Tag: cats22_7d4d1849a355a
+X-Filterd-Recvd-Size: 4926
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:37:40 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4F807317528C;
+	Thu, 29 Aug 2019 23:37:39 +0000 (UTC)
+Received: from treble (ovpn-121-55.rdu2.redhat.com [10.10.121.55])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id D0B9C608C1;
+	Thu, 29 Aug 2019 23:37:37 +0000 (UTC)
+Date: Thu, 29 Aug 2019 18:37:35 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org,
+	broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-next@vger.kernel.org, mhocko@suse.cz,
+	mm-commits@vger.kernel.org, sfr@canb.auug.org.au
+Subject: Re: mmotm 2019-08-27-20-39 uploaded (objtool: xen)
+Message-ID: <20190829233735.yp3mwhg6er353qw5@treble>
+References: <20190828034012.sBvm81sYK%akpm@linux-foundation.org>
+ <8b09d93a-bc42-bd8e-29ee-cd37765f4899@infradead.org>
+ <20190828171923.4sir3sxwsnc2pvjy@treble>
+ <57d6ab2e-1bae-dca3-2544-4f6e6a936c3a@infradead.org>
+ <20190828200134.d3lwgyunlpxc6cbn@treble>
+ <20190829082445.GM2369@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <e6f4f619967f4551adb5003d0364770fde2b8110.camel@kernel.org>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190829082445.GM2369@hirez.programming.kicks-ass.net>
+User-Agent: NeoMutt/20180716
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Thu, 29 Aug 2019 23:37:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Missed this.  sorry.
-
-On Mon, Aug 26, 2019 at 06:41:07AM -0400, Jeff Layton wrote:
-> On Thu, 2019-08-15 at 07:56 +1000, Dave Chinner wrote:
-> > On Wed, Aug 14, 2019 at 10:15:06AM -0400, Jeff Layton wrote:
-> > > On Fri, 2019-08-09 at 15:58 -0700, ira.weiny@intel.com wrote:
-> > > > From: Ira Weiny <ira.weiny@intel.com>
+On Thu, Aug 29, 2019 at 10:24:45AM +0200, Peter Zijlstra wrote:
+> On Wed, Aug 28, 2019 at 03:01:34PM -0500, Josh Poimboeuf wrote:
+> > On Wed, Aug 28, 2019 at 10:56:25AM -0700, Randy Dunlap wrote:
+> > > >> drivers/xen/gntdev.o: warning: objtool: gntdev_copy()+0x229: call to __ubsan_handle_out_of_bounds() with UACCESS enabled
 > > > > 
-> > > > Add an exclusive lease flag which indicates that the layout mechanism
-> > > > can not be broken.
+> > > > Easy one :-)
 > > > > 
-> > > > Exclusive layout leases allow the file system to know that pages may be
-> > > > GUP pined and that attempts to change the layout, ie truncate, should be
-> > > > failed.
+> > > > diff --git a/tools/objtool/check.c b/tools/objtool/check.c
+> > > > index 0c8e17f946cd..6a935ab93149 100644
+> > > > --- a/tools/objtool/check.c
+> > > > +++ b/tools/objtool/check.c
+> > > > @@ -483,6 +483,7 @@ static const char *uaccess_safe_builtin[] = {
+> > > >  	"ubsan_type_mismatch_common",
+> > > >  	"__ubsan_handle_type_mismatch",
+> > > >  	"__ubsan_handle_type_mismatch_v1",
+> > > > +	"__ubsan_handle_out_of_bounds",
+> > > >  	/* misc */
+> > > >  	"csum_partial_copy_generic",
+> > > >  	"__memcpy_mcsafe",
 > > > > 
-> > > > A process which attempts to break it's own exclusive lease gets an
-> > > > EDEADLOCK return to help determine that this is likely a programming bug
-> > > > vs someone else holding a resource.
-> > .....
-> > > > diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
-> > > > index baddd54f3031..88b175ceccbc 100644
-> > > > --- a/include/uapi/asm-generic/fcntl.h
-> > > > +++ b/include/uapi/asm-generic/fcntl.h
-> > > > @@ -176,6 +176,8 @@ struct f_owner_ex {
-> > > >  
-> > > >  #define F_LAYOUT	16      /* layout lease to allow longterm pins such as
-> > > >  				   RDMA */
-> > > > +#define F_EXCLUSIVE	32      /* layout lease is exclusive */
-> > > > +				/* FIXME or shoudl this be F_EXLCK??? */
-> > > >  
-> > > >  /* operations for bsd flock(), also used by the kernel implementation */
-> > > >  #define LOCK_SH		1	/* shared lock */
 > > > 
-> > > This interface just seems weird to me. The existing F_*LCK values aren't
-> > > really set up to be flags, but are enumerated values (even if there are
-> > > some gaps on some arches). For instance, on parisc and sparc:
+> > > 
+> > > then I get this one:
+> > > 
+> > > lib/ubsan.o: warning: objtool: __ubsan_handle_out_of_bounds()+0x5d: call to ubsan_prologue() with UACCESS enabled
 > > 
-> > I don't think we need to worry about this - the F_WRLCK version of
-> > the layout lease should have these exclusive access semantics (i.e
-> > other ops fail rather than block waiting for lease recall) and hence
-> > the API shouldn't need a new flag to specify them.
+> > And of course I jinxed it by calling it easy.
 > > 
-> > i.e. the primary difference between F_RDLCK and F_WRLCK layout
-> > leases is that the F_RDLCK is a shared, co-operative lease model
-> > where only delays in operations will be seen, while F_WRLCK is a
-> > "guarantee exclusive access and I don't care what it breaks"
-> > model... :)
+> > Peter, how do you want to handle this?
 > > 
+> > Should we just disable UACCESS checking in lib/ubsan.c?
 > 
-> Not exactly...
+> No, that is actually unsafe and could break things (as would you patch
+> above).
+
+Oops.  -EFIXINGTOOMANYOBJTOOLISSUESATONCE
+
+> I'm thinking the below patch ought to cure things:
 > 
-> F_WRLCK and F_RDLCK leases can both be broken, and will eventually time
-> out if there is conflicting access. The F_EXCLUSIVE flag on the other
-> hand is there to prevent any sort of lease break from 
+> ---
+> Subject: x86/uaccess: Don't leak the AC flags into __get_user() argument evalidation
 
-Right EXCLUSIVE will not break for any reason.  It will fail truncate and hole
-punch as we discussed back in June.  This is for the use case where the user
-has handed this file/pages off to some hardware for which removing the lease
-would be impossible.  _And_ we don't anticipate any valid use case that someone
-will need to truncate short of killing the process to free up file system
-space.
+s/evalidation/evaluation
 
+> Identical to __put_user(); the __get_user() argument evalution will too
+> leak UBSAN crud into the __uaccess_begin() / __uaccess_end() region.
+> While uncommon this was observed to happen for:
 > 
-> I'm guessing what Ira really wants with the F_EXCLUSIVE flag is
-> something akin to what happens when we set fl_break_time to 0 in the
-> nfsd code. nfsd never wants the locks code to time out a lease of any
-> sort, since it handles that timeout itself.
+>   drivers/xen/gntdev.c: if (__get_user(old_status, batch->status[i]))
 > 
-> If you're going to add this functionality, it'd be good to also convert
-> knfsd to use it as well, so we don't end up with multiple ways to deal
-> with that situation.
+> where UBSAN added array bound checking.
+> 
+> This complements commit:
+> 
+>   6ae865615fc4 ("x86/uaccess: Dont leak the AC flag into __put_user() argument evaluation")
+> 
+> Reported-by: Randy Dunlap <rdunlap@infradead.org>
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Cc: luto@kernel.org
+> ---
+>  arch/x86/include/asm/uaccess.h | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+> index 9c4435307ff8..35c225ede0e4 100644
+> --- a/arch/x86/include/asm/uaccess.h
+> +++ b/arch/x86/include/asm/uaccess.h
+> @@ -444,8 +444,10 @@ __pu_label:							\
+>  ({									\
+>  	int __gu_err;							\
+>  	__inttype(*(ptr)) __gu_val;					\
+> +	__typeof__(ptr) __gu_ptr = (ptr);				\
+> +	__typeof__(size) __gu_size = (size);				\
+>  	__uaccess_begin_nospec();					\
+> -	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
+> +	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err, -EFAULT);	\
+>  	__uaccess_end();						\
+>  	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
+>  	__builtin_expect(__gu_err, 0);					\
 
-Could you point me at the source for knfsd?  I looked in 
+Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
 
-git://git.linux-nfs.org/projects/steved/nfs-utils.git
-
-but I don't see anywhere leases are used in that source?
-
-Thanks,
-Ira
-
+-- 
+Josh
 
