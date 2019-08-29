@@ -2,126 +2,223 @@ Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9833C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:39:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 30E06C3A59F
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:42:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B57BA2080F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:39:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B57BA2080F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DA9A620828
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 15:42:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="G7vIcUpX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA9A620828
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 49C636B026F; Thu, 29 Aug 2019 11:39:40 -0400 (EDT)
+	id 6E1B16B0271; Thu, 29 Aug 2019 11:42:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 44AE86B0270; Thu, 29 Aug 2019 11:39:40 -0400 (EDT)
+	id 692D56B0272; Thu, 29 Aug 2019 11:42:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 361106B0271; Thu, 29 Aug 2019 11:39:40 -0400 (EDT)
+	id 5A8906B0273; Thu, 29 Aug 2019 11:42:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0033.hostedemail.com [216.40.44.33])
-	by kanga.kvack.org (Postfix) with ESMTP id 1488E6B026F
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:39:40 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C238BBF0D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:39:39 +0000 (UTC)
-X-FDA: 75875875278.29.chalk82_1a172f594a809
-X-HE-Tag: chalk82_1a172f594a809
-X-Filterd-Recvd-Size: 4761
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:39:39 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B26DDADFB;
-	Thu, 29 Aug 2019 15:39:37 +0000 (UTC)
-Date: Thu, 29 Aug 2019 17:39:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Wei Yang <richardw.yang@linux.intel.com>
-Subject: Re: [PATCH v2 3/6] mm/memory_hotplug: Process all zones when
- removing memory
-Message-ID: <20190829153936.GJ28313@dhcp22.suse.cz>
-References: <20190826101012.10575-1-david@redhat.com>
- <20190826101012.10575-4-david@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190826101012.10575-4-david@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AFD56B0271
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:42:28 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id DD0E982437D2
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:42:27 +0000 (UTC)
+X-FDA: 75875882334.19.debt72_328d8df074902
+X-HE-Tag: debt72_328d8df074902
+X-Filterd-Recvd-Size: 7862
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 15:42:27 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id f13so3268796qkm.9
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 08:42:27 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=e13R8hnmhpY/divDO7DdtrQUgOCBRjC8fBV+Hlaeks4=;
+        b=G7vIcUpXIyfAddMCAAprYrXSRVr0dgeGKNoQQ1RtOFMUKnx5GCLeNtr5LIcP5wf8HT
+         xPWrdCkXGG+zbB0D2u+TW/X6oEp7J4d9RrpbdHDgAwZAEvn+ZiKszGcHrjPHrxSXa2bl
+         Mz7W+AVtcOEJiy+atquNgK9YFeZe8/aGMjeS6R3TeNkdvwyTPMBmLrmzZyJovpV6dkdZ
+         RvaxBDw3oAdFsfLjUcFmRde4E8PYxkTzPuSIewtiGE1qaYptcRsbbPDpz63DT6Ywtsoj
+         FWsaFeYn0HmCtivbVG5Tq9NT0tsfCbh7/35+Ur5hspWdtT64ZR6yKZLouX0bbnRBxry0
+         1C+Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=e13R8hnmhpY/divDO7DdtrQUgOCBRjC8fBV+Hlaeks4=;
+        b=GushtVB0QtxZFtVN1Sz1WEoeYPIY1IhDD9MGVI6TxnXQMSUJpLOWvOj0F49gnA3aL+
+         VL5RMEu1X4MtF+lWwgbOac3rtX5xnoZr/sq2Gou2/UtWbXlgGy9g3f7S0kXvl79KijLh
+         Td3CbkcWNVqbbujj6MtSFjaRKV/9DnC7RzSpt+3P0mWsgGo9cK/XgmfjMkqUyDPcwf3S
+         iYj6NO748+RCG9E4rJov7Fly4nnAm1RVON3W+Uc5lTuBhsgp+Y8SMKJPqrw6LdmUkEAV
+         LtpvPpIGMNZgrIMRBclWvnsJIPP3tU0juamucHzhxtFdzRwvqL74oM3EtIRsLCLwH40E
+         u9cQ==
+X-Gm-Message-State: APjAAAU7gt93xfiuBE2plWLA9iR0aN63kpCUtv5wT31T8twPoiF0KHLA
+	3Oh2W2BQp7vf5aqOSkQkrjPCvQ==
+X-Google-Smtp-Source: APXvYqx1BS4vkCOlpjk4W7mCJhFDZaNa7KO6ITvbKA2fO7/VzGJCEn76C3qEpWPdnZiVFWLB5Um1cw==
+X-Received: by 2002:a05:620a:12f0:: with SMTP id f16mr10064503qkl.483.1567093346657;
+        Thu, 29 Aug 2019 08:42:26 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id y67sm1405561qkd.40.2019.08.29.08.42.25
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Aug 2019 08:42:25 -0700 (PDT)
+Message-ID: <1567093344.5576.23.camel@lca.pw>
+Subject: Re: [PATCH 00/10] OOM Debug print selection and additional
+ information
+From: Qian Cai <cai@lca.pw>
+To: Edward Chron <echron@arista.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton
+ <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner
+ <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Shakeel Butt
+ <shakeelb@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Ivan Delalande <colona@arista.com>
+Date: Thu, 29 Aug 2019 11:42:24 -0400
+In-Reply-To: <CAM3twVSZm69U8Sg+VxQ67DeycHUMC5C3_f2EpND4_LC4UHx7BA@mail.gmail.com>
+References: <20190826193638.6638-1-echron@arista.com>
+	 <20190827071523.GR7538@dhcp22.suse.cz>
+	 <CAM3twVRZfarAP6k=LLWH0jEJXu8C8WZKgMXCFKBZdRsTVVFrUQ@mail.gmail.com>
+	 <20190828065955.GB7386@dhcp22.suse.cz>
+	 <CAM3twVR_OLffQ1U-SgQOdHxuByLNL5sicfnObimpGpPQ1tJ0FQ@mail.gmail.com>
+	 <20190829071105.GQ28313@dhcp22.suse.cz>
+	 <297cf049-d92e-f13a-1386-403553d86401@i-love.sakura.ne.jp>
+	 <20190829115608.GD28313@dhcp22.suse.cz>
+	 <CAM3twVSZm69U8Sg+VxQ67DeycHUMC5C3_f2EpND4_LC4UHx7BA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 26-08-19 12:10:09, David Hildenbrand wrote:
-> It is easier than I though to trigger a kernel bug by removing memory that
-> was never onlined. With CONFIG_DEBUG_VM the memmap is initialized with
-> garbage, resulting in the detection of a broken zone when removing memory.
-> Without CONFIG_DEBUG_VM it is less likely - but we could still have
-> garbage in the memmap.
-> 
-> :/# [   23.912993] BUG: unable to handle page fault for address: 000000000000353d
-> [   23.914219] #PF: supervisor write access in kernel mode
-> [   23.915199] #PF: error_code(0x0002) - not-present page
-> [   23.916160] PGD 0 P4D 0
-> [   23.916627] Oops: 0002 [#1] SMP PTI
-> [   23.917256] CPU: 1 PID: 7 Comm: kworker/u8:0 Not tainted 5.3.0-rc5-next-20190820+ #317
-> [   23.918900] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.12.1-0-ga5cab58e9a3f-prebuilt.qemu.4
-> [   23.921194] Workqueue: kacpi_hotplug acpi_hotplug_work_fn
-> [   23.922249] RIP: 0010:clear_zone_contiguous+0x5/0x10
-> [   23.923173] Code: 48 89 c6 48 89 c3 e8 2a fe ff ff 48 85 c0 75 cf 5b 5d c3 c6 85 fd 05 00 00 01 5b 5d c3 0f 1f 840
-> [   23.926876] RSP: 0018:ffffad2400043c98 EFLAGS: 00010246
-> [   23.927928] RAX: 0000000000000000 RBX: 0000000200000000 RCX: 0000000000000000
-> [   23.929458] RDX: 0000000000200000 RSI: 0000000000140000 RDI: 0000000000002f40
-> [   23.930899] RBP: 0000000140000000 R08: 0000000000000000 R09: 0000000000000001
-> [   23.932362] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000140000
-> [   23.933603] R13: 0000000000140000 R14: 0000000000002f40 R15: ffff9e3e7aff3680
-> [   23.934913] FS:  0000000000000000(0000) GS:ffff9e3e7bb00000(0000) knlGS:0000000000000000
-> [   23.936294] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   23.937481] CR2: 000000000000353d CR3: 0000000058610000 CR4: 00000000000006e0
-> [   23.938687] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [   23.939889] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> [   23.941168] Call Trace:
-> [   23.941580]  __remove_pages+0x4b/0x640
-> [   23.942303]  ? mark_held_locks+0x49/0x70
-> [   23.943149]  arch_remove_memory+0x63/0x8d
-> [   23.943921]  try_remove_memory+0xdb/0x130
-> [   23.944766]  ? walk_memory_blocks+0x7f/0x9e
-> [   23.945616]  __remove_memory+0xa/0x11
-> [   23.946274]  acpi_memory_device_remove+0x70/0x100
-> [   23.947308]  acpi_bus_trim+0x55/0x90
-> [   23.947914]  acpi_device_hotplug+0x227/0x3a0
-> [   23.948714]  acpi_hotplug_work_fn+0x1a/0x30
-> [   23.949433]  process_one_work+0x221/0x550
-> [   23.950190]  worker_thread+0x50/0x3b0
-> [   23.950993]  kthread+0x105/0x140
-> [   23.951644]  ? process_one_work+0x550/0x550
-> [   23.952508]  ? kthread_park+0x80/0x80
-> [   23.953367]  ret_from_fork+0x3a/0x50
-> [   23.954025] Modules linked in:
-> [   23.954613] CR2: 000000000000353d
-> [   23.955248] ---[ end trace 93d982b1fb3e1a69 ]---
+On Thu, 2019-08-29 at 08:03 -0700, Edward Chron wrote:
+> On Thu, Aug 29, 2019 at 4:56 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >=20
+> > On Thu 29-08-19 19:14:46, Tetsuo Handa wrote:
+> > > On 2019/08/29 16:11, Michal Hocko wrote:
+> > > > On Wed 28-08-19 12:46:20, Edward Chron wrote:
+> > > > > Our belief is if you really think eBPF is the preferred mechani=
+sm
+> > > > > then move OOM reporting to an eBPF.
+> > > >=20
+> > > > I've said that all this additional information has to be dynamica=
+lly
+> > > > extensible rather than a part of the core kernel. Whether eBPF is=
+ the
+> > > > suitable tool, I do not know. I haven't explored that. There are =
+other
+> > > > ways to inject code to the kernel. systemtap/kprobes, kernel modu=
+les and
+> > > > probably others.
+> > >=20
+> > > As for SystemTap, guru mode (an expert mode which disables protecti=
+on
+> > > provided
+> > > by SystemTap; allowing kernel to crash when something went wrong) c=
+ould be
+> > > used
+> > > for holding spinlock. However, as far as I know, holding mutex (or =
+doing
+> > > any
+> > > operation that might sleep) from such dynamic hooks is not allowed.=
+ Also
+> > > we will
+> > > need to export various symbols in order to allow access from such d=
+ynamic
+> > > hooks.
+> >=20
+> > This is the oom path and it should better not use any sleeping locks =
+in
+> > the first place.
+> >=20
+> > > I'm not familiar with eBPF, but I guess that eBPF is similar.
+> > >=20
+> > > But please be aware that, I REPEAT AGAIN, I don't think neither eBP=
+F nor
+> > > SystemTap will be suitable for dumping OOM information. OOM situati=
+on
+> > > means
+> > > that even single page fault event cannot complete, and temporary me=
+mory
+> > > allocation for reading from kernel or writing to files cannot compl=
+ete.
+> >=20
+> > And I repeat that no such reporting is going to write to files. This =
+is
+> > an OOM path afterall.
+> >=20
+> > > Therefore, we will need to hold all information in kernel memory (w=
+ithout
+> > > allocating any memory when OOM event happened). Dynamic hooks could=
+ hold
+> > > a few lines of output, but not all lines we want. The only possible=
+ buffer
+> > > which is preallocated and large enough would be printk()'s buffer. =
+Thus,
+> > > I believe that we will have to use printk() in order to dump OOM
+> > > information.
+> > > At that point,
+> >=20
+> > Yes, this is what I've had in mind.
+> >=20
+>=20
+> +1: It makes sense to keep the report going to the dmesg to persist.
+> That is where it has always gone and there is no reason to change.
+> You can have several OOMs back to back and you'd like to retain the out=
+put.
+> All the information should be kept together in the OOM report.
+>=20
+> > >=20
+> > > =C2=A0 static bool (*oom_handler)(struct oom_control *oc) =3D defau=
+lt_oom_killer;
+> > >=20
+> > > =C2=A0 bool out_of_memory(struct oom_control *oc)
+> > > =C2=A0 {
+> > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0return =
+oom_handler(oc);
+> > > =C2=A0 }
+> > >=20
+> > > and let in-tree kernel modules override current OOM killer would be
+> > > the only practical choice (if we refuse adding many knobs).
+> >=20
+> > Or simply provide a hook with the oom_control to be called to report
+> > without replacing the whole oom killer behavior. That is not necessar=
+y.
+>=20
+> For very simple addition, to add a line of output this works.
+> It would still be nice to address the fact the existing OOM Report prin=
+ts
+> all of the user processes or none. It would be nice to add some control
+> for that. That's what we did.
 
-Yes, this is indeed nasty. I didin't think of this when separating
-memmap initialization from the hotremove. This means that the zone
-pointer is a garbage in arch_remove_memory already. The proper fix is to
-remove it from that level down. Moreover the zone is only needed for the
-shrinking code and zone continuous thingy. The later belongs to offlining
-code unless I am missing something. I can see that you are removing zone
-parameter in a later patch but wouldn't it be just better to remove the
-whole zone thing in a single patch and have this as a bug fix for a rare
-bug with a fixes tag?
--- 
-Michal Hocko
-SUSE Labs
+Feel like you are going in circles to "sell" without any new information.=
+ If you
+need to deal with OOM that often, it might also worth working with FB on =
+oomd.
+
+https://github.com/facebookincubator/oomd
+
+It is well-known that kernel OOM could be slow and painful to deal with, =
+so I
+don't buy-in the argument that kernel OOM recover is better/faster than a=
+ kdump
+reboot.
+
+It is not unusual that when the system is triggering a kernel OOM, it is =
+almost
+trashed/dead. Although developers are working hard to improve the recover=
+y after
+OOM, there are still many error-paths that are not going to survive which=
+ would
+leak memories, introduce undefined behaviors, corrupt memory etc.
 
