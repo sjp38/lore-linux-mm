@@ -6,83 +6,92 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81CC6C3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:39:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F1710C3A5A6
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:44:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4303920828
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:39:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4303920828
+	by mail.kernel.org (Postfix) with ESMTP id B2802205ED
+	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 11:44:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2802205ED
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E00C26B000D; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
+	id 45FB56B0010; Thu, 29 Aug 2019 07:44:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D89F86B000E; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
+	id 410BB6B0266; Thu, 29 Aug 2019 07:44:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C2A026B0010; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
+	id 2D8E36B0269; Thu, 29 Aug 2019 07:44:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 99E3D6B000D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:39:57 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 08F5C6D76
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:39:57 +0000 (UTC)
-X-FDA: 75875271234.14.birth58_73eb34b436639
-X-HE-Tag: birth58_73eb34b436639
-X-Filterd-Recvd-Size: 8005
+Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
+	by kanga.kvack.org (Postfix) with ESMTP id 08D0F6B0010
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 07:44:13 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 9CB70AF95
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:44:12 +0000 (UTC)
+X-FDA: 75875281944.21.birds60_796237872b49
+X-HE-Tag: birds60_796237872b49
+X-Filterd-Recvd-Size: 9907
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
 	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:39:56 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 11:44:12 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id DFA6930872CA;
-	Thu, 29 Aug 2019 11:39:54 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5C4AC308A9E2;
+	Thu, 29 Aug 2019 11:44:10 +0000 (UTC)
 Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 66A7A5C1D6;
-	Thu, 29 Aug 2019 11:39:43 +0000 (UTC)
-Subject: Re: [PATCH v2 0/6] mm/memory_hotplug: Consider all zones when
- removing memory
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 75C4160872;
+	Thu, 29 Aug 2019 11:43:57 +0000 (UTC)
+Subject: Re: [PATCH v3 00/11] mm/memory_hotplug: Shrink zones before removing
+ memory
+From: David Hildenbrand <david@redhat.com>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Dan Williams <dan.j.williams@intel.com>,
  Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski
- <luto@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Alexander Potapenko <glider@google.com>,
+ Andrey Konovalov <andreyknvl@google.com>, Andy Lutomirski <luto@kernel.org>,
  Anshuman Khandual <anshuman.khandual@arm.com>,
  Arun KS <arunks@codeaurora.org>,
  Benjamin Herrenschmidt <benh@kernel.crashing.org>,
  Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
  Christian Borntraeger <borntraeger@de.ibm.com>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Dan Williams <dan.j.williams@intel.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Fenghua Yu
- <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>, Dave Airlie
+ <airlied@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>,
+ Fenghua Yu <fenghua.yu@intel.com>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
  Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
  Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
  <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
  Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Johannes Weiner <hannes@cmpxchg.org>,
- Jun Yao <yaojun8558363@gmail.com>, Logan Gunthorpe <logang@deltatee.com>,
- Mark Rutland <mark.rutland@arm.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <jhubbard@nvidia.com>,
+ Jun Yao <yaojun8558363@gmail.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Mark Rutland <mark.rutland@arm.com>,
  Masahiro Yamada <yamada.masahiro@socionext.com>,
  "Matthew Wilcox (Oracle)" <willy@infradead.org>,
  Mel Gorman <mgorman@techsingularity.net>,
  Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>,
- Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Oscar Salvador
+ <osalvador@suse.com>, Oscar Salvador <osalvador@suse.de>,
+ Paul Mackerras <paulus@samba.org>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>,
  Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
  Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
- Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Souptick Joarder <jrdr.linux@gmail.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Steve Capper
+ <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
  Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
  Vasily Gorbik <gor@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
  Wei Yang <richard.weiyang@gmail.com>,
  Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
+ Yang Shi <yang.shi@linux.alibaba.com>,
  Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
-References: <20190826101012.10575-1-david@redhat.com>
- <20190829083643.GV28313@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
+References: <20190829070019.12714-1-david@redhat.com>
+ <20190829082323.GT28313@dhcp22.suse.cz>
+ <ff42b158-11bb-5dd6-7c3b-0394b6b919bc@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -128,50 +137,91 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <0fba46e2-1a9e-05d5-1470-b285cac7db22@redhat.com>
-Date: Thu, 29 Aug 2019 13:39:42 +0200
+Message-ID: <ef4a4973-3df9-4368-cf50-463e2970348f@redhat.com>
+Date: Thu, 29 Aug 2019 13:43:56 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190829083643.GV28313@dhcp22.suse.cz>
+In-Reply-To: <ff42b158-11bb-5dd6-7c3b-0394b6b919bc@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 29 Aug 2019 11:39:55 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 29 Aug 2019 11:44:11 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.08.19 10:36, Michal Hocko wrote:
-> On Mon 26-08-19 12:10:06, David Hildenbrand wrote:
->> Working on virtio-mem, I was able to trigger a kernel BUG (with debug
->> options enabled) when removing memory that was never onlined. I was ab=
-le
->> to reproduce with DIMMs. As far as I can see the same can also happen
->> without debug configs enabled, if we're unlucky and the uninitialized
->> memmap contains selected garbage .
->=20
-> Could you be more specific please?
->=20
+On 29.08.19 13:33, David Hildenbrand wrote:
+> On 29.08.19 10:23, Michal Hocko wrote:
+>> On Thu 29-08-19 09:00:08, David Hildenbrand wrote:
+>>> This is the successor of "[PATCH v2 0/6] mm/memory_hotplug: Consider all
+>>> zones when removing memory". I decided to go one step further and finally
+>>> factor out the shrinking of zones from memory removal code. Zones are now
+>>> fixed up when offlining memory/onlining of memory fails/before removing
+>>> ZONE_DEVICE memory.
+>>
+>> I was about to say Yay! but then reading...
+> 
+> Almost ;)
+> 
+>>
+>>> Example:
+>>>
+>>> :/# cat /proc/zoneinfo
+>>> Node 1, zone  Movable
+>>>         spanned  0
+>>>         present  0
+>>>         managed  0
+>>> :/# echo "online_movable" > /sys/devices/system/memory/memory41/state 
+>>> :/# echo "online_movable" > /sys/devices/system/memory/memory43/state
+>>> :/# cat /proc/zoneinfo
+>>> Node 1, zone  Movable
+>>>         spanned  98304
+>>>         present  65536
+>>>         managed  65536
+>>> :/# echo 0 > /sys/devices/system/memory/memory43/online
+>>> :/# cat /proc/zoneinfo
+>>> Node 1, zone  Movable
+>>>         spanned  32768
+>>>         present  32768
+>>>         managed  32768
+>>> :/# echo 0 > /sys/devices/system/memory/memory41/online
+>>> :/# cat /proc/zoneinfo
+>>> Node 1, zone  Movable
+>>>         spanned  0
+>>>         present  0
+>>>         managed  0
+>>
+>> ... this made me realize that you are trying to fix it instead. Could
+>> you explain why do we want to do that? Why don't we simply remove all
+>> that crap? Why do we even care about zone boundaries when offlining or
+>> removing memory? Zone shrinking was mostly necessary with the previous
+>> onlining semantic when the zone type could be only changed on the
+>> boundary or unassociated memory. We can interleave memory zones now
+>> arbitrarily.
+> 
+> Last time I asked whether we can just drop all that nasty
+> zone->contiguous handling I was being told that it does have a
+> significant performance impact and is here to stay. The boundaries are a
+> key component to detect whether a zone is contiguous.
+> 
+> So yes, while we allow interleaved memory zones, having contiguous zones
+> is beneficial for performance. That's why also memory onlining code will
+> try to online memory as default to the zone that will keep/make zones
+> contiguous.
+> 
+> Anyhow, I think with this series most of the zone shrinking code becomes
+> "digestible". Except minor issues with ZONE_DEVICE - which is acceptable.
+> 
 
-There is more detail in the patches. Also see the new series for more
-details.
+Also, there are plenty of other users of
+node_spanned_pages/zone_spanned_pages etc.. I don't think this can go -
+not that easy :)
 
-When shrinking zones we look at all spanned pages to shrink as far as
-possible - to skip over holes. There, it might happen that we hit
-uninitialized memmaps. While "pfn_valid()" is true, the memmap is not
-initialized and doing a pfn_to_nid() or page_zone() will end badly.
-
-For !ZONE_DEVICE we can check SECTION_IS_ONLINE. That is a guarantee
-that the whole memmap of the section is valid. For ZONE_DEVICE we don't
-have anything similar. As we allow subsection hotplug there (and
-therefore only subsection of the memmap are initialized) - we might even
-step on uninitialized memmaps without being able to detect this.
-
---=20
+-- 
 
 Thanks,
 
