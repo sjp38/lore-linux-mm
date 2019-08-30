@@ -2,158 +2,300 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65458C3A59B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:04:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD140C3A5A6
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:14:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3221A23426
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:04:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3221A23426
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 76EF02341B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:14:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="CO9IufDi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76EF02341B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B558B6B0006; Fri, 30 Aug 2019 10:04:53 -0400 (EDT)
+	id 115AB6B0006; Fri, 30 Aug 2019 10:14:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B065A6B0008; Fri, 30 Aug 2019 10:04:53 -0400 (EDT)
+	id 0C60B6B0008; Fri, 30 Aug 2019 10:14:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F7AF6B000A; Fri, 30 Aug 2019 10:04:53 -0400 (EDT)
+	id F1EA96B000A; Fri, 30 Aug 2019 10:14:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0035.hostedemail.com [216.40.44.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E1616B0006
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 10:04:53 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 16132180AD801
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:04:53 +0000 (UTC)
-X-FDA: 75879265266.29.sky80_81b93227a8b4a
-X-HE-Tag: sky80_81b93227a8b4a
-X-Filterd-Recvd-Size: 6157
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:04:51 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 088758CF1A5;
-	Fri, 30 Aug 2019 14:04:50 +0000 (UTC)
-Received: from [10.36.117.243] (ovpn-117-243.ams2.redhat.com [10.36.117.243])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2676860C05;
-	Fri, 30 Aug 2019 14:04:46 +0000 (UTC)
-Subject: Re: [PATCH] mm: Remove NULL check in clear_hwpoisoned_pages()
-To: Alastair D'Silva <alastair@d-silva.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Mike Rapoport <rppt@linux.ibm.com>, Michal Hocko <mhocko@suse.com>,
- Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Logan Gunthorpe <logang@deltatee.com>, Baoquan He <bhe@redhat.com>,
- Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190829035151.20975-1-alastair@d-silva.org>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <96250f1e-edf9-6c49-f0dc-21c17dee6657@redhat.com>
-Date: Fri, 30 Aug 2019 16:04:46 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D08256B0006
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 10:14:38 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 6381D824CA35
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:14:38 +0000 (UTC)
+X-FDA: 75879289836.11.birds10_458adaa46493d
+X-HE-Tag: birds10_458adaa46493d
+X-Filterd-Recvd-Size: 10163
+Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:14:37 +0000 (UTC)
+Received: by mail-pf1-f196.google.com with SMTP id o70so4747788pfg.5
+        for <linux-mm@kvack.org>; Fri, 30 Aug 2019 07:14:37 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:in-reply-to:references:date:message-id
+         :mime-version;
+        bh=GQjSOvbaapj7b1lMAgf5SR118C4E3gkJs2yq2l1Stv4=;
+        b=CO9IufDiIWBBFWVq/OoN72/E+w27Lf2PiK+MbtGjm2ZrKSQf95I8oEHgGi7vHrwkLr
+         G731ZAmg28Iv0+TE/2nZ840FNK5djXf6jO1rwwHN7953omIe0L8DDbLgOTkqHtMohlmd
+         ubyBt64bC14KHBnAf5XlAnqGr3mA5jVj5HJFk=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:cc:subject:in-reply-to:references:date
+         :message-id:mime-version;
+        bh=GQjSOvbaapj7b1lMAgf5SR118C4E3gkJs2yq2l1Stv4=;
+        b=BvYsdfC8Fuw3kFws07hV6CmTAErf+wGOyVzuue9bAyzJbsn/jecct7Ahg9A5L0Wo+m
+         d3Ha5qVHijfdIh7XwNGF+19Zve0fEwu+uv0zhTlZKj9ZGXq23h2A60h3B0Xl0DGNmwRM
+         L6mMsfmj6MoCCtDej/YeRbFLU/A/wpG7ZJ+hJIWpBBipK19djCYcw2yjFMsnIGyYnP1l
+         5Yh9sbOFiVZ3WdvZtgcyn0s9n5aMBQY27YVEVcayQVYONxcpypNhA1WjZuNgfAqk/RFP
+         rR0/xunEmueTdmEb0D5en76aFZK52UFrOJ96/cWEoYN7Zg7jc1D8a+wq4+pSvAlF6rJt
+         nnSQ==
+X-Gm-Message-State: APjAAAXX04feowk+Dky0rbNUCPQbP8Yjz+kp/yduR545PF4L+2batqmW
+	NYTPh8PdCwWs56XG7Mbckn4daQ==
+X-Google-Smtp-Source: APXvYqy3+S6Dqbc3pwsOcQA/Iwof1bo7TCOO0pzdarafBh3pamLz1QVwXxYS1rtUoFL9YnX/8pRXcg==
+X-Received: by 2002:aa7:8a48:: with SMTP id n8mr18631624pfa.143.1567174476689;
+        Fri, 30 Aug 2019 07:14:36 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id g2sm7247374pfm.32.2019.08.30.07.14.32
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 30 Aug 2019 07:14:35 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org, aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com, dvyukov@google.com, christophe.leroy@c-s.fr
+Cc: linuxppc-dev@lists.ozlabs.org, gor@linux.ibm.com
+Subject: Re: [PATCH v5 1/5] kasan: support backing vmalloc space with real shadow memory
+In-Reply-To: <20190830003821.10737-2-dja@axtens.net>
+References: <20190830003821.10737-1-dja@axtens.net> <20190830003821.10737-2-dja@axtens.net>
+Date: Sat, 31 Aug 2019 00:14:21 +1000
+Message-ID: <871rx2viyq.fsf@dja-thinkpad.axtens.net>
 MIME-Version: 1.0
-In-Reply-To: <20190829035151.20975-1-alastair@d-silva.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.69]); Fri, 30 Aug 2019 14:04:50 +0000 (UTC)
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.08.19 05:51, Alastair D'Silva wrote:
-> There is no possibility for memmap to be NULL in the current
-> codebase.
-> 
-> This check was added in commit 95a4774d055c ("memory-hotplug:
-> update mce_bad_pages when removing the memory")
-> where memmap was originally inited to NULL, and only conditionally
-> given a value.
-> 
-> The code that could have passed a NULL has been removed, so there
-> is no longer a possibility that memmap can be NULL.
-> 
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> ---
->  mm/sparse.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 78979c142b7d..9f7e3682cdcb 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -754,9 +754,6 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  {
->  	int i;
+Hi all,
+
+> +static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
+> +					void *unused)
+> +{
+> +	unsigned long page;
+> +
+> +	page = (unsigned long)__va(pte_pfn(*ptep) << PAGE_SHIFT);
+> +
+> +	spin_lock(&init_mm.page_table_lock);
+> +
+> +	/*
+> +	 * we want to catch bugs where we end up clearing a pte that wasn't
+> +	 * set. This will unfortunately also fire if we are releasing a region
+> +	 * where we had a failure allocating the shadow region.
+> +	 */
+> +	WARN_ON_ONCE(pte_none(*ptep));
+> +
+> +	pte_clear(&init_mm, addr, ptep);
+> +	free_page(page);
+> +	spin_unlock(&init_mm.page_table_lock);
+
+It's just occurred to me that the free_page really needs to be guarded
+by an 'if (likely(!pte_none(*pte))) {' - there won't be a page to free
+if there's no pte.
+
+I'll spin v6 on Monday.
+
+Regards,
+Daniel
+
+> +
+> +	return 0;
+> +}
+> +
+> +/*
+> + * Release the backing for the vmalloc region [start, end), which
+> + * lies within the free region [free_region_start, free_region_end).
+> + *
+> + * This can be run lazily, long after the region was freed. It runs
+> + * under vmap_area_lock, so it's not safe to interact with the vmalloc/vmap
+> + * infrastructure.
+> + */
+> +void kasan_release_vmalloc(unsigned long start, unsigned long end,
+> +			   unsigned long free_region_start,
+> +			   unsigned long free_region_end)
+> +{
+> +	void *shadow_start, *shadow_end;
+> +	unsigned long region_start, region_end;
+> +
+> +	/* we start with shadow entirely covered by this region */
+> +	region_start = ALIGN(start, PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
+> +	region_end = ALIGN_DOWN(end, PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
+> +
+> +	/*
+> +	 * We don't want to extend the region we release to the entire free
+> +	 * region, as the free region might cover huge chunks of vmalloc space
+> +	 * where we never allocated anything. We just want to see if we can
+> +	 * extend the [start, end) range: if start or end fall part way through
+> +	 * a shadow page, we want to check if we can free that entire page.
+> +	 */
+> +
+> +	free_region_start = ALIGN(free_region_start,
+> +				  PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
+> +
+> +	if (start != region_start &&
+> +	    free_region_start < region_start)
+> +		region_start -= PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE;
+> +
+> +	free_region_end = ALIGN_DOWN(free_region_end,
+> +				     PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
+> +
+> +	if (end != region_end &&
+> +	    free_region_end > region_end)
+> +		region_end += PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE;
+> +
+> +	shadow_start = kasan_mem_to_shadow((void *)region_start);
+> +	shadow_end = kasan_mem_to_shadow((void *)region_end);
+> +
+> +	if (shadow_end > shadow_start)
+> +		apply_to_page_range(&init_mm, (unsigned long)shadow_start,
+> +				    (unsigned long)(shadow_end - shadow_start),
+> +				    kasan_depopulate_vmalloc_pte, NULL);
+> +}
+> +#endif
+> diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+> index 36c645939bc9..2d97efd4954f 100644
+> --- a/mm/kasan/generic_report.c
+> +++ b/mm/kasan/generic_report.c
+> @@ -86,6 +86,9 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+>  	case KASAN_ALLOCA_RIGHT:
+>  		bug_type = "alloca-out-of-bounds";
+>  		break;
+> +	case KASAN_VMALLOC_INVALID:
+> +		bug_type = "vmalloc-out-of-bounds";
+> +		break;
+>  	}
 >  
-> -	if (!memmap)
-> -		return;
-> -
+>  	return bug_type;
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index 35cff6bbb716..3a083274628e 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -25,6 +25,7 @@
+>  #endif
+>  
+>  #define KASAN_GLOBAL_REDZONE    0xFA  /* redzone for global variable */
+> +#define KASAN_VMALLOC_INVALID   0xF9  /* unallocated space in vmapped page */
+>  
+>  /*
+>   * Stack redzone shadow values
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index b8101030f79e..bf806566cad0 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -690,8 +690,19 @@ merge_or_add_vmap_area(struct vmap_area *va,
+>  	struct list_head *next;
+>  	struct rb_node **link;
+>  	struct rb_node *parent;
+> +	unsigned long orig_start, orig_end;
+>  	bool merged = false;
+>  
+> +	/*
+> +	 * To manage KASAN vmalloc memory usage, we use this opportunity to
+> +	 * clean up the shadow memory allocated to back this allocation.
+> +	 * Because a vmalloc shadow page covers several pages, the start or end
+> +	 * of an allocation might not align with a shadow page. Use the merging
+> +	 * opportunities to try to extend the region we can release.
+> +	 */
+> +	orig_start = va->va_start;
+> +	orig_end = va->va_end;
+> +
 >  	/*
->  	 * A further optimization is to have per section refcounted
->  	 * num_poisoned_pages.  But that would need more space per memmap, so
-> 
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
--- 
-
-Thanks,
-
-David / dhildenb
+>  	 * Find a place in the tree where VA potentially will be
+>  	 * inserted, unless it is merged with its sibling/siblings.
+> @@ -741,6 +752,10 @@ merge_or_add_vmap_area(struct vmap_area *va,
+>  		if (sibling->va_end == va->va_start) {
+>  			sibling->va_end = va->va_end;
+>  
+> +			kasan_release_vmalloc(orig_start, orig_end,
+> +					      sibling->va_start,
+> +					      sibling->va_end);
+> +
+>  			/* Check and update the tree if needed. */
+>  			augment_tree_propagate_from(sibling);
+>  
+> @@ -754,6 +769,8 @@ merge_or_add_vmap_area(struct vmap_area *va,
+>  	}
+>  
+>  insert:
+> +	kasan_release_vmalloc(orig_start, orig_end, va->va_start, va->va_end);
+> +
+>  	if (!merged) {
+>  		link_va(va, root, parent, link, head);
+>  		augment_tree_propagate_from(va);
+> @@ -2068,6 +2085,22 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+>  
+>  	setup_vmalloc_vm(area, va, flags, caller);
+>  
+> +	/*
+> +	 * For KASAN, if we are in vmalloc space, we need to cover the shadow
+> +	 * area with real memory. If we come here through VM_ALLOC, this is
+> +	 * done by a higher level function that has access to the true size,
+> +	 * which might not be a full page.
+> +	 *
+> +	 * We assume module space comes via VM_ALLOC path.
+> +	 */
+> +	if (is_vmalloc_addr(area->addr) && !(area->flags & VM_ALLOC)) {
+> +		if (kasan_populate_vmalloc(area->size, area)) {
+> +			unmap_vmap_area(va);
+> +			kfree(area);
+> +			return NULL;
+> +		}
+> +	}
+> +
+>  	return area;
+>  }
+>  
+> @@ -2245,6 +2278,9 @@ static void __vunmap(const void *addr, int deallocate_pages)
+>  	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
+>  	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+>  
+> +	if (area->flags & VM_KASAN)
+> +		kasan_poison_vmalloc(area->addr, area->size);
+> +
+>  	vm_remove_mappings(area, deallocate_pages);
+>  
+>  	if (deallocate_pages) {
+> @@ -2495,6 +2531,9 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  	if (!addr)
+>  		return NULL;
+>  
+> +	if (kasan_populate_vmalloc(real_size, area))
+> +		return NULL;
+> +
+>  	/*
+>  	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
+>  	 * flag. It means that vm_struct is not fully initialized.
+> @@ -3349,10 +3388,14 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+>  	spin_unlock(&vmap_area_lock);
+>  
+>  	/* insert all vm's */
+> -	for (area = 0; area < nr_vms; area++)
+> +	for (area = 0; area < nr_vms; area++) {
+>  		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
+>  				 pcpu_get_vm_areas);
+>  
+> +		/* assume success here */
+> +		kasan_populate_vmalloc(sizes[area], vms[area]);
+> +	}
+> +
+>  	kfree(vas);
+>  	return vms;
+>  
+> -- 
+> 2.20.1
 
