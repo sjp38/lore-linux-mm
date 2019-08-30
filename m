@@ -6,152 +6,125 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB9AEC3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:24:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 309DBC3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:30:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7687920828
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:24:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DD832215EA
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:30:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=omnibond-com.20150623.gappssmtp.com header.i=@omnibond-com.20150623.gappssmtp.com header.b="rsF3TnYv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7687920828
+	dkim=pass (2048-bit key) header.d=omnibond-com.20150623.gappssmtp.com header.i=@omnibond-com.20150623.gappssmtp.com header.b="tRuQF9NG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD832215EA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=omnibond.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 071446B0008; Thu, 29 Aug 2019 21:24:52 -0400 (EDT)
+	id 8D2876B0008; Thu, 29 Aug 2019 21:30:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0229B6B000C; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
+	id 85B3D6B000C; Thu, 29 Aug 2019 21:30:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2BD46B000D; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
+	id 721DA6B000D; Thu, 29 Aug 2019 21:30:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
-	by kanga.kvack.org (Postfix) with ESMTP id BFF356B0008
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 3E725180AD7C1
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:24:51 +0000 (UTC)
-X-FDA: 75877349982.19.chess98_2a52491227432
-X-HE-Tag: chess98_2a52491227432
-X-Filterd-Recvd-Size: 7373
-Received: from mail-yw1-f68.google.com (mail-yw1-f68.google.com [209.85.161.68])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:24:50 +0000 (UTC)
-Received: by mail-yw1-f68.google.com with SMTP id m11so1848156ywh.3
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:24:50 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0089.hostedemail.com [216.40.44.89])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ACAC6B0008
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 21:30:02 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id D39DF1F202
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:30:01 +0000 (UTC)
+X-FDA: 75877363002.28.snake22_578737c9add28
+X-HE-Tag: snake22_578737c9add28
+X-Filterd-Recvd-Size: 4620
+Received: from mail-yw1-f67.google.com (mail-yw1-f67.google.com [209.85.161.67])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:30:01 +0000 (UTC)
+Received: by mail-yw1-f67.google.com with SMTP id m11so1851441ywh.3
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:30:01 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=omnibond-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=4TfZVE6zvYYuoOuB/Rxqa+Mlm3vtxZPY12krCFPSTtI=;
-        b=rsF3TnYvnJjkhMrqd8jgi2b1fWfnS720m/snkWNYBAl3jogwp2mEsqA8h0meBBMFCG
-         mupgLKrOXopsTT3mx+lDcAZLHUPbfCw/vXrZaEIvlfIiq4H0dj/IKCul0NWP4fpGLsu4
-         48Lini1zfDu9D/EL0CeWiI8kZAXrgg08x+hcJWXhpsmSN701z4+zSsQ5V2A/N+PZ/ko+
-         cAveXQxi5GTfOnxm/M0L2QMcpa0QpEp0UoezlsX6vklrx1noOLsykTvVpPGdg1yASetm
-         NGCTD4uF7gFM2G4DP0Fj0jWpPyOxMpJF0KkXFU1tGtaTorkpzYDBwzJA49OyfPjy95xt
-         U/rA==
+         :cc;
+        bh=yDmQxANGbqTJGtO1OhTa4PkciZSXcUVcA6Y2VnUF5Ug=;
+        b=tRuQF9NGsWriwh9rOUGWV/XnpvxEIfrIBLDnzsNlL2DcXYptI5uYx9v9XRgXG9ikj+
+         lAdRFBmN8WWgzpxjYwMBvOBMGH9vQkyzn/bAHiywFTqTy8Rv0zmy7NK3LdyKNjjgvNdr
+         mcLlIarH9lbZWT5t7oU7MIVWXKIhgWd4FFEn+XvtJUHOlIO0rItLGA+Zt6tlzfYijXTt
+         MmEvGy0xnlwDGgt/OUq/OkC9egtS+p7sT3eJ3BcAb9vNf6OatXnbSWZ0hHXVonsgbMVH
+         pMy2zHMasv+EgzYrXDb3idQdrvXUOVYyNS1FKC2EzXUecfAda8U+O/uwCTXSTJ6SOTSm
+         T3ow==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc:content-transfer-encoding;
-        bh=4TfZVE6zvYYuoOuB/Rxqa+Mlm3vtxZPY12krCFPSTtI=;
-        b=cn8/gnj7lZsN/BqnhBD9q8K3PwEzIsz3hCcTaUoFCwoaRKOs3Coa4+oJmpL/DwNj3w
-         grV9YKK44jeApSQuaD/Zp0hbys0GFyyyvaJwyri5u6qwsnYVmtPoVAsy6MQzlHpmHc4L
-         xVWbHqCW6RPoDoW5SaLTI9YfqQITRaORCWT2Ot5UmFptIhUyZkmVvIK5IyMvtl5PMkrl
-         aBxhR/64sv9oDPtoxe6GQYSQAH6tIQNOdomLsWci9AJpTRkvMg4aulzbcImT4lq4x+6O
-         v62zg+NhtAE1ijgV6RvZHElAEx+j8nIkR+ut65DKeKC3vyKjMXUSgAovaZzjpM/KLBc3
-         Rbgw==
-X-Gm-Message-State: APjAAAWlP0vQycaoVbm/6PZ77BbyDZErTQ9oi0oXdckpKNUerF+e978p
-	Upozw2Z8iNnfonGJRKXLFMhRtYKNqvqrerF20a5rmw==
-X-Google-Smtp-Source: APXvYqwS/gBw6GYqWJhwCNBmHR6+W2ONQRTVjMY8ZXLyRIgVZbf1blJaiiDec2a/U/ArNO35ME5xZuocZ9cXu0GpPKQ=
-X-Received: by 2002:a0d:d596:: with SMTP id x144mr9018446ywd.69.1567128290041;
- Thu, 29 Aug 2019 18:24:50 -0700 (PDT)
+         :message-id:subject:to:cc;
+        bh=yDmQxANGbqTJGtO1OhTa4PkciZSXcUVcA6Y2VnUF5Ug=;
+        b=L09tZbgjTmusaOIhuzKuWalXuSe4sU4Wgs5eoxynh76Tc5hbbG135S8uxyMwAGpXV2
+         JDCCJ8jeNPKoYI7MrvrSB4ljAunxtTEPyYT8EK506VP1SckMi8f7UgzTRORsER+iH1Ro
+         eH5oRwD3CkYbI7wp+maL+iEANOFl2v/xuUJwg+ZbPkMdhPIin+mtI7t8MxMDB+jxW4vx
+         k48vLHjRYRqfwfHAOQssRuYpPw8FW6E3u0ZXMUrYgHde7OLEQNRat1IR6X6dXBs5Rnpj
+         fL6wsrgjESON6a1kiYzs0l+gt+aTVWKDAU11AEP37VijS9I+6lT3sZrxuihVNIleIKJQ
+         INhQ==
+X-Gm-Message-State: APjAAAWM1mYR5W7cBYrqVUy7AwWr7rsXrx174qzISF1VYfS3mu5Ff137
+	G6WYnFHzJt3sjD91A8MEQyP7zoGQFRoas192RYQ7ZA==
+X-Google-Smtp-Source: APXvYqyIDKOrxjb28zWL9kagM4gqNHMvZYp0EWQP/d+eBC6/dEWbXTKwXclpCyHxrYDHzsr0mwrMijbohn/hHGTlziQ=
+X-Received: by 2002:a81:3681:: with SMTP id d123mr9802172ywa.348.1567128600919;
+ Thu, 29 Aug 2019 18:30:00 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190827150544.151031-1-salyzyn@android.com> <20190828142423.GA1955@infradead.org>
- <5dd09a38-fffb-36f2-505b-be2ddf6bb750@android.com>
-In-Reply-To: <5dd09a38-fffb-36f2-505b-be2ddf6bb750@android.com>
+References: <20190807013340.9706-1-jhubbard@nvidia.com> <912eb2bd-4102-05c1-5571-c261617ad30b@nvidia.com>
+In-Reply-To: <912eb2bd-4102-05c1-5571-c261617ad30b@nvidia.com>
 From: Mike Marshall <hubcap@omnibond.com>
-Date: Thu, 29 Aug 2019 21:24:38 -0400
-Message-ID: <CAOg9mSTCC4Z3RpEyppC50B+pnSBbV0sr-F7hbsM-B+z3c-AZVA@mail.gmail.com>
-Subject: Re: [PATCH v8] Add flags option to get xattr method paired to __vfs_getxattr
-To: Mark Salyzyn <salyzyn@android.com>
-Cc: Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	kernel-team@android.com, Jan Kara <jack@suse.cz>, Stephen Smalley <sds@tycho.nsa.gov>, 
-	linux-security-module@vger.kernel.org, stable@vger.kernel.org, 
-	Jonathan Corbet <corbet@lwn.net>, Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Eric Van Hensbergen <ericvh@gmail.com>, 
-	Latchesar Ionkov <lucho@ionkov.net>, Dominique Martinet <asmadeus@codewreck.org>, 
-	David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
-	David Sterba <dsterba@suse.com>, Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>, 
-	Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>, 
-	Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>, "Theodore Ts'o" <tytso@mit.edu>, 
-	Andreas Dilger <adilger.kernel@dilger.ca>, Jaegeuk Kim <jaegeuk@kernel.org>, 
-	Miklos Szeredi <miklos@szeredi.hu>, Bob Peterson <rpeterso@redhat.com>, 
-	Andreas Gruenbacher <agruenba@redhat.com>, David Woodhouse <dwmw2@infradead.org>, 
-	Richard Weinberger <richard@nod.at>, Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>, 
-	Trond Myklebust <trond.myklebust@hammerspace.com>, 
-	Anna Schumaker <anna.schumaker@netapp.com>, Mark Fasheh <mark@fasheh.com>, 
-	Joel Becker <jlbec@evilplan.org>, Joseph Qi <joseph.qi@linux.alibaba.com>, 
-	Martin Brandenburg <martin@omnibond.com>, Alexander Viro <viro@zeniv.linux.org.uk>, 
-	Phillip Lougher <phillip@squashfs.org.uk>, Artem Bityutskiy <dedekind1@gmail.com>, 
-	Adrian Hunter <adrian.hunter@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, 
-	linux-xfs@vger.kernel.org, Hugh Dickins <hughd@google.com>, 
-	"David S. Miller" <davem@davemloft.net>, Serge Hallyn <serge@hallyn.com>, James Morris <jmorris@namei.org>, 
-	Mimi Zohar <zohar@linux.ibm.com>, Paul Moore <paul@paul-moore.com>, 
-	Eric Paris <eparis@parisplace.org>, Casey Schaufler <casey@schaufler-ca.com>, 
-	"J. Bruce Fields" <bfields@redhat.com>, Eric Biggers <ebiggers@google.com>, 
-	Benjamin Coddington <bcodding@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Mathieu Malaterre <malat@debian.org>, Vyacheslav Dubeyko <slava@dubeyko.com>, 
-	Bharath Vedartham <linux.bhar@gmail.com>, Jann Horn <jannh@google.com>, 
-	Dave Chinner <dchinner@redhat.com>, Allison Henderson <allison.henderson@oracle.com>, 
-	Brian Foster <bfoster@redhat.com>, Eric Sandeen <sandeen@sandeen.net>, linux-doc@vger.kernel.org, 
-	linux-erofs@lists.ozlabs.org, devel@driverdev.osuosl.org, 
-	V9FS Developers <v9fs-developer@lists.sourceforge.net>, linux-afs@lists.infradead.org, 
-	linux-btrfs@vger.kernel.org, ceph-devel <ceph-devel@vger.kernel.org>, 
-	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, 
-	ecryptfs@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, 
-	"Linux F2FS DEV, Mailing List" <linux-f2fs-devel@lists.sourceforge.net>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, cluster-devel@redhat.com, 
-	linux-mtd <linux-mtd@lists.infradead.org>, jfs-discussion@lists.sourceforge.net, 
-	Linux NFS Mailing List <linux-nfs@vger.kernel.org>, ocfs2-devel@oss.oracle.com, 
-	devel@lists.orangefs.org, linux-unionfs@vger.kernel.org, 
-	reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev@vger.kernel.org, 
-	linux-integrity@vger.kernel.org, selinux@vger.kernel.org
+Date: Thu, 29 Aug 2019 21:29:50 -0400
+Message-ID: <CAOg9mSQKGDywcMde2DE42diUS7J8m74Hdv+xp_PJhC39EXZQuw@mail.gmail.com>
+Subject: Re: [PATCH v3 00/39] put_user_pages(): miscellaneous call sites
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>, 
+	Christoph Hellwig <hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, 
+	Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org, 
+	ceph-devel <ceph-devel@vger.kernel.org>, devel@driverdev.osuosl.org, 
+	devel@lists.orangefs.org, dri-devel@lists.freedesktop.org, 
+	intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, 
+	linux-arm-kernel@lists.infradead.org, linux-block@vger.kernel.org, 
+	linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-media@vger.kernel.org, 
+	linux-mm <linux-mm@kvack.org>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, 
+	linux-rdma@vger.kernel.org, linux-rpi-kernel@lists.infradead.org, 
+	linux-xfs@vger.kernel.org, netdev@vger.kernel.org, rds-devel@oss.oracle.com, 
+	sparclinux@vger.kernel.org, x86@kernel.org, xen-devel@lists.xenproject.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I added this patch series on top of Linux 5.3-rc6 and ran xfstests
-on orangefs with no regressions.
+Hi John...
+
+I added this patch series on top of Linux 5.3rc6 and ran
+xfstests with no regressions...
 
 Acked-by: Mike Marshall <hubcap@omnibond.com>
 
 -Mike
 
-On Wed, Aug 28, 2019 at 10:40 AM Mark Salyzyn <salyzyn@android.com> wrote:
+On Tue, Aug 6, 2019 at 9:50 PM John Hubbard <jhubbard@nvidia.com> wrote:
 >
-> On 8/28/19 7:24 AM, Christoph Hellwig wrote:
-> > On Tue, Aug 27, 2019 at 08:05:15AM -0700, Mark Salyzyn wrote:
-> >> Replace arguments for get and set xattr methods, and __vfs_getxattr
-> >> and __vfs_setaxtr functions with a reference to the following now
-> >> common argument structure:
-> > Yikes.  That looks like a mess.  Why can't we pass a kernel-only
-> > flag in the existing flags field for =E2=82=8B>set and add a flags fiel=
-d
-> > to ->get?  Passing methods by structure always tends to be a mess.
+> On 8/6/19 6:32 PM, john.hubbard@gmail.com wrote:
+> > From: John Hubbard <jhubbard@nvidia.com>
+> > ...
+> >
+> > John Hubbard (38):
+> >   mm/gup: add make_dirty arg to put_user_pages_dirty_lock()
+> ...
+> >  54 files changed, 191 insertions(+), 323 deletions(-)
+> >
+> ahem, yes, apparently this is what happens if I add a few patches while editing
+> the cover letter... :)
 >
-> This was a response to GregKH@ criticism, an earlier patch set just
-> added a flag as you stated to get method, until complaints of an
-> excessively long argument list and fragility to add or change more
-> arguments.
+> The subject line should read "00/41", and the list of files affected here is
+> therefore under-reported in this cover letter. However, the patch series itself is
+> intact and ready for submission.
 >
-> So many ways have been tried to skin this cat ... the risk was taken to
-> please some, and we now have hundreds of stakeholders, when the first
-> patch set was less than a dozen. A recipe for failure?
->
-> -- Mark
->
+> thanks,
+> --
+> John Hubbard
+> NVIDIA
 
