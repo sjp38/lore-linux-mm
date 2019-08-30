@@ -2,208 +2,141 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 320C4C3A59B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:09:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15841C3A59B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:15:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D0A3723427
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:09:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C93CD2342C
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:15:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ar2PzY1a"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0A3723427
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Vydb4Dle"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C93CD2342C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C4996B000A; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
+	id 688BA6B000A; Fri, 30 Aug 2019 12:15:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 776D66B000C; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
+	id 662296B000C; Fri, 30 Aug 2019 12:15:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68B8A6B000D; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
+	id 54F696B000D; Fri, 30 Aug 2019 12:15:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0207.hostedemail.com [216.40.44.207])
-	by kanga.kvack.org (Postfix) with ESMTP id 473A96B000A
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id CAE7A1F36A
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:09:21 +0000 (UTC)
-X-FDA: 75879578922.02.chain85_3470bc0b83706
-X-HE-Tag: chain85_3470bc0b83706
-X-Filterd-Recvd-Size: 7041
-Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:09:20 +0000 (UTC)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7UG8VnF193537;
-	Fri, 30 Aug 2019 16:09:18 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2019-08-05;
- bh=fDZkm7TGgVyRUW7Itan/V6vOBM2/o4OXxKZDDHyHkQk=;
- b=ar2PzY1a2BDwQZuxJjLGrWiNZgzTbflDX4rYndb/+yTiGDGB0PCqJ598NEmnsESROX+s
- 2mnjHIK7Y1ZuH+aHhUd2htUGnoz8V9kNYfeURPKdwCHwBG66HtAgJU2QZnolqZmTYStd
- gEbYNVrWPukV2Ycq1vsu0j7JWlZCPtDBYbbx8HLB61PG/aCX2taeLiUPzHbbihUnDcZN
- HpTliNZQV9kD2zJDXDzoOsmZvUEwapLR+WJz28sXk+wpXhe9Uh2777MYP0I1b3vMGKZv
- ZwqCemdEp0Yd6kFi6IsdU9HSw6Y0etUy27ox7HLqH8q4JzBLy/MBbyEpoEXBxg565hE4 fQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2120.oracle.com with ESMTP id 2uq6yn81ba-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 30 Aug 2019 16:09:17 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7UFvkZB041739;
-	Fri, 30 Aug 2019 16:02:17 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2upxabfpfk-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 30 Aug 2019 16:02:16 +0000
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7UG2FYT000919;
-	Fri, 30 Aug 2019 16:02:15 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 30 Aug 2019 09:02:15 -0700
-Date: Fri, 30 Aug 2019 09:02:13 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-        Amir Goldstein <amir73il@gmail.com>, Boaz Harrosh <boaz@plexistor.com>,
-        linux-fsdevel@vger.kernel.org, stable@vger.kernel.org
-Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
- with hole punch
-Message-ID: <20190830160213.GF5360@magnolia>
-References: <20190829131034.10563-1-jack@suse.cz>
- <20190829131034.10563-4-jack@suse.cz>
- <20190829155204.GD5354@magnolia>
- <20190830152449.GA25069@quack2.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0161.hostedemail.com [216.40.44.161])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C826B000A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 12:15:26 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id B7ADD20EEC
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:15:25 +0000 (UTC)
+X-FDA: 75879594210.26.head12_698cfffeac510
+X-HE-Tag: head12_698cfffeac510
+X-Filterd-Recvd-Size: 5121
+Received: from mail-wm1-f68.google.com (mail-wm1-f68.google.com [209.85.128.68])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:15:25 +0000 (UTC)
+Received: by mail-wm1-f68.google.com with SMTP id v15so7972282wml.0
+        for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:15:25 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=RvULTbglvsEpSUEl2PMG0UwvBIgjs3k2jzK9oMeOf/g=;
+        b=Vydb4Dle1to+M1trUotpf7b+sETb6evWQuAc+mqP6Se10ww7Uj5Z2OJh4a8WeQKK4H
+         JcelOy8LVyJLrAbl57+7h7YSZwdGEUW62VBWmClF2upOMUUN3h3BNuXNF4FrHNOlBCXo
+         uZASVSphcFVKqsCYib4AhC+ffQNc6MqSbc8ktNejdbKsj9mZMpaTSwlfkfKWjDH/A9Uz
+         EsbQF8GGUnD5U3KS+q/BQGAyagegoMcvkELq9KT+kIorskpg8butTUZMU0cT6wkmOObY
+         VSFnKRNz9DXKENkvJeVh/8+KPTJcJ5ORccvuKcueZ3sjeLF0Igst+bup83+efeb5zDGZ
+         07Jw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=RvULTbglvsEpSUEl2PMG0UwvBIgjs3k2jzK9oMeOf/g=;
+        b=OHznpjn66Js5pG7EnLKYwlLmI4uATcUd3QnUgl5P/iwfdiL3YSOD3bmnsRkh8euHTb
+         ISzLHDKZuGnjgxQ4PRsGkVGNdU7IwSIYZXHs9YvoZRu07+h9tylPv91fBLOIzRMgpO3L
+         L5cMx8MRjj5fTuRjApnvUVWxE/kou9HhmGQQGZ3nrppihlOiqW4af4NdphkFSannwpOt
+         Tse9iykFIIS3nPTBnIkHg31LYckNfDFQf5aEly11Tws0WQzckX33QTasCZOSLNtIcwmX
+         0ePqw6eX3nsuo25pdArEkBoUWldnQ7pAXi5OdxVPETmJIu6rJLKSKIHbzHwyw5BNoxHT
+         srgg==
+X-Gm-Message-State: APjAAAUy9PA13K90Pr5znn7UmKsdYW5ff5zwku0tKKenK8Cu937JY67F
+	kdSuYSjm1RgVo7/jjVoH8A8=
+X-Google-Smtp-Source: APXvYqwRC7VjVdR0nKtT76M4w3gVjPwIDRv5e5ONZ1A8loK1XrViNO6i2f2wuGBdd7VkCTp3RNgyew==
+X-Received: by 2002:a7b:c954:: with SMTP id i20mr16685029wml.169.1567181724174;
+        Fri, 30 Aug 2019 09:15:24 -0700 (PDT)
+Received: from [192.168.8.147] (95.168.185.81.rev.sfr.net. [81.185.168.95])
+        by smtp.gmail.com with ESMTPSA id f6sm15241274wrh.30.2019.08.30.09.15.23
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Fri, 30 Aug 2019 09:15:23 -0700 (PDT)
+Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
+To: Qian Cai <cai@lca.pw>, Eric Dumazet <eric.dumazet@gmail.com>,
+ davem@davemloft.net
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1567177025-11016-1-git-send-email-cai@lca.pw>
+ <6109dab4-4061-8fee-96ac-320adf94e130@gmail.com>
+ <1567178728.5576.32.camel@lca.pw>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <229ebc3b-1c7e-474f-36f9-0fa603b889fb@gmail.com>
+Date: Fri, 30 Aug 2019 18:15:22 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190830152449.GA25069@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9365 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908300159
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9365 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908300161
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <1567178728.5576.32.camel@lca.pw>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000022, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 30, 2019 at 05:24:49PM +0200, Jan Kara wrote:
-> On Thu 29-08-19 08:52:04, Darrick J. Wong wrote:
-> > On Thu, Aug 29, 2019 at 03:10:34PM +0200, Jan Kara wrote:
-> > > Hole puching currently evicts pages from page cache and then goes on to
-> > > remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
-> > > and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
-> > > racing reads or page faults. However there is currently nothing that
-> > > prevents readahead triggered by fadvise() or madvise() from racing with
-> > > the hole punch and instantiating page cache page after hole punching has
-> > > evicted page cache in xfs_flush_unmap_range() but before it has removed
-> > > blocks from the inode. This page cache page will be mapping soon to be
-> > > freed block and that can lead to returning stale data to userspace or
-> > > even filesystem corruption.
-> > > 
-> > > Fix the problem by protecting handling of readahead requests by
-> > > XFS_IOLOCK_SHARED similarly as we protect reads.
-> > > 
-> > > CC: stable@vger.kernel.org
-> > > Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
-> > > Reported-by: Amir Goldstein <amir73il@gmail.com>
-> > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > 
-> > Is there a test on xfstests to demonstrate this race?
+
+
+On 8/30/19 5:25 PM, Qian Cai wrote:
+> On Fri, 2019-08-30 at 17:11 +0200, Eric Dumazet wrote:
+>>
+>> On 8/30/19 4:57 PM, Qian Cai wrote:
+>>> When running heavy memory pressure workloads, the system is throwing
+>>> endless warnings below due to the allocation could fail from
+>>> __build_skb(), and the volume of this call could be huge which may
+>>> generate a lot of serial console output and cosumes all CPUs as
+>>> warn_alloc() could be expensive by calling dump_stack() and then
+>>> show_mem().
+>>>
+>>> Fix it by silencing the warning in this call site. Also, it seems
+>>> unnecessary to even print a warning at all if the allocation failed in
+>>> __build_skb(), as it may just retransmit the packet and retry.
+>>>
+>>
+>> Same patches are showing up there and there from time to time.
+>>
+>> Why is this particular spot interesting, against all others not adding
+>> __GFP_NOWARN ?
+>>
+>> Are we going to have hundred of patches adding __GFP_NOWARN at various points,
+>> or should we get something generic to not flood the syslog in case of memory
+>> pressure ?
+>>
 > 
-> No, but I can try to create one.
-
-<nod> I imgaine this race was hard to spot in the first place...
-
-> > Will test it out though...
-> > 
-> > Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+> From my testing which uses LTP oom* tests. There are only 3 places need to be
+> patched. The other two are in IOMMU code for both Intel and AMD. The place is
+> particular interesting because it could cause the system with floating serial
+> console output for days without making progress in OOM. I suppose it ends up in
+> a looping condition that warn_alloc() would end up generating more calls into
+> __build_skb() via ksoftirqd.
 > 
-> Thanks. BTW, will you pick up these patches please?
 
-Yeah, they looked fine.
+Yes, but what about other tests done by other people ?
 
---D
+You do not really answer my last question, which was really the point I tried
+to make.
 
-> 								Honza
-> 
-> > 
-> > --D
-> > 
-> > > ---
-> > >  fs/xfs/xfs_file.c | 26 ++++++++++++++++++++++++++
-> > >  1 file changed, 26 insertions(+)
-> > > 
-> > > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> > > index 28101bbc0b78..d952d5962e93 100644
-> > > --- a/fs/xfs/xfs_file.c
-> > > +++ b/fs/xfs/xfs_file.c
-> > > @@ -28,6 +28,7 @@
-> > >  #include <linux/falloc.h>
-> > >  #include <linux/backing-dev.h>
-> > >  #include <linux/mman.h>
-> > > +#include <linux/fadvise.h>
-> > >  
-> > >  static const struct vm_operations_struct xfs_file_vm_ops;
-> > >  
-> > > @@ -933,6 +934,30 @@ xfs_file_fallocate(
-> > >  	return error;
-> > >  }
-> > >  
-> > > +STATIC int
-> > > +xfs_file_fadvise(
-> > > +	struct file	*file,
-> > > +	loff_t		start,
-> > > +	loff_t		end,
-> > > +	int		advice)
-> > > +{
-> > > +	struct xfs_inode *ip = XFS_I(file_inode(file));
-> > > +	int ret;
+If there is a risk of flooding the syslog, we should fix this generically
+in mm layer, not adding hundred of __GFP_NOWARN all over the places.
 
-> > > +	int lockflags = 0;
-> > > +
-> > > +	/*
-> > > +	 * Operations creating pages in page cache need protection from hole
-> > > +	 * punching and similar ops
-> > > +	 */
-> > > +	if (advice == POSIX_FADV_WILLNEED) {
-> > > +		lockflags = XFS_IOLOCK_SHARED;
-> > > +		xfs_ilock(ip, lockflags);
-> > > +	}
-> > > +	ret = generic_fadvise(file, start, end, advice);
-> > > +	if (lockflags)
-> > > +		xfs_iunlock(ip, lockflags);
-> > > +	return ret;
-> > > +}
-> > >  
-> > >  STATIC loff_t
-> > >  xfs_file_remap_range(
-> > > @@ -1232,6 +1257,7 @@ const struct file_operations xfs_file_operations = {
-> > >  	.fsync		= xfs_file_fsync,
-> > >  	.get_unmapped_area = thp_get_unmapped_area,
-> > >  	.fallocate	= xfs_file_fallocate,
-> > > +	.fadvise	= xfs_file_fadvise,
-> > >  	.remap_file_range = xfs_file_remap_range,
-> > >  };
-> > >  
-> > > -- 
-> > > 2.16.4
-> > > 
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+Maybe just make __GFP_NOWARN the default, I dunno.
 
