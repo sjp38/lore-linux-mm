@@ -2,175 +2,250 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7736C3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 02:21:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3384DC3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:43:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69E3E2087F
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 02:21:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="dIUKOH91"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69E3E2087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id CD7202186A
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:43:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD7202186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA39F6B0003; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
+	id 3B5436B0006; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C54D66B0008; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
+	id 364F66B0008; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B42C16B000A; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
+	id 27AFF6B000A; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
-	by kanga.kvack.org (Postfix) with ESMTP id 929676B0003
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 39E429983
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 02:21:06 +0000 (UTC)
-X-FDA: 75877491732.05.debt64_60d952dd2df37
-X-HE-Tag: debt64_60d952dd2df37
-X-Filterd-Recvd-Size: 6443
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com [216.228.121.65])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 02:21:05 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d6888110001>; Thu, 29 Aug 2019 19:21:05 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Thu, 29 Aug 2019 19:21:04 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Thu, 29 Aug 2019 19:21:04 -0700
-Received: from [10.110.48.201] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 30 Aug
- 2019 02:21:03 +0000
-Subject: Re: [PATCH v3 00/39] put_user_pages(): miscellaneous call sites
-To: Mike Marshall <hubcap@omnibond.com>
-CC: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
-	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>, ceph-devel
-	<ceph-devel@vger.kernel.org>, <devel@driverdev.osuosl.org>,
-	<devel@lists.orangefs.org>, <dri-devel@lists.freedesktop.org>,
-	<intel-gfx@lists.freedesktop.org>, <kvm@vger.kernel.org>,
-	<linux-arm-kernel@lists.infradead.org>, <linux-block@vger.kernel.org>,
-	<linux-crypto@vger.kernel.org>, <linux-fbdev@vger.kernel.org>, linux-fsdevel
-	<linux-fsdevel@vger.kernel.org>, <linux-media@vger.kernel.org>, linux-mm
-	<linux-mm@kvack.org>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <linux-rpi-kernel@lists.infradead.org>,
-	<linux-xfs@vger.kernel.org>, <netdev@vger.kernel.org>,
-	<rds-devel@oss.oracle.com>, <sparclinux@vger.kernel.org>, <x86@kernel.org>,
-	<xen-devel@lists.xenproject.org>
-References: <20190807013340.9706-1-jhubbard@nvidia.com>
- <912eb2bd-4102-05c1-5571-c261617ad30b@nvidia.com>
- <CAOg9mSQKGDywcMde2DE42diUS7J8m74Hdv+xp_PJhC39EXZQuw@mail.gmail.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <d453f865-2224-ed53-a2f4-f43d574c130a@nvidia.com>
-Date: Thu, 29 Aug 2019 19:21:03 -0700
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0134.hostedemail.com [216.40.44.134])
+	by kanga.kvack.org (Postfix) with ESMTP id F41C36B0006
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:14 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 772B5824CA27
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:43:14 +0000 (UTC)
+X-FDA: 75877698708.28.sun68_566dfcd5d1b59
+X-HE-Tag: sun68_566dfcd5d1b59
+X-Filterd-Recvd-Size: 8050
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:43:13 +0000 (UTC)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7U3gQaY086895
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:13 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2upu07sxxa-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:12 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Fri, 30 Aug 2019 04:43:11 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 30 Aug 2019 04:43:08 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7U3h6ef12386482
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 30 Aug 2019 03:43:06 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 99C19AE055;
+	Fri, 30 Aug 2019 03:43:06 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id BD879AE053;
+	Fri, 30 Aug 2019 03:43:02 +0000 (GMT)
+Received: from in.ibm.com (unknown [9.109.246.128])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Fri, 30 Aug 2019 03:43:02 +0000 (GMT)
+Date: Fri, 30 Aug 2019 09:12:59 +0530
+From: Bharata B Rao <bharata@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
+        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
+        jglisse@redhat.com, linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+        cclaudio@linux.ibm.com
+Subject: Re: [PATCH v7 1/7] kvmppc: Driver to manage pages of secure guest
+Reply-To: bharata@linux.ibm.com
+References: <20190822102620.21897-1-bharata@linux.ibm.com>
+ <20190822102620.21897-2-bharata@linux.ibm.com>
+ <20190829083810.GA13039@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <CAOg9mSQKGDywcMde2DE42diUS7J8m74Hdv+xp_PJhC39EXZQuw@mail.gmail.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL111.nvidia.com (172.20.187.18) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1567131665; bh=ws5caXaEY0X3GX3egw6JsJDC0L7OwnIAHkDMK9ZQcE4=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=dIUKOH913DAYlocN1x3OWKU66rYzbsvcqMg6XurXOtfsQm0mTaQq0ufL9HiRQjmKf
-	 MYeR8XR6MbUy9f2nOHFjitJW5jxjU59hEwD2KYzGMRBc0+P+o4b2mkzUliEchFZQzm
-	 D0OR0ZfFBCp6cKpnoBGakw3Ch1supTeIz+DcDxFqgzxBAMqXWQoRbk0Sq3VWx6u9tp
-	 6uURi8FKe6XveWY1U9zok9s2um/SF43+51Cnxqw5q2h2Dtp4kEwxNonMDqxzAcZjDx
-	 HfyaHZc2XUvwuRV5WZb7Ki3OlH/mp5QHGx5CtmwXtp2TNme1r3iXAZgXDKrycQZylt
-	 qlPWiGD9ap9bQ==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190829083810.GA13039@lst.de>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-TM-AS-GCONF: 00
+x-cbid: 19083003-0020-0000-0000-000003657EEF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19083003-0021-0000-0000-000021BAD9A1
+Message-Id: <20190830034259.GD31913@in.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-30_01:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=845 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908300036
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/29/2019 6:29 PM, Mike Marshall wrote:
-> Hi John...
+On Thu, Aug 29, 2019 at 10:38:10AM +0200, Christoph Hellwig wrote:
+> On Thu, Aug 22, 2019 at 03:56:14PM +0530, Bharata B Rao wrote:
+> > +/*
+> > + * Bits 60:56 in the rmap entry will be used to identify the
+> > + * different uses/functions of rmap.
+> > + */
+> > +#define KVMPPC_RMAP_DEVM_PFN	(0x2ULL << 56)
 > 
-> I added this patch series on top of Linux 5.3rc6 and ran
-> xfstests with no regressions...
+> How did you come up with this specific value?
+
+Different usage types of RMAP array are being defined.
+https://patchwork.ozlabs.org/patch/1149791/
+
+The above value is reserved for device pfn usage.
+
 > 
-> Acked-by: Mike Marshall <hubcap@omnibond.com>
+> > +
+> > +static inline bool kvmppc_rmap_is_devm_pfn(unsigned long pfn)
+> > +{
+> > +	return !!(pfn & KVMPPC_RMAP_DEVM_PFN);
+> > +}
 > 
+> No need for !! when returning a bool.  Also the helper seems a little
+> pointless, just opencoding it would make the code more readable in my
+> opinion.
 
-Hi Mike (and I hope Ira and others are reading as well, because
-I'm making a bunch of claims further down),
+I expect similar routines for other usages of RMAP to come up.
 
-That's great news, thanks for running that test suite and for
-the report and the ACK.
+> 
+> > +#ifdef CONFIG_PPC_UV
+> > +extern int kvmppc_devm_init(void);
+> > +extern void kvmppc_devm_free(void);
+> 
+> There is no need for extern in a function declaration.
+> 
+> > +static int
+> > +kvmppc_devm_migrate_alloc_and_copy(struct migrate_vma *mig,
+> > +				   unsigned long *rmap, unsigned long gpa,
+> > +				   unsigned int lpid, unsigned long page_shift)
+> > +{
+> > +	struct page *spage = migrate_pfn_to_page(*mig->src);
+> > +	unsigned long pfn = *mig->src >> MIGRATE_PFN_SHIFT;
+> > +	struct page *dpage;
+> > +
+> > +	*mig->dst = 0;
+> > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
+> > +		return 0;
+> > +
+> > +	dpage = kvmppc_devm_get_page(rmap, gpa, lpid);
+> > +	if (!dpage)
+> > +		return -EINVAL;
+> > +
+> > +	if (spage)
+> > +		uv_page_in(lpid, pfn << page_shift, gpa, 0, page_shift);
+> > +
+> > +	*mig->dst = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+> > +	return 0;
+> > +}
+> 
+> I think you can just merge this trivial helper into the only caller.
 
-There is an interesting pause right now, due to the fact that
-we've made some tentative decisions about gup pinning, that affect
-the call sites. A key decision is that only pages that were
-requested via FOLL_PIN, will require put_user_page*() to release
-them. There are 4 main cases, which were first explained by Jan
-Kara and Vlastimil Babka, and are now written up in my FOLL_PIN
-patch [1].
+Yes I can, but felt it is nicely abstracted out to a function right now.
 
-So, what that means for this series is that:
+> 
+> > +static int
+> > +kvmppc_devm_fault_migrate_alloc_and_copy(struct migrate_vma *mig,
+> > +					 unsigned long page_shift)
+> > +{
+> > +	struct page *dpage, *spage;
+> > +	struct kvmppc_devm_page_pvt *pvt;
+> > +	unsigned long pfn;
+> > +	int ret;
+> > +
+> > +	spage = migrate_pfn_to_page(*mig->src);
+> > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
+> > +		return 0;
+> > +	if (!is_zone_device_page(spage))
+> > +		return 0;
+> > +
+> > +	dpage = alloc_page_vma(GFP_HIGHUSER, mig->vma, mig->start);
+> > +	if (!dpage)
+> > +		return -EINVAL;
+> > +	lock_page(dpage);
+> > +	pvt = spage->zone_device_data;
+> > +
+> > +	pfn = page_to_pfn(dpage);
+> > +	ret = uv_page_out(pvt->lpid, pfn << page_shift, pvt->gpa, 0,
+> > +			  page_shift);
+> > +	if (ret == U_SUCCESS)
+> > +		*mig->dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
+> > +	else {
+> > +		unlock_page(dpage);
+> > +		__free_page(dpage);
+> > +	}
+> > +	return ret;
+> > +}
+> 
+> Here we actually have two callers, but they have a fair amount of
+> duplicate code in them.  I think you want to move that common
+> code (including setting up the migrate_vma structure) into this
+> function and maybe also give it a more descriptive name.
 
-1. Some call sites (mlock.c for example, and a lot of the mm/ files
-in fact, and more) will not be converted: some of these patches will
-get dropped, especially in mm/.
+Sure, I will give this a try. The name is already very descriptive, will
+come up with an appropriate name.
 
-2. Call sites that do DirectIO or RDMA will need to set FOLL_PIN, and
-will also need to call put_user_page().
+BTW this file and the fuction prefixes in this file started out with
+kvmppc_hmm, switched to kvmppc_devm when HMM routines weren't used anymore.
+Now with the use of only non-dev versions, planning to swtich to
+kvmppc_uvmem_
 
-3. Call sites that do RDMA will need to set FOLL_LONGTERM *and* FOLL_PIN,
+> 
+> > +static void kvmppc_devm_page_free(struct page *page)
+> > +{
+> > +	unsigned long pfn = page_to_pfn(page);
+> > +	unsigned long flags;
+> > +	struct kvmppc_devm_page_pvt *pvt;
+> > +
+> > +	spin_lock_irqsave(&kvmppc_devm_pfn_lock, flags);
+> > +	pvt = page->zone_device_data;
+> > +	page->zone_device_data = NULL;
+> > +
+> > +	bitmap_clear(kvmppc_devm_pfn_bitmap,
+> > +		     pfn - (kvmppc_devm_pgmap.res.start >> PAGE_SHIFT), 1);
+> 
+> Nit: I'd just initialize pfn to the value you want from the start.
+> That makes the code a little easier to read, and keeps a tiny bit more
+> code outside the spinlock.
+> 
+> 	unsigned long pfn = page_to_pfn(page) -
+> 			(kvmppc_devm_pgmap.res.start >> PAGE_SHIFT);
+> 
+> 	..
+> 
+> 	 bitmap_clear(kvmppc_devm_pfn_bitmap, pfn, 1);
 
-    3.a. ...and will at least in some cases need to provide a link to a
-    vaddr_pin object, and thus back to a struct file*...maybe. Still
-    under discussion.
+Sure.
 
-4. It's desirable to keep FOLL_* flags (or at least FOLL_PIN) internal
-to the gup() calls. That implies using a wrapper call such as Ira's
-vaddr_pin_[user]_pages(), instead of gup(), and vaddr_unpin_[user]_pages()
-instead of put_user_page*().
+> 
+> 
+> > +	kvmppc_devm_pgmap.type = MEMORY_DEVICE_PRIVATE;
+> > +	kvmppc_devm_pgmap.res = *res;
+> > +	kvmppc_devm_pgmap.ops = &kvmppc_devm_ops;
+> > +	addr = memremap_pages(&kvmppc_devm_pgmap, -1);
+> 
+> This -1 should be NUMA_NO_NODE for clarity.
 
-5. We don't want to churn the call sites unnecessarily.
+Right.
 
-With that in mind, I've taken another pass through all these patches
-and narrowed it down to:
+Regards,
+Bharata.
 
-     a) 12 call sites that I'd like to convert soon, but even those
-        really look cleaner with a full conversion to a wrapper call
-        similar to (identical to?) vaddr_pin_[user]_pages(), probably
-        just the FOLL_PIN only variant (not FOLL_LONGTERM). That
-        wrapper call is not ready yet, though.
-
-     b) Some more call sites that require both FOLL_PIN and FOLL_LONGTERM.
-        Definitely will wait to use the wrapper calls for these, because
-        they may also require hooking up to a struct file*.
-
-     c) A few more that were already applied, which is fine, because they
-        show where to convert, and simplify a few sites anyway. But they'll
-        need follow-on changes to, one way or another, set FOLL_PIN.
-
-     d) And of course a few sites whose patches get dropped, as mentioned
-        above.
-
-[1] https://lore.kernel.org/r/20190821040727.19650-3-jhubbard@nvidia.com
-
-thanks,
--- 
-John Hubbard
-NVIDIA
 
