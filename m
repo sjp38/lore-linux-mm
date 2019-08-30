@@ -2,125 +2,95 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DDCC1C3A5A4
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 09:15:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B62CC3A5A4
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 09:29:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A909423429
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 09:15:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A909423429
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 75E0221726
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 09:29:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=armlinux.org.uk header.i=@armlinux.org.uk header.b="rX91iRiZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75E0221726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=armlinux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C8B76B0269; Fri, 30 Aug 2019 05:15:25 -0400 (EDT)
+	id 0DC4E6B000A; Fri, 30 Aug 2019 05:29:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 579766B026A; Fri, 30 Aug 2019 05:15:25 -0400 (EDT)
+	id 064AC6B000C; Fri, 30 Aug 2019 05:29:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 48F1E6B026B; Fri, 30 Aug 2019 05:15:25 -0400 (EDT)
+	id E47A26B000D; Fri, 30 Aug 2019 05:29:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0017.hostedemail.com [216.40.44.17])
-	by kanga.kvack.org (Postfix) with ESMTP id 224676B0269
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 05:15:25 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id BBF302DD79
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:15:24 +0000 (UTC)
-X-FDA: 75878535768.05.wax96_4c52dca4b8700
-X-HE-Tag: wax96_4c52dca4b8700
-X-Filterd-Recvd-Size: 3406
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:15:24 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7731A102BB36;
-	Fri, 30 Aug 2019 09:15:23 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-243.ams2.redhat.com [10.36.117.243])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A5B1C600F8;
-	Fri, 30 Aug 2019 09:15:20 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Wei Yang <richardw.yang@linux.intel.com>
-Subject: [PATCH v4 8/8] mm/memory_hotplug: Cleanup __remove_pages()
-Date: Fri, 30 Aug 2019 11:14:28 +0200
-Message-Id: <20190830091428.18399-9-david@redhat.com>
-In-Reply-To: <20190830091428.18399-1-david@redhat.com>
-References: <20190830091428.18399-1-david@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0229.hostedemail.com [216.40.44.229])
+	by kanga.kvack.org (Postfix) with ESMTP id BDADB6B000A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 05:29:35 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 5F30C180AD7C1
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:29:35 +0000 (UTC)
+X-FDA: 75878571510.13.view07_367b459cd095b
+X-HE-Tag: view07_367b459cd095b
+X-Filterd-Recvd-Size: 3125
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk [78.32.30.218])
+	by imf33.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:29:34 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=armlinux.org.uk; s=pandora-2019; h=Sender:In-Reply-To:Content-Type:
+	MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=iNRAllMjt31eu9zy7JGxTVD30r/pdrKbydJfDQMe+J4=; b=rX91iRiZdjWC6hoEnFRS722J7
+	SxkVBjFqteo8x9SyP1WwxzAUhpdtDP6JUGf4YUVNw2FjPQDcLvqhx+qXP7i+yRxS4m1zYftTCD+Lb
+	VJPySWDVwhhg/uVPVl6RNAl+Ihny0mGimC9joQ/FwKkq72afk+2brrX+AuRHDeJfksb68IguU1XA8
+	X0cZMOtIX5rhG3RxYQy6WgHwMYkgK549LYEMnWnJyiRrvqT8McRuTwpBYQl8Jk6hyWU0Q2JVe+8a9
+	ioX8r92Eu0VH22YGnHjJdo54nhCQM5OPDIPnawLCt5RXmAKMVRtoHo/JjoENzGpi68fZkOjv118n6
+	Pzpy0EqUQ==;
+Received: from shell.armlinux.org.uk ([2002:4e20:1eda:1:5054:ff:fe00:4ec]:35292)
+	by pandora.armlinux.org.uk with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.90_1)
+	(envelope-from <linux@armlinux.org.uk>)
+	id 1i3dDh-0005xS-IE; Fri, 30 Aug 2019 10:29:25 +0100
+Received: from linux by shell.armlinux.org.uk with local (Exim 4.92)
+	(envelope-from <linux@shell.armlinux.org.uk>)
+	id 1i3dDb-0008ON-0E; Fri, 30 Aug 2019 10:29:19 +0100
+Date: Fri, 30 Aug 2019 10:29:18 +0100
+From: Russell King - ARM Linux admin <linux@armlinux.org.uk>
+To: Christoph Hellwig <hch@lst.de>
+Cc: iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
+	linux-arm-kernel@lists.infradead.org, linux-xtensa@linux-xtensa.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/4] vmalloc: lift the arm flag for coherent mappings to
+ common code
+Message-ID: <20190830092918.GV13294@shell.armlinux.org.uk>
+References: <20190830062924.21714-1-hch@lst.de>
+ <20190830062924.21714-2-hch@lst.de>
 MIME-Version: 1.0
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.64]); Fri, 30 Aug 2019 09:15:23 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190830062924.21714-2-hch@lst.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Let's drop the basically unused section stuff and simplify.
+On Fri, Aug 30, 2019 at 08:29:21AM +0200, Christoph Hellwig wrote:
+> The arm architecture had a VM_ARM_DMA_CONSISTENT flag to mark DMA
+> coherent remapping for a while.  Lift this flag to common code so
+> that we can use it generically.  We also check it in the only place
+> VM_USERMAP is directly check so that we can entirely replace that
+> flag as well (although I'm not even sure why we'd want to allow
+> remapping DMA appings, but I'd rather not change behavior).
 
-Also, let's use a shorter variant to calculate the number of pages to
-the next section boundary.
+Good, because if you did change that behaviour, you'd break almost
+every ARM framebuffer and cripple ARM audio drivers.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Wei Yang <richardw.yang@linux.intel.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- mm/memory_hotplug.c | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 80cb32cd105e..2b9dad7c5821 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -488,25 +488,20 @@ static void __remove_section(unsigned long pfn, uns=
-igned long nr_pages,
- void __remove_pages(unsigned long pfn, unsigned long nr_pages,
- 		    struct vmem_altmap *altmap)
- {
-+	const unsigned long end_pfn =3D pfn + nr_pages;
-+	unsigned long cur_nr_pages;
- 	unsigned long map_offset =3D 0;
--	unsigned long nr, start_sec, end_sec;
-=20
- 	map_offset =3D vmem_altmap_offset(altmap);
-=20
- 	if (check_pfn_span(pfn, nr_pages, "remove"))
- 		return;
-=20
--	start_sec =3D pfn_to_section_nr(pfn);
--	end_sec =3D pfn_to_section_nr(pfn + nr_pages - 1);
--	for (nr =3D start_sec; nr <=3D end_sec; nr++) {
--		unsigned long pfns;
--
-+	for (; pfn < end_pfn; pfn +=3D cur_nr_pages) {
- 		cond_resched();
--		pfns =3D min(nr_pages, PAGES_PER_SECTION
--				- (pfn & ~PAGE_SECTION_MASK));
--		__remove_section(pfn, pfns, map_offset, altmap);
--		pfn +=3D pfns;
--		nr_pages -=3D pfns;
-+		/* Select all remaining pages up to the next section boundary */
-+		cur_nr_pages =3D min(end_pfn - pfn, -(pfn | PAGE_SECTION_MASK));
-+		__remove_section(pfn, cur_nr_pages, map_offset, altmap);
- 		map_offset =3D 0;
- 	}
- }
---=20
-2.21.0
-
+-- 
+RMK's Patch system: https://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
+According to speedtest.net: 11.9Mbps down 500kbps up
 
