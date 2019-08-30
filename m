@@ -1,159 +1,145 @@
-Return-Path: <SRS0=qe68=WZ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BFEEC3A59F
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:37:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2614C3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:29:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C8DA2166E
-	for <linux-mm@archiver.kernel.org>; Thu, 29 Aug 2019 23:37:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C8DA2166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 97D092189D
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:29:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97D092189D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C35BE6B000C; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
+	id 1AD256B000D; Thu, 29 Aug 2019 20:29:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE4DF6B000D; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
+	id 136DA6B000E; Thu, 29 Aug 2019 20:29:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AFA456B000E; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
+	id F406C6B0010; Thu, 29 Aug 2019 20:29:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0219.hostedemail.com [216.40.44.219])
-	by kanga.kvack.org (Postfix) with ESMTP id 89C826B000C
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 19:37:42 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 3861F824CA3E
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:37:42 +0000 (UTC)
-X-FDA: 75877079964.21.cats22_7d4d1849a355a
-X-HE-Tag: cats22_7d4d1849a355a
-X-Filterd-Recvd-Size: 4926
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf42.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:37:40 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4F807317528C;
-	Thu, 29 Aug 2019 23:37:39 +0000 (UTC)
-Received: from treble (ovpn-121-55.rdu2.redhat.com [10.10.121.55])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id D0B9C608C1;
-	Thu, 29 Aug 2019 23:37:37 +0000 (UTC)
-Date: Thu, 29 Aug 2019 18:37:35 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org,
-	broonie@kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-next@vger.kernel.org, mhocko@suse.cz,
-	mm-commits@vger.kernel.org, sfr@canb.auug.org.au
-Subject: Re: mmotm 2019-08-27-20-39 uploaded (objtool: xen)
-Message-ID: <20190829233735.yp3mwhg6er353qw5@treble>
-References: <20190828034012.sBvm81sYK%akpm@linux-foundation.org>
- <8b09d93a-bc42-bd8e-29ee-cd37765f4899@infradead.org>
- <20190828171923.4sir3sxwsnc2pvjy@treble>
- <57d6ab2e-1bae-dca3-2544-4f6e6a936c3a@infradead.org>
- <20190828200134.d3lwgyunlpxc6cbn@treble>
- <20190829082445.GM2369@hirez.programming.kicks-ass.net>
+Received: from forelay.hostedemail.com (smtprelay0071.hostedemail.com [216.40.44.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D12506B000D
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 20:29:43 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7B744824CA2C
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:29:43 +0000 (UTC)
+X-FDA: 75877211046.13.stage29_8f024a274b000
+X-HE-Tag: stage29_8f024a274b000
+X-Filterd-Recvd-Size: 5261
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
+	by imf40.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:29:42 +0000 (UTC)
+Received: from dread.disaster.area (pa49-181-255-194.pa.nsw.optusnet.com.au [49.181.255.194])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 319E743EA68;
+	Fri, 30 Aug 2019 10:29:37 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1i3UnH-0001yY-Mw; Fri, 30 Aug 2019 10:29:35 +1000
+Date: Fri, 30 Aug 2019 10:29:35 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Ming Lei <ming.lei@redhat.com>,
+	"Darrick J . Wong" <darrick.wong@oracle.com>,
+	Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-btrfs@vger.kernel.org
+Subject: Re: [PATCH v2 2/2] mm, sl[aou]b: guarantee natural alignment for
+ kmalloc(power-of-two)
+Message-ID: <20190830002935.GX1119@dread.disaster.area>
+References: <20190826111627.7505-1-vbabka@suse.cz>
+ <20190826111627.7505-3-vbabka@suse.cz>
+ <0100016cd98bb2c1-a2af7539-706f-47ba-a68e-5f6a91f2f495-000000@email.amazonses.com>
+ <20190828194607.GB6590@bombadil.infradead.org>
+ <20190828222422.GL1119@dread.disaster.area>
+ <be70bf94-a63f-cc19-4958-0e7eed10859b@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190829082445.GM2369@hirez.programming.kicks-ass.net>
-User-Agent: NeoMutt/20180716
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Thu, 29 Aug 2019 23:37:39 +0000 (UTC)
+In-Reply-To: <be70bf94-a63f-cc19-4958-0e7eed10859b@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=YO9NNpcXwc8z/SaoS+iAiA==:117 a=YO9NNpcXwc8z/SaoS+iAiA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=7-415B0cAAAA:8 a=3jipp7y0vy340d0hbX8A:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 29, 2019 at 10:24:45AM +0200, Peter Zijlstra wrote:
-> On Wed, Aug 28, 2019 at 03:01:34PM -0500, Josh Poimboeuf wrote:
-> > On Wed, Aug 28, 2019 at 10:56:25AM -0700, Randy Dunlap wrote:
-> > > >> drivers/xen/gntdev.o: warning: objtool: gntdev_copy()+0x229: call to __ubsan_handle_out_of_bounds() with UACCESS enabled
-> > > > 
-> > > > Easy one :-)
-> > > > 
-> > > > diff --git a/tools/objtool/check.c b/tools/objtool/check.c
-> > > > index 0c8e17f946cd..6a935ab93149 100644
-> > > > --- a/tools/objtool/check.c
-> > > > +++ b/tools/objtool/check.c
-> > > > @@ -483,6 +483,7 @@ static const char *uaccess_safe_builtin[] = {
-> > > >  	"ubsan_type_mismatch_common",
-> > > >  	"__ubsan_handle_type_mismatch",
-> > > >  	"__ubsan_handle_type_mismatch_v1",
-> > > > +	"__ubsan_handle_out_of_bounds",
-> > > >  	/* misc */
-> > > >  	"csum_partial_copy_generic",
-> > > >  	"__memcpy_mcsafe",
-> > > > 
-> > > 
-> > > 
-> > > then I get this one:
-> > > 
-> > > lib/ubsan.o: warning: objtool: __ubsan_handle_out_of_bounds()+0x5d: call to ubsan_prologue() with UACCESS enabled
+On Thu, Aug 29, 2019 at 09:56:13AM +0200, Vlastimil Babka wrote:
+> On 8/29/19 12:24 AM, Dave Chinner wrote:
+> > On Wed, Aug 28, 2019 at 12:46:08PM -0700, Matthew Wilcox wrote:
+> >> On Wed, Aug 28, 2019 at 06:45:07PM +0000, Christopher Lameter wrote:
+> >>> I still think implicit exceptions to alignments are a bad idea. Those need
+> >>> to be explicity specified and that is possible using kmem_cache_create().
+> >>
+> >> I swear we covered this last time the topic came up, but XFS would need
+> >> to create special slab caches for each size between 512 and PAGE_SIZE.
+> >> Potentially larger, depending on whether the MM developers are willing to
+> >> guarantee that kmalloc(PAGE_SIZE * 2, GFP_KERNEL) will return a PAGE_SIZE
+> >> aligned block of memory indefinitely.
 > > 
-> > And of course I jinxed it by calling it easy.
-> > 
-> > Peter, how do you want to handle this?
-> > 
-> > Should we just disable UACCESS checking in lib/ubsan.c?
+> > Page size alignment of multi-page heap allocations is ncessary. The
+> > current behaviour w/ KASAN is to offset so a 8KB allocation spans 3
+> > pages and is not page aligned. That causes just as much in way
+> > of alignment problems as unaligned objects in multi-object-per-page
+> > slabs.
 > 
-> No, that is actually unsafe and could break things (as would you patch
-> above).
+> Ugh, multi-page (power of two) allocations *at the page allocator level*
+> simply have to be aligned, as that's how the buddy allocator has always
+> worked, and it would be madness to try relax that guarantee and require
+> an explicit flag at this point. The kmalloc wrapper with SLUB will pass
+> everything above 8KB directly to the page allocator, so that's fine too.
+> 4k and 8k are the only (multi-)page sizes still managed as SLUB objects.
 
-Oops.  -EFIXINGTOOMANYOBJTOOLISSUESATONCE
+On a 4kB page size box, yes.
 
-> I'm thinking the below patch ought to cure things:
-> 
-> ---
-> Subject: x86/uaccess: Don't leak the AC flags into __get_user() argument evalidation
+On a 64kB page size system, 4/8kB allocations are still sub-page
+objects and will have alignment issues. Hence right now we can't
+assume a 4/8/16/32kB allocation will be page size aligned
+anywhere, because they are heap allocations on 64kB page sized
+machines.
 
-s/evalidation/evaluation
+> I would say that these sizes are the most striking example that it's
+> wrong not to align them without extra flags or special API variant.
 
-> Identical to __put_user(); the __get_user() argument evalution will too
-> leak UBSAN crud into the __uaccess_begin() / __uaccess_end() region.
-> While uncommon this was observed to happen for:
-> 
->   drivers/xen/gntdev.c: if (__get_user(old_status, batch->status[i]))
-> 
-> where UBSAN added array bound checking.
-> 
-> This complements commit:
-> 
->   6ae865615fc4 ("x86/uaccess: Dont leak the AC flag into __put_user() argument evaluation")
-> 
-> Reported-by: Randy Dunlap <rdunlap@infradead.org>
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Cc: luto@kernel.org
-> ---
->  arch/x86/include/asm/uaccess.h | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-> index 9c4435307ff8..35c225ede0e4 100644
-> --- a/arch/x86/include/asm/uaccess.h
-> +++ b/arch/x86/include/asm/uaccess.h
-> @@ -444,8 +444,10 @@ __pu_label:							\
->  ({									\
->  	int __gu_err;							\
->  	__inttype(*(ptr)) __gu_val;					\
-> +	__typeof__(ptr) __gu_ptr = (ptr);				\
-> +	__typeof__(size) __gu_size = (size);				\
->  	__uaccess_begin_nospec();					\
-> -	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
-> +	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err, -EFAULT);	\
->  	__uaccess_end();						\
->  	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
->  	__builtin_expect(__gu_err, 0);					\
+Yup, just pointing out that they aren't guaranteed alignment right
+now on x86-64.
 
-Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
+> > As I said in the lastest discussion of this problem on XFS (pmem
+> > devices w/ KASAN enabled), all we -need- is a GFP flag that tells the
+> > slab allocator to give us naturally aligned object or fail if it
+> > can't. I don't care how that gets implemented (e.g. another set of
+> > heap slabs like the -rcl slabs), I just don't want every high level
+> 
+> Given alignment is orthogonal to -rcl and dma-, would that be another
+> three sets? Or we assume that dma- would want it always, and complicate
+> the rules further? Funilly enough, SLOB would be the simplest case here.
 
+Not my problem. :) All I'm pointing out is that the minimum
+functionality we require is specifying individual allocations as
+needing alignment. I've just implemented that API in XFS, so
+whatever happens in the allocation infrastructure from this point
+onwards is really just implementation optimisation for us now....
+
+Cheers,
+
+Dave.
 -- 
-Josh
+Dave Chinner
+david@fromorbit.com
 
