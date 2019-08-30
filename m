@@ -2,90 +2,150 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 491DAC3A59B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:49:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FFFCC3A59B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 17:24:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E73E20820
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:49:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E73E20820
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 31E8B23427
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 17:24:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31E8B23427
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A67F26B0006; Fri, 30 Aug 2019 12:49:29 -0400 (EDT)
+	id 9D8526B0006; Fri, 30 Aug 2019 13:24:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3EDA6B0008; Fri, 30 Aug 2019 12:49:29 -0400 (EDT)
+	id 987CA6B0008; Fri, 30 Aug 2019 13:24:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 97C176B000A; Fri, 30 Aug 2019 12:49:29 -0400 (EDT)
+	id 89E236B000A; Fri, 30 Aug 2019 13:24:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
-	by kanga.kvack.org (Postfix) with ESMTP id 7629F6B0006
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 12:49:29 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id BB5991E080
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:49:28 +0000 (UTC)
-X-FDA: 75879680016.26.van36_6fc8a03a1c939
-X-HE-Tag: van36_6fc8a03a1c939
-X-Filterd-Recvd-Size: 2296
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:49:28 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 14FFF19CF26;
-	Fri, 30 Aug 2019 16:49:27 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.63])
-	by smtp.corp.redhat.com (Postfix) with SMTP id B4CCA600F8;
-	Fri, 30 Aug 2019 16:49:22 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Fri, 30 Aug 2019 18:49:26 +0200 (CEST)
-Date: Fri, 30 Aug 2019 18:49:22 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kefeng Wang <wangkefeng.wang@huawei.com>, linux-mm <linux-mm@kvack.org>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
-Message-ID: <20190830164921.GE2634@redhat.com>
-References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
- <20190827163334.GB6291@redhat.com>
- <20190827171410.GB4823@redhat.com>
- <20190828142544.GB3721@redhat.com>
- <20190829120509.GA14112@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0246.hostedemail.com [216.40.44.246])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A6B6B0006
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 13:24:31 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DD95D211D3
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 17:24:30 +0000 (UTC)
+X-FDA: 75879768300.30.arm36_7eaa0d5397c62
+X-HE-Tag: arm36_7eaa0d5397c62
+X-Filterd-Recvd-Size: 4719
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 17:24:30 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5DC6FAEAE;
+	Fri, 30 Aug 2019 17:24:28 +0000 (UTC)
+Message-ID: <bdeda2206b751a1c6a8d2e0732186792282633c6.camel@suse.de>
+Subject: Re: [PATCH v2 01/11] asm-generic: add dma_zone_size
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>
+Cc: linux-mm@kvack.org, linux-riscv@lists.infradead.org, will@kernel.org, 
+ m.szyprowski@samsung.com, linux-arch@vger.kernel.org, f.fainelli@gmail.com,
+  frowand.list@gmail.com, devicetree@vger.kernel.org, Arnd Bergmann
+ <arnd@arndb.de>,  marc.zyngier@arm.com, robh+dt@kernel.org,
+ linux-rpi-kernel@lists.infradead.org, 
+ linux-arm-kernel@lists.infradead.org, phill@raspberryi.org,
+ mbrugger@suse.com,  eric@anholt.net, linux-kernel@vger.kernel.org,
+ iommu@lists.linux-foundation.org,  wahrenst@gmx.net,
+ akpm@linux-foundation.org, Robin Murphy <robin.murphy@arm.com>
+Date: Fri, 30 Aug 2019 19:24:25 +0200
+In-Reply-To: <20190830144536.GJ36992@arrakis.emea.arm.com>
+References: <20190820145821.27214-1-nsaenzjulienne@suse.de>
+	 <20190820145821.27214-2-nsaenzjulienne@suse.de>
+	 <20190826070939.GD11331@lst.de>
+	 <027272c27398b950f207101a2c5dbc07a30a36bc.camel@suse.de>
+	 <20190830144536.GJ36992@arrakis.emea.arm.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-VseoIlC7OSxnfDPpE7cN"
+User-Agent: Evolution 3.32.4 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190829120509.GA14112@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Fri, 30 Aug 2019 16:49:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/29, Andrea Arcangeli wrote:
->
-> It's true you could have two uffd registered in the same mm
-> and you could call the UFFDIO_COPY ioctl on anyone of the two and it
-> wouldn't make any difference as long as they both are registered in
-> the same mm.
 
-...
+--=-VseoIlC7OSxnfDPpE7cN
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> There would be nothing wrong to make it more strict, but it's not
-> strictly needed.
+On Fri, 2019-08-30 at 15:45 +0100, Catalin Marinas wrote:
+> On Mon, Aug 26, 2019 at 03:46:52PM +0200, Nicolas Saenz Julienne wrote:
+> > On Mon, 2019-08-26 at 09:09 +0200, Christoph Hellwig wrote:
+> > > On Tue, Aug 20, 2019 at 04:58:09PM +0200, Nicolas Saenz Julienne wrot=
+e:
+> > > > Some architectures have platform specific DMA addressing limitation=
+s.
+> > > > This will allow for hardware description code to provide the constr=
+aints
+> > > > in a generic manner, so as for arch code to properly setup it's mem=
+ory
+> > > > zones and DMA mask.
+> > >=20
+> > > I know this just spreads the arm code, but I still kinda hate it.
+> >=20
+> > Rob's main concern was finding a way to pass the constraint from HW
+> > definition
+> > to arch without widening fdt's architecture specific function surface. =
+I'd
+> > say
+> > it's fair to argue that having a generic mechanism makes sense as it'll=
+ now
+> > traverse multiple archs and subsystems.
+> >=20
+> > I get adding globals like this is not very appealing, yet I went with i=
+t as
+> > it
+> > was the easier to integrate with arm's code. Any alternative suggestion=
+s?
+>=20
+> In some discussion with Robin, since it's just RPi4 that we are aware of
+> having such requirement on arm64, he suggested that we have a permanent
+> ZONE_DMA on arm64 with a default size of 1GB. It should cover all arm64
+> SoCs we know of without breaking the single Image binary. The arch/arm
+> can use its current mach-* support.
+>=20
+> I may like this more than the proposed early_init_dt_get_dma_zone_size()
+> here which checks for specific SoCs (my preferred way was to build the
+> mask from all buses described in DT but I hadn't realised the
+> complications).
 
-Thanks Andrea, this answers my question.
+Hi Catalin, thanks for giving it a thought.
 
-Oleg.
+I'll be happy to implement it that way. I agree it's a good compromise.
+
+@Christoph, do you still want the patch where I create 'zone_dma_bits'? Wit=
+h a
+hardcoded ZONE_DMA it's not absolutely necessary. Though I remember you sai=
+d it
+was a first step towards being able to initialize dma-direct's min_mask in
+meminit.
+
+Regards,
+Nicolas
+
+
+--=-VseoIlC7OSxnfDPpE7cN
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl1pW8kACgkQlfZmHno8
+x/4ltggAgcfG1puKlA5IJJrCySlntixj950TwNq7qMwwKwzxVCTojg/6HtjhOmlp
+IRbqq36DEjcQ12ulD0rqU84gMIP6jryt4iVDDutg18liBPSH3eekj9Wf22J+Vq7f
+5yw3zuYyCkrTcgWufsIwn4kbH0GRXCCLV8kwfKFRtXE5dtcWTRbOeNPpmh4HxIJW
+z0SkTnBc03CvX0VamQYNZ45QvBFVntqKMCExrvinZyOBUs4+/nd68IXfBU+rj9qb
+IBbZaZspKLp1NdVxSo/Tmamv2NVTodxnue9KbFzQe8r3n1bak/9VJKO4z3u0R6AK
+6x6oAxLccyXIktLiudLXEMdXMar2vw==
+=LsVM
+-----END PGP SIGNATURE-----
+
+--=-VseoIlC7OSxnfDPpE7cN--
 
 
