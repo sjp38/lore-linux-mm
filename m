@@ -2,250 +2,128 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3384DC3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:43:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B692C3A5A6
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:57:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD7202186A
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:43:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD7202186A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id CE1BF23426
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 03:57:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="moQeQIKo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE1BF23426
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B5436B0006; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
+	id 642406B000A; Thu, 29 Aug 2019 23:57:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 364F66B0008; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
+	id 5CB386B000C; Thu, 29 Aug 2019 23:57:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27AFF6B000A; Thu, 29 Aug 2019 23:43:15 -0400 (EDT)
+	id 492FD6B000D; Thu, 29 Aug 2019 23:57:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0134.hostedemail.com [216.40.44.134])
-	by kanga.kvack.org (Postfix) with ESMTP id F41C36B0006
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:14 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 772B5824CA27
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:43:14 +0000 (UTC)
-X-FDA: 75877698708.28.sun68_566dfcd5d1b59
-X-HE-Tag: sun68_566dfcd5d1b59
-X-Filterd-Recvd-Size: 8050
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:43:13 +0000 (UTC)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7U3gQaY086895
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:13 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2upu07sxxa-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:43:12 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Fri, 30 Aug 2019 04:43:11 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 30 Aug 2019 04:43:08 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7U3h6ef12386482
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 30 Aug 2019 03:43:06 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 99C19AE055;
-	Fri, 30 Aug 2019 03:43:06 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BD879AE053;
-	Fri, 30 Aug 2019 03:43:02 +0000 (GMT)
-Received: from in.ibm.com (unknown [9.109.246.128])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Fri, 30 Aug 2019 03:43:02 +0000 (GMT)
-Date: Fri, 30 Aug 2019 09:12:59 +0530
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
-        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
-        jglisse@redhat.com, linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
-        cclaudio@linux.ibm.com
-Subject: Re: [PATCH v7 1/7] kvmppc: Driver to manage pages of secure guest
-Reply-To: bharata@linux.ibm.com
-References: <20190822102620.21897-1-bharata@linux.ibm.com>
- <20190822102620.21897-2-bharata@linux.ibm.com>
- <20190829083810.GA13039@lst.de>
+Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
+	by kanga.kvack.org (Postfix) with ESMTP id 2272D6B000A
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 23:57:24 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id BA612181AC9AE
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:57:23 +0000 (UTC)
+X-FDA: 75877734366.20.loaf80_4085f48188012
+X-HE-Tag: loaf80_4085f48188012
+X-Filterd-Recvd-Size: 3770
+Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 03:57:23 +0000 (UTC)
+Received: by mail-pg1-f193.google.com with SMTP id w10so2803721pgj.7
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 20:57:23 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=/HuFXkowcP+PhyYkveYBzv+j/h0vppynxHJvt6n2HAk=;
+        b=moQeQIKoaJ93ePUYq94t6PADnGL2q3riHOwSm1XVfTZMGiQo4fV69WkpUmcqt5BP1W
+         3cXgke7tr09maxVWa/iWQThO8rMN8byoSkxy29BLEpAGyRjswKoA6rRn+/9t3swI74ck
+         mctaSLZRJ8NQaePEYastuGIEt4okwxK8PPu2KNj8oMV1j5OasElKppOurLrr0yw6/ruK
+         Ld/RXGOilFBM3dlmGUqgBPgrKY+Xu3ACWyMq2Dr/Z7jnkbrsg/i8HpBCWqdMiBp5mchU
+         jLsel04EOud3NkxXoSEGSPRAT8Fw7U+5nyRCZrrRhrPGvgh44xPJZbmZWnv/ZF4W/Ji7
+         XhZA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
+         :content-disposition:user-agent;
+        bh=/HuFXkowcP+PhyYkveYBzv+j/h0vppynxHJvt6n2HAk=;
+        b=Xa4aXr2L8nKc11hgU/T5A9d6aNQ/lOIevkSxwNixHPLxZTdtmTs5Ue/OCZwRUliNaE
+         +9lQUepmYxbA5cVd9t8ZjI7K+juGFdvnUK9JxLHazLQ0FmmFXuOPfUN3Dv5W20BACsqc
+         ye+kOkQogW73K6PlZ4KLH85J87npt6p26YFGhaipcd9CICk8+MwfGKalCXoisQJ9zIVo
+         OmQ81JYXx/VTYq3E6IoN0ZiR6GXxL5js5Pkx+dm9cN980zr+tO02PEeBQa0PLDCmQETJ
+         aOsOlhSuou8r2NI2FTzFdywGviwpWF1TJEhUgBZzUdp4vNDg5g+E7unMIm69UGFyYsBf
+         GjGg==
+X-Gm-Message-State: APjAAAVabhHPjZaB79fdD3W81JTPD+ezEf1ekIQWvhZQ3CoxoCBhmos6
+	oIskUXcK4IcvduQYhmXjAYI=
+X-Google-Smtp-Source: APXvYqwNoLkKDpIBufzzAa4LKNrJHjHtc25D+dzgQpL88XmdY4FUFnHk06c63DKPdWP8/ES4ZAV4LQ==
+X-Received: by 2002:a17:90a:fa82:: with SMTP id cu2mr13917778pjb.85.1567137442010;
+        Thu, 29 Aug 2019 20:57:22 -0700 (PDT)
+Received: from LGEARND20B15 ([27.122.242.75])
+        by smtp.gmail.com with ESMTPSA id o1sm3024519pjp.0.2019.08.29.20.57.18
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Aug 2019 20:57:21 -0700 (PDT)
+Date: Fri, 30 Aug 2019 12:57:16 +0900
+From: Austin Kim <austindh.kim@gmail.com>
+To: akpm@linux-foundation.org, urezki@gmail.com, guro@fb.com,
+	rpenyaev@suse.de, mhocko@suse.com, rick.p.edgecombe@intel.com,
+	rppt@linux.ibm.com, aryabinin@virtuozzo.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	austindh.kim@gmail.com
+Subject: [PATCH] mm/vmalloc: move 'area->pages' after if statement
+Message-ID: <20190830035716.GA190684@LGEARND20B15>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190829083810.GA13039@lst.de>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-X-TM-AS-GCONF: 00
-x-cbid: 19083003-0020-0000-0000-000003657EEF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19083003-0021-0000-0000-000021BAD9A1
-Message-Id: <20190830034259.GD31913@in.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-30_01:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=845 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908300036
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 29, 2019 at 10:38:10AM +0200, Christoph Hellwig wrote:
-> On Thu, Aug 22, 2019 at 03:56:14PM +0530, Bharata B Rao wrote:
-> > +/*
-> > + * Bits 60:56 in the rmap entry will be used to identify the
-> > + * different uses/functions of rmap.
-> > + */
-> > +#define KVMPPC_RMAP_DEVM_PFN	(0x2ULL << 56)
-> 
-> How did you come up with this specific value?
+If !area->pages statement is true where memory allocation fails, 
+area is freed.
 
-Different usage types of RMAP array are being defined.
-https://patchwork.ozlabs.org/patch/1149791/
+In this case 'area->pages = pages' should not executed.
+So move 'area->pages = pages' after if statement.
 
-The above value is reserved for device pfn usage.
+Signed-off-by: Austin Kim <austindh.kim@gmail.com>
+---
+ mm/vmalloc.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-> 
-> > +
-> > +static inline bool kvmppc_rmap_is_devm_pfn(unsigned long pfn)
-> > +{
-> > +	return !!(pfn & KVMPPC_RMAP_DEVM_PFN);
-> > +}
-> 
-> No need for !! when returning a bool.  Also the helper seems a little
-> pointless, just opencoding it would make the code more readable in my
-> opinion.
-
-I expect similar routines for other usages of RMAP to come up.
-
-> 
-> > +#ifdef CONFIG_PPC_UV
-> > +extern int kvmppc_devm_init(void);
-> > +extern void kvmppc_devm_free(void);
-> 
-> There is no need for extern in a function declaration.
-> 
-> > +static int
-> > +kvmppc_devm_migrate_alloc_and_copy(struct migrate_vma *mig,
-> > +				   unsigned long *rmap, unsigned long gpa,
-> > +				   unsigned int lpid, unsigned long page_shift)
-> > +{
-> > +	struct page *spage = migrate_pfn_to_page(*mig->src);
-> > +	unsigned long pfn = *mig->src >> MIGRATE_PFN_SHIFT;
-> > +	struct page *dpage;
-> > +
-> > +	*mig->dst = 0;
-> > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
-> > +		return 0;
-> > +
-> > +	dpage = kvmppc_devm_get_page(rmap, gpa, lpid);
-> > +	if (!dpage)
-> > +		return -EINVAL;
-> > +
-> > +	if (spage)
-> > +		uv_page_in(lpid, pfn << page_shift, gpa, 0, page_shift);
-> > +
-> > +	*mig->dst = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
-> > +	return 0;
-> > +}
-> 
-> I think you can just merge this trivial helper into the only caller.
-
-Yes I can, but felt it is nicely abstracted out to a function right now.
-
-> 
-> > +static int
-> > +kvmppc_devm_fault_migrate_alloc_and_copy(struct migrate_vma *mig,
-> > +					 unsigned long page_shift)
-> > +{
-> > +	struct page *dpage, *spage;
-> > +	struct kvmppc_devm_page_pvt *pvt;
-> > +	unsigned long pfn;
-> > +	int ret;
-> > +
-> > +	spage = migrate_pfn_to_page(*mig->src);
-> > +	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
-> > +		return 0;
-> > +	if (!is_zone_device_page(spage))
-> > +		return 0;
-> > +
-> > +	dpage = alloc_page_vma(GFP_HIGHUSER, mig->vma, mig->start);
-> > +	if (!dpage)
-> > +		return -EINVAL;
-> > +	lock_page(dpage);
-> > +	pvt = spage->zone_device_data;
-> > +
-> > +	pfn = page_to_pfn(dpage);
-> > +	ret = uv_page_out(pvt->lpid, pfn << page_shift, pvt->gpa, 0,
-> > +			  page_shift);
-> > +	if (ret == U_SUCCESS)
-> > +		*mig->dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
-> > +	else {
-> > +		unlock_page(dpage);
-> > +		__free_page(dpage);
-> > +	}
-> > +	return ret;
-> > +}
-> 
-> Here we actually have two callers, but they have a fair amount of
-> duplicate code in them.  I think you want to move that common
-> code (including setting up the migrate_vma structure) into this
-> function and maybe also give it a more descriptive name.
-
-Sure, I will give this a try. The name is already very descriptive, will
-come up with an appropriate name.
-
-BTW this file and the fuction prefixes in this file started out with
-kvmppc_hmm, switched to kvmppc_devm when HMM routines weren't used anymore.
-Now with the use of only non-dev versions, planning to swtich to
-kvmppc_uvmem_
-
-> 
-> > +static void kvmppc_devm_page_free(struct page *page)
-> > +{
-> > +	unsigned long pfn = page_to_pfn(page);
-> > +	unsigned long flags;
-> > +	struct kvmppc_devm_page_pvt *pvt;
-> > +
-> > +	spin_lock_irqsave(&kvmppc_devm_pfn_lock, flags);
-> > +	pvt = page->zone_device_data;
-> > +	page->zone_device_data = NULL;
-> > +
-> > +	bitmap_clear(kvmppc_devm_pfn_bitmap,
-> > +		     pfn - (kvmppc_devm_pgmap.res.start >> PAGE_SHIFT), 1);
-> 
-> Nit: I'd just initialize pfn to the value you want from the start.
-> That makes the code a little easier to read, and keeps a tiny bit more
-> code outside the spinlock.
-> 
-> 	unsigned long pfn = page_to_pfn(page) -
-> 			(kvmppc_devm_pgmap.res.start >> PAGE_SHIFT);
-> 
-> 	..
-> 
-> 	 bitmap_clear(kvmppc_devm_pfn_bitmap, pfn, 1);
-
-Sure.
-
-> 
-> 
-> > +	kvmppc_devm_pgmap.type = MEMORY_DEVICE_PRIVATE;
-> > +	kvmppc_devm_pgmap.res = *res;
-> > +	kvmppc_devm_pgmap.ops = &kvmppc_devm_ops;
-> > +	addr = memremap_pages(&kvmppc_devm_pgmap, -1);
-> 
-> This -1 should be NUMA_NO_NODE for clarity.
-
-Right.
-
-Regards,
-Bharata.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index b810103..af93ba6 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2416,13 +2416,15 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 	} else {
+ 		pages = kmalloc_node(array_size, nested_gfp, node);
+ 	}
+-	area->pages = pages;
+-	if (!area->pages) {
++
++	if (!pages) {
+ 		remove_vm_area(area->addr);
+ 		kfree(area);
+ 		return NULL;
+ 	}
+ 
++	area->pages = pages;
++
+ 	for (i = 0; i < area->nr_pages; i++) {
+ 		struct page *page;
+ 
+-- 
+2.6.2
 
 
