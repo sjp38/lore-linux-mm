@@ -2,144 +2,181 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2614C3A59F
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:29:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4813BC3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:38:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97D092189D
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:29:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97D092189D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id CA22D21670
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:38:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="pu31SPJC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA22D21670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1AD256B000D; Thu, 29 Aug 2019 20:29:44 -0400 (EDT)
+	id 1F39D6B0003; Thu, 29 Aug 2019 20:38:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 136DA6B000E; Thu, 29 Aug 2019 20:29:44 -0400 (EDT)
+	id 1CB356B0008; Thu, 29 Aug 2019 20:38:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F406C6B0010; Thu, 29 Aug 2019 20:29:43 -0400 (EDT)
+	id 0BA8C6B000D; Thu, 29 Aug 2019 20:38:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0071.hostedemail.com [216.40.44.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D12506B000D
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 20:29:43 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7B744824CA2C
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:29:43 +0000 (UTC)
-X-FDA: 75877211046.13.stage29_8f024a274b000
-X-HE-Tag: stage29_8f024a274b000
-X-Filterd-Recvd-Size: 5261
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
-	by imf40.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:29:42 +0000 (UTC)
-Received: from dread.disaster.area (pa49-181-255-194.pa.nsw.optusnet.com.au [49.181.255.194])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 319E743EA68;
-	Fri, 30 Aug 2019 10:29:37 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1i3UnH-0001yY-Mw; Fri, 30 Aug 2019 10:29:35 +1000
-Date: Fri, 30 Aug 2019 10:29:35 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Ming Lei <ming.lei@redhat.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [PATCH v2 2/2] mm, sl[aou]b: guarantee natural alignment for
- kmalloc(power-of-two)
-Message-ID: <20190830002935.GX1119@dread.disaster.area>
-References: <20190826111627.7505-1-vbabka@suse.cz>
- <20190826111627.7505-3-vbabka@suse.cz>
- <0100016cd98bb2c1-a2af7539-706f-47ba-a68e-5f6a91f2f495-000000@email.amazonses.com>
- <20190828194607.GB6590@bombadil.infradead.org>
- <20190828222422.GL1119@dread.disaster.area>
- <be70bf94-a63f-cc19-4958-0e7eed10859b@suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0118.hostedemail.com [216.40.44.118])
+	by kanga.kvack.org (Postfix) with ESMTP id E07336B0003
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 20:38:39 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 952511E086
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:38:39 +0000 (UTC)
+X-FDA: 75877233558.10.rain12_4b84779376545
+X-HE-Tag: rain12_4b84779376545
+X-Filterd-Recvd-Size: 6365
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:38:38 +0000 (UTC)
+Received: by mail-pg1-f195.google.com with SMTP id n9so2547222pgc.1
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 17:38:38 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=DSLyHXthXaKXOQZ8SFsqItHK5pHRiDWtPuxcUQu12HE=;
+        b=pu31SPJCi+AOP3zXr9+aDjC5rxpyExfuNsXBpNJ+U/17mstU+JX99GwniAgq5X7Pa5
+         yWJd36SGMJDkYzN0HburXGQx9v3j6tk4ubUO1WEIePNUdsLuWxfV6CECGk+H9RDp/4Wa
+         KMmLen85d+fQ7Ang26OUP+xrxgFhMbghKZgII=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=DSLyHXthXaKXOQZ8SFsqItHK5pHRiDWtPuxcUQu12HE=;
+        b=nvtNqULoe08ridmHrkQOBVNAtnMfmriOUMOmWJLWOvtHhsvxstHbmXloMQ1vVn95ao
+         jDOlnH2jg0y7sRVITqMlqhbe3PGJsBXdzmiFnkGCafTmdKIjPYw1NMYQbb31o9nYi7mT
+         8EucaEYZXjmBAuzK+bZBxFqAUwyzR2AJjL7akCX0Gux60n/Yy1F2Z1NhQT4J+TkdT8Cq
+         c/Add69g5pF8T1I6/6rhqqP832tVPwJXLv/jh7RqxR4OeTNyuygCpHu/EEo/9KmjkAKz
+         kw91zICWDn10jJfBdgIGmrHjUdP+NoNyrTcMC9nTX6mU1XLernm9Br4AEKRtTwk2ezWj
+         b2MA==
+X-Gm-Message-State: APjAAAU/vqqu7k7Ebl0KTSMSpSHD0LrTeiNF4BgTBNctZDDXtuogeGKq
+	m7O3AYmFT2j8R7kPVY7NFp5yqA==
+X-Google-Smtp-Source: APXvYqySp87qZozbuG9m12UZb0GG3l4jvENITo2xlt52HkVNyUOk8lyBYyVA9FdFCHiOprawlyDAQA==
+X-Received: by 2002:a63:9245:: with SMTP id s5mr10952781pgn.123.1567125517640;
+        Thu, 29 Aug 2019 17:38:37 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id a16sm4341162pfk.5.2019.08.29.17.38.32
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 29 Aug 2019 17:38:36 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: kasan-dev@googlegroups.com,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	aryabinin@virtuozzo.com,
+	glider@google.com,
+	luto@kernel.org,
+	linux-kernel@vger.kernel.org,
+	mark.rutland@arm.com,
+	dvyukov@google.com,
+	christophe.leroy@c-s.fr
+Cc: linuxppc-dev@lists.ozlabs.org,
+	gor@linux.ibm.com,
+	Daniel Axtens <dja@axtens.net>
+Subject: [PATCH v5 0/5] kasan: support backing vmalloc space with real shadow memory
+Date: Fri, 30 Aug 2019 10:38:16 +1000
+Message-Id: <20190830003821.10737-1-dja@axtens.net>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <be70bf94-a63f-cc19-4958-0e7eed10859b@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
-	a=YO9NNpcXwc8z/SaoS+iAiA==:117 a=YO9NNpcXwc8z/SaoS+iAiA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=7-415B0cAAAA:8 a=3jipp7y0vy340d0hbX8A:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 29, 2019 at 09:56:13AM +0200, Vlastimil Babka wrote:
-> On 8/29/19 12:24 AM, Dave Chinner wrote:
-> > On Wed, Aug 28, 2019 at 12:46:08PM -0700, Matthew Wilcox wrote:
-> >> On Wed, Aug 28, 2019 at 06:45:07PM +0000, Christopher Lameter wrote:
-> >>> I still think implicit exceptions to alignments are a bad idea. Those need
-> >>> to be explicity specified and that is possible using kmem_cache_create().
-> >>
-> >> I swear we covered this last time the topic came up, but XFS would need
-> >> to create special slab caches for each size between 512 and PAGE_SIZE.
-> >> Potentially larger, depending on whether the MM developers are willing to
-> >> guarantee that kmalloc(PAGE_SIZE * 2, GFP_KERNEL) will return a PAGE_SIZE
-> >> aligned block of memory indefinitely.
-> > 
-> > Page size alignment of multi-page heap allocations is ncessary. The
-> > current behaviour w/ KASAN is to offset so a 8KB allocation spans 3
-> > pages and is not page aligned. That causes just as much in way
-> > of alignment problems as unaligned objects in multi-object-per-page
-> > slabs.
-> 
-> Ugh, multi-page (power of two) allocations *at the page allocator level*
-> simply have to be aligned, as that's how the buddy allocator has always
-> worked, and it would be madness to try relax that guarantee and require
-> an explicit flag at this point. The kmalloc wrapper with SLUB will pass
-> everything above 8KB directly to the page allocator, so that's fine too.
-> 4k and 8k are the only (multi-)page sizes still managed as SLUB objects.
+Currently, vmalloc space is backed by the early shadow page. This
+means that kasan is incompatible with VMAP_STACK.
 
-On a 4kB page size box, yes.
+This series provides a mechanism to back vmalloc space with real,
+dynamically allocated memory. I have only wired up x86, because that's
+the only currently supported arch I can work with easily, but it's
+very easy to wire up other architectures, and it appears that there is
+some work-in-progress code to do this on arm64 and s390.
 
-On a 64kB page size system, 4/8kB allocations are still sub-page
-objects and will have alignment issues. Hence right now we can't
-assume a 4/8/16/32kB allocation will be page size aligned
-anywhere, because they are heap allocations on 64kB page sized
-machines.
+This has been discussed before in the context of VMAP_STACK:
+ - https://bugzilla.kernel.org/show_bug.cgi?id=3D202009
+ - https://lkml.org/lkml/2018/7/22/198
+ - https://lkml.org/lkml/2019/7/19/822
 
-> I would say that these sizes are the most striking example that it's
-> wrong not to align them without extra flags or special API variant.
+In terms of implementation details:
 
-Yup, just pointing out that they aren't guaranteed alignment right
-now on x86-64.
+Most mappings in vmalloc space are small, requiring less than a full
+page of shadow space. Allocating a full shadow page per mapping would
+therefore be wasteful. Furthermore, to ensure that different mappings
+use different shadow pages, mappings would have to be aligned to
+KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
 
-> > As I said in the lastest discussion of this problem on XFS (pmem
-> > devices w/ KASAN enabled), all we -need- is a GFP flag that tells the
-> > slab allocator to give us naturally aligned object or fail if it
-> > can't. I don't care how that gets implemented (e.g. another set of
-> > heap slabs like the -rcl slabs), I just don't want every high level
-> 
-> Given alignment is orthogonal to -rcl and dma-, would that be another
-> three sets? Or we assume that dma- would want it always, and complicate
-> the rules further? Funilly enough, SLOB would be the simplest case here.
+Instead, share backing space across multiple mappings. Allocate a
+backing page when a mapping in vmalloc space uses a particular page of
+the shadow region. This page can be shared by other vmalloc mappings
+later on.
 
-Not my problem. :) All I'm pointing out is that the minimum
-functionality we require is specifying individual allocations as
-needing alignment. I've just implemented that API in XFS, so
-whatever happens in the allocation infrastructure from this point
-onwards is really just implementation optimisation for us now....
+We hook in to the vmap infrastructure to lazily clean up unused shadow
+memory.
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.ne=
+t/
+v2: https://lore.kernel.org/linux-mm/20190729142108.23343-1-dja@axtens.ne=
+t/
+ Address review comments:
+ - Patch 1: use kasan_unpoison_shadow's built-in handling of
+            ranges that do not align to a full shadow byte
+ - Patch 3: prepopulate pgds rather than faulting things in
+v3: https://lore.kernel.org/linux-mm/20190731071550.31814-1-dja@axtens.ne=
+t/
+ Address comments from Mark Rutland:
+ - kasan_populate_vmalloc is a better name
+ - handle concurrency correctly
+ - various nits and cleanups
+ - relax module alignment in KASAN_VMALLOC case
+v4: https://lore.kernel.org/linux-mm/20190815001636.12235-1-dja@axtens.ne=
+t/
+ Changes to patch 1 only:
+ - Integrate Mark's rework, thanks Mark!
+ - handle the case where kasan_populate_shadow might fail
+ - poision shadow on free, allowing the alloc path to just
+     unpoision memory that it uses
+v5: Address comments from Christophe Leroy:
+ - Fix some issues with my descriptions in commit messages and docs
+ - Dynamically free unused shadow pages by hooking into the vmap book-kee=
+ping
+ - Split out the test into a separate patch
+ - Optional patch to track the number of pages allocated
+ - minor checkpatch cleanups
+
+Daniel Axtens (5):
+  kasan: support backing vmalloc space with real shadow memory
+  kasan: add test for vmalloc
+  fork: support VMAP_STACK with KASAN_VMALLOC
+  x86/kasan: support KASAN_VMALLOC
+  kasan debug: track pages allocated for vmalloc shadow
+
+ Documentation/dev-tools/kasan.rst |  63 +++++++++++
+ arch/Kconfig                      |   9 +-
+ arch/x86/Kconfig                  |   1 +
+ arch/x86/mm/kasan_init_64.c       |  60 +++++++++++
+ include/linux/kasan.h             |  31 ++++++
+ include/linux/moduleloader.h      |   2 +-
+ include/linux/vmalloc.h           |  12 +++
+ kernel/fork.c                     |   4 +
+ lib/Kconfig.kasan                 |  16 +++
+ lib/test_kasan.c                  |  26 +++++
+ mm/kasan/common.c                 | 170 ++++++++++++++++++++++++++++++
+ mm/kasan/generic_report.c         |   3 +
+ mm/kasan/kasan.h                  |   1 +
+ mm/vmalloc.c                      |  45 +++++++-
+ 14 files changed, 437 insertions(+), 6 deletions(-)
+
+--=20
+2.20.1
+
 
