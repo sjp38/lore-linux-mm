@@ -2,174 +2,81 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DEA4DC3A59B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:57:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E09BC3A59B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:59:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 909DF2341B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:57:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="SxtANCrQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 909DF2341B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 2189D23427
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 14:59:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2189D23427
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A2526B000A; Fri, 30 Aug 2019 10:57:26 -0400 (EDT)
+	id C3EBC6B000C; Fri, 30 Aug 2019 10:59:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 252FA6B000C; Fri, 30 Aug 2019 10:57:26 -0400 (EDT)
+	id BEF006B000D; Fri, 30 Aug 2019 10:59:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16A156B000D; Fri, 30 Aug 2019 10:57:26 -0400 (EDT)
+	id B2BDE6B000E; Fri, 30 Aug 2019 10:59:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0121.hostedemail.com [216.40.44.121])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC0B6B000A
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 10:57:25 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 7C38418C9
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:57:25 +0000 (UTC)
-X-FDA: 75879397650.12.mint55_68dff11b7620
-X-HE-Tag: mint55_68dff11b7620
-X-Filterd-Recvd-Size: 5997
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:57:24 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id i78so4921657qke.11
-        for <linux-mm@kvack.org>; Fri, 30 Aug 2019 07:57:24 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=VdU4IqIQzFHxd+M6em7DlzdJoaPdlqgzf47U8Wo/UZY=;
-        b=SxtANCrQGcj5MVFqjiRM80K8nFsdfP0XQkmVLkSZaGYju+3XCHqMTDoxWdS0m+HWp7
-         ghqB+tnB8cqMAdgoSNIfD5yCNX4O09Hd7c/JzCTtzk5c6tlAhSIiqtbCpEqClrQtMJHZ
-         HT8Ppu2+J96acsckDryUozSGx0QavgQgtJx3Ifa7Spv0Thp296veLzJ4rUEH9tWOR1XV
-         bnho9j8kNqRc17iAroF1a9EUlnPTGHD2tn44mkOOiM83IxNHTJfHG03kAeOHpOgzzpRW
-         ECevlQ/tF0ECPpTLoruzER3CprFVRpSXZ6kLDfnmiVz3x761o/p+QItaReDmXDCU8dr1
-         YJKg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id;
-        bh=VdU4IqIQzFHxd+M6em7DlzdJoaPdlqgzf47U8Wo/UZY=;
-        b=Tlz9SZe8EG4Slv9NdRV8/nCh6tvNU+HdWkiwu2weaKd0ikmTvR8TAyY5WbV7oZY9Hq
-         F2lkw6FetIftfuXdmRneNpTOhdnG3UaypcqlAxS1/tmPpvIjN+tvuqp3+XCMYcBsmD/q
-         y4AgKm96Zad8jVGLFuR+xzHf90i6sVJgCPZNg+LhIZI339fU6cOpgOggkFXj3JGqqAyx
-         z8qopdgwpDJ4NfQgBFm802V01f+ARfI/QSd8KMTEZNs1tZ8+UeO/iM9gHE3gbMA38tyu
-         jp/CgxMgFRAQuGukjPjW8R9ThfdwFateqO205+dJ9dUt/9NP4BjvX950eoh3dd+nZ+Nh
-         U4KA==
-X-Gm-Message-State: APjAAAUm25s/r2cvNGQTY1M3Ve2ZQQXy96zQ9iDZDFfVRady1gd3bt+g
-	3qS9PuoXT/sJIw553H7I6aXXTg==
-X-Google-Smtp-Source: APXvYqzRogG5eVXU3g/T5CrzUOOO+WHGUX1BRnSwQvEQtDl0AfM6xqZ4iw2zSRiF0cP2PWHtu/IaTA==
-X-Received: by 2002:a37:6003:: with SMTP id u3mr16046845qkb.166.1567177044407;
-        Fri, 30 Aug 2019 07:57:24 -0700 (PDT)
-Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id y23sm2668473qki.118.2019.08.30.07.57.22
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Aug 2019 07:57:23 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: davem@davemloft.net
-Cc: netdev@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH] net/skbuff: silence warnings under memory pressure
-Date: Fri, 30 Aug 2019 10:57:05 -0400
-Message-Id: <1567177025-11016-1-git-send-email-cai@lca.pw>
-X-Mailer: git-send-email 1.8.3.1
+Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
+	by kanga.kvack.org (Postfix) with ESMTP id 927DA6B000C
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 10:59:40 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 161BF181AC9AE
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:59:40 +0000 (UTC)
+X-FDA: 75879403320.02.print26_1a21b86cff74b
+X-HE-Tag: print26_1a21b86cff74b
+X-Filterd-Recvd-Size: 2428
+Received: from verein.lst.de (verein.lst.de [213.95.11.211])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 14:59:39 +0000 (UTC)
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id 8244E68BFE; Fri, 30 Aug 2019 16:59:35 +0200 (CEST)
+Date: Fri, 30 Aug 2019 16:59:35 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Russell King - ARM Linux admin <linux@armlinux.org.uk>
+Cc: Christoph Hellwig <hch@lst.de>, iommu@lists.linux-foundation.org,
+	Robin Murphy <robin.murphy@arm.com>,
+	linux-arm-kernel@lists.infradead.org, linux-xtensa@linux-xtensa.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/4] vmalloc: lift the arm flag for coherent mappings
+ to common code
+Message-ID: <20190830145935.GA19838@lst.de>
+References: <20190830062924.21714-1-hch@lst.de> <20190830062924.21714-2-hch@lst.de> <20190830092918.GV13294@shell.armlinux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190830092918.GV13294@shell.armlinux.org.uk>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When running heavy memory pressure workloads, the system is throwing
-endless warnings below due to the allocation could fail from
-__build_skb(), and the volume of this call could be huge which may
-generate a lot of serial console output and cosumes all CPUs as
-warn_alloc() could be expensive by calling dump_stack() and then
-show_mem().
+On Fri, Aug 30, 2019 at 10:29:18AM +0100, Russell King - ARM Linux admin wrote:
+> On Fri, Aug 30, 2019 at 08:29:21AM +0200, Christoph Hellwig wrote:
+> > The arm architecture had a VM_ARM_DMA_CONSISTENT flag to mark DMA
+> > coherent remapping for a while.  Lift this flag to common code so
+> > that we can use it generically.  We also check it in the only place
+> > VM_USERMAP is directly check so that we can entirely replace that
+> > flag as well (although I'm not even sure why we'd want to allow
+> > remapping DMA appings, but I'd rather not change behavior).
+> 
+> Good, because if you did change that behaviour, you'd break almost
+> every ARM framebuffer and cripple ARM audio drivers.
 
-Fix it by silencing the warning in this call site. Also, it seems
-unnecessary to even print a warning at all if the allocation failed in
-__build_skb(), as it may just retransmit the packet and retry.
-
-NMI watchdog: Watchdog detected hard LOCKUP on cpu 7
-Hardware name: HP ProLiant XL420 Gen9/ProLiant XL420 Gen9, BIOS U19
-12/27/2015
-RIP: 0010:dump_stack+0xd/0x9a
-Code: 5d c3 48 c7 c2 c0 ce aa bb 4c 89 ee 48 c7 c7 60 32 e3 ae e8 b3 3e
-81 ff e9 ab ff ff ff 55 48 89 e5 41 55 41 83 cd ff 41 54 53 <9c> 41 5c
-fa be 04 00 00 00 48 c7 c7 80 42 63 af 65 8b 1d f6 7c 8c
-RSP: 0018:ffff888452389670 EFLAGS: 00000086
-RAX: 000000000000000b RBX: 0000000000000007 RCX: ffffffffae75143f
-RDX: 0000000000000001 RSI: 0000000000000004 RDI: ffffffffaf634280
-RBP: ffff888452389688 R08: 0000000000000004 R09: fffffbfff5ec6850
-R10: fffffbfff5ec6850 R11: 0000000000000003 R12: 0000000000000086
-R13: 00000000ffffffff R14: ffff88820547c040 R15: ffffffffaecc86a0
-FS:  0000000000000000(0000) GS:ffff888452380000(0000)
-knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f94f0537000 CR3: 00000005c8012006 CR4: 00000000001606a0
-Call Trace:
- <IRQ>
- warn_alloc.cold.43+0x8a/0x148
- __alloc_pages_nodemask+0x1a5c/0x1bb0
- alloc_pages_current+0x9c/0x110
- allocate_slab+0x34a/0x11f0
- new_slab+0x46/0x70
- ___slab_alloc+0x604/0x950
- __slab_alloc+0x12/0x20
- kmem_cache_alloc+0x32a/0x400
- __build_skb+0x23/0x60
- build_skb+0x1a/0xb0
- igb_clean_rx_irq+0xafc/0x1010 [igb]
- igb_poll+0x4bb/0xe30 [igb]
- net_rx_action+0x244/0x7a0
- __do_softirq+0x1a0/0x60a
- irq_exit+0xb5/0xd0
- do_IRQ+0x81/0x170
- common_interrupt+0xf/0xf
- </IRQ>
-RIP: 0010:cpuidle_enter_state+0x151/0x8d0
-Code: 64 af e8 62 22 c2 ff 8b 05 04 f6 0b 01 85 c0 0f 8f 18 04 00 00 31
-ff e8 9d 9e 97 ff 80 7d d0 00 0f 85 06 02 00 00 fb 45 85 ed <0f> 88 2d
-02 00 00 4d 63 fd 49 83 ff 09 0f 87 8c 06 00 00 4b 8d 04
-RSP: 0018:ffff888205487cf8 EFLAGS: 00000202 ORIG_RAX: ffffffffffffffdc
-RAX: 0000000000000000 RBX: ffffe8fc09596f98 RCX: ffffffffadf093da
-RDX: dffffc0000000000 RSI: dffffc0000000000 RDI: ffff8884523c2128
-RBP: ffff888205487d48 R08: fffffbfff5ec9d62 R09: fffffbfff5ec9d62
-R10: fffffbfff5ec9d61 R11: ffffffffaf64eb0b R12: ffffffffaf459580
-R13: 0000000000000004 R14: 0000101fb3d64a9b R15: ffffe8fc09596f9c
- cpuidle_enter+0x41/0x70
- call_cpuidle+0x5e/0x90
- do_idle+0x313/0x340
- cpu_startup_entry+0x1d/0x1f
- start_secondary+0x28b/0x330
- secondary_startup_64+0xb6/0xc0
-
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- net/core/skbuff.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-index 0338820ee0ec..9cc4148deddd 100644
---- a/net/core/skbuff.c
-+++ b/net/core/skbuff.c
-@@ -307,7 +307,9 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
- {
- 	struct sk_buff *skb;
- 
--	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
-+	skb = kmem_cache_alloc(skbuff_head_cache,
-+			       GFP_ATOMIC | __GFP_NOWARN);
-+
- 	if (unlikely(!skb))
- 		return NULL;
- 
--- 
-1.8.3.1
-
+How would that break them?  All the usual video and audio drivers that
+use dma_alloc_* then use dma_mmap_* which never end up in the only place
+that actually checks VM_USERMAP (remap_vmalloc_range_partial) as they
+end up in the dma_map_ops mmap methods which contain what is effecitvely
+open coded versions of that routine.  There are very few callers of
+remap_vmalloc_range_partial / remap_vmalloc_range, and while a few of
+those actually are in media drivers and the virtual frame buffer video
+driver, none of these seems to be called on dma memory (which would
+be a layering violation anyway).
 
