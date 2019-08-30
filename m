@@ -2,120 +2,175 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 267FBC3A5A6
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:37:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7736C3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 02:21:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D9B3D2173E
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:37:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 69E3E2087F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 02:21:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="gH7sjdEq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9B3D2173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="dIUKOH91"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69E3E2087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7463B6B0008; Thu, 29 Aug 2019 21:37:10 -0400 (EDT)
+	id CA39F6B0003; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F66C6B000C; Thu, 29 Aug 2019 21:37:10 -0400 (EDT)
+	id C54D66B0008; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BE436B000D; Thu, 29 Aug 2019 21:37:10 -0400 (EDT)
+	id B42C16B000A; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFB96B0008
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 21:37:10 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id E5C83180AD7C1
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:37:09 +0000 (UTC)
-X-FDA: 75877380978.22.cart34_44d1500ca719
-X-HE-Tag: cart34_44d1500ca719
-X-Filterd-Recvd-Size: 2939
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:37:09 +0000 (UTC)
-Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2665821726;
-	Fri, 30 Aug 2019 01:37:08 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1567129028;
-	bh=wblmtwAPChh3pCJc193Sn72+9+tyKF8aXZAv7ytdG80=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=gH7sjdEq3ppqk1qjdFYzMatBtsJBLj0iAfB8MpFHaWARSglXLrGojpXQ/2dLwo4/b
-	 fHq54qBu5XfxNbY+3zndxiNkLPXH+umnmVwEJoB6ogmOSt9YQk6cB5Km9NrKnNBXBF
-	 mvduXpDEjDhSGvVQ4HyyJD/xPohoqaXalCeDGJOA=
-Date: Thu, 29 Aug 2019 18:37:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/z3fold.c: remove useless code in z3fold_page_isolate
-Message-Id: <20190829183707.71f13473d1b034dd424f85d7@linux-foundation.org>
-In-Reply-To: <20190829191312.GA20298@embeddedor>
-References: <20190829191312.GA20298@embeddedor>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
+	by kanga.kvack.org (Postfix) with ESMTP id 929676B0003
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 22:21:06 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 39E429983
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 02:21:06 +0000 (UTC)
+X-FDA: 75877491732.05.debt64_60d952dd2df37
+X-HE-Tag: debt64_60d952dd2df37
+X-Filterd-Recvd-Size: 6443
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com [216.228.121.65])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 02:21:05 +0000 (UTC)
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d6888110001>; Thu, 29 Aug 2019 19:21:05 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Thu, 29 Aug 2019 19:21:04 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Thu, 29 Aug 2019 19:21:04 -0700
+Received: from [10.110.48.201] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 30 Aug
+ 2019 02:21:03 +0000
+Subject: Re: [PATCH v3 00/39] put_user_pages(): miscellaneous call sites
+To: Mike Marshall <hubcap@omnibond.com>
+CC: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
+	<dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
+	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
+	<linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>, ceph-devel
+	<ceph-devel@vger.kernel.org>, <devel@driverdev.osuosl.org>,
+	<devel@lists.orangefs.org>, <dri-devel@lists.freedesktop.org>,
+	<intel-gfx@lists.freedesktop.org>, <kvm@vger.kernel.org>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-block@vger.kernel.org>,
+	<linux-crypto@vger.kernel.org>, <linux-fbdev@vger.kernel.org>, linux-fsdevel
+	<linux-fsdevel@vger.kernel.org>, <linux-media@vger.kernel.org>, linux-mm
+	<linux-mm@kvack.org>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, <linux-rpi-kernel@lists.infradead.org>,
+	<linux-xfs@vger.kernel.org>, <netdev@vger.kernel.org>,
+	<rds-devel@oss.oracle.com>, <sparclinux@vger.kernel.org>, <x86@kernel.org>,
+	<xen-devel@lists.xenproject.org>
+References: <20190807013340.9706-1-jhubbard@nvidia.com>
+ <912eb2bd-4102-05c1-5571-c261617ad30b@nvidia.com>
+ <CAOg9mSQKGDywcMde2DE42diUS7J8m74Hdv+xp_PJhC39EXZQuw@mail.gmail.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <d453f865-2224-ed53-a2f4-f43d574c130a@nvidia.com>
+Date: Thu, 29 Aug 2019 19:21:03 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <CAOg9mSQKGDywcMde2DE42diUS7J8m74Hdv+xp_PJhC39EXZQuw@mail.gmail.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL111.nvidia.com (172.20.187.18) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1567131665; bh=ws5caXaEY0X3GX3egw6JsJDC0L7OwnIAHkDMK9ZQcE4=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=dIUKOH913DAYlocN1x3OWKU66rYzbsvcqMg6XurXOtfsQm0mTaQq0ufL9HiRQjmKf
+	 MYeR8XR6MbUy9f2nOHFjitJW5jxjU59hEwD2KYzGMRBc0+P+o4b2mkzUliEchFZQzm
+	 D0OR0ZfFBCp6cKpnoBGakw3Ch1supTeIz+DcDxFqgzxBAMqXWQoRbk0Sq3VWx6u9tp
+	 6uURi8FKe6XveWY1U9zok9s2um/SF43+51Cnxqw5q2h2Dtp4kEwxNonMDqxzAcZjDx
+	 HfyaHZc2XUvwuRV5WZb7Ki3OlH/mp5QHGx5CtmwXtp2TNme1r3iXAZgXDKrycQZylt
+	 qlPWiGD9ap9bQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Aug 2019 14:13:12 -0500 "Gustavo A. R. Silva" <gustavo@embeddedor.com> wrote:
-
-> Remove duplicate and useless code.
+On 8/29/2019 6:29 PM, Mike Marshall wrote:
+> Hi John...
 > 
-> ...
->
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -1400,15 +1400,13 @@ static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
->  			 * can call the release logic.
->  			 */
->  			if (unlikely(kref_put(&zhdr->refcount,
-> -					      release_z3fold_page_locked))) {
-> +					      release_z3fold_page_locked)))
->  				/*
->  				 * If we get here we have kref problems, so we
->  				 * should freak out.
->  				 */
->  				WARN(1, "Z3fold is experiencing kref problems\n");
-> -				z3fold_page_unlock(zhdr);
-> -				return false;
-> -			}
-> +
->  			z3fold_page_unlock(zhdr);
->  			return false;
->  		}
+> I added this patch series on top of Linux 5.3rc6 and ran
+> xfstests with no regressions...
+> 
+> Acked-by: Mike Marshall <hubcap@omnibond.com>
+> 
 
-Thanks.
+Hi Mike (and I hope Ira and others are reading as well, because
+I'm making a bunch of claims further down),
 
-We prefer to retain the braces around a code block which is more than a
-single line - it's easier on the eyes.
+That's great news, thanks for running that test suite and for
+the report and the ACK.
 
---- a/mm/z3fold.c~mm-z3foldc-remove-useless-code-in-z3fold_page_isolate-fix
-+++ a/mm/z3fold.c
-@@ -1400,13 +1400,13 @@ static bool z3fold_page_isolate(struct p
- 			 * can call the release logic.
- 			 */
- 			if (unlikely(kref_put(&zhdr->refcount,
--					      release_z3fold_page_locked)))
-+					      release_z3fold_page_locked))) {
- 				/*
- 				 * If we get here we have kref problems, so we
- 				 * should freak out.
- 				 */
- 				WARN(1, "Z3fold is experiencing kref problems\n");
--
-+			}
- 			z3fold_page_unlock(zhdr);
- 			return false;
- 		}
-_
+There is an interesting pause right now, due to the fact that
+we've made some tentative decisions about gup pinning, that affect
+the call sites. A key decision is that only pages that were
+requested via FOLL_PIN, will require put_user_page*() to release
+them. There are 4 main cases, which were first explained by Jan
+Kara and Vlastimil Babka, and are now written up in my FOLL_PIN
+patch [1].
 
+So, what that means for this series is that:
+
+1. Some call sites (mlock.c for example, and a lot of the mm/ files
+in fact, and more) will not be converted: some of these patches will
+get dropped, especially in mm/.
+
+2. Call sites that do DirectIO or RDMA will need to set FOLL_PIN, and
+will also need to call put_user_page().
+
+3. Call sites that do RDMA will need to set FOLL_LONGTERM *and* FOLL_PIN,
+
+    3.a. ...and will at least in some cases need to provide a link to a
+    vaddr_pin object, and thus back to a struct file*...maybe. Still
+    under discussion.
+
+4. It's desirable to keep FOLL_* flags (or at least FOLL_PIN) internal
+to the gup() calls. That implies using a wrapper call such as Ira's
+vaddr_pin_[user]_pages(), instead of gup(), and vaddr_unpin_[user]_pages()
+instead of put_user_page*().
+
+5. We don't want to churn the call sites unnecessarily.
+
+With that in mind, I've taken another pass through all these patches
+and narrowed it down to:
+
+     a) 12 call sites that I'd like to convert soon, but even those
+        really look cleaner with a full conversion to a wrapper call
+        similar to (identical to?) vaddr_pin_[user]_pages(), probably
+        just the FOLL_PIN only variant (not FOLL_LONGTERM). That
+        wrapper call is not ready yet, though.
+
+     b) Some more call sites that require both FOLL_PIN and FOLL_LONGTERM.
+        Definitely will wait to use the wrapper calls for these, because
+        they may also require hooking up to a struct file*.
+
+     c) A few more that were already applied, which is fine, because they
+        show where to convert, and simplify a few sites anyway. But they'll
+        need follow-on changes to, one way or another, set FOLL_PIN.
+
+     d) And of course a few sites whose patches get dropped, as mentioned
+        above.
+
+[1] https://lore.kernel.org/r/20190821040727.19650-3-jhubbard@nvidia.com
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
