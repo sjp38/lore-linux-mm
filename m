@@ -2,133 +2,132 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DE58C3A5A6
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 13:21:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 565E1C3A5A4
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 13:25:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3CDA21670
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 13:21:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3CDA21670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 1FD5B21897
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 13:25:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FD5B21897
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24EEF6B0006; Fri, 30 Aug 2019 09:21:56 -0400 (EDT)
+	id A15286B0006; Fri, 30 Aug 2019 09:25:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FF4C6B0008; Fri, 30 Aug 2019 09:21:56 -0400 (EDT)
+	id 99CD16B0008; Fri, 30 Aug 2019 09:25:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 116826B000A; Fri, 30 Aug 2019 09:21:56 -0400 (EDT)
+	id 8B31C6B000A; Fri, 30 Aug 2019 09:25:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E699F6B0006
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:21:55 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 92A9619B37
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 13:21:55 +0000 (UTC)
-X-FDA: 75879156990.19.moon43_2dde3f8075b2e
-X-HE-Tag: moon43_2dde3f8075b2e
-X-Filterd-Recvd-Size: 4124
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 13:21:55 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 87AC4B653;
-	Fri, 30 Aug 2019 13:21:53 +0000 (UTC)
-Date: Fri, 30 Aug 2019 15:21:50 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	"mike.kravetz@oracle.com" <mike.kravetz@oracle.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"vbabka@suse.cz" <vbabka@suse.cz>
-Subject: Re: poisoned pages do not play well in the buddy allocator
-Message-ID: <20190830132146.GA31465@linux>
-References: <20190826104144.GA7849@linux>
- <20190827013429.GA5125@hori.linux.bs1.fc.nec.co.jp>
- <20190827072808.GA17746@linux>
- <20190830104530.GA29647@linux>
- <20190830123656.GG28313@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0244.hostedemail.com [216.40.44.244])
+	by kanga.kvack.org (Postfix) with ESMTP id 645D66B0006
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 09:25:44 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 088411E086
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 13:25:44 +0000 (UTC)
+X-FDA: 75879166608.20.trade16_4f07064190722
+X-HE-Tag: trade16_4f07064190722
+X-Filterd-Recvd-Size: 3583
+Received: from huawei.com (szxga04-in.huawei.com [45.249.212.190])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 13:25:42 +0000 (UTC)
+Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 14283D940CB8D64295D9;
+	Fri, 30 Aug 2019 21:25:33 +0800 (CST)
+Received: from RH5885H-V3.huawei.com (10.90.53.225) by
+ DGGEMS410-HUB.china.huawei.com (10.3.19.210) with Microsoft SMTP Server id
+ 14.3.439.0; Fri, 30 Aug 2019 21:25:24 +0800
+From: Jing Xiangfeng <jingxiangfeng@huawei.com>
+To: <linux@armlinux.org.uk>, <ebiederm@xmission.com>,
+	<kstewart@linuxfoundation.org>, <gregkh@linuxfoundation.org>,
+	<gustavo@embeddedor.com>, <bhelgaas@google.com>, <jingxiangfeng@huawei.com>,
+	<tglx@linutronix.de>, <sakari.ailus@linux.intel.com>
+CC: <linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>
+Subject: [PATCH] arm: fix page faults in do_alignment
+Date: Fri, 30 Aug 2019 21:31:17 +0800
+Message-ID: <1567171877-101949-1-git-send-email-jingxiangfeng@huawei.com>
+X-Mailer: git-send-email 2.7.4
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190830123656.GG28313@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain
+X-Originating-IP: [10.90.53.225]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 30, 2019 at 02:36:56PM +0200, Michal Hocko wrote:
-> > - Free page: remove it from the buddy allocator and set it as PageReserved|PageHWPoison.
-> > - Used page: migrate it and do not release it (skip put_page in unmap_and_move for MR_MEMORY_FAILURE
-> > 	     reason). Set it as PageReserved|PageHWPoison.
-> 
-> But this will only cover mapped pages. What about page cache in general?
-> Any reason why this cannot be handled in __free_one_page and simply skip
-> the whole freeing of the HWPoisoned parts of the freed page (in case of
-> higher order).
+The function do_alignment can handle misaligned address for user and
+kernel space. If it is a userspace access, do_alignment may fail on
+a low-memory situation, because page faults are disabled in
+probe_kernel_address.
 
-I forgot to mention that part.
-pages that are in the page cache and are not mapped are being handled in
-invalidate_inode_page:
+Fix this by using __copy_from_user stead of probe_kernel_address.
 
+Fixes: b255188 ("ARM: fix scheduling while atomic warning in alignment handling code")
+Signed-off-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
+---
+ arch/arm/mm/alignment.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-	/*
-         * Try to invalidate first. This should work for
-         * non dirty unmapped page cache pages.
-         */
-        ret = invalidate_inode_page(page);
-
-Once done, we free the page to the buddy (which is wrong).
-
-My approach would be as we do when migrate a poisoned page, simply not release
-the page, so it does not end up in the buddy and we have full control of it.
-
-I am still playing with the way to go here in general, to see which approach
-is better and more simple.
-The implementation I have right works well, but it is true that we could explore
-a way to
-
-1) Set PageHWPoison bit on the page
-1) Hook into the free routine and ignore any poisoned page
-
-so the overall code could be easier.
-
-I just want to see both codes in place and decide which one feels better.
-
-> > The routine that handles this also sets the refcount of these pages to 1, so the unpoison
-> > machinery will only have to check for PageHWPoison and to a put_page() to send
-> > the page to the buddy allocator.
-> > 
-> > The Reserved bit is used because these pages will now __only__ be accessible through
-> > pfn walkers, and pfn walkers should respect Reserved pages.
-> > The PageHWPoison bit is used to remember that this page is poisoned, so the unpoison
-> > machinery knows that it is valid to unpoison it.
-> 
-> Do we really need both bits? pfn walkers in general shouldn't handle
-> pages they do not know about.
-
-Well, I went for setting the Reserved bit to just be overprotective here,
-like a way of "stay away from this page", and most of the pfn walkers
-skip over Reserved pages as these are not meant to be touched for anyone
-but the owner.
-Setting the Poison bit is just for the unpoison routine, to check that
-the page we are asked to unpoison, was really poisoned in the first place.
-
-So, if that goes as planned, PageHWPoison check should only be neded in the
-hwpoison code.
-Maybe in the free routine if we decide to hook into that.
-
-All in all, it is something that we will have to discuss at the time I will
-send the RFC, as I am pretty sure there will be things to polish and change.
-
+diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
+index 04b3643..2ccabd3 100644
+--- a/arch/arm/mm/alignment.c
++++ b/arch/arm/mm/alignment.c
+@@ -774,6 +774,7 @@ static ssize_t alignment_proc_write(struct file *file, const char __user *buffer
+ 	unsigned long instr = 0, instrptr;
+ 	int (*handler)(unsigned long addr, unsigned long instr, struct pt_regs *regs);
+ 	unsigned int type;
++	mm_segment_t fs;
+ 	unsigned int fault;
+ 	u16 tinstr = 0;
+ 	int isize = 4;
+@@ -784,16 +785,22 @@ static ssize_t alignment_proc_write(struct file *file, const char __user *buffer
+ 
+ 	instrptr = instruction_pointer(regs);
+ 
++	fs = get_fs();
++	set_fs(KERNEL_DS);
+ 	if (thumb_mode(regs)) {
+ 		u16 *ptr = (u16 *)(instrptr & ~1);
+-		fault = probe_kernel_address(ptr, tinstr);
++		fault = __copy_from_user(tinstr,
++				(__force const void __user *)ptr,
++				sizeof(tinstr));
+ 		tinstr = __mem_to_opcode_thumb16(tinstr);
+ 		if (!fault) {
+ 			if (cpu_architecture() >= CPU_ARCH_ARMv7 &&
+ 			    IS_T32(tinstr)) {
+ 				/* Thumb-2 32-bit */
+ 				u16 tinst2 = 0;
+-				fault = probe_kernel_address(ptr + 1, tinst2);
++				fault = __copy_from_user(tinst2,
++						(__force const void __user *)(ptr+1),
++						sizeof(tinst2));
+ 				tinst2 = __mem_to_opcode_thumb16(tinst2);
+ 				instr = __opcode_thumb32_compose(tinstr, tinst2);
+ 				thumb2_32b = 1;
+@@ -803,10 +810,13 @@ static ssize_t alignment_proc_write(struct file *file, const char __user *buffer
+ 			}
+ 		}
+ 	} else {
+-		fault = probe_kernel_address((void *)instrptr, instr);
++		fault = __copy_from_user(instr,
++				(__force const void __user *)instrptr,
++				sizeof(instr));
+ 		instr = __mem_to_opcode_arm(instr);
+ 	}
+ 
++	set_fs(fs);
+ 	if (fault) {
+ 		type = TYPE_FAULT;
+ 		goto bad_or_fault;
 -- 
-Oscar Salvador
-SUSE L3
+1.8.3.1
+
 
