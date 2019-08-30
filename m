@@ -2,92 +2,121 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 001F0C3A5A6
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:40:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB9AEC3A59F
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:24:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB0E721670
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 00:40:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7687920828
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 01:24:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="nD1A5jPv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB0E721670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
+	dkim=pass (2048-bit key) header.d=omnibond-com.20150623.gappssmtp.com header.i=@omnibond-com.20150623.gappssmtp.com header.b="rsF3TnYv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7687920828
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=omnibond.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6389B6B0008; Thu, 29 Aug 2019 20:40:08 -0400 (EDT)
+	id 071446B0008; Thu, 29 Aug 2019 21:24:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E8576B0010; Thu, 29 Aug 2019 20:40:08 -0400 (EDT)
+	id 0229B6B000C; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D7D56B0266; Thu, 29 Aug 2019 20:40:08 -0400 (EDT)
+	id E2BD46B000D; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0011.hostedemail.com [216.40.44.11])
-	by kanga.kvack.org (Postfix) with ESMTP id 2642C6B0008
-	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 20:40:08 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id CF08A1E093
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:40:07 +0000 (UTC)
-X-FDA: 75877237254.17.jeans49_5864c210b3c4c
-X-HE-Tag: jeans49_5864c210b3c4c
-X-Filterd-Recvd-Size: 5669
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 00:40:07 +0000 (UTC)
-Received: by mail-pg1-f193.google.com with SMTP id m3so2514310pgv.13
-        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 17:40:07 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF356B0008
+	for <linux-mm@kvack.org>; Thu, 29 Aug 2019 21:24:51 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 3E725180AD7C1
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:24:51 +0000 (UTC)
+X-FDA: 75877349982.19.chess98_2a52491227432
+X-HE-Tag: chess98_2a52491227432
+X-Filterd-Recvd-Size: 7373
+Received: from mail-yw1-f68.google.com (mail-yw1-f68.google.com [209.85.161.68])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 01:24:50 +0000 (UTC)
+Received: by mail-yw1-f68.google.com with SMTP id m11so1848156ywh.3
+        for <linux-mm@kvack.org>; Thu, 29 Aug 2019 18:24:50 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=axtens.net; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=82Q/JFIZnRXp0gOKtGutBaFqGjeRYEXgiO+lMUV240Y=;
-        b=nD1A5jPvsIP89nHBMvBHrNI1GqT/PDiCf4jxHaCbxxEnlAXlcBW7mkvaA6ZVlmKfzS
-         NkBfs1H94Zz4smL76mncvLsIszMvMwN8JXpr2ZJU31OBYDVyPNcshJZWBWPg9+gdAgSF
-         w4aZZ3y1NslYt7ctZc5tXH2Vuybo+Jx53VCXY=
+        d=omnibond-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=4TfZVE6zvYYuoOuB/Rxqa+Mlm3vtxZPY12krCFPSTtI=;
+        b=rsF3TnYvnJjkhMrqd8jgi2b1fWfnS720m/snkWNYBAl3jogwp2mEsqA8h0meBBMFCG
+         mupgLKrOXopsTT3mx+lDcAZLHUPbfCw/vXrZaEIvlfIiq4H0dj/IKCul0NWP4fpGLsu4
+         48Lini1zfDu9D/EL0CeWiI8kZAXrgg08x+hcJWXhpsmSN701z4+zSsQ5V2A/N+PZ/ko+
+         cAveXQxi5GTfOnxm/M0L2QMcpa0QpEp0UoezlsX6vklrx1noOLsykTvVpPGdg1yASetm
+         NGCTD4uF7gFM2G4DP0Fj0jWpPyOxMpJF0KkXFU1tGtaTorkpzYDBwzJA49OyfPjy95xt
+         U/rA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=82Q/JFIZnRXp0gOKtGutBaFqGjeRYEXgiO+lMUV240Y=;
-        b=X/pzug1eH1FyuJAQnbuzG/ZPyOoy8y57Y80KiKkO+M7bkT0uPXrbGL62gXnZoiKlzS
-         vYadypLADuGn7XgGZ+SEqvggAFzieAVq1bqrI32FXe7Gkzk7BIy4pcyHcm+YWxgv6rK4
-         lQKNlPvtpQOwgwFV70GMARAYdpCchIlHiyiAZyD+zI74JOPNTG4gQkI/TIDE5yy49eZa
-         M7WXIffkSh3n9NtW/8jw03jDts4/4qhcuyw0+gUuQDH05I25Mx3lU72m6t+C4rPQkqd6
-         OfZI2Ma57jmoNB67LpULIHpSeq/26HeMt9lbjaieXfX9pjFD4EGNPt/OKEy9gffb80L5
-         2O9w==
-X-Gm-Message-State: APjAAAV3q05Zz2jkDScclHx2SI5XP8I3tYJvzTNpVRajviuHp77tVWBd
-	B6rsNSSR666EgPnrM/CS3xbK3AXJVRU=
-X-Google-Smtp-Source: APXvYqzNoJGYFrsnYDroRSYoteG3iJDXlHgkj88MSgz63Rrn0+nV1EyQWSk/4Z2CmdbFPGnpPD4GHg==
-X-Received: by 2002:a63:1908:: with SMTP id z8mr10423041pgl.433.1567125606413;
-        Thu, 29 Aug 2019 17:40:06 -0700 (PDT)
-Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
-        by smtp.gmail.com with ESMTPSA id b19sm3452810pgs.10.2019.08.29.17.40.01
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Thu, 29 Aug 2019 17:40:05 -0700 (PDT)
-From: Daniel Axtens <dja@axtens.net>
-To: kasan-dev@googlegroups.com,
-	linux-mm@kvack.org,
-	x86@kernel.org,
-	aryabinin@virtuozzo.com,
-	glider@google.com,
-	luto@kernel.org,
-	linux-kernel@vger.kernel.org,
-	mark.rutland@arm.com,
-	dvyukov@google.com,
-	christophe.leroy@c-s.fr
-Cc: linuxppc-dev@lists.ozlabs.org,
-	gor@linux.ibm.com,
-	Daniel Axtens <dja@axtens.net>
-Subject: [PATCH v5 5/5] kasan debug: track pages allocated for vmalloc shadow
-Date: Fri, 30 Aug 2019 10:38:21 +1000
-Message-Id: <20190830003821.10737-6-dja@axtens.net>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190830003821.10737-1-dja@axtens.net>
-References: <20190830003821.10737-1-dja@axtens.net>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc:content-transfer-encoding;
+        bh=4TfZVE6zvYYuoOuB/Rxqa+Mlm3vtxZPY12krCFPSTtI=;
+        b=cn8/gnj7lZsN/BqnhBD9q8K3PwEzIsz3hCcTaUoFCwoaRKOs3Coa4+oJmpL/DwNj3w
+         grV9YKK44jeApSQuaD/Zp0hbys0GFyyyvaJwyri5u6qwsnYVmtPoVAsy6MQzlHpmHc4L
+         xVWbHqCW6RPoDoW5SaLTI9YfqQITRaORCWT2Ot5UmFptIhUyZkmVvIK5IyMvtl5PMkrl
+         aBxhR/64sv9oDPtoxe6GQYSQAH6tIQNOdomLsWci9AJpTRkvMg4aulzbcImT4lq4x+6O
+         v62zg+NhtAE1ijgV6RvZHElAEx+j8nIkR+ut65DKeKC3vyKjMXUSgAovaZzjpM/KLBc3
+         Rbgw==
+X-Gm-Message-State: APjAAAWlP0vQycaoVbm/6PZ77BbyDZErTQ9oi0oXdckpKNUerF+e978p
+	Upozw2Z8iNnfonGJRKXLFMhRtYKNqvqrerF20a5rmw==
+X-Google-Smtp-Source: APXvYqwS/gBw6GYqWJhwCNBmHR6+W2ONQRTVjMY8ZXLyRIgVZbf1blJaiiDec2a/U/ArNO35ME5xZuocZ9cXu0GpPKQ=
+X-Received: by 2002:a0d:d596:: with SMTP id x144mr9018446ywd.69.1567128290041;
+ Thu, 29 Aug 2019 18:24:50 -0700 (PDT)
 MIME-Version: 1.0
+References: <20190827150544.151031-1-salyzyn@android.com> <20190828142423.GA1955@infradead.org>
+ <5dd09a38-fffb-36f2-505b-be2ddf6bb750@android.com>
+In-Reply-To: <5dd09a38-fffb-36f2-505b-be2ddf6bb750@android.com>
+From: Mike Marshall <hubcap@omnibond.com>
+Date: Thu, 29 Aug 2019 21:24:38 -0400
+Message-ID: <CAOg9mSTCC4Z3RpEyppC50B+pnSBbV0sr-F7hbsM-B+z3c-AZVA@mail.gmail.com>
+Subject: Re: [PATCH v8] Add flags option to get xattr method paired to __vfs_getxattr
+To: Mark Salyzyn <salyzyn@android.com>
+Cc: Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	kernel-team@android.com, Jan Kara <jack@suse.cz>, Stephen Smalley <sds@tycho.nsa.gov>, 
+	linux-security-module@vger.kernel.org, stable@vger.kernel.org, 
+	Jonathan Corbet <corbet@lwn.net>, Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Eric Van Hensbergen <ericvh@gmail.com>, 
+	Latchesar Ionkov <lucho@ionkov.net>, Dominique Martinet <asmadeus@codewreck.org>, 
+	David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
+	David Sterba <dsterba@suse.com>, Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>, 
+	Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>, 
+	Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>, "Theodore Ts'o" <tytso@mit.edu>, 
+	Andreas Dilger <adilger.kernel@dilger.ca>, Jaegeuk Kim <jaegeuk@kernel.org>, 
+	Miklos Szeredi <miklos@szeredi.hu>, Bob Peterson <rpeterso@redhat.com>, 
+	Andreas Gruenbacher <agruenba@redhat.com>, David Woodhouse <dwmw2@infradead.org>, 
+	Richard Weinberger <richard@nod.at>, Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>, 
+	Trond Myklebust <trond.myklebust@hammerspace.com>, 
+	Anna Schumaker <anna.schumaker@netapp.com>, Mark Fasheh <mark@fasheh.com>, 
+	Joel Becker <jlbec@evilplan.org>, Joseph Qi <joseph.qi@linux.alibaba.com>, 
+	Martin Brandenburg <martin@omnibond.com>, Alexander Viro <viro@zeniv.linux.org.uk>, 
+	Phillip Lougher <phillip@squashfs.org.uk>, Artem Bityutskiy <dedekind1@gmail.com>, 
+	Adrian Hunter <adrian.hunter@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, 
+	linux-xfs@vger.kernel.org, Hugh Dickins <hughd@google.com>, 
+	"David S. Miller" <davem@davemloft.net>, Serge Hallyn <serge@hallyn.com>, James Morris <jmorris@namei.org>, 
+	Mimi Zohar <zohar@linux.ibm.com>, Paul Moore <paul@paul-moore.com>, 
+	Eric Paris <eparis@parisplace.org>, Casey Schaufler <casey@schaufler-ca.com>, 
+	"J. Bruce Fields" <bfields@redhat.com>, Eric Biggers <ebiggers@google.com>, 
+	Benjamin Coddington <bcodding@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Mathieu Malaterre <malat@debian.org>, Vyacheslav Dubeyko <slava@dubeyko.com>, 
+	Bharath Vedartham <linux.bhar@gmail.com>, Jann Horn <jannh@google.com>, 
+	Dave Chinner <dchinner@redhat.com>, Allison Henderson <allison.henderson@oracle.com>, 
+	Brian Foster <bfoster@redhat.com>, Eric Sandeen <sandeen@sandeen.net>, linux-doc@vger.kernel.org, 
+	linux-erofs@lists.ozlabs.org, devel@driverdev.osuosl.org, 
+	V9FS Developers <v9fs-developer@lists.sourceforge.net>, linux-afs@lists.infradead.org, 
+	linux-btrfs@vger.kernel.org, ceph-devel <ceph-devel@vger.kernel.org>, 
+	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, 
+	ecryptfs@vger.kernel.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, 
+	"Linux F2FS DEV, Mailing List" <linux-f2fs-devel@lists.sourceforge.net>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, cluster-devel@redhat.com, 
+	linux-mtd <linux-mtd@lists.infradead.org>, jfs-discussion@lists.sourceforge.net, 
+	Linux NFS Mailing List <linux-nfs@vger.kernel.org>, ocfs2-devel@oss.oracle.com, 
+	devel@lists.orangefs.org, linux-unionfs@vger.kernel.org, 
+	reiserfs-devel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, netdev@vger.kernel.org, 
+	linux-integrity@vger.kernel.org, selinux@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -95,103 +124,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Provide the current number of vmalloc shadow pages in
-/sys/kernel/debug/kasan_vmalloc/shadow_pages.
+I added this patch series on top of Linux 5.3-rc6 and ran xfstests
+on orangefs with no regressions.
 
-Signed-off-by: Daniel Axtens <dja@axtens.net>
+Acked-by: Mike Marshall <hubcap@omnibond.com>
 
----
+-Mike
 
-Merging this is probably overkill, but I leave it to the discretion
-of the broader community.
-
-On v4 (no dynamic freeing), I saw the following approximate figures
-on my test VM:
-
- - fresh boot: 720
- - after test_vmalloc: ~14000
-
-With v5 (lazy dynamic freeing):
-
- - boot: ~490-500
- - running modprobe test_vmalloc pushes the figures up to sometimes
-    as high as ~14000, but they drop down to ~560 after the test ends.
-    I'm not sure where the extra sixty pages are from, but running the
-    test repeately doesn't cause the number to keep growing, so I don't
-    think we're leaking.
- - with vmap_stack, spawning tasks pushes the figure up to ~4200, then
-    some clearing kicks in and drops it down to previous levels again.
----
- mm/kasan/common.c | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
-
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index c12a2e6ecff5..69f32f2857b0 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -35,6 +35,7 @@
- #include <linux/vmalloc.h>
- #include <linux/bug.h>
- #include <linux/uaccess.h>
-+#include <linux/debugfs.h>
-=20
- #include "kasan.h"
- #include "../slab.h"
-@@ -748,6 +749,8 @@ core_initcall(kasan_memhotplug_init);
- #endif
-=20
- #ifdef CONFIG_KASAN_VMALLOC
-+static u64 vmalloc_shadow_pages;
-+
- static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
- 				      void *unused)
- {
-@@ -774,6 +777,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, un=
-signed long addr,
- 	if (likely(pte_none(*ptep))) {
- 		set_pte_at(&init_mm, addr, ptep, pte);
- 		page =3D 0;
-+		vmalloc_shadow_pages++;
- 	}
- 	spin_unlock(&init_mm.page_table_lock);
- 	if (page)
-@@ -833,6 +837,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, =
-unsigned long addr,
-=20
- 	pte_clear(&init_mm, addr, ptep);
- 	free_page(page);
-+	vmalloc_shadow_pages--;
- 	spin_unlock(&init_mm.page_table_lock);
-=20
- 	return 0;
-@@ -887,4 +892,25 @@ void kasan_release_vmalloc(unsigned long start, unsi=
-gned long end,
- 				    (unsigned long)(shadow_end - shadow_start),
- 				    kasan_depopulate_vmalloc_pte, NULL);
- }
-+
-+static __init int kasan_init_vmalloc_debugfs(void)
-+{
-+	struct dentry *root, *count;
-+
-+	root =3D debugfs_create_dir("kasan_vmalloc", NULL);
-+	if (IS_ERR(root)) {
-+		if (PTR_ERR(root) =3D=3D -ENODEV)
-+			return 0;
-+		return PTR_ERR(root);
-+	}
-+
-+	count =3D debugfs_create_u64("shadow_pages", 0444, root,
-+				   &vmalloc_shadow_pages);
-+
-+	if (IS_ERR(count))
-+		return PTR_ERR(root);
-+
-+	return 0;
-+}
-+late_initcall(kasan_init_vmalloc_debugfs);
- #endif
---=20
-2.20.1
-
+On Wed, Aug 28, 2019 at 10:40 AM Mark Salyzyn <salyzyn@android.com> wrote:
+>
+> On 8/28/19 7:24 AM, Christoph Hellwig wrote:
+> > On Tue, Aug 27, 2019 at 08:05:15AM -0700, Mark Salyzyn wrote:
+> >> Replace arguments for get and set xattr methods, and __vfs_getxattr
+> >> and __vfs_setaxtr functions with a reference to the following now
+> >> common argument structure:
+> > Yikes.  That looks like a mess.  Why can't we pass a kernel-only
+> > flag in the existing flags field for =E2=82=8B>set and add a flags fiel=
+d
+> > to ->get?  Passing methods by structure always tends to be a mess.
+>
+> This was a response to GregKH@ criticism, an earlier patch set just
+> added a flag as you stated to get method, until complaints of an
+> excessively long argument list and fragility to add or change more
+> arguments.
+>
+> So many ways have been tried to skin this cat ... the risk was taken to
+> please some, and we now have hundreds of stakeholders, when the first
+> patch set was less than a dozen. A recipe for failure?
+>
+> -- Mark
+>
 
