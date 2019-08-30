@@ -2,266 +2,208 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7048C3A59B
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:05:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 320C4C3A59B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:09:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DB2D23427
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:05:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DB2D23427
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D0A3723427
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 16:09:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ar2PzY1a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0A3723427
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD7196B0006; Fri, 30 Aug 2019 12:05:31 -0400 (EDT)
+	id 7C4996B000A; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A876F6B0008; Fri, 30 Aug 2019 12:05:31 -0400 (EDT)
+	id 776D66B000C; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9776A6B000A; Fri, 30 Aug 2019 12:05:31 -0400 (EDT)
+	id 68B8A6B000D; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0183.hostedemail.com [216.40.44.183])
-	by kanga.kvack.org (Postfix) with ESMTP id 77ABE6B0006
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 12:05:31 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0D6D3211C4
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:05:31 +0000 (UTC)
-X-FDA: 75879569262.10.quilt84_12d5ba9f0cd14
-X-HE-Tag: quilt84_12d5ba9f0cd14
-X-Filterd-Recvd-Size: 11555
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:05:29 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4D469C08EC04;
-	Fri, 30 Aug 2019 16:05:28 +0000 (UTC)
-Received: from [10.40.204.151] (ovpn-204-151.brq.redhat.com [10.40.204.151])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 740CA3784;
-	Fri, 30 Aug 2019 16:05:07 +0000 (UTC)
-Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: David Hildenbrand <david@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- virtio-dev@lists.oasis-open.org, Paolo Bonzini <pbonzini@redhat.com>,
- lcapitulino@redhat.com, Pankaj Gupta <pagupta@redhat.com>,
- "Wang, Wei W" <wei.w.wang@intel.com>, Yang Zhang <yang.zhang.wz@gmail.com>,
- Rik van Riel <riel@surriel.com>, "Michael S. Tsirkin" <mst@redhat.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
- john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
- Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
-References: <20190812131235.27244-1-nitesh@redhat.com>
- <20190812131235.27244-2-nitesh@redhat.com>
- <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
- <df82bc99-a212-4f5c-dc2e-28665060acb2@redhat.com>
- <CAKgT0Ueqok+bxANVtB1DdYorcEHN7+Grzb8MAxTzSk8uS81pRA@mail.gmail.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <9a2ffed8-a8a7-a0a6-ec2d-4234b4e11e3e@redhat.com>
-Date: Fri, 30 Aug 2019 12:05:04 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0207.hostedemail.com [216.40.44.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 473A96B000A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 12:09:22 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CAE7A1F36A
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:09:21 +0000 (UTC)
+X-FDA: 75879578922.02.chain85_3470bc0b83706
+X-HE-Tag: chain85_3470bc0b83706
+X-Filterd-Recvd-Size: 7041
+Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 16:09:20 +0000 (UTC)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7UG8VnF193537;
+	Fri, 30 Aug 2019 16:09:18 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2019-08-05;
+ bh=fDZkm7TGgVyRUW7Itan/V6vOBM2/o4OXxKZDDHyHkQk=;
+ b=ar2PzY1a2BDwQZuxJjLGrWiNZgzTbflDX4rYndb/+yTiGDGB0PCqJ598NEmnsESROX+s
+ 2mnjHIK7Y1ZuH+aHhUd2htUGnoz8V9kNYfeURPKdwCHwBG66HtAgJU2QZnolqZmTYStd
+ gEbYNVrWPukV2Ycq1vsu0j7JWlZCPtDBYbbx8HLB61PG/aCX2taeLiUPzHbbihUnDcZN
+ HpTliNZQV9kD2zJDXDzoOsmZvUEwapLR+WJz28sXk+wpXhe9Uh2777MYP0I1b3vMGKZv
+ ZwqCemdEp0Yd6kFi6IsdU9HSw6Y0etUy27ox7HLqH8q4JzBLy/MBbyEpoEXBxg565hE4 fQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2uq6yn81ba-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 30 Aug 2019 16:09:17 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7UFvkZB041739;
+	Fri, 30 Aug 2019 16:02:17 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2upxabfpfk-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 30 Aug 2019 16:02:16 +0000
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7UG2FYT000919;
+	Fri, 30 Aug 2019 16:02:15 GMT
+Received: from localhost (/67.169.218.210)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 30 Aug 2019 09:02:15 -0700
+Date: Fri, 30 Aug 2019 09:02:13 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+        Amir Goldstein <amir73il@gmail.com>, Boaz Harrosh <boaz@plexistor.com>,
+        linux-fsdevel@vger.kernel.org, stable@vger.kernel.org
+Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
+ with hole punch
+Message-ID: <20190830160213.GF5360@magnolia>
+References: <20190829131034.10563-1-jack@suse.cz>
+ <20190829131034.10563-4-jack@suse.cz>
+ <20190829155204.GD5354@magnolia>
+ <20190830152449.GA25069@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ueqok+bxANVtB1DdYorcEHN7+Grzb8MAxTzSk8uS81pRA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 30 Aug 2019 16:05:28 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190830152449.GA25069@quack2.suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9365 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908300159
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9365 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908300161
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Aug 30, 2019 at 05:24:49PM +0200, Jan Kara wrote:
+> On Thu 29-08-19 08:52:04, Darrick J. Wong wrote:
+> > On Thu, Aug 29, 2019 at 03:10:34PM +0200, Jan Kara wrote:
+> > > Hole puching currently evicts pages from page cache and then goes on to
+> > > remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
+> > > and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
+> > > racing reads or page faults. However there is currently nothing that
+> > > prevents readahead triggered by fadvise() or madvise() from racing with
+> > > the hole punch and instantiating page cache page after hole punching has
+> > > evicted page cache in xfs_flush_unmap_range() but before it has removed
+> > > blocks from the inode. This page cache page will be mapping soon to be
+> > > freed block and that can lead to returning stale data to userspace or
+> > > even filesystem corruption.
+> > > 
+> > > Fix the problem by protecting handling of readahead requests by
+> > > XFS_IOLOCK_SHARED similarly as we protect reads.
+> > > 
+> > > CC: stable@vger.kernel.org
+> > > Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
+> > > Reported-by: Amir Goldstein <amir73il@gmail.com>
+> > > Signed-off-by: Jan Kara <jack@suse.cz>
+> > 
+> > Is there a test on xfstests to demonstrate this race?
+> 
+> No, but I can try to create one.
 
-On 8/30/19 11:31 AM, Alexander Duyck wrote:
-> On Fri, Aug 30, 2019 at 8:15 AM Nitesh Narayan Lal <nitesh@redhat.com> =
-wrote:
->>
->> On 8/12/19 2:47 PM, Alexander Duyck wrote:
->>> On Mon, Aug 12, 2019 at 6:13 AM Nitesh Narayan Lal <nitesh@redhat.com=
-> wrote:
->>>> This patch introduces the core infrastructure for free page reportin=
-g in
->>>> virtual environments. It enables the kernel to track the free pages =
-which
->>>> can be reported to its hypervisor so that the hypervisor could
->>>> free and reuse that memory as per its requirement.
->>>>
->>>> While the pages are getting processed in the hypervisor (e.g.,
->>>> via MADV_DONTNEED), the guest must not use them, otherwise, data los=
-s
->>>> would be possible. To avoid such a situation, these pages are
->>>> temporarily removed from the buddy. The amount of pages removed
->>>> temporarily from the buddy is governed by the backend(virtio-balloon=
+<nod> I imgaine this race was hard to spot in the first place...
 
->>>> in our case).
->>>>
->>>> To efficiently identify free pages that can to be reported to the
->>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly bi=
-g
->>>> chunks are reported to the hypervisor - especially, to not break up =
-THP
->>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The b=
-its
->>>> in the bitmap are an indication whether a page *might* be free, not =
-a
->>>> guarantee. A new hook after buddy merging sets the bits.
->>>>
->>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue=
+> > Will test it out though...
+> > 
+> > Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+> 
+> Thanks. BTW, will you pick up these patches please?
 
->>>> asynchronously processes the bitmaps, trying to isolate and report p=
-ages
->>>> that are still free. The backend (virtio-balloon) is responsible for=
+Yeah, they looked fine.
 
->>>> reporting these batched pages to the host synchronously. Once report=
-ing/
->>>> freeing is complete, isolated pages are returned back to the buddy.
->>>>
->>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->> [...]
->>>> +static void scan_zone_bitmap(struct page_reporting_config *phconf,
->>>> +                            struct zone *zone)
->>>> +{
->>>> +       unsigned long setbit;
->>>> +       struct page *page;
->>>> +       int count =3D 0;
->>>> +
->>>> +       sg_init_table(phconf->sg, phconf->max_pages);
->>>> +
->>>> +       for_each_set_bit(setbit, zone->bitmap, zone->nbits) {
->>>> +               /* Process only if the page is still online */
->>>> +               page =3D pfn_to_online_page((setbit << PAGE_REPORTIN=
-G_MIN_ORDER) +
->>>> +                                         zone->base_pfn);
->>>> +               if (!page)
->>>> +                       continue;
->>>> +
->>> Shouldn't you be clearing the bit and dropping the reference to
->>> free_pages before you move on to the next bit? Otherwise you are goin=
-g
->>> to be stuck with those aren't you?
->>>
->>>> +               spin_lock(&zone->lock);
->>>> +
->>>> +               /* Ensure page is still free and can be processed */=
+--D
 
->>>> +               if (PageBuddy(page) && page_private(page) >=3D
->>>> +                   PAGE_REPORTING_MIN_ORDER)
->>>> +                       count =3D process_free_page(page, phconf, co=
-unt);
->>>> +
->>>> +               spin_unlock(&zone->lock);
->>> So I kind of wonder just how much overhead you are taking for bouncin=
-g
->>> the zone lock once per page here. Especially since it can result in
->>> you not actually making any progress since the page may have already
->>> been reallocated.
->>>
->> I am wondering if there is a way to measure this overhead?
->> After thinking about this, I do understand your point.
->> One possible way which I can think of to address this is by having a
->> page_reporting_dequeue() hook somewhere in the allocation path.
-> Really in order to stress this you probably need to have a lot of
-> CPUs, a lot of memory, and something that forces a lot of pages to get
-> hit such as the memory shuffling feature.
+> 								Honza
+> 
+> > 
+> > --D
+> > 
+> > > ---
+> > >  fs/xfs/xfs_file.c | 26 ++++++++++++++++++++++++++
+> > >  1 file changed, 26 insertions(+)
+> > > 
+> > > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> > > index 28101bbc0b78..d952d5962e93 100644
+> > > --- a/fs/xfs/xfs_file.c
+> > > +++ b/fs/xfs/xfs_file.c
+> > > @@ -28,6 +28,7 @@
+> > >  #include <linux/falloc.h>
+> > >  #include <linux/backing-dev.h>
+> > >  #include <linux/mman.h>
+> > > +#include <linux/fadvise.h>
+> > >  
+> > >  static const struct vm_operations_struct xfs_file_vm_ops;
+> > >  
+> > > @@ -933,6 +934,30 @@ xfs_file_fallocate(
+> > >  	return error;
+> > >  }
+> > >  
+> > > +STATIC int
+> > > +xfs_file_fadvise(
+> > > +	struct file	*file,
+> > > +	loff_t		start,
+> > > +	loff_t		end,
+> > > +	int		advice)
+> > > +{
+> > > +	struct xfs_inode *ip = XFS_I(file_inode(file));
+> > > +	int ret;
 
-I will think about it, thanks for the suggestion.
-
->
->> For some reason, I am not seeing this work as I would have expected
->> but I don't have solid reasoning to share yet. It could be simply
->> because I am putting my hook at the wrong place. I will continue
->> investigating this.
->>
->> In any case, I may be over complicating things here, so please let me
->> if there is a better way to do this.
-> I have already been demonstrating the "better way" I think there is to
-> do this. I will push v7 of it early next week unless there is some
-> other feedback. By putting the bit in the page and controlling what
-> comes into and out of the lists it makes most of this quite a bit
-> easier. The only limitation is you have to modify where things get
-> placed in the lists so you don't create a "vapor lock" that would
-> stall the feed of pages into the reporting engine.
->
->> If this overhead is not significant we can probably live with it.
-> You have bigger issues you still have to overcome as I recall. Didn't
-> you still need to sort out hotplu
-
-For memory hotplug, my impression is that it should
-not be a blocker for taking the first step (in case we do decide to
-go ahead with this approach). Another reason why I am considering
-this as future work is that memory hot(un)plug is still under
-development and requires fixing. (Specifically, issue such as zone
-shrinking which will directly impact the bitmap approach is still
-under discussion).
-
-> g and a sparse map with a wide span
-> in a zone? Without those resolved the bitmap approach is still a no-go
-> regardless of performance.
-
-For sparsity, the memory wastage should not be significant as I
-am tracking pages on the granularity of (MAX_ORDER - 2) and maintaining
-the bitmaps on a per-zone basis (which was not the case earlier).
-
-However, if you do consider this as a block I will think about it and try=
- to fix it.
-In the worst case, if I don't find a solution I will add this as a known =
-limitation
-for this approach in my cover.
-
-> - Alex
---=20
-Thanks
-Nitesh
-
+> > > +	int lockflags = 0;
+> > > +
+> > > +	/*
+> > > +	 * Operations creating pages in page cache need protection from hole
+> > > +	 * punching and similar ops
+> > > +	 */
+> > > +	if (advice == POSIX_FADV_WILLNEED) {
+> > > +		lockflags = XFS_IOLOCK_SHARED;
+> > > +		xfs_ilock(ip, lockflags);
+> > > +	}
+> > > +	ret = generic_fadvise(file, start, end, advice);
+> > > +	if (lockflags)
+> > > +		xfs_iunlock(ip, lockflags);
+> > > +	return ret;
+> > > +}
+> > >  
+> > >  STATIC loff_t
+> > >  xfs_file_remap_range(
+> > > @@ -1232,6 +1257,7 @@ const struct file_operations xfs_file_operations = {
+> > >  	.fsync		= xfs_file_fsync,
+> > >  	.get_unmapped_area = thp_get_unmapped_area,
+> > >  	.fallocate	= xfs_file_fallocate,
+> > > +	.fadvise	= xfs_file_fadvise,
+> > >  	.remap_file_range = xfs_file_remap_range,
+> > >  };
+> > >  
+> > > -- 
+> > > 2.16.4
+> > > 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
