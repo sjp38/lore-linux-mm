@@ -2,163 +2,121 @@ Return-Path: <SRS0=hlfI=W2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A4DFC3A5A6
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 15:24:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65E7FC3A59B
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 15:25:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DB7423407
-	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 15:24:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DB7423407
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 1CF8E21726
+	for <linux-mm@archiver.kernel.org>; Fri, 30 Aug 2019 15:25:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="j+V6+/Z8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CF8E21726
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 947596B0006; Fri, 30 Aug 2019 11:24:52 -0400 (EDT)
+	id C2D8F6B0008; Fri, 30 Aug 2019 11:25:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8FA9E6B0008; Fri, 30 Aug 2019 11:24:52 -0400 (EDT)
+	id BDDA66B000A; Fri, 30 Aug 2019 11:25:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80F846B000A; Fri, 30 Aug 2019 11:24:52 -0400 (EDT)
+	id AF39B6B000C; Fri, 30 Aug 2019 11:25:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0012.hostedemail.com [216.40.44.12])
-	by kanga.kvack.org (Postfix) with ESMTP id 602C66B0006
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 11:24:52 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E65581F87B
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 15:24:51 +0000 (UTC)
-X-FDA: 75879466782.21.slave23_649db5c7d431a
-X-HE-Tag: slave23_649db5c7d431a
-X-Filterd-Recvd-Size: 4415
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 15:24:51 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 17DFEAD49;
-	Fri, 30 Aug 2019 15:24:50 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 82B441E43A8; Fri, 30 Aug 2019 17:24:49 +0200 (CEST)
-Date: Fri, 30 Aug 2019 17:24:49 +0200
-From: Jan Kara <jack@suse.cz>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	Amir Goldstein <amir73il@gmail.com>,
-	Boaz Harrosh <boaz@plexistor.com>, linux-fsdevel@vger.kernel.org,
-	stable@vger.kernel.org
-Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
- with hole punch
-Message-ID: <20190830152449.GA25069@quack2.suse.cz>
-References: <20190829131034.10563-1-jack@suse.cz>
- <20190829131034.10563-4-jack@suse.cz>
- <20190829155204.GD5354@magnolia>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190829155204.GD5354@magnolia>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Received: from forelay.hostedemail.com (smtprelay0020.hostedemail.com [216.40.44.20])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DDC86B0008
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 11:25:32 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 27F501F86B
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 15:25:32 +0000 (UTC)
+X-FDA: 75879468504.25.juice74_6a7dbc5a9e642
+X-HE-Tag: juice74_6a7dbc5a9e642
+X-Filterd-Recvd-Size: 4500
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 30 Aug 2019 15:25:31 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id g17so6449009qkk.8
+        for <linux-mm@kvack.org>; Fri, 30 Aug 2019 08:25:31 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=uAGNj/k9sxhyWPF4gW8v9ANxItk70JmBhK3Bz890W+M=;
+        b=j+V6+/Z819VI1YZCoOnBj/oMDBF8SifHtR2Py7Q6rcAn92pGtORGovoGCON3Xa0lEX
+         mxAwlsSE96mMR4c61G9G8QRLocu2g29Ge8DsiPpZhLQtBn5g7rnvG1bZS0vRFyLLpUTi
+         KFDkNrI8kkq2QeMA60xq6RRi5XmiTP6vF7tokvFja6/cKXod0up2/W3LB6o9eFp4H/yY
+         LJ6JRhF31aQpNRTjiSXK9uHJasLwOO4iLkUiazLH6+SWDJCh1fQVNiKgaHLXlY6vO7W/
+         cdjf95wdC7m+IpXiXMrUqxD3WZVng2GUkXt8H/YEuy8WtKiRq/pMEFgtNh71FTkAJy5g
+         TwQQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=uAGNj/k9sxhyWPF4gW8v9ANxItk70JmBhK3Bz890W+M=;
+        b=edzOQAFfiHNXTOY9SS+LdKXrFxMTcTXC85XAeToYA30b7QA8C+75slzoykltncT3qf
+         6GT1GoMx9iVmINf6eSrGHQ4A33DCXQqeNBOWtyW+MRa/HNYHtf6taqvpYjSW3aQhVA0R
+         fwoQm8sHI+45AfosJGUABmRUSbE4nH9+3N8d534Zb2gi0+2+nrnmh8cRBWMofYQkzNM5
+         TGNdQiwaX5q7RHY6tRh4SGQGZ2CbjGV/Rfevmqt+F9y/i5YLLhk/kWlApG8nvOpVbiKp
+         sC+/oQRNJPKERQyRl1wHdsNKrBphNmUU9y5CcGlwmHeS5b63WIeYVDL6MwU9DX7CopcE
+         qyDg==
+X-Gm-Message-State: APjAAAWeqs3+f17q7EJJXYAmrQr1zvvQkvENNtvIrrhodHkkkx7t+Jy0
+	fdGyXXaoZrT2bzMTUAQs/srlVQ==
+X-Google-Smtp-Source: APXvYqw0EhdXHc1wpLtFj5TejUK0OxSVjZ2aoiu/qaTO83bFRR+7CanolrCjPltbXW/VvIZh7EuyQg==
+X-Received: by 2002:a37:4d0c:: with SMTP id a12mr15819201qkb.214.1567178731214;
+        Fri, 30 Aug 2019 08:25:31 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id l8sm3559996qti.65.2019.08.30.08.25.30
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Aug 2019 08:25:30 -0700 (PDT)
+Message-ID: <1567178728.5576.32.camel@lca.pw>
+Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
+From: Qian Cai <cai@lca.pw>
+To: Eric Dumazet <eric.dumazet@gmail.com>, davem@davemloft.net
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Date: Fri, 30 Aug 2019 11:25:28 -0400
+In-Reply-To: <6109dab4-4061-8fee-96ac-320adf94e130@gmail.com>
+References: <1567177025-11016-1-git-send-email-cai@lca.pw>
+	 <6109dab4-4061-8fee-96ac-320adf94e130@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 29-08-19 08:52:04, Darrick J. Wong wrote:
-> On Thu, Aug 29, 2019 at 03:10:34PM +0200, Jan Kara wrote:
-> > Hole puching currently evicts pages from page cache and then goes on to
-> > remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
-> > and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
-> > racing reads or page faults. However there is currently nothing that
-> > prevents readahead triggered by fadvise() or madvise() from racing with
-> > the hole punch and instantiating page cache page after hole punching has
-> > evicted page cache in xfs_flush_unmap_range() but before it has removed
-> > blocks from the inode. This page cache page will be mapping soon to be
-> > freed block and that can lead to returning stale data to userspace or
-> > even filesystem corruption.
-> > 
-> > Fix the problem by protecting handling of readahead requests by
-> > XFS_IOLOCK_SHARED similarly as we protect reads.
-> > 
-> > CC: stable@vger.kernel.org
-> > Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
-> > Reported-by: Amir Goldstein <amir73il@gmail.com>
-> > Signed-off-by: Jan Kara <jack@suse.cz>
+On Fri, 2019-08-30 at 17:11 +0200, Eric Dumazet wrote:
 > 
-> Is there a test on xfstests to demonstrate this race?
-
-No, but I can try to create one.
-
-> Will test it out though...
-> 
-> Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-
-Thanks. BTW, will you pick up these patches please?
-
-								Honza
-
-> 
-> --D
-> 
-> > ---
-> >  fs/xfs/xfs_file.c | 26 ++++++++++++++++++++++++++
-> >  1 file changed, 26 insertions(+)
+> On 8/30/19 4:57 PM, Qian Cai wrote:
+> > When running heavy memory pressure workloads, the system is throwing
+> > endless warnings below due to the allocation could fail from
+> > __build_skb(), and the volume of this call could be huge which may
+> > generate a lot of serial console output and cosumes all CPUs as
+> > warn_alloc() could be expensive by calling dump_stack() and then
+> > show_mem().
 > > 
-> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> > index 28101bbc0b78..d952d5962e93 100644
-> > --- a/fs/xfs/xfs_file.c
-> > +++ b/fs/xfs/xfs_file.c
-> > @@ -28,6 +28,7 @@
-> >  #include <linux/falloc.h>
-> >  #include <linux/backing-dev.h>
-> >  #include <linux/mman.h>
-> > +#include <linux/fadvise.h>
-> >  
-> >  static const struct vm_operations_struct xfs_file_vm_ops;
-> >  
-> > @@ -933,6 +934,30 @@ xfs_file_fallocate(
-> >  	return error;
-> >  }
-> >  
-> > +STATIC int
-> > +xfs_file_fadvise(
-> > +	struct file	*file,
-> > +	loff_t		start,
-> > +	loff_t		end,
-> > +	int		advice)
-> > +{
-> > +	struct xfs_inode *ip = XFS_I(file_inode(file));
-> > +	int ret;
-> > +	int lockflags = 0;
-> > +
-> > +	/*
-> > +	 * Operations creating pages in page cache need protection from hole
-> > +	 * punching and similar ops
-> > +	 */
-> > +	if (advice == POSIX_FADV_WILLNEED) {
-> > +		lockflags = XFS_IOLOCK_SHARED;
-> > +		xfs_ilock(ip, lockflags);
-> > +	}
-> > +	ret = generic_fadvise(file, start, end, advice);
-> > +	if (lockflags)
-> > +		xfs_iunlock(ip, lockflags);
-> > +	return ret;
-> > +}
-> >  
-> >  STATIC loff_t
-> >  xfs_file_remap_range(
-> > @@ -1232,6 +1257,7 @@ const struct file_operations xfs_file_operations = {
-> >  	.fsync		= xfs_file_fsync,
-> >  	.get_unmapped_area = thp_get_unmapped_area,
-> >  	.fallocate	= xfs_file_fallocate,
-> > +	.fadvise	= xfs_file_fadvise,
-> >  	.remap_file_range = xfs_file_remap_range,
-> >  };
-> >  
-> > -- 
-> > 2.16.4
+> > Fix it by silencing the warning in this call site. Also, it seems
+> > unnecessary to even print a warning at all if the allocation failed in
+> > __build_skb(), as it may just retransmit the packet and retry.
 > > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> 
+> Same patches are showing up there and there from time to time.
+> 
+> Why is this particular spot interesting, against all others not adding
+> __GFP_NOWARN ?
+> 
+> Are we going to have hundred of patches adding __GFP_NOWARN at various points,
+> or should we get something generic to not flood the syslog in case of memory
+> pressure ?
+> 
+
+From my testing which uses LTP oom* tests. There are only 3 places need to be
+patched. The other two are in IOMMU code for both Intel and AMD. The place is
+particular interesting because it could cause the system with floating serial
+console output for days without making progress in OOM. I suppose it ends up in
+a looping condition that warn_alloc() would end up generating more calls into
+__build_skb() via ksoftirqd.
 
