@@ -2,190 +2,180 @@ Return-Path: <SRS0=4eAG=W4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-0.4 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
+	FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,
+	HTML_FONT_LOW_CONTRAST,HTML_IMAGE_RATIO_02,HTML_MESSAGE,MAILING_LIST_MULTI,
+	MIME_HTML_ONLY,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1099DC3A5A7
-	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:02:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 137C5C3A5A4
+	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:09:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BACB2190F
-	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:02:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BACB2190F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D31A420870
+	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:09:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D31A420870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 199916B0005; Sun,  1 Sep 2019 14:02:55 -0400 (EDT)
+	id 58C536B0007; Sun,  1 Sep 2019 14:09:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 149846B0006; Sun,  1 Sep 2019 14:02:55 -0400 (EDT)
+	id 53C866B0008; Sun,  1 Sep 2019 14:09:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 038386B0007; Sun,  1 Sep 2019 14:02:54 -0400 (EDT)
+	id 452C16B000A; Sun,  1 Sep 2019 14:09:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0055.hostedemail.com [216.40.44.55])
-	by kanga.kvack.org (Postfix) with ESMTP id D82FB6B0005
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 14:02:54 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 7410D6D81
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:54 +0000 (UTC)
-X-FDA: 75887122668.17.color59_8dab4419b1031
-X-HE-Tag: color59_8dab4419b1031
-X-Filterd-Recvd-Size: 6634
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:53 +0000 (UTC)
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 144DA7BDA1
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:52 +0000 (UTC)
-Received: by mail-qt1-f198.google.com with SMTP id n59so1931081qtd.8
-        for <linux-mm@kvack.org>; Sun, 01 Sep 2019 11:02:52 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to;
-        bh=NtIlrG6bXqato3AHyRhqkP1r1EyQzXXXF+1WVjQfhrI=;
-        b=bABw1YZIcdkjzh7jxjoBHn/E9eir4tbUZo6RizbgY3ZaNPiX0Pc0j7VndvRJqzLZ9q
-         7M2hYJz90TVQMtQnUXV8TeZodMy5nbYOBmxo8W6hKHV76th2c5nH79iD8r6bzwbCRyJI
-         8Mf2s/JL8tOojzUybL1VQdq3AwzFpBa+7ibH7I/wdViEDsbTJx9q7YiKwtFOtEvlw/nv
-         8vuGktgrI6uZwncMmntPatS5tKlOsrmp3xoPpAqXSHj9nQ7yxUb7G10XikrW1Ro4L2vo
-         JKY3UFFvJ6KL32BS5ski2aScJxoouEKLwNyieXetUjarfZS2AJ1w147QfBuqai3vbzyi
-         YkCA==
-X-Gm-Message-State: APjAAAU459MYJM4xpo8g+7Er2xc5LHmLjjXtVZFNU14vjpho87C7zRVA
-	Qgd5xU5EIfbN8wy0OgCXA/5rnFhttmRZc3htAQPT6q5EPWiGXIxdx1v76J8GSDIsy/GPcRD9PmR
-	bjuF+QxtfDgI=
-X-Received: by 2002:a37:480d:: with SMTP id v13mr24849059qka.295.1567360971411;
-        Sun, 01 Sep 2019 11:02:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRyGzOcE8hglKRycEb420hPDRNv3fnUOZqre0cmbUtVArhzSlANFmNqbwZR2kZ23xgEdav+Q==
-X-Received: by 2002:a37:480d:: with SMTP id v13mr24849044qka.295.1567360971215;
-        Sun, 01 Sep 2019 11:02:51 -0700 (PDT)
-Received: from redhat.com (bzq-79-180-62-110.red.bezeqint.net. [79.180.62.110])
-        by smtp.gmail.com with ESMTPSA id i20sm5379783qkk.67.2019.09.01.11.02.46
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 01 Sep 2019 11:02:49 -0700 (PDT)
-Date: Sun, 1 Sep 2019 14:02:44 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, jgg@ziepe.ca
-Subject: Re: [PATCH V5 0/9] Fixes for vhost metadata acceleration
-Message-ID: <20190901140220-mutt-send-email-mst@kernel.org>
-References: <20190809054851.20118-1-jasowang@redhat.com>
- <20190810134948-mutt-send-email-mst@kernel.org>
- <360a3b91-1ac5-84c0-d34b-a4243fa748c4@redhat.com>
- <20190812054429-mutt-send-email-mst@kernel.org>
- <663be71f-f96d-cfbc-95a0-da0ac6b82d9f@redhat.com>
- <20190819162733-mutt-send-email-mst@kernel.org>
- <9325de4b-1d79-eb19-306e-e7a8fa8cc1a5@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0220.hostedemail.com [216.40.44.220])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B806B0007
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 14:09:04 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id A88AD824CA2A
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:09:03 +0000 (UTC)
+X-FDA: 75887138166.28.dogs64_31f143ed04011
+X-HE-Tag: dogs64_31f143ed04011
+X-Filterd-Recvd-Size: 4591
+Received: from smtp2-g21.free.fr (smtp2-g21.free.fr [212.27.42.2])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:09:03 +0000 (UTC)
+Received: from joliesfleursdanslepre.local (unknown [37.169.136.80])
+	by smtp2-g21.free.fr (Postfix) with ESMTP id F1CD2200371
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 20:09:01 +0200 (CEST)
+Date: Sun, 1 Sep 2019 18:18:56 +0000
+To: linux-mm@kvack.org
+From: Resuscitation Conference <laurent.barvet@gmail.com>
+Subject: Paris octobre 2019
+Message-ID: <30e2eedd7d5a8673e3dc80c6ab92d0f7@joliesfleursdanslepre.local>
+X-Priority: 3
+X-Mailer: PHPMailer 5.2.9 (https://github.com/PHPMailer/PHPMailer/)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <9325de4b-1d79-eb19-306e-e7a8fa8cc1a5@redhat.com>
+Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.223854, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 10:29:32AM +0800, Jason Wang wrote:
->=20
-> On 2019/8/20 =E4=B8=8A=E5=8D=885:08, Michael S. Tsirkin wrote:
-> > On Tue, Aug 13, 2019 at 04:12:49PM +0800, Jason Wang wrote:
-> > > On 2019/8/12 =E4=B8=8B=E5=8D=885:49, Michael S. Tsirkin wrote:
-> > > > On Mon, Aug 12, 2019 at 10:44:51AM +0800, Jason Wang wrote:
-> > > > > On 2019/8/11 =E4=B8=8A=E5=8D=881:52, Michael S. Tsirkin wrote:
-> > > > > > On Fri, Aug 09, 2019 at 01:48:42AM -0400, Jason Wang wrote:
-> > > > > > > Hi all:
-> > > > > > >=20
-> > > > > > > This series try to fix several issues introduced by meta da=
-ta
-> > > > > > > accelreation series. Please review.
-> > > > > > >=20
-> > > > > > > Changes from V4:
-> > > > > > > - switch to use spinlock synchronize MMU notifier with acce=
-ssors
-> > > > > > >=20
-> > > > > > > Changes from V3:
-> > > > > > > - remove the unnecessary patch
-> > > > > > >=20
-> > > > > > > Changes from V2:
-> > > > > > > - use seqlck helper to synchronize MMU notifier with vhost =
-worker
-> > > > > > >=20
-> > > > > > > Changes from V1:
-> > > > > > > - try not use RCU to syncrhonize MMU notifier with vhost wo=
-rker
-> > > > > > > - set dirty pages after no readers
-> > > > > > > - return -EAGAIN only when we find the range is overlapped =
-with
-> > > > > > >      metadata
-> > > > > > >=20
-> > > > > > > Jason Wang (9):
-> > > > > > >      vhost: don't set uaddr for invalid address
-> > > > > > >      vhost: validate MMU notifier registration
-> > > > > > >      vhost: fix vhost map leak
-> > > > > > >      vhost: reset invalidate_count in vhost_set_vring_num_a=
-ddr()
-> > > > > > >      vhost: mark dirty pages during map uninit
-> > > > > > >      vhost: don't do synchronize_rcu() in vhost_uninit_vq_m=
-aps()
-> > > > > > >      vhost: do not use RCU to synchronize MMU notifier with=
- worker
-> > > > > > >      vhost: correctly set dirty pages in MMU notifiers call=
-back
-> > > > > > >      vhost: do not return -EAGAIN for non blocking invalida=
-tion too early
-> > > > > > >=20
-> > > > > > >     drivers/vhost/vhost.c | 202 +++++++++++++++++++++++++--=
----------------
-> > > > > > >     drivers/vhost/vhost.h |   6 +-
-> > > > > > >     2 files changed, 122 insertions(+), 86 deletions(-)
-> > > > > > This generally looks more solid.
-> > > > > >=20
-> > > > > > But this amounts to a significant overhaul of the code.
-> > > > > >=20
-> > > > > > At this point how about we revert 7f466032dc9e5a61217f22ea34b=
-2df932786bbfc
-> > > > > > for this release, and then re-apply a corrected version
-> > > > > > for the next one?
-> > > > > If possible, consider we've actually disabled the feature. How =
-about just
-> > > > > queued those patches for next release?
-> > > > >=20
-> > > > > Thanks
-> > > > Sorry if I was unclear. My idea is that
-> > > > 1. I revert the disabled code
-> > > > 2. You send a patch readding it with all the fixes squashed
-> > > > 3. Maybe optimizations on top right away?
-> > > > 4. We queue *that* for next and see what happens.
-> > > >=20
-> > > > And the advantage over the patchy approach is that the current pa=
-tches
-> > > > are hard to review. E.g.  it's not reasonable to ask RCU guys to =
-review
-> > > > the whole of vhost for RCU usage but it's much more reasonable to=
- ask
-> > > > about a specific patch.
-> > >=20
-> > > Ok. Then I agree to revert.
-> > >=20
-> > > Thanks
-> > Great, so please send the following:
-> > - revert
-> > - squashed and fixed patch
->=20
->=20
-> Just to confirm, do you want me to send a single series or two?
->=20
-> Thanks
->=20
+<!DOCTYPE html>
+			                   <html>
+				               	<head>
+					            	<meta http-equiv=3D"Content-Type" content=3D"text/html;=
+ charset=3Dutf-8">		=09
+				                </head>
+				                <body>
+					            	<html>
+	<head>
+		<title>
+		</title>
+		<meta content=3D"text/html; charset=3DUTF-8" http-equiv=3DContent-Type>
+	</head>
+	<body>
+		<div style=3D"TEXT-ALIGN: center">
+			<A href=3D"https://ymlpmail4.net/1d04amqhapaehbsyanajeqacau/click.php"=
+ target=3D_new><IMG style=3D"BORDER-TOP: 0px solid; HEIGHT: 345px; BORDER=
+-RIGHT: 0px solid; WIDTH: 694px; BORDER-BOTTOM: 0px solid; BORDER-LEFT: 0=
+px solid; user-select: none" border=3D0 alt=3Dresuscitation-conference_pa=
+ris_october_2019 src=3D"https://ymlpmail4.net/imgz/mzu6_resuscitationconf=
+erenceparisoctober2019.jpg" width=3D694 height=3D345 unselectable=3D"on">=
+</A>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<SPAN style=3D"FONT-SIZE: 18px"><SPAN style=3D"FONT-FAMILY: arial,helv=
+etica,sans-serif"><SPAN style=3D"COLOR: #0000cd">Bringing Together Intern=
+ational Experts to Discuss,
+			<br>
+			Debate &amp; Demonstrate
+			<br>
+			Advances in Resuscitation</SPAN></SPAN></SPAN>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<br>
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<SPAN style=3D"FONT-SIZE: 18px"><SPAN style=3D"FONT-FAMILY: arial,helv=
+etica,sans-serif">The purpose of this conference is to provide a forum fo=
+r some of the
+			<br>
+			world=E2=80=99s leaders on CPR to provide scientific updates on the mo=
+st current and future anticipated advances in the field and on the state-=
+of-the future of resuscitation. In addition to lectures and panel discuss=
+ions some of the latest advances will be demonstrated in the laboratory.<=
+/SPAN></SPAN>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<br>
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<STRONG><SPAN style=3D"FONT-SIZE: 20px"><SPAN style=3D"FONT-FAMILY: ar=
+ial,helvetica,sans-serif">In collaboration with</SPAN></SPAN></STRONG>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<br>
+			<IMG style=3D"BORDER-TOP: 0px solid; HEIGHT: 199px; BORDER-RIGHT: 0px =
+solid; WIDTH: 551px; BORDER-BOTTOM: 0px solid; BORDER-LEFT: 0px solid; us=
+er-select: none" border=3D0 alt=3Dresuscitation-conference.fr src=3D"http=
+s://ymlpmail4.net/imgz/mzu6_takeheartamerica--1.jpg" width=3D551 height=3D=
+199 unselectable=3D"on">
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			Pour ne plus recevoir nos mails, <A href=3D"https://ymlpmail4.net/174c=
+fmqwavaehbsyanajeqagau/click.php" target=3D_new>cliquez la</A>&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<SPAN style=3D"COLOR: #ffffff">.</SPAN>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			<SPAN style=3D"COLOR: #ffffff">.</SPAN>
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div>
+		<div style=3D"TEXT-ALIGN: center">
+			&nbsp;
+		</div><!--YMLPUF-->
+		<div style=3D"FONT-SIZE: 8pt; FONT-FAMILY: Verdana; COLOR: #000000; PAD=
+DING-BOTTOM: 10px; PADDING-TOP: 10px" align=3Dcenter>
+			<hr color=3D#000000 SIZE=3D1 width=3D"50%" noShade>
+			<A href=3D"https://ymlpmail4.net/ughywqsqgugugyjhggeeuee" target=3D_ne=
+w body <></A>
+		</div>
+	</body>
+</html>
+				                </body>
+			                   </html>
 
-One is fine.
-
---=20
-MST
 
