@@ -2,120 +2,190 @@ Return-Path: <SRS0=4eAG=W4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C269C3A5A6
-	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 00:52:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1099DC3A5A7
+	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:02:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF0082186A
-	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 00:52:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="eBz5M1QV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF0082186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 9BACB2190F
+	for <linux-mm@archiver.kernel.org>; Sun,  1 Sep 2019 18:02:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BACB2190F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 624E16B0006; Sat, 31 Aug 2019 20:52:19 -0400 (EDT)
+	id 199916B0005; Sun,  1 Sep 2019 14:02:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D50E6B0008; Sat, 31 Aug 2019 20:52:19 -0400 (EDT)
+	id 149846B0006; Sun,  1 Sep 2019 14:02:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EBBA6B000A; Sat, 31 Aug 2019 20:52:19 -0400 (EDT)
+	id 038386B0007; Sun,  1 Sep 2019 14:02:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9956B0006
-	for <linux-mm@kvack.org>; Sat, 31 Aug 2019 20:52:19 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id B19B2180AD7C1
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 00:52:18 +0000 (UTC)
-X-FDA: 75884525556.18.salt91_1410d02ac5148
-X-HE-Tag: salt91_1410d02ac5148
-X-Filterd-Recvd-Size: 4471
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 00:52:17 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=jXXM66EKtvmEAYvb1Llji9/A136eINaxlL5uqBe0OBY=; b=eBz5M1QVpKJZMQDzXUQ9MXhMT
-	rIK2EkzUbSraojFclMxJ7OU+sf7tbq9mwzo0REl3yaDUt2YpbGdUBXr1PBULu2aic9sZuNzSPwoCp
-	owngjkSk9HrwVrtscNCYj+aZ/17/cGG88hXmrwj3PKy0BJCvg4ElKAVolJU/MnnAZSwlpMqAmc62e
-	AMUhgpKdATQQ056Kf77qv58BUxrXE6ktixwa0beiRV9gpk+ZAtbCCa1VAH88gCyyf5jTc6PxLSazv
-	wV7o8Fq43JPBfe5nZRIUcQcvYRvRzMraHjUnFk9kNgyg6rLAwcalK0UgYckSGwX3KhjlxftyTplES
-	EIwb3V+yg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1i4E69-0007JD-OE; Sun, 01 Sep 2019 00:52:05 +0000
-Date: Sat, 31 Aug 2019 17:52:05 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-btrfs@vger.kernel.org
-Subject: Re: [PATCH v2 2/2] mm, sl[aou]b: guarantee natural alignment for
- kmalloc(power-of-two)
-Message-ID: <20190901005205.GA2431@bombadil.infradead.org>
-References: <20190826111627.7505-1-vbabka@suse.cz>
- <20190826111627.7505-3-vbabka@suse.cz>
- <0100016cd98bb2c1-a2af7539-706f-47ba-a68e-5f6a91f2f495-000000@email.amazonses.com>
- <20190828194607.GB6590@bombadil.infradead.org>
- <20190829073921.GA21880@dhcp22.suse.cz>
- <0100016ce39e6bb9-ad20e033-f3f4-4e6d-85d6-87e7d07823ae-000000@email.amazonses.com>
+Received: from forelay.hostedemail.com (smtprelay0055.hostedemail.com [216.40.44.55])
+	by kanga.kvack.org (Postfix) with ESMTP id D82FB6B0005
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 14:02:54 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 7410D6D81
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:54 +0000 (UTC)
+X-FDA: 75887122668.17.color59_8dab4419b1031
+X-HE-Tag: color59_8dab4419b1031
+X-Filterd-Recvd-Size: 6634
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:53 +0000 (UTC)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 144DA7BDA1
+	for <linux-mm@kvack.org>; Sun,  1 Sep 2019 18:02:52 +0000 (UTC)
+Received: by mail-qt1-f198.google.com with SMTP id n59so1931081qtd.8
+        for <linux-mm@kvack.org>; Sun, 01 Sep 2019 11:02:52 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:content-transfer-encoding
+         :in-reply-to;
+        bh=NtIlrG6bXqato3AHyRhqkP1r1EyQzXXXF+1WVjQfhrI=;
+        b=bABw1YZIcdkjzh7jxjoBHn/E9eir4tbUZo6RizbgY3ZaNPiX0Pc0j7VndvRJqzLZ9q
+         7M2hYJz90TVQMtQnUXV8TeZodMy5nbYOBmxo8W6hKHV76th2c5nH79iD8r6bzwbCRyJI
+         8Mf2s/JL8tOojzUybL1VQdq3AwzFpBa+7ibH7I/wdViEDsbTJx9q7YiKwtFOtEvlw/nv
+         8vuGktgrI6uZwncMmntPatS5tKlOsrmp3xoPpAqXSHj9nQ7yxUb7G10XikrW1Ro4L2vo
+         JKY3UFFvJ6KL32BS5ski2aScJxoouEKLwNyieXetUjarfZS2AJ1w147QfBuqai3vbzyi
+         YkCA==
+X-Gm-Message-State: APjAAAU459MYJM4xpo8g+7Er2xc5LHmLjjXtVZFNU14vjpho87C7zRVA
+	Qgd5xU5EIfbN8wy0OgCXA/5rnFhttmRZc3htAQPT6q5EPWiGXIxdx1v76J8GSDIsy/GPcRD9PmR
+	bjuF+QxtfDgI=
+X-Received: by 2002:a37:480d:: with SMTP id v13mr24849059qka.295.1567360971411;
+        Sun, 01 Sep 2019 11:02:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRyGzOcE8hglKRycEb420hPDRNv3fnUOZqre0cmbUtVArhzSlANFmNqbwZR2kZ23xgEdav+Q==
+X-Received: by 2002:a37:480d:: with SMTP id v13mr24849044qka.295.1567360971215;
+        Sun, 01 Sep 2019 11:02:51 -0700 (PDT)
+Received: from redhat.com (bzq-79-180-62-110.red.bezeqint.net. [79.180.62.110])
+        by smtp.gmail.com with ESMTPSA id i20sm5379783qkk.67.2019.09.01.11.02.46
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 01 Sep 2019 11:02:49 -0700 (PDT)
+Date: Sun, 1 Sep 2019 14:02:44 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, jgg@ziepe.ca
+Subject: Re: [PATCH V5 0/9] Fixes for vhost metadata acceleration
+Message-ID: <20190901140220-mutt-send-email-mst@kernel.org>
+References: <20190809054851.20118-1-jasowang@redhat.com>
+ <20190810134948-mutt-send-email-mst@kernel.org>
+ <360a3b91-1ac5-84c0-d34b-a4243fa748c4@redhat.com>
+ <20190812054429-mutt-send-email-mst@kernel.org>
+ <663be71f-f96d-cfbc-95a0-da0ac6b82d9f@redhat.com>
+ <20190819162733-mutt-send-email-mst@kernel.org>
+ <9325de4b-1d79-eb19-306e-e7a8fa8cc1a5@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <0100016ce39e6bb9-ad20e033-f3f4-4e6d-85d6-87e7d07823ae-000000@email.amazonses.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <9325de4b-1d79-eb19-306e-e7a8fa8cc1a5@redhat.com>
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 30, 2019 at 05:41:46PM +0000, Christopher Lameter wrote:
-> On Thu, 29 Aug 2019, Michal Hocko wrote:
-> > > There are many places in the kernel which assume alignment.  They break
-> > > when it's not supplied.  I believe we have a better overall system if
-> > > the MM developers provide stronger guarantees than the MM consumers have
-> > > to work around only weak guarantees.
-> >
-> > I absolutely agree. A hypothetical benefit of a new implementation
-> > doesn't outweigh the complexity the existing code has to jump over or
-> > worse is not aware of and it is broken silently. My general experience
-> > is that the later is more likely with a large variety of drivers we have
-> > in the tree and odd things they do in general.
-> 
-> The current behavior without special alignment for these caches has been
-> in the wild for over a decade. And this is now coming up?
+On Tue, Aug 20, 2019 at 10:29:32AM +0800, Jason Wang wrote:
+>=20
+> On 2019/8/20 =E4=B8=8A=E5=8D=885:08, Michael S. Tsirkin wrote:
+> > On Tue, Aug 13, 2019 at 04:12:49PM +0800, Jason Wang wrote:
+> > > On 2019/8/12 =E4=B8=8B=E5=8D=885:49, Michael S. Tsirkin wrote:
+> > > > On Mon, Aug 12, 2019 at 10:44:51AM +0800, Jason Wang wrote:
+> > > > > On 2019/8/11 =E4=B8=8A=E5=8D=881:52, Michael S. Tsirkin wrote:
+> > > > > > On Fri, Aug 09, 2019 at 01:48:42AM -0400, Jason Wang wrote:
+> > > > > > > Hi all:
+> > > > > > >=20
+> > > > > > > This series try to fix several issues introduced by meta da=
+ta
+> > > > > > > accelreation series. Please review.
+> > > > > > >=20
+> > > > > > > Changes from V4:
+> > > > > > > - switch to use spinlock synchronize MMU notifier with acce=
+ssors
+> > > > > > >=20
+> > > > > > > Changes from V3:
+> > > > > > > - remove the unnecessary patch
+> > > > > > >=20
+> > > > > > > Changes from V2:
+> > > > > > > - use seqlck helper to synchronize MMU notifier with vhost =
+worker
+> > > > > > >=20
+> > > > > > > Changes from V1:
+> > > > > > > - try not use RCU to syncrhonize MMU notifier with vhost wo=
+rker
+> > > > > > > - set dirty pages after no readers
+> > > > > > > - return -EAGAIN only when we find the range is overlapped =
+with
+> > > > > > >      metadata
+> > > > > > >=20
+> > > > > > > Jason Wang (9):
+> > > > > > >      vhost: don't set uaddr for invalid address
+> > > > > > >      vhost: validate MMU notifier registration
+> > > > > > >      vhost: fix vhost map leak
+> > > > > > >      vhost: reset invalidate_count in vhost_set_vring_num_a=
+ddr()
+> > > > > > >      vhost: mark dirty pages during map uninit
+> > > > > > >      vhost: don't do synchronize_rcu() in vhost_uninit_vq_m=
+aps()
+> > > > > > >      vhost: do not use RCU to synchronize MMU notifier with=
+ worker
+> > > > > > >      vhost: correctly set dirty pages in MMU notifiers call=
+back
+> > > > > > >      vhost: do not return -EAGAIN for non blocking invalida=
+tion too early
+> > > > > > >=20
+> > > > > > >     drivers/vhost/vhost.c | 202 +++++++++++++++++++++++++--=
+---------------
+> > > > > > >     drivers/vhost/vhost.h |   6 +-
+> > > > > > >     2 files changed, 122 insertions(+), 86 deletions(-)
+> > > > > > This generally looks more solid.
+> > > > > >=20
+> > > > > > But this amounts to a significant overhaul of the code.
+> > > > > >=20
+> > > > > > At this point how about we revert 7f466032dc9e5a61217f22ea34b=
+2df932786bbfc
+> > > > > > for this release, and then re-apply a corrected version
+> > > > > > for the next one?
+> > > > > If possible, consider we've actually disabled the feature. How =
+about just
+> > > > > queued those patches for next release?
+> > > > >=20
+> > > > > Thanks
+> > > > Sorry if I was unclear. My idea is that
+> > > > 1. I revert the disabled code
+> > > > 2. You send a patch readding it with all the fixes squashed
+> > > > 3. Maybe optimizations on top right away?
+> > > > 4. We queue *that* for next and see what happens.
+> > > >=20
+> > > > And the advantage over the patchy approach is that the current pa=
+tches
+> > > > are hard to review. E.g.  it's not reasonable to ask RCU guys to =
+review
+> > > > the whole of vhost for RCU usage but it's much more reasonable to=
+ ask
+> > > > about a specific patch.
+> > >=20
+> > > Ok. Then I agree to revert.
+> > >=20
+> > > Thanks
+> > Great, so please send the following:
+> > - revert
+> > - squashed and fixed patch
+>=20
+>=20
+> Just to confirm, do you want me to send a single series or two?
+>=20
+> Thanks
+>=20
 
-In the wild ... and rarely enabled.  When it is enabled, it may or may
-not be noticed as data corruption, or tripping other debugging asserts.
-Users then turn off the rare debugging option.
+One is fine.
 
-> There is one case now it seems with a broken hardware that has issues and
-> we now move to an alignment requirement from the slabs with exceptions and
-> this and that?
-
-Perhaps you could try reading what hasa been written instead of sticking
-to a strawman of your own invention?
-
-> If there is an exceptional alignment requirement then that needs to be
-> communicated to the allocator. A special flag or create a special
-> kmem_cache or something.
-
-The only way I'd agree to that is if we deliberately misalign every
-allocation that doesn't have this special flag set.  Because right now,
-breakage happens everywhere when these debug options are enabled, and
-the very people who need to be helped are being hurt by the debugging.
+--=20
+MST
 
