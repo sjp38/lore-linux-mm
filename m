@@ -1,203 +1,189 @@
 Return-Path: <SRS0=2Zku=W5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.1 required=3.0 tests=CHARSET_FARAWAY_HEADER,
-	FROM_EXCESS_BASE64,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,
-	MAILING_LIST_MULTI,MIME_HTML_ONLY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD42FC3A59B
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 04:35:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFB79C3A59B
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 05:52:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F0EC206BA
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 04:35:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F0EC206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lge.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E00821897
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 05:52:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="YptSjpp2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E00821897
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A45F96B0003; Mon,  2 Sep 2019 00:35:00 -0400 (EDT)
+	id 948756B0003; Mon,  2 Sep 2019 01:52:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F6EB6B0006; Mon,  2 Sep 2019 00:35:00 -0400 (EDT)
+	id 8F9CF6B0006; Mon,  2 Sep 2019 01:52:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E77B6B0007; Mon,  2 Sep 2019 00:35:00 -0400 (EDT)
+	id 7C0D16B0007; Mon,  2 Sep 2019 01:52:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 689766B0003
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 00:35:00 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E7EB77593
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 04:34:59 +0000 (UTC)
-X-FDA: 75888715518.09.jar82_82c5d69fe0a1f
-X-HE-Tag: jar82_82c5d69fe0a1f
-X-Filterd-Recvd-Size: 10516
-Received: from lgeamrelo11.lge.com (lgeamrelo13.lge.com [156.147.23.53])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 04:34:58 +0000 (UTC)
-Received: from unknown (HELO lgemrelse6q.lge.com) (156.147.1.121)
-	by 156.147.23.53 with ESMTP; 2 Sep 2019 13:34:55 +0900
-X-Original-SENDERIP: 156.147.1.121
-X-Original-MAILFROM: sangwoo2.park@lge.com
-Received: from unknown (HELO lgekrhqms39b.lge.com) (10.185.110.133)
-	by 156.147.1.121 with ESMTP; 2 Sep 2019 13:34:55 +0900
-X-Original-SENDERIP: 10.185.110.133
-X-Original-MAILFROM: sangwoo2.park@lge.com
-X-AuditID: 9c930172-f79446d00000751c-fd-5d6903d7d0b3
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Subject: RE: Re: [PATCH] mm: Add nr_free_highatomimic to fix incorrect watermatk
- routine
-References: <1567157153-22024-1-git-send-email-sangwoo2.park@lge.com> 	<20190830110907.GC28313@dhcp22.suse.cz>
-In-Reply-To: <20190830110907.GC28313@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Brightmail-Tracker: H4sIAAAAAAAAA1WSa0wTWRTHuTNDuSUduUzBHluMpuqGxbW+lQ8b1CjqxpKou7hGrTIrQ1tt
-	C2krAl+WxCdECupKFIsiot2CrovxgY+wm6qoRKIhVcEHQYIEH0QJGEu2lJ2BoPjt5Px///+5
-	5+RimquTqbGQ4xTsNt6ilUUyt/a9iJrRSpsNs66XT068e/aVbDFaWdjjp1ajDZE/pgsWc7Zg
-	n5mUFmm6W/chPOsdzrnzrJLJR6ciCpEcA5kH/TWXqJF6PDxquyArRJGYI4coeN5+BY0Ic6Dn
-	YIgaEY4gCB3zDDsYMg3+eVYtJmEsI9/Bqwad1I4hU8BVVTocRJOnNHjb24aDlGQdNBd1MhLP
-	krnQE8yWSo4kw8snKySCJdFw/5hEyEVrArSE3lASQhMNeEJYasvJcujeFQyX2rFkKvRVkBIU
-	XTbGXDbGXPbVXIHoaqTUr0hekrI2Wf/TrHk6i1HQbc20XkTiHd2Hkb0OdXtSfYhgpFWwiVeN
-	Bi6cz3bkWn1oAqa0sezMjyYDN+63zPRcE+8wbbHvsAgOHwJMa2PYEytFjU3nc/MEe+aopMGM
-	VsX+7Us3cMTIO4XtgpAl2EdVCkf4UBzGWmCnUGYDF20XjEJOhtniHMvIpQkKccI7iWEdWbzV
-	YTaO6I1oBn69f28VzTG2TJugVrFpEkQkyLTD9iVn9KM0o4lqJYvCwsI4hfgQq9n5rf4W1SNx
-	eSW7CokxCrPN+WXUnCpRITdkcKBoE3S7KhD0FldQEHB3MhD4dwhDR8kdOQz1+lm4994VBZ8q
-	/4yC0O0eJYTO1qshuKdDA67dAxqov1UeBzWdnjiofXAzHlqCxdMh4D34Axw9dVUHx4cuLIFg
-	642l0HK0ehkE+waTIdA1qIeCc9UpcMI98At0FLlT4WGT91co6Dq+HgLd1zfCX80tG+HT5SOb
-	34rHosRj6U4L0rGc/NcN1PnIeW3SgtaEWD7GmzXQlJZbrq/tKr1yxuosif+jT3963c7SgDul
-	v2a96+S2rUJ/g2JS9M/76aSytrTHHcV7f0/1/5dBnWnMu/iAaShtXKpZODdjfoFnocp/+1rO
-	+XbjuMs3Pyd6U3caa/XLvl9T4D5pafzc2RTrn7zItZxL2PWxRLVApWUcJn52Am138P8DvEMn
-	BcsDAAA=
+Received: from forelay.hostedemail.com (smtprelay0188.hostedemail.com [216.40.44.188])
+	by kanga.kvack.org (Postfix) with ESMTP id 54ACB6B0003
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 01:52:04 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id E942B181AC9B6
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 05:52:03 +0000 (UTC)
+X-FDA: 75888909726.06.beam55_4c1575b6f2111
+X-HE-Tag: beam55_4c1575b6f2111
+X-Filterd-Recvd-Size: 8596
+Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70053.outbound.protection.outlook.com [40.107.7.53])
+	by imf46.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 05:52:02 +0000 (UTC)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=XyJqA0ZCSB9I91xfQur/LXrawn5+e0BBiWz0tb3GI6KF8AQkf5r0VTCH3wQqoy+MIxIY925oeSvYloWIGnmedrirZ7Ab1azuLJMkjDfjEWMhC0G8bOnwlOCr8hDKaxufaug1OD1iTTiBNPCOSTs/GNugYAAXB3skql0cvPTzJwHboZ8rA5gsDtsMYrNE8OA12/glhqYIkjh6NMelL/G6bFLdlbes/beEuKXKj/x/xeCrInc4INBI28d6RtFN0fUI7zJp6ao+Za3E+gDDL1YFzE+sg2nZVrszsFgFEsCI6l4zSefgSelF3de+uqjkMbVjPBeFUaU8BUAD3BoEwjq9jQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=3YpW+m5iJT03m2/HaZIr+pQumPBsZ7WrQOgbG+uLwmc=;
+ b=YT629KHSbJ7Zor60WB7KiX4tqVwpkBSuplC7jIhVQEw8Xznit1PD/BoSKT/FN6p8F1YzdmxEbr9mi4nFCgGpbm4CxE+kRYcTlV94S4YWCSpijJ9q38tg3jLGhxVN98hUlAfalrggk5GT68kntm0DHmwDrIwSbbeEgqZm+vjO/jGQSz5rOc2aiMfd+14nw/14tEyhpcobob931pq5pTXpyjN8W6r28wA53tP5OdJ+5MlmRAvo/lboG3b8qS+fXzk11lE0kNuadGoJQmnkOgwPzQGIOwit3Wpt3EfVoM7R9lxDqmXBFCDfSn+khYjDU7aGBrrys1pT24rdK3DePCB5Uw==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
+ dkim=pass header.d=mellanox.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=3YpW+m5iJT03m2/HaZIr+pQumPBsZ7WrQOgbG+uLwmc=;
+ b=YptSjpp2ID9UBlUxfbAJIM13nm4cRCQWi8eCSanBH9zIPW3pNc5vgBSHqy83A6HxHIiBXAilySbFTHeP4jbpWVM361ZMbtuk7CaGlqYI5pJgI2Nx5myhrtTrB02Lc++ujaIcTIosH9EdHBXOnxsOPuweL9TEkBbh2tYamED2/q8=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB5278.eurprd05.prod.outlook.com (20.178.11.25) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2220.21; Mon, 2 Sep 2019 05:51:58 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::79a3:d971:d1f3:ab6f]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::79a3:d971:d1f3:ab6f%7]) with mapi id 15.20.2220.020; Mon, 2 Sep 2019
+ 05:51:58 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Guenter Roeck <linux@roeck-us.net>
+CC: Christoph Hellwig <hch@lst.de>, Linus Torvalds
+	<torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>,
+	=?iso-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@shipmail.org>, Jerome Glisse
+	<jglisse@redhat.com>, Steven Price <steven.price@arm.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Thomas Hellstrom <thellstrom@vmware.com>
+Subject: Re: [PATCH 2/3] pagewalk: separate function pointers from iterator
+ data
+Thread-Topic: [PATCH 2/3] pagewalk: separate function pointers from iterator
+ data
+Thread-Index: AQHVXauzoOyMGt/Rm0+/Xu8LAWoHTqcXL4MAgAAOHoCAABCOAIAAm4cA
+Date: Mon, 2 Sep 2019 05:51:58 +0000
+Message-ID: <20190902055156.GA24116@mellanox.com>
+References: <20190828141955.22210-1-hch@lst.de>
+ <20190828141955.22210-3-hch@lst.de> <20190901184530.GA18656@roeck-us.net>
+ <20190901193601.GB5208@mellanox.com>
+ <b26ac5ae-a90c-7db5-a26c-3ace2f1530c7@roeck-us.net>
+In-Reply-To: <b26ac5ae-a90c-7db5-a26c-3ace2f1530c7@roeck-us.net>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: LO2P265CA0418.GBRP265.PROD.OUTLOOK.COM
+ (2603:10a6:600:a0::22) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [193.47.165.251]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 3155ef9c-6c0b-4e99-3c89-08d72f69ab28
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5278;
+x-ms-traffictypediagnostic: VI1PR05MB5278:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <VI1PR05MB5278D5E0FCB6450E511108A5CFBE0@VI1PR05MB5278.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
+x-forefront-prvs: 01480965DA
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(366004)(39860400002)(136003)(346002)(376002)(396003)(199004)(189003)(11346002)(7736002)(25786009)(6436002)(478600001)(102836004)(66066001)(1076003)(64756008)(6916009)(66446008)(2906002)(99286004)(5660300002)(4326008)(33656002)(71200400001)(71190400001)(66946007)(446003)(6512007)(53936002)(66476007)(66556008)(76176011)(386003)(53546011)(6506007)(966005)(26005)(86362001)(186003)(36756003)(8676002)(6246003)(14454004)(229853002)(486006)(6306002)(6486002)(476003)(305945005)(7416002)(81166006)(81156014)(8936002)(3846002)(316002)(52116002)(54906003)(14444005)(256004)(2616005)(6116002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5278;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ g6JO3kBvtgZxbcJjg57ba+LaBoSaZxouJ4xCd+ajdI3+nEYSorJjVj7kQ0XGBgvJiJjSU2jJrS7ZaAE01oACh08wOXzto1v7YfyzMD8JI+8kGONhzM+WXWqur+95h5+6K3e8BhlsQtweQfLpTkK8OGbykFk/fZpradsYfMdbDB8SKMzin1gsOxVgfRXcfUeWfzMnsMxQKA1p4Ks4W43piElJA3P86PGtdtCGLnXRIOeuEOxeCcvB7Pt9nsHaWfWbDrpWcQa9m2rl9aHWpGKuNMiM+1tV97SpkEbBDXURe0xpyrrShCh8Hf/CRw04mWlYhVQb+63tZ7JIAroQ14/8+VL4LOzy2SdyBZfL+e8wEbaKBbPBmyrbgzPjPy62DWAFDklC7MU4ST7odckmkecdyEBaXRMqzA+FObjyr4ccm0c=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <95F200D0B68A014B94DC2DE38EBA9207@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Reply-To: "=?EUC-KR?B?udq787/s?=" <sangwoo2.park@lge.com>
-X-Priority: 3 (Normal)
-Auto-Submitted: auto-generated
-From: "=?EUC-KR?B?udq787/s?=" <sangwoo2.park@lge.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: hannes@cmpxchg.org,
-	arunks@codeaurora.org,
-	guro@fb.com,
-	richard.weiyang@gmail.com,
-	glider@google.com,
-	jannh@google.com,
-	dan.j.williams@intel.com,
-	akpm@linux-foundation.org,
-	alexander.h.duyck@linux.intel.com,
-	rppt@linux.vnet.ibm.com,
-	gregkh@linuxfoundation.org,
-	janne.huttunen@nokia.com,
-	pasha.tatashin@soleen.com,
-	vbabka@suse.cz,
-	osalvador@suse.de,
-	mgorman@techsingularity.net,
-	khlebnikov@yandex-team.ru,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Message-ID: <OF7501D4D5.8C005EEB-ON49258469.00192B40-49258469.00192B40@lge.com>
-Date: Mon, 2 Sep 2019 13:34:54 +0900
-X-MIMETrack: Itemize by http on LGEKRHQMS39B/LGE/LG Group(Release 9.0.1FP7HF850 | February
- 23, 2018) at 2019/09/02 13:34:54,
-	Serialize by Router on LGEKRHQMS39B/LGE/LG Group(Release 9.0.1FP7HF850 | February
- 23, 2018) at 2019/09/02 13:34:54,
-	Serialize complete at 2019/09/02 13:34:54
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
-Content-Type: text/html;
-	charset="utf-8"
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 3155ef9c-6c0b-4e99-3c89-08d72f69ab28
+X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Sep 2019 05:51:58.7046
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: Lop4Pj6n2+1ioW7qTX/lXOF+ZFzhPKqFIA+ItWCZ7rZ9Tb4Rsh8EJ+o68pYtDaZvDkyxcqW6YQH/MQC61ip0DA==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5278
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PCFkb2N0eXBlIGh0bWw+PGh0bWw+PGhlYWQ+PHN0eWxlPnAge21hcmdpbjowO3BhZGRpbmc6MDt9
-IGJvZHksIHRkLCBidXR0b24sIHAgeyBjb2xvcjojMDAwMDAwOyBmb250LXNpemU6MTBwdDsgZm9u
-dC1mYW1pbHk6J01hbGd1biBHb3RoaWMnLCfrp5HsnYAg6rOg65SVJzsgbGluZS1oZWlnaHQ6bm9y
-bWFsOyB9IGEsIGE6aG92ZXIsIGE6bGluaywgYTphY3RpdmUsIGE6dmlzaXRlZCB7IGNvbG9yOiMw
-MDAwMDA7IH08L3N0eWxlPjwvaGVhZD48Ym9keSBzdHlsZT0iY29sb3I6IzAwMDAwMDsgZm9udC1z
-aXplOjEwcHQ7IGZvbnQtZmFtaWx5OidNYWxndW4gR290aGljJywn66eR7J2AIOqzoOuUlSc7IGxp
-bmUtaGVpZ2h0Om5vcm1hbDsiPjxwPiZndDtPbiBGcmkgMzAtMDgtMTkgMTg6MjU6NTMsIFNhbmd3
-b28gd3JvdGU6PGJyPiZndDsmZ3Q7IFRoZSBoaWdoYXRvbWljIG1pZ3JhdGUgYmxvY2sgY2FuIGJl
-IGluY3JlYXNlZCB0byAxJSBvZiBUb3RhbCBtZW1vcnkuPGJyPiZndDsmZ3Q7IEFuZCwgdGhpcyBp
-cyBmb3Igb25seSBoaWdob3JkZXIgKCAmZ3Q7IDAgb3JkZXIpLiBTbywgdGhpcyBibG9jayBzaXpl
-IGlzPGJyPiZndDsmZ3Q7IGV4Y2VwdGVkIGR1cmluZyBjaGVjayB3YXRlcm1hcmsgaWYgYWxsb2Nh
-dGlvbiB0eXBlIGlzbid0IGFsbG9jX2hhcmRlci48YnI+Jmd0OyZndDsgPGJyPiZndDsmZ3Q7IEl0
-IGhhcyBwcm9ibGVtLiBUaGUgdXNhZ2Ugb2YgaGlnaGF0b21pYyBpcyBhbHJlYWR5IGNhbGN1bGF0
-ZWQgYXQgTlJfRlJFRV9QQUdFUy48YnI+Jmd0OyZndDsgU28sIGlmIHdlIGV4Y2VwdCB0b3RhbCBi
-bG9jayBzaXplIG9mIGhpZ2hhdG9taWMsIGl0J3MgdHdpY2UgbWludXMgc2l6ZSBvZiBhbGxvY2F0
-ZWQ8YnI+Jmd0OyZndDsgaGlnaGF0b21pYy48YnI+Jmd0OyZndDsgSXQncyBjYXVzZSBhbGxvY2F0
-aW9uIGZhaWwgYWx0aG91Z2ggZnJlZSBwYWdlcyBlbm91Z2guPGJyPiZndDsmZ3Q7IDxicj4mZ3Q7
-Jmd0OyBXZSBjaGVja2VkIHRoaXMgYnkgcmFuZG9tIHRlc3Qgb24gbXkgdGFyZ2V0KDhHQiBSQU0p
-Ljxicj4mZ3Q7Jmd0OyA8YnI+Jmd0OyZndDsgJm5ic3A7QmluZGVyOjYyMThfMjogcGFnZSBhbGxv
-Y2F0aW9uIGZhaWx1cmU6IG9yZGVyOjAsIG1vZGU6MHgxNDIwMGNhKEdGUF9ISUdIVVNFUl9NT1ZB
-QkxFKSwgbm9kZW1hc2s9KG51bGwpPGJyPiZndDsmZ3Q7ICZuYnNwO0JpbmRlcjo2MjE4XzIgY3B1
-c2V0PWJhY2tncm91bmQgbWVtc19hbGxvd2VkPTA8YnI+Jmd0Ozxicj4mZ3Q7SG93IGNvbWUgdGhp
-cyBvcmRlci0wIHNsZWVwYWJsZSBhbGxvY2F0aW9uIGZhaWxzPyBUaGUgdXBzdHJlYW0ga2VybmVs
-PGJyPiZndDtkb2Vzbid0IGZhaWwgdGhvc2UgYWxsb2NhdGlvbnMgdW5sZXNzIHRoZSBwcm9jZXNz
-IGNvbnRleHQgaXMga2lsbGVkIGJ5PGJyPiZndDt0aGUgb29tIGtpbGxlci48L3A+PHA+PHNwYW4g
-c3R5bGU9J2NvbG9yOiByZ2IoMCwgMCwgMCk7IGZvbnQtZmFtaWx5OiAiTWFsZ3VuIEdvdGhpYyIs
-IuunkeydgCDqs6DrlJUiOyBmb250LXNpemU6IDEwcHQ7Jz48L3NwYW4+PC9wPjxwPjxzcGFuIHN0
-eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLr
-p5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+TW9zdCBjYWxsdGFja3MgYXJlIHpzbWFs
-bG9jLCBhcyBzaG93biBiZWxvdy48L3NwYW4+PC9wPjxwPjxzcGFuIHN0eWxlPSdjb2xvcjogcmdi
-KDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SVIjsg
-Zm9udC1zaXplOiAxMHB0Oyc+Jm5ic3A7Q2FsbCB0cmFjZTo8YnI+Jm5ic3A7IGR1bXBfYmFja3Ry
-YWNlKzB4MC8weDFmMDxicj4mbmJzcDsgc2hvd19zdGFjaysweDE4LzB4MjA8YnI+Jm5ic3A7IGR1
-bXBfc3RhY2srMHhjNC8weDEwMDxicj4mbmJzcDsgd2Fybl9hbGxvYysweDEwMC8weDE5ODxicj4m
-bmJzcDsgX19hbGxvY19wYWdlc19ub2RlbWFzaysweDExNmMvMHgxMTg4PGJyPiZuYnNwOyBkb19z
-d2FwX3BhZ2UrMHgxMGMvMHg2ZjA8YnI+Jm5ic3A7IGhhbmRsZV9wdGVfZmF1bHQrMHgxMmMvMHhm
-ZTA8YnI+Jm5ic3A7IGhhbmRsZV9tbV9mYXVsdCsweDFkMC8weDMyODxicj4mbmJzcDsgZG9fcGFn
-ZV9mYXVsdCsweDJhMC8weDNlMDxicj4mbmJzcDsgZG9fdHJhbnNsYXRpb25fZmF1bHQrMHg0NC8w
-eGE4PGJyPiZuYnNwOyBkb19tZW1fYWJvcnQrMHg0Yy8weGQwPGJyPiZuYnNwOyBlbDFfZGErMHgy
-NC8weDg0PGJyPiZuYnNwOyBfX2FyY2hfY29weV90b191c2VyKzB4NWMvMHgyMjA8YnI+Jm5ic3A7
-IGJpbmRlcl9pb2N0bCsweDIwYy8weDc0MDxicj4mbmJzcDsgY29tcGF0X1N5U19pb2N0bCsweDEy
-OC8weDI0ODxicj4mbmJzcDsgX19zeXNfdHJhY2VfcmV0dXJuKzB4MC8weDQ8YnI+PGJyPiZndDs8
-YnI+Jmd0O0Fsc28gcGxlYXNlIG5vdGUgdGhhdCBhdG9taWMgcmVzZXJ2ZXMgYXJlIHJlbGVhc2Vk
-IHdoZW4gdGhlIG1lbW9yeTxicj4mZ3Q7cHJlc3N1cmUgaXMgaGlnaCBhbmQgd2UgY2Fubm90IHJl
-Y2xhaW0gYW55IG90aGVyIG1lbW9yeS4gSGF2ZSBhIGxvb2sgYXQ8YnI+Jmd0O3VucmVzZXJ2ZV9o
-aWdoYXRvbWljX3BhZ2VibG9jayBjYWxsZWQgZnJvbSBzaG91bGRfcmVjbGFpbV9yZXRyeS48L3Nw
-YW4+PC9wPjxwPjxicj48L3A+PHA+SSZuYnNwO2tub3cgd2hhdCB5b3Ugc2FpZC4gSG93ZXZlciwg
-d2hhdCBJIG1lbnRpb25lZCBpcyBub3QgdGhlIGVmZmljaWVuY3kgb2YgdGhhdCBoaWdoYXRvbWlj
-IGJsb2NrLDxicj50aGlzIGlzIHRvIHJlZHVjZSBhbGxvY2F0aW9uIGZhaWwgdGhyb3VnaCBtb3Jl
-IGFjY3VyYXRlIHdhdGVybWFyayBjYWxjdWxhdGlvbiB1c2luZzwvcD48cD50aGUgcmVtYWluaW5n
-IHBhZ2VzIG9mIGhpZ2hhdG9taWMgZm9yIG5vbi1hdG9taWMgYWxsb2NhdGlvbi48L3A+PHA+PHNw
-YW4gc3R5bGU9J2NvbG9yOiByZ2IoMCwgMCwgMCk7IGZvbnQtZmFtaWx5OiAiTWFsZ3VuIEdvdGhp
-YyIsIuunkeydgCDqs6DrlJUiOyBmb250LXNpemU6IDEwcHQ7Jz4oT2YgY291cnNlIGV2ZW4gaWYg
-d2F0ZXJtYXJrIGlzIGNvcnJlY3QgYWZ0ZXIgc2hvdWxkX3JlY2xhaW1fcmV0cnkoKSw8L3NwYW4+
-PC9wPjxwPjxzcGFuIHN0eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1h
-bGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+77u/PC9zcGFu
-PjxzcGFuIHN0eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBH
-b3RoaWMiLCLrp5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+SW4gdGhlIGNhc2Ugb2Yg
-UEZfTUVNQUxMT0MgYW5kIF9fR0ZQX05PUkVUUlksIDxzcGFuIHN0eWxlPSdjb2xvcjogcmdiKDAs
-IDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SVIjsgZm9u
-dC1zaXplOiAxMHB0Oyc+aXQgd2lsbCBmYWlsIGRlc3BpdGUgYmVpbmcgYWJsZSB0byBhbGxvY2F0
-ZSBmcmVlIHBhZ2VzLik8L3NwYW4+PC9zcGFuPjwvcD48cD48c3BhbiBzdHlsZT0nY29sb3I6IHJn
-YigwLCAwLCAwKTsgZm9udC1mYW1pbHk6ICJNYWxndW4gR290aGljIiwi66eR7J2AIOqzoOuUlSI7
-IGZvbnQtc2l6ZTogMTBwdDsnPjxicj48L3NwYW4+PC9wPjxwPjxzcGFuIHN0eWxlPSdjb2xvcjog
-cmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SV
-IjsgZm9udC1zaXplOiAxMHB0Oyc+SW4gb3RoZXIgd29yZHMsIEkgdGhvdWdodCBpdCB3b3VsZCBi
-ZSByaWdodCB0byBzdWJ0cmFjdCB0aGUgcmVtYWluaW5nIGZyZWUgYW1vdW50PC9zcGFuPjwvcD48
-cD48c3BhbiBzdHlsZT0nY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6ICJNYWxndW4g
-R290aGljIiwi66eR7J2AIOqzoOuUlSI7IGZvbnQtc2l6ZTogMTBwdDsnPm9mIGhpZ2hhdG9taWMg
-ZnJvbSB0aGUgaGlnaGF0b21pYyBwYWdlLiBJbiB0aGUgc2FtZSB0ZXN0LCBhbGxvY2F0aW9uIGZh
-aWx1cmUgaXMgcmVkdWNlZC48YnI+PC9zcGFuPjwvcD48cD48c3BhbiBzdHlsZT0nY29sb3I6IHJn
-YigwLCAwLCAwKTsgZm9udC1mYW1pbHk6ICJNYWxndW4gR290aGljIiwi66eR7J2AIOqzoOuUlSI7
-IGZvbnQtc2l6ZTogMTBwdDsnPjxicj48L3NwYW4+PC9wPjxwPjxzcGFuIHN0eWxlPSdjb2xvcjog
-cmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SV
-IjsgZm9udC1zaXplOiAxMHB0Oyc+VGVzdCBlbnZpcm9ubWVudDo8YnI+LSBCb2FyZDogU0RNNDUw
-LCA0R0IgUkFNLDxicj4tIFBsYXRmb3JtOiBBbmRyb2lkIFAgT3M8L3NwYW4+PC9wPjxwPjxzcGFu
-IHN0eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMi
-LCLrp5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+VGVzdCBtZXRob2Q6PGJyPi0gNjAg
-YXBwcyBpbnN0YWxsZWQ8L3NwYW4+PC9wPjxwPjxzcGFuIHN0eWxlPSdjb2xvcjogcmdiKDAsIDAs
-IDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3RoaWMiLCLrp5HsnYAg6rOg65SVIjsgZm9udC1z
-aXplOiAxMHB0Oyc+LSBTYW1lIHBhdHRlcm4gdGVzdCBzY3JpcHQuPC9zcGFuPjwvcD48cD48c3Bh
-biBzdHlsZT0nY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6ICJNYWxndW4gR290aGlj
-Iiwi66eR7J2AIOqzoOuUlSI7IGZvbnQtc2l6ZTogMTBwdDsnPlJlc3VsdDo8YnI+LSBiZWZvcmU6
-IDc2IHBhZ2UgYWxsb2NhdGlvbiBmYWlsPGJyPi0gYWZ0ZXI6IHplcm88L3NwYW4+PC9wPjxwPjxz
-cGFuIHN0eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1biBHb3Ro
-aWMiLCLrp5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+PGJyPjwvc3Bhbj48L3A+PHA+
-PHNwYW4gc3R5bGU9J2NvbG9yOiByZ2IoMCwgMCwgMCk7IGZvbnQtZmFtaWx5OiAiTWFsZ3VuIEdv
-dGhpYyIsIuunkeydgCDqs6DrlJUiOyBmb250LXNpemU6IDEwcHQ7Jz5UaGFua3M8L3NwYW4+PC9w
-PjxwPjxzcGFuIHN0eWxlPSdjb2xvcjogcmdiKDAsIDAsIDApOyBmb250LWZhbWlseTogIk1hbGd1
-biBHb3RoaWMiLCLrp5HsnYAg6rOg65SVIjsgZm9udC1zaXplOiAxMHB0Oyc+U2FuZ3dvbzwvc3Bh
-bj48L3A+PC9ib2R5PjwvaHRtbD4=
+On Sun, Sep 01, 2019 at 01:35:16PM -0700, Guenter Roeck wrote:
+> > I belive the macros above are missing brackets.. Can you confirm the
+> > below takes care of things? I'll add a patch if so
+> >=20
+>=20
+> Good catch. Yes, that fixes the build problem.
+
+I added this to the hmm tree to fix it:
+
+From 6a7e550e0f1c1eeab75e0e2c7ffe5e9e9ae649ba Mon Sep 17 00:00:00 2001
+From: Jason Gunthorpe <jgg@mellanox.com>
+Date: Mon, 2 Sep 2019 02:47:05 -0300
+Subject: [PATCH] csky: add missing brackets in a macro for tlb.h
+
+As an earlier patch made the macro argument more complicated, compilation
+now fails with:
+
+ In file included from mm/madvise.c:30:
+ mm/madvise.c: In function 'madvise_free_single_vma':
+ arch/csky/include/asm/tlb.h:11:11: error:
+     invalid type argument of '->' (have 'struct mmu_gather')
+
+Link: https://lore.kernel.org/r/20190901193601.GB5208@mellanox.com
+Fixes: 923bfc561e75 ("pagewalk: separate function pointers from iterator da=
+ta")
+Reported-by: Guenter Roeck <linux@roeck-us.net>
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+---
+ arch/csky/include/asm/tlb.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/csky/include/asm/tlb.h b/arch/csky/include/asm/tlb.h
+index 8c7cc097666f04..fdff9b8d70c811 100644
+--- a/arch/csky/include/asm/tlb.h
++++ b/arch/csky/include/asm/tlb.h
+@@ -8,14 +8,14 @@
+=20
+ #define tlb_start_vma(tlb, vma) \
+ 	do { \
+-		if (!tlb->fullmm) \
+-			flush_cache_range(vma, vma->vm_start, vma->vm_end); \
++		if (!(tlb)->fullmm) \
++			flush_cache_range(vma, (vma)->vm_start, (vma)->vm_end); \
+ 	}  while (0)
+=20
+ #define tlb_end_vma(tlb, vma) \
+ 	do { \
+-		if (!tlb->fullmm) \
+-			flush_tlb_range(vma, vma->vm_start, vma->vm_end); \
++		if (!(tlb)->fullmm) \
++			flush_tlb_range(vma, (vma)->vm_start, (vma)->vm_end); \
+ 	}  while (0)
+=20
+ #define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
+--=20
+2.23.0
+
 
