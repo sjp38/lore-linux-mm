@@ -7,66 +7,66 @@ X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74180C3A5A7
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 11:21:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6C27C3A5A7
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 11:21:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 395FA21882
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 11:21:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ABAE321882
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 11:21:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="GKuCbVx1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 395FA21882
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="KJvuFZFe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABAE321882
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C493B6B0007; Mon,  2 Sep 2019 07:21:52 -0400 (EDT)
+	id 608006B0008; Mon,  2 Sep 2019 07:21:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD3066B0008; Mon,  2 Sep 2019 07:21:52 -0400 (EDT)
+	id 5B82E6B000A; Mon,  2 Sep 2019 07:21:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A73636B000A; Mon,  2 Sep 2019 07:21:52 -0400 (EDT)
+	id 459026B000C; Mon,  2 Sep 2019 07:21:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
-	by kanga.kvack.org (Postfix) with ESMTP id 84CDE6B0007
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 07:21:52 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 27D8140C0
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 11:21:52 +0000 (UTC)
-X-FDA: 75889740864.15.print21_2d5f11f01ec2f
-X-HE-Tag: print21_2d5f11f01ec2f
-X-Filterd-Recvd-Size: 4266
-Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 11:21:51 +0000 (UTC)
-Received: by mail-pf1-f195.google.com with SMTP id w16so8857373pfn.7
-        for <linux-mm@kvack.org>; Mon, 02 Sep 2019 04:21:51 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0196.hostedemail.com [216.40.44.196])
+	by kanga.kvack.org (Postfix) with ESMTP id 229426B0008
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 07:21:58 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C5C87181AC9B6
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 11:21:57 +0000 (UTC)
+X-FDA: 75889741074.30.song19_2e2ebce700325
+X-HE-Tag: song19_2e2ebce700325
+X-Filterd-Recvd-Size: 4975
+Received: from mail-pf1-f194.google.com (mail-pf1-f194.google.com [209.85.210.194])
+	by imf15.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 11:21:57 +0000 (UTC)
+Received: by mail-pf1-f194.google.com with SMTP id h195so2308028pfe.5
+        for <linux-mm@kvack.org>; Mon, 02 Sep 2019 04:21:57 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=axtens.net; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=HNDV9DT7O32N2h9l7CrACdWJSzNVfR3Dv9pnUT55kOg=;
-        b=GKuCbVx1t+eL5NuSXYg24Zb8O/7qTbI6sdxmgVMesG2eQh9g+M4P/EvE8/9CODfonb
-         HkkHFG8Jfj0z4u6Wejfvymvg0FJ/jFlvzomETWUK76xRmoT4O1vaYZFlHdPyE8vpCFrZ
-         3vAjdReE6wxH63jd/H9o8cAAEV+he33Jb66Vs=
+        bh=ltnYvwXNt85pQWYuu3Woofu2pXYpHtCxsiErjju1VKA=;
+        b=KJvuFZFemq48CN49xAn0XMdT8Gd11s5/DG4skkXmljGh5sxOZA2vVU9YWSmBRnhQIL
+         48lYVWauWM0mr3YZTZn7rzAK+6pv0ObxoAdYqOFfQjraVxpFE6Lg8loxKfokY2h64G7w
+         8oCm1ItfZaVPvwLy8QfT9xV0gUudXmGUSN31o=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=HNDV9DT7O32N2h9l7CrACdWJSzNVfR3Dv9pnUT55kOg=;
-        b=D8SkPGZ0O0/dInBx8/+amcQayW5/dKMNTuvwm0ekbYoswQiK3YKxCZoMKnoW2ErBg2
-         569HOVKJTiRE5d4y1IPG/DGwOeRoOA8ovdzGzRbAhboQ77v5sYv0/IzTOy0Op8gz2/Qk
-         8y2DT00CajBqyt+Ue4jdQvdvECRkWfzyEJ5L1FdTBajEZluCC0TEqSd3IepXnaYe46qQ
-         lx862441pq2ONtV6yJb+Uy/bfUtzLUSyYlGSbRUgdBXRlOjaVhXbvu+0n36UYd42ToRP
-         HYK139G7SJyvKW51iW7eSa0sO+SEuDztRhwr/4q6q9MIi25icSH0ED7TQavTd/V8Vmz5
-         Tpmw==
-X-Gm-Message-State: APjAAAUDnIK2zwXCa7ABDIK2F9QqQDbAegrLUABFavaZP9AVA3jitX2L
-	bL+5ZiFjzpeNOHVUZhAb7flTeg==
-X-Google-Smtp-Source: APXvYqxtvaCM3hqb+7Izu1R5iMb3P+H/OrJHoZiO5jXOxIbwph4iMi5iHPiqM6OOmUWJg7dmwTafQA==
-X-Received: by 2002:a63:b904:: with SMTP id z4mr24200059pge.388.1567423310696;
-        Mon, 02 Sep 2019 04:21:50 -0700 (PDT)
+        bh=ltnYvwXNt85pQWYuu3Woofu2pXYpHtCxsiErjju1VKA=;
+        b=quy9zcV0aBGhLdNhQxvl5+N21eu6WqXBeJGUuQcWXTWfzWwi4ABLka8Kj8RxUoMMYn
+         ey037f0rVgFOS7OndNQPSEnVptz4QSB9b1sUkIgNebF+mlnxqcOPf/LvYVRPhMidgxP1
+         TLZYtN3lDUiaS9SFxPWVwKFQA0F0mLh2gMTpFt0NU+EeQ3psMBY2eTHaHk4iMwvaSwqa
+         tyOzJnYSj18dOofGYXj/6/dUXJhFXZTCSi4aMAvdg53Phr5FOzi2ANDGYFZNitj0SNWj
+         ju56yFeedAnGsyy4p585ZvBykQHCDakvFCvJ7MW0RwfX6wQDlN1kjhkI6sxjUTt4trS9
+         1qRA==
+X-Gm-Message-State: APjAAAVJDkMyaDO+s8l8hfhPJQou9p1KNRNmNQvQ27Pb6MwDoS7NnVWB
+	pBlbZ6kREIL4rEmf1KF9FUBp6g==
+X-Google-Smtp-Source: APXvYqzbeVQOO1H7u1MKLY3LMRh/FsOUkMLI8e9zPqbWR51nVUSncMQqE+hLYnWR4pTrqKchpQ9r7w==
+X-Received: by 2002:a17:90a:30e8:: with SMTP id h95mr7353865pjb.44.1567423316484;
+        Mon, 02 Sep 2019 04:21:56 -0700 (PDT)
 Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
-        by smtp.gmail.com with ESMTPSA id o64sm7133044pjb.24.2019.09.02.04.21.49
+        by smtp.gmail.com with ESMTPSA id k5sm21422793pfg.167.2019.09.02.04.21.54
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 02 Sep 2019 04:21:50 -0700 (PDT)
+        Mon, 02 Sep 2019 04:21:55 -0700 (PDT)
 From: Daniel Axtens <dja@axtens.net>
 To: kasan-dev@googlegroups.com,
 	linux-mm@kvack.org,
@@ -81,9 +81,9 @@ To: kasan-dev@googlegroups.com,
 Cc: linuxppc-dev@lists.ozlabs.org,
 	gor@linux.ibm.com,
 	Daniel Axtens <dja@axtens.net>
-Subject: [PATCH v6 2/5] kasan: add test for vmalloc
-Date: Mon,  2 Sep 2019 21:20:25 +1000
-Message-Id: <20190902112028.23773-3-dja@axtens.net>
+Subject: [PATCH v6 3/5] fork: support VMAP_STACK with KASAN_VMALLOC
+Date: Mon,  2 Sep 2019 21:20:26 +1000
+Message-Id: <20190902112028.23773-4-dja@axtens.net>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190902112028.23773-1-dja@axtens.net>
 References: <20190902112028.23773-1-dja@axtens.net>
@@ -95,68 +95,66 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Test kasan vmalloc support by adding a new test to the module.
+Supporting VMAP_STACK with KASAN_VMALLOC is straightforward:
 
+ - clear the shadow region of vmapped stacks when swapping them in
+ - tweak Kconfig to allow VMAP_STACK to be turned on with KASAN
+
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Daniel Axtens <dja@axtens.net>
-
---
-
-v5: split out per Christophe Leroy
 ---
- lib/test_kasan.c | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ arch/Kconfig  | 9 +++++----
+ kernel/fork.c | 4 ++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-index 49cc4d570a40..328d33beae36 100644
---- a/lib/test_kasan.c
-+++ b/lib/test_kasan.c
-@@ -19,6 +19,7 @@
- #include <linux/string.h>
- #include <linux/uaccess.h>
- #include <linux/io.h>
-+#include <linux/vmalloc.h>
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 6728c5fa057e..e15f1486682a 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -843,16 +843,17 @@ config HAVE_ARCH_VMAP_STACK
+ config VMAP_STACK
+ 	default y
+ 	bool "Use a virtually-mapped stack"
+-	depends on HAVE_ARCH_VMAP_STACK && !KASAN
++	depends on HAVE_ARCH_VMAP_STACK
++	depends on !KASAN || KASAN_VMALLOC
+ 	---help---
+ 	  Enable this if you want the use virtually-mapped kernel stacks
+ 	  with guard pages.  This causes kernel stack overflows to be
+ 	  caught immediately rather than causing difficult-to-diagnose
+ 	  corruption.
 =20
- #include <asm/page.h>
+-	  This is presently incompatible with KASAN because KASAN expects
+-	  the stack to map directly to the KASAN shadow map using a formula
+-	  that is incorrect if the stack is in vmalloc space.
++	  To use this with KASAN, the architecture must support backing
++	  virtual mappings with real shadow memory, and KASAN_VMALLOC must
++	  be enabled.
 =20
-@@ -748,6 +749,30 @@ static noinline void __init kmalloc_double_kzfree(vo=
-id)
- 	kzfree(ptr);
- }
+ config ARCH_OPTIONAL_KERNEL_RWX
+ 	def_bool n
+diff --git a/kernel/fork.c b/kernel/fork.c
+index f601168f6b21..52279fd5e72d 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -94,6 +94,7 @@
+ #include <linux/livepatch.h>
+ #include <linux/thread_info.h>
+ #include <linux/stackleak.h>
++#include <linux/kasan.h>
 =20
-+#ifdef CONFIG_KASAN_VMALLOC
-+static noinline void __init vmalloc_oob(void)
-+{
-+	void *area;
-+
-+	pr_info("vmalloc out-of-bounds\n");
-+
-+	/*
-+	 * We have to be careful not to hit the guard page.
-+	 * The MMU will catch that and crash us.
-+	 */
-+	area =3D vmalloc(3000);
-+	if (!area) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	((volatile char *)area)[3100];
-+	vfree(area);
-+}
-+#else
-+static void __init vmalloc_oob(void) {}
-+#endif
-+
- static int __init kmalloc_tests_init(void)
- {
- 	/*
-@@ -793,6 +818,7 @@ static int __init kmalloc_tests_init(void)
- 	kasan_strings();
- 	kasan_bitops();
- 	kmalloc_double_kzfree();
-+	vmalloc_oob();
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -229,6 +230,9 @@ static unsigned long *alloc_thread_stack_node(struct =
+task_struct *tsk, int node)
+ 		if (!s)
+ 			continue;
 =20
- 	kasan_restore_multi_shot(multishot);
++		/* Clear the KASAN shadow of the stack. */
++		kasan_unpoison_shadow(s->addr, THREAD_SIZE);
++
+ 		/* Clear stale pointers from reused stack. */
+ 		memset(s->addr, 0, THREAD_SIZE);
 =20
 --=20
 2.20.1
