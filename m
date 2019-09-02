@@ -2,205 +2,393 @@ Return-Path: <SRS0=2Zku=W5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72D20C3A59E
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 13:22:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EDA4FC3A59E
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 13:51:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 41F7C208CB
-	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 13:22:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41F7C208CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 93B1F21670
+	for <linux-mm@archiver.kernel.org>; Mon,  2 Sep 2019 13:51:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=monstr-eu.20150623.gappssmtp.com header.i=@monstr-eu.20150623.gappssmtp.com header.b="LjKbeoJb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93B1F21670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=monstr.eu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFFB86B0003; Mon,  2 Sep 2019 09:22:31 -0400 (EDT)
+	id 262E26B0003; Mon,  2 Sep 2019 09:51:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB07F6B0006; Mon,  2 Sep 2019 09:22:31 -0400 (EDT)
+	id 1EC426B0006; Mon,  2 Sep 2019 09:51:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC68A6B0007; Mon,  2 Sep 2019 09:22:31 -0400 (EDT)
+	id 03E5A6B0007; Mon,  2 Sep 2019 09:51:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0128.hostedemail.com [216.40.44.128])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A83B6B0003
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 09:22:31 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 41258180AD7C3
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 13:22:31 +0000 (UTC)
-X-FDA: 75890044902.20.rest35_4fdcae7417157
-X-HE-Tag: rest35_4fdcae7417157
-X-Filterd-Recvd-Size: 6584
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 13:22:28 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6C385337;
-	Mon,  2 Sep 2019 06:22:27 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D5D5A3F71A;
-	Mon,  2 Sep 2019 06:22:25 -0700 (PDT)
-Date: Mon, 2 Sep 2019 14:22:21 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Daniel Axtens <dja@axtens.net>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
-	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
-	linux-kernel@vger.kernel.org, dvyukov@google.com,
-	christophe.leroy@c-s.fr, linuxppc-dev@lists.ozlabs.org,
-	gor@linux.ibm.com
-Subject: Re: [PATCH v6 1/5] kasan: support backing vmalloc space with real
- shadow memory
-Message-ID: <20190902132220.GA9922@lakrids.cambridge.arm.com>
-References: <20190902112028.23773-1-dja@axtens.net>
- <20190902112028.23773-2-dja@axtens.net>
+Received: from forelay.hostedemail.com (smtprelay0005.hostedemail.com [216.40.44.5])
+	by kanga.kvack.org (Postfix) with ESMTP id C82966B0003
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 09:51:46 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 2931F181AC9B6
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 13:51:46 +0000 (UTC)
+X-FDA: 75890118612.02.fang76_2c63a35bca912
+X-HE-Tag: fang76_2c63a35bca912
+X-Filterd-Recvd-Size: 19463
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com [209.85.221.68])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  2 Sep 2019 13:51:44 +0000 (UTC)
+Received: by mail-wr1-f68.google.com with SMTP id l11so5293055wrx.5
+        for <linux-mm@kvack.org>; Mon, 02 Sep 2019 06:51:44 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=monstr-eu.20150623.gappssmtp.com; s=20150623;
+        h=reply-to:subject:to:cc:references:from:openpgp:autocrypt:message-id
+         :date:user-agent:mime-version:in-reply-to;
+        bh=IJfZs1FIeN0qAS3R/QbMVOeaCNq5DoNpVOVfOw6okm0=;
+        b=LjKbeoJbg4FdihvJn9aDISNrO90EAmpGT1N3IKTy/vPuIl9FgEr7FCuBkpx4ho0tdL
+         T7rAzussmpl7KgYDWEOxZC+FxlErPA7lF45e1YB/+qfnNZe2D8R0ETPR+ROb2LSN+g3B
+         gdQINPvaILrMSVk0V2QyzpbifvgDNxaKx/2ShZwkONPuqvhdkaQ6Sr92SvvWplCLdS7q
+         tRGIf2/Ulw/Gz7niT9rAGPrWkRB6jwEkx8FF4iXhjtrScc3uEf//gKACByko0YG/H3yR
+         6ngOkv9IrvIXx9CPrADU8p3G7AKjkRZNMaC/jhbendK8PjUe0+YHJP3NSBXTcelnCsMN
+         r1IQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:reply-to:subject:to:cc:references:from:openpgp
+         :autocrypt:message-id:date:user-agent:mime-version:in-reply-to;
+        bh=IJfZs1FIeN0qAS3R/QbMVOeaCNq5DoNpVOVfOw6okm0=;
+        b=bxVt46r5DU44O8HpnMi44WpXi1CXQ7jxaHiDn3trTK7qRQdoZDdZlMQvToERLmNVMg
+         daoUTIshF/47h/TCbGxj/Xry8jmk7/WI60OXBjwKRB5TmerNDwRj/HoRQ/QgXxiZsjER
+         Xa8hv9Hdie4aW+g02RLrwOb4FsjCsiCbSx5Ev75vCyDGFEatJp/kwZan868cndkSoxY4
+         S/+BjjWkOSz2wN0mRHCOBEIfkfFFH3S8cRizX2RplM9INlVtAxP7BcLf30VcMynaUbJa
+         3f66MMJZBdMcycbgxnwTPS6BX2477MwmZykgRqoENktB0T986Gfn83MVhE4peqbWqaMA
+         w0LQ==
+X-Gm-Message-State: APjAAAW0f8xtk6g9llq1DTH8psWmX7JwxmaW+W8KiNJpnDdH9uUDHVOP
+	+rR7GDlMNkgeyna9Ht8PfqRUEQ==
+X-Google-Smtp-Source: APXvYqxcW49a6x+YhQqxvbGHM+GibrFicArRQj/wXOZ7QTjp7cICIxOo1d63cz0qIHCzwMOna+/+qg==
+X-Received: by 2002:adf:9050:: with SMTP id h74mr36008433wrh.191.1567432303286;
+        Mon, 02 Sep 2019 06:51:43 -0700 (PDT)
+Received: from [74.125.206.109] ([149.199.62.131])
+        by smtp.gmail.com with ESMTPSA id 20sm16082340wmj.45.2019.09.02.06.51.31
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Sep 2019 06:51:42 -0700 (PDT)
+Reply-To: monstr@monstr.eu
+Subject: Re: microblaze HAVE_MEMBLOCK_NODE_MAP dependency (was Re: [PATCH v2
+ 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA)
+To: Mike Rapoport <rppt@linux.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+ Paul Mackerras <paulus@samba.org>, "H . Peter Anvin" <hpa@zytor.com>,
+ "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Will Deacon <will@kernel.org>,
+ "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, "x86@kernel.org" <x86@kernel.org>,
+ "willy@infradead.org" <willy@infradead.org>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Ingo Molnar <mingo@redhat.com>, Hoan Tran OS <hoan@os.amperecomputing.com>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Open Source Submission <patches@amperecomputing.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>,
+ Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>,
+ Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Randy Dunlap <rdunlap@infradead.org>
+References: <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
+ <20190730081415.GN9330@dhcp22.suse.cz> <20190731062420.GC21422@rapoport-lnx>
+ <20190731080309.GZ9330@dhcp22.suse.cz> <20190731111422.GA14538@rapoport-lnx>
+ <20190731114016.GI9330@dhcp22.suse.cz> <20190731122631.GB14538@rapoport-lnx>
+ <20190731130037.GN9330@dhcp22.suse.cz> <20190731142129.GA24998@rapoport-lnx>
+ <20190731144114.GY9330@dhcp22.suse.cz> <20190731171510.GB24998@rapoport-lnx>
+From: Michal Simek <monstr@monstr.eu>
+Openpgp: preference=signencrypt
+Autocrypt: addr=monstr@monstr.eu; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <f57f15b5-dee7-c2be-5a34-192a9ecf0763@monstr.eu>
+Date: Mon, 2 Sep 2019 15:51:25 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190902112028.23773-2-dja@axtens.net>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <20190731171510.GB24998@rapoport-lnx>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="D19tTfHRF2QuIUUzbbAPQ12tjJW2Zl1nR"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 02, 2019 at 09:20:24PM +1000, Daniel Axtens wrote:
-> Hook into vmalloc and vmap, and dynamically allocate real shadow
-> memory to back the mappings.
-> 
-> Most mappings in vmalloc space are small, requiring less than a full
-> page of shadow space. Allocating a full shadow page per mapping would
-> therefore be wasteful. Furthermore, to ensure that different mappings
-> use different shadow pages, mappings would have to be aligned to
-> KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
-> 
-> Instead, share backing space across multiple mappings. Allocate a
-> backing page when a mapping in vmalloc space uses a particular page of
-> the shadow region. This page can be shared by other vmalloc mappings
-> later on.
-> 
-> We hook in to the vmap infrastructure to lazily clean up unused shadow
-> memory.
-> 
-> To avoid the difficulties around swapping mappings around, this code
-> expects that the part of the shadow region that covers the vmalloc
-> space will not be covered by the early shadow page, but will be left
-> unmapped. This will require changes in arch-specific code.
-> 
-> This allows KASAN with VMAP_STACK, and may be helpful for architectures
-> that do not have a separate module space (e.g. powerpc64, which I am
-> currently working on). It also allows relaxing the module alignment
-> back to PAGE_SIZE.
-> 
-> Link: https://bugzilla.kernel.org/show_bug.cgi?id=202009
-> Acked-by: Vasily Gorbik <gor@linux.ibm.com>
-> Signed-off-by: Daniel Axtens <dja@axtens.net>
-> [Mark: rework shadow allocation]
-> Signed-off-by: Mark Rutland <mark.rutland@arm.com>
-> 
-> --
-> 
-> v2: let kasan_unpoison_shadow deal with ranges that do not use a
->     full shadow byte.
-> 
-> v3: relax module alignment
->     rename to kasan_populate_vmalloc which is a much better name
->     deal with concurrency correctly
-> 
-> v4: Mark's rework
->     Poision pages on vfree
->     Handle allocation failures
-> 
-> v5: Per Christophe Leroy, split out test and dynamically free pages.
-> 
-> v6: Guard freeing page properly. Drop WARN_ON_ONCE(pte_none(*ptep)),
->      on reflection it's unnecessary debugging cruft with too high a
->      false positive rate.
-> ---
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--D19tTfHRF2QuIUUzbbAPQ12tjJW2Zl1nR
+Content-Type: multipart/mixed; boundary="qZIZzQB7m0rVymNdwsbZ2zyiI1LguDOGl";
+ protected-headers="v1"
+From: Michal Simek <monstr@monstr.eu>
+Reply-To: monstr@monstr.eu
+To: Mike Rapoport <rppt@linux.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+ Paul Mackerras <paulus@samba.org>, "H . Peter Anvin" <hpa@zytor.com>,
+ "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Will Deacon <will@kernel.org>,
+ "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, "x86@kernel.org" <x86@kernel.org>,
+ "willy@infradead.org" <willy@infradead.org>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Ingo Molnar <mingo@redhat.com>, Hoan Tran OS <hoan@os.amperecomputing.com>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Open Source Submission <patches@amperecomputing.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>,
+ Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>,
+ Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <f57f15b5-dee7-c2be-5a34-192a9ecf0763@monstr.eu>
+Subject: Re: microblaze HAVE_MEMBLOCK_NODE_MAP dependency (was Re: [PATCH v2
+ 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA)
+References: <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
+ <20190730081415.GN9330@dhcp22.suse.cz> <20190731062420.GC21422@rapoport-lnx>
+ <20190731080309.GZ9330@dhcp22.suse.cz> <20190731111422.GA14538@rapoport-lnx>
+ <20190731114016.GI9330@dhcp22.suse.cz> <20190731122631.GB14538@rapoport-lnx>
+ <20190731130037.GN9330@dhcp22.suse.cz> <20190731142129.GA24998@rapoport-lnx>
+ <20190731144114.GY9330@dhcp22.suse.cz> <20190731171510.GB24998@rapoport-lnx>
+In-Reply-To: <20190731171510.GB24998@rapoport-lnx>
 
-[...]
+--qZIZzQB7m0rVymNdwsbZ2zyiI1LguDOGl
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 
-> +static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
-> +					void *unused)
-> +{
-> +	unsigned long page;
-> +
-> +	page = (unsigned long)__va(pte_pfn(*ptep) << PAGE_SHIFT);
-> +
-> +	spin_lock(&init_mm.page_table_lock);
-> +
-> +	if (likely(!pte_none(*ptep))) {
-> +		pte_clear(&init_mm, addr, ptep);
-> +		free_page(page);
-> +	}
-> +	spin_unlock(&init_mm.page_table_lock);
-> +
-> +	return 0;
-> +}
+On 31. 07. 19 19:15, Mike Rapoport wrote:
+> On Wed, Jul 31, 2019 at 04:41:14PM +0200, Michal Hocko wrote:
+>> On Wed 31-07-19 17:21:29, Mike Rapoport wrote:
+>>> On Wed, Jul 31, 2019 at 03:00:37PM +0200, Michal Hocko wrote:
+>>>>
+>>>> I am sorry, but I still do not follow. Who is consuming that node id=
 
-There needs to be TLB maintenance after unmapping the page, but I don't
-see that happening below.
+>>>> information when NUMA=3Dn. In other words why cannot we simply do
+>>> =20
+>>> We can, I think nobody cared to change it.
+>>
+>> It would be great if somebody with the actual HW could try it out.
+>> I can throw a patch but I do not even have a cross compiler in my
+>> toolbox.
+>=20
+> Well, it compiles :)
+> =20
+>>>> diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+>>>> index a015a951c8b7..3a47e8db8d1c 100644
+>>>> --- a/arch/microblaze/mm/init.c
+>>>> +++ b/arch/microblaze/mm/init.c
+>>>> @@ -175,14 +175,9 @@ void __init setup_memory(void)
+>>>> =20
+>>>>  		start_pfn =3D memblock_region_memory_base_pfn(reg);
+>>>>  		end_pfn =3D memblock_region_memory_end_pfn(reg);
+>>>> -		memblock_set_node(start_pfn << PAGE_SHIFT,
+>>>> -				  (end_pfn - start_pfn) << PAGE_SHIFT,
+>>>> -				  &memblock.memory, 0);
+>>>> +		memory_present(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT)=
+;
+>>>
+>>> memory_present() expects pfns, the shift is not needed.
+>>
+>> Right.
 
-We need that to ensure that errant accesses don't hit the page we're
-freeing and that new mappings at the same VA don't cause a TLB conflict
-or TLB amalgamation issue.
+Sorry for slow response on this. In general regarding this topic.
+Microblaze is soft core CPU (now there are hardcore versions too but not
+running Linux). I believe there could be Numa system with
+microblaze/microblazes (SMP is not supported in mainline).
 
-> +/*
-> + * Release the backing for the vmalloc region [start, end), which
-> + * lies within the free region [free_region_start, free_region_end).
-> + *
-> + * This can be run lazily, long after the region was freed. It runs
-> + * under vmap_area_lock, so it's not safe to interact with the vmalloc/vmap
-> + * infrastructure.
-> + */
+This code was added in 2011 which is pretty hard to remember why it was
+done in this way.
 
-IIUC we aim to only free non-shared shadow by aligning the start
-upwards, and aligning the end downwards. I think it would be worth
-mentioning that explicitly in the comment since otherwise it's not
-obvious how we handle races between alloc/free.
+It compiles but not working on HW. Please take a look at log below.
 
 Thanks,
-Mark.
+Michal
 
-> +void kasan_release_vmalloc(unsigned long start, unsigned long end,
-> +			   unsigned long free_region_start,
-> +			   unsigned long free_region_end)
-> +{
-> +	void *shadow_start, *shadow_end;
-> +	unsigned long region_start, region_end;
-> +
-> +	/* we start with shadow entirely covered by this region */
-> +	region_start = ALIGN(start, PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
-> +	region_end = ALIGN_DOWN(end, PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
-> +
-> +	/*
-> +	 * We don't want to extend the region we release to the entire free
-> +	 * region, as the free region might cover huge chunks of vmalloc space
-> +	 * where we never allocated anything. We just want to see if we can
-> +	 * extend the [start, end) range: if start or end fall part way through
-> +	 * a shadow page, we want to check if we can free that entire page.
-> +	 */
-> +
-> +	free_region_start = ALIGN(free_region_start,
-> +				  PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
-> +
-> +	if (start != region_start &&
-> +	    free_region_start < region_start)
-> +		region_start -= PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE;
-> +
-> +	free_region_end = ALIGN_DOWN(free_region_end,
-> +				     PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE);
-> +
-> +	if (end != region_end &&
-> +	    free_region_end > region_end)
-> +		region_end += PAGE_SIZE * KASAN_SHADOW_SCALE_SIZE;
-> +
-> +	shadow_start = kasan_mem_to_shadow((void *)region_start);
-> +	shadow_end = kasan_mem_to_shadow((void *)region_end);
-> +
-> +	if (shadow_end > shadow_start)
-> +		apply_to_page_range(&init_mm, (unsigned long)shadow_start,
-> +				    (unsigned long)(shadow_end - shadow_start),
-> +				    kasan_depopulate_vmalloc_pte, NULL);
-> +}
+
+[    0.000000] Linux version 5.3.0-rc6-00007-g54b01939182f-dirty
+(monstr@monstr-desktop3) (gcc version 8.2.0 (crosstool-NG 1.20.0)) #101
+Mon Sep 2 15:44:05 CEST 2019
+[    0.000000] setup_memory: max_mapnr: 0x40000
+[    0.000000] setup_memory: min_low_pfn: 0x80000
+[    0.000000] setup_memory: max_low_pfn: 0xb0000
+[    0.000000] setup_memory: max_pfn: 0xc0000
+[    0.000000] start pfn 0x80000
+[    0.000000] end pfn 0xc0000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000080000000-0x00000000afffffff]
+[    0.000000]   Normal   empty
+[    0.000000]   HighMem  [mem 0x00000000b0000000-0x00000000bfffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   1: [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] Could not find start_pfn for node 0
+[    0.000000] Initmem setup node 0 [mem
+0x0000000000000000-0x0000000000000000]
+[    0.000000] earlycon: ns16550a0 at MMIO 0x44a01000 (options '115200n8'=
+)
+[    0.000000] printk: bootconsole [ns16550a0] enabled
+[    0.000000] setup_cpuinfo: initialising
+[    0.000000] setup_cpuinfo: Using full CPU PVR support
+[    0.000000] wt_msr_noirq
+[    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=3D1*32768
+[    0.000000] pcpu-alloc: [0] 0
+[    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 0
+[    0.000000] Kernel command line: earlycon
+[    0.000000] Dentry cache hash table entries: -2147483648 (order: -13,
+0 bytes, linear)
+[    0.000000] Inode-cache hash table entries: -2147483648 (order: -13,
+0 bytes, linear)
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Oops: kernel access of bad area, sig: 11
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted
+5.3.0-rc6-00007-g54b01939182f-dirty #101
+[    0.000000]  Registers dump: mode=3D805B9EA8
+[    0.000000]  r1=3D000065A0, r2=3DC05B7AE6, r3=3D00000000, r4=3D0000000=
+0
+[    0.000000]  r5=3D00080000, r6=3D00080B50, r7=3D00000000, r8=3D0000000=
+4
+[    0.000000]  r9=3D00000000, r10=3D0000001F, r11=3D00000000, r12=3D0000=
+6666
+[    0.000000]  r13=3D4119DCC0, r14=3D00000000, r15=3DC05EFF8C, r16=3D000=
+00000
+[    0.000000]  r17=3DC0604408, r18=3DFFFC0000, r19=3DC05B9F6C, r20=3DBFF=
+EC168
+[    0.000000]  r21=3DBFFEC168, r22=3DEFFF9AC0, r23=3D00000001, r24=3DC06=
+06874
+[    0.000000]  r25=3DBFE6B74C, r26=3D80000000, r27=3D00000000, r28=3D900=
+00040
+[    0.000000]  r29=3D01000000, r30=3D00000380, r31=3DC05C02F0, rPC=3DC06=
+04408
+[    0.000000]  msr=3D000046A0, ear=3D00000004, esr=3D00000D12, fsr=3DFFF=
+FFFFF
+[    0.000000] Oops: kernel access of bad area, sig: 11
+
+
+--=20
+Michal Simek, Ing. (M.Eng), OpenPGP -> KeyID: FE3D1F91
+w: www.monstr.eu p: +42-0-721842854
+Maintainer of Linux kernel - Xilinx Microblaze
+Maintainer of Linux kernel - Xilinx Zynq ARM and ZynqMP ARM64 SoCs
+U-Boot custodian - Xilinx Microblaze/Zynq/ZynqMP/Versal SoCs
+
+
+
+--qZIZzQB7m0rVymNdwsbZ2zyiI1LguDOGl--
+
+--D19tTfHRF2QuIUUzbbAPQ12tjJW2Zl1nR
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iF0EARECAB0WIQQbPNTMvXmYlBPRwx7KSWXLKUoMIQUCXW0eXQAKCRDKSWXLKUoM
+IQSRAJ95LhdDRja4rjrT7nFf2urcLyUsawCgh/Ho29ldM07jS/qDcder85B3TdA=
+=d2ww
+-----END PGP SIGNATURE-----
+
+--D19tTfHRF2QuIUUzbbAPQ12tjJW2Zl1nR--
 
