@@ -7,66 +7,66 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E254C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 14:56:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98C4EC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 14:56:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A6DB23431
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 14:56:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5E12D2377B
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 14:56:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="TGcPmos1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A6DB23431
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="LXzNdZWa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E12D2377B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7E9F6B0266; Tue,  3 Sep 2019 10:56:03 -0400 (EDT)
+	id 108606B0010; Tue,  3 Sep 2019 10:56:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A31F86B0269; Tue,  3 Sep 2019 10:56:03 -0400 (EDT)
+	id 0BA6D6B0269; Tue,  3 Sep 2019 10:56:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F6756B026A; Tue,  3 Sep 2019 10:56:03 -0400 (EDT)
+	id EEA5C6B026A; Tue,  3 Sep 2019 10:56:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0102.hostedemail.com [216.40.44.102])
-	by kanga.kvack.org (Postfix) with ESMTP id 67A346B0266
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 10:56:03 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id DFC04180AD804
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 14:56:02 +0000 (UTC)
-X-FDA: 75893909364.28.leaf39_51d7504fa112d
-X-HE-Tag: leaf39_51d7504fa112d
-X-Filterd-Recvd-Size: 6753
-Received: from mail-pg1-f193.google.com (mail-pg1-f193.google.com [209.85.215.193])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 14:56:02 +0000 (UTC)
-Received: by mail-pg1-f193.google.com with SMTP id l21so9291386pgm.3
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 07:56:02 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0217.hostedemail.com [216.40.44.217])
+	by kanga.kvack.org (Postfix) with ESMTP id CECC26B0010
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 10:56:07 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 7A7F9AF79
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 14:56:07 +0000 (UTC)
+X-FDA: 75893909574.20.vase96_527bb93ab2817
+X-HE-Tag: vase96_527bb93ab2817
+X-Filterd-Recvd-Size: 5622
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 14:56:06 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id y9so10947602pfl.4
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 07:56:06 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=axtens.net; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=/Pi33Ab5H1THuUOlmFKCqF9xJSMT6s+LImLmp8toPnA=;
-        b=TGcPmos1Y0BnQsCiS8+ov03JSSxJfhQd7iQLyNg+WP8u0M+vi9O6utfre1w//CYiSN
-         zlC86cvXjt0eacPKyxaTSO7rwcqc1E3Q8+jlLPjEUIYotJSNdqFzJVOc2IzoXq8CwxpV
-         /WR4qATOVB2CFZzGc3/5lEGaCbhFocxYEkbdU=
+        bh=vF6m0g42G8C15Kjxq7JM+Zo7viFkQMObl5+b/f7Khts=;
+        b=LXzNdZWazMK6zy0lx9YtBYbXF9X6k/ujNzvt18aBdOOv3v25BsWv4Wq/F1h+j/+f75
+         nBnFt6ymLCbGO1vy5RHkDwGov4Jjo0Cgc0ZoZ5V6PBdUG4JRxf84mM0915iQPHCfkFR0
+         cD+DOmuxV6yIJsG+RC2TZuWoJ/Y6it1TksSws=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=/Pi33Ab5H1THuUOlmFKCqF9xJSMT6s+LImLmp8toPnA=;
-        b=EYqjF8U5UfQC1zjzrfWtDOhjfwjMPklXDMWemwjHzhE6ubUSvUAytFr0SYCAV1gJmf
-         Au4I6W5B+1Eofqs2f+X6MYZbmq7fjCXkQY5Gtw0LySQ7ODH/ONUAdr34fxkA9lm13BV8
-         lusroRl0Pnx73OSEkjylBIenP7Xt+gY6LbhI4C+zw9NYiLxVNRpOThPhb9TvqGpVcnvz
-         eNVt8fbGP8jw/suv6gk61zo+48Sv/uJQGuWZMiej4xQNpPmzm6r4w6lZpvTK9NcVeNje
-         kDDvtbFKZfBU9LsC0jWg0qRVOxTjF3r5TgbLvpDnLvxbNVDmo90GxX4lc0eSnv+Jqdmt
-         DzxQ==
-X-Gm-Message-State: APjAAAXOAe9qzepaofNPEOLw+uQEUF4HMOn0Q9nu37KMUK43Dwvm9puJ
-	/J5KkTfkOkOfyHpjlyu8o32TtQ==
-X-Google-Smtp-Source: APXvYqyMJ+JVphcToQWISkJPEvnPzuAxA+VlkperGsARREpjPK6EVQ7mAyBXYsF5CYAQek0+DCkfWQ==
-X-Received: by 2002:a62:8749:: with SMTP id i70mr8363618pfe.12.1567522561420;
-        Tue, 03 Sep 2019 07:56:01 -0700 (PDT)
+        bh=vF6m0g42G8C15Kjxq7JM+Zo7viFkQMObl5+b/f7Khts=;
+        b=RiUoWM9HI4qjLqnVHr+LhBjJSaNrtM/HbCk7bZdUU03EnUX4nAD1Y+04QqPYg7cKeu
+         babrYZ8XMRcF8Y+bno54o5UefPyYHUo755xDv9LF8KesYtUukkl1xF4GWbzg8MxhDnfG
+         l9rCL36KlL6ATD6bAkmcIBsp9Ne+N1o3i9TrFwaIQ77K8NLQKOdYseb+ZRJWgMjUXGuw
+         g2OmSUXvCdFbWoFipApcDjk8OsIKeOhAOcwH+QZtz3MOfQXWBjo7jHwucqVFESr5ZNnc
+         eCnk1SqOzZCWP1eg3f3ZJQdfPEtvL8fb/8xB0OLzfuAExZbtLQqx+Aadackbn+KIQ0Bm
+         qE9w==
+X-Gm-Message-State: APjAAAXadvmxXYJ+h4g90X5X3z3w1NhztfqxLze3ueQlT8gTHF5UHfwf
+	BPWFok1y/muPvQsG+GGQaevfWg==
+X-Google-Smtp-Source: APXvYqy/yahnMfGQMxl26bPPEiAFpA8rUWYVZ8anzToEuFp60PcEjZs5R9s0WyRaFq3Ey75Xj3i90w==
+X-Received: by 2002:a63:194f:: with SMTP id 15mr31482111pgz.382.1567522565767;
+        Tue, 03 Sep 2019 07:56:05 -0700 (PDT)
 Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
-        by smtp.gmail.com with ESMTPSA id h12sm18490529pgr.8.2019.09.03.07.55.59
+        by smtp.gmail.com with ESMTPSA id c1sm19943843pfd.117.2019.09.03.07.56.04
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 03 Sep 2019 07:56:00 -0700 (PDT)
+        Tue, 03 Sep 2019 07:56:05 -0700 (PDT)
 From: Daniel Axtens <dja@axtens.net>
 To: kasan-dev@googlegroups.com,
 	linux-mm@kvack.org,
@@ -81,9 +81,9 @@ To: kasan-dev@googlegroups.com,
 Cc: linuxppc-dev@lists.ozlabs.org,
 	gor@linux.ibm.com,
 	Daniel Axtens <dja@axtens.net>
-Subject: [PATCH v7 4/5] x86/kasan: support KASAN_VMALLOC
-Date: Wed,  4 Sep 2019 00:55:35 +1000
-Message-Id: <20190903145536.3390-5-dja@axtens.net>
+Subject: [PATCH v7 5/5] kasan debug: track pages allocated for vmalloc shadow
+Date: Wed,  4 Sep 2019 00:55:36 +1000
+Message-Id: <20190903145536.3390-6-dja@axtens.net>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190903145536.3390-1-dja@axtens.net>
 References: <20190903145536.3390-1-dja@axtens.net>
@@ -95,123 +95,102 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the case where KASAN directly allocates memory to back vmalloc
-space, don't map the early shadow page over it.
+Provide the current number of vmalloc shadow pages in
+/sys/kernel/debug/kasan_vmalloc/shadow_pages.
 
-We prepopulate pgds/p4ds for the range that would otherwise be empty.
-This is required to get it synced to hardware on boot, allowing the
-lower levels of the page tables to be filled dynamically.
-
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Daniel Axtens <dja@axtens.net>
 
 ---
-v5: fix some checkpatch CHECK warnings. There are some that remain
-    around lines ending with '(': I have not changed these because
-    it's consistent with the rest of the file and it's not easy to
-    see how to fix it without creating an overlong line or lots of
-    temporary variables.
 
-v2: move from faulting in shadow pgds to prepopulating
+Merging this is probably overkill, but I leave it to the discretion
+of the broader community.
+
+On v4 (no dynamic freeing), I saw the following approximate figures
+on my test VM:
+
+ - fresh boot: 720
+ - after test_vmalloc: ~14000
+
+With v5 (lazy dynamic freeing):
+
+ - boot: ~490-500
+ - running modprobe test_vmalloc pushes the figures up to sometimes
+    as high as ~14000, but they drop down to ~560 after the test ends.
+    I'm not sure where the extra sixty pages are from, but running the
+    test repeately doesn't cause the number to keep growing, so I don't
+    think we're leaking.
+ - with vmap_stack, spawning tasks pushes the figure up to ~4200, then
+    some clearing kicks in and drops it down to previous levels again.
 ---
- arch/x86/Kconfig            |  1 +
- arch/x86/mm/kasan_init_64.c | 60 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+)
+ mm/kasan/common.c | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 2502f7f60c9c..300b4766ccfa 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -134,6 +134,7 @@ config X86
- 	select HAVE_ARCH_JUMP_LABEL
- 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
- 	select HAVE_ARCH_KASAN			if X86_64
-+	select HAVE_ARCH_KASAN_VMALLOC		if X86_64
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 296da58f3013..8f00f462709e 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -245,6 +245,51 @@ static void __init kasan_map_early_shadow(pgd_t *pgd=
-)
- 	} while (pgd++, addr =3D next, addr !=3D end);
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index e33cbab83309..e40854512417 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -35,6 +35,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/bug.h>
+ #include <linux/uaccess.h>
++#include <linux/debugfs.h>
+=20
+ #include <asm/tlbflush.h>
+=20
+@@ -750,6 +751,8 @@ core_initcall(kasan_memhotplug_init);
+ #endif
+=20
+ #ifdef CONFIG_KASAN_VMALLOC
++static u64 vmalloc_shadow_pages;
++
+ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
+ 				      void *unused)
+ {
+@@ -776,6 +779,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, un=
+signed long addr,
+ 	if (likely(pte_none(*ptep))) {
+ 		set_pte_at(&init_mm, addr, ptep, pte);
+ 		page =3D 0;
++		vmalloc_shadow_pages++;
+ 	}
+ 	spin_unlock(&init_mm.page_table_lock);
+ 	if (page)
+@@ -829,6 +833,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, =
+unsigned long addr,
+ 	if (likely(!pte_none(*ptep))) {
+ 		pte_clear(&init_mm, addr, ptep);
+ 		free_page(page);
++		vmalloc_shadow_pages--;
+ 	}
+ 	spin_unlock(&init_mm.page_table_lock);
+=20
+@@ -947,4 +952,25 @@ void kasan_release_vmalloc(unsigned long start, unsi=
+gned long end,
+ 				       (unsigned long)shadow_end);
+ 	}
  }
-=20
-+static void __init kasan_shallow_populate_p4ds(pgd_t *pgd,
-+					       unsigned long addr,
-+					       unsigned long end,
-+					       int nid)
++
++static __init int kasan_init_vmalloc_debugfs(void)
 +{
-+	p4d_t *p4d;
-+	unsigned long next;
-+	void *p;
++	struct dentry *root, *count;
 +
-+	p4d =3D p4d_offset(pgd, addr);
-+	do {
-+		next =3D p4d_addr_end(addr, end);
++	root =3D debugfs_create_dir("kasan_vmalloc", NULL);
++	if (IS_ERR(root)) {
++		if (PTR_ERR(root) =3D=3D -ENODEV)
++			return 0;
++		return PTR_ERR(root);
++	}
 +
-+		if (p4d_none(*p4d)) {
-+			p =3D early_alloc(PAGE_SIZE, nid, true);
-+			p4d_populate(&init_mm, p4d, p);
-+		}
-+	} while (p4d++, addr =3D next, addr !=3D end);
++	count =3D debugfs_create_u64("shadow_pages", 0444, root,
++				   &vmalloc_shadow_pages);
++
++	if (IS_ERR(count))
++		return PTR_ERR(root);
++
++	return 0;
 +}
-+
-+static void __init kasan_shallow_populate_pgds(void *start, void *end)
-+{
-+	unsigned long addr, next;
-+	pgd_t *pgd;
-+	void *p;
-+	int nid =3D early_pfn_to_nid((unsigned long)start);
-+
-+	addr =3D (unsigned long)start;
-+	pgd =3D pgd_offset_k(addr);
-+	do {
-+		next =3D pgd_addr_end(addr, (unsigned long)end);
-+
-+		if (pgd_none(*pgd)) {
-+			p =3D early_alloc(PAGE_SIZE, nid, true);
-+			pgd_populate(&init_mm, pgd, p);
-+		}
-+
-+		/*
-+		 * we need to populate p4ds to be synced when running in
-+		 * four level mode - see sync_global_pgds_l4()
-+		 */
-+		kasan_shallow_populate_p4ds(pgd, addr, next, nid);
-+	} while (pgd++, addr =3D next, addr !=3D (unsigned long)end);
-+}
-+
- #ifdef CONFIG_KASAN_INLINE
- static int kasan_die_handler(struct notifier_block *self,
- 			     unsigned long val,
-@@ -352,9 +397,24 @@ void __init kasan_init(void)
- 	shadow_cpu_entry_end =3D (void *)round_up(
- 			(unsigned long)shadow_cpu_entry_end, PAGE_SIZE);
-=20
-+	/*
-+	 * If we're in full vmalloc mode, don't back vmalloc space with early
-+	 * shadow pages. Instead, prepopulate pgds/p4ds so they are synced to
-+	 * the global table and we can populate the lower levels on demand.
-+	 */
-+#ifdef CONFIG_KASAN_VMALLOC
-+	kasan_shallow_populate_pgds(
-+		kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
-+		kasan_mem_to_shadow((void *)VMALLOC_END));
-+
-+	kasan_populate_early_shadow(
-+		kasan_mem_to_shadow((void *)VMALLOC_END + 1),
-+		shadow_cpu_entry_begin);
-+#else
- 	kasan_populate_early_shadow(
- 		kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
- 		shadow_cpu_entry_begin);
-+#endif
-=20
- 	kasan_populate_shadow((unsigned long)shadow_cpu_entry_begin,
- 			      (unsigned long)shadow_cpu_entry_end, 0);
++late_initcall(kasan_init_vmalloc_debugfs);
+ #endif
 --=20
 2.20.1
 
