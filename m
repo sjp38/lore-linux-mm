@@ -3,58 +3,67 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D463EC3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 19:12:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CB7FC3A5A5
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 19:15:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86BC422D6D
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 19:12:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86BC422D6D
+	by mail.kernel.org (Postfix) with ESMTP id 1992B206BB
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 19:15:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1992B206BB
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EF0916B0005; Tue,  3 Sep 2019 15:12:17 -0400 (EDT)
+	id A5ACC6B0005; Tue,  3 Sep 2019 15:15:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EA1EF6B0006; Tue,  3 Sep 2019 15:12:17 -0400 (EDT)
+	id A0B486B0006; Tue,  3 Sep 2019 15:15:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8FD56B0007; Tue,  3 Sep 2019 15:12:17 -0400 (EDT)
+	id 920566B0007; Tue,  3 Sep 2019 15:15:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0037.hostedemail.com [216.40.44.37])
-	by kanga.kvack.org (Postfix) with ESMTP id B9E666B0005
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:12:17 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 51B4D824CA27
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 19:12:17 +0000 (UTC)
-X-FDA: 75894555114.24.pig53_88548a1913030
-X-HE-Tag: pig53_88548a1913030
-X-Filterd-Recvd-Size: 4924
+Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1AD6B0005
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:15:32 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 01FDD180AD802
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 19:15:32 +0000 (UTC)
+X-FDA: 75894563262.12.slope72_132672a09d935
+X-HE-Tag: slope72_132672a09d935
+X-Filterd-Recvd-Size: 4198
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 19:12:16 +0000 (UTC)
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 19:15:31 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 44953AC90;
-	Tue,  3 Sep 2019 19:12:15 +0000 (UTC)
-Date: Tue, 3 Sep 2019 21:12:13 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 363C0AF10;
+	Tue,  3 Sep 2019 19:15:30 +0000 (UTC)
+Date: Tue, 3 Sep 2019 21:15:28 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
-	David Rientjes <rientjes@google.com>,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: disable dump_tasks by default
-Message-ID: <20190903191213.GB14028@dhcp22.suse.cz>
-References: <20190903144512.9374-1-mhocko@kernel.org>
- <1567522966.5576.51.camel@lca.pw>
- <20190903151307.GZ14028@dhcp22.suse.cz>
- <1567524778.5576.59.camel@lca.pw>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: William Kucharski <william.kucharski@oracle.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Song Liu <songliubraving@fb.com>,
+	Bob Kasten <robert.a.kasten@intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Chad Mynhier <chad.mynhier@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH v5 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+Message-ID: <20190903191528.GC14028@dhcp22.suse.cz>
+References: <20190902092341.26712-1-william.kucharski@oracle.com>
+ <20190902092341.26712-3-william.kucharski@oracle.com>
+ <20190903121424.GT14028@dhcp22.suse.cz>
+ <20190903122208.GE29434@bombadil.infradead.org>
+ <20190903125150.GW14028@dhcp22.suse.cz>
+ <20190903151015.GF29434@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1567524778.5576.59.camel@lca.pw>
+In-Reply-To: <20190903151015.GF29434@bombadil.infradead.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -62,75 +71,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 03-09-19 11:32:58, Qian Cai wrote:
-> On Tue, 2019-09-03 at 17:13 +0200, Michal Hocko wrote:
-> > On Tue 03-09-19 11:02:46, Qian Cai wrote:
-> > > On Tue, 2019-09-03 at 16:45 +0200, Michal Hocko wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
+On Tue 03-09-19 08:10:15, Matthew Wilcox wrote:
+> On Tue, Sep 03, 2019 at 02:51:50PM +0200, Michal Hocko wrote:
+> > On Tue 03-09-19 05:22:08, Matthew Wilcox wrote:
+> > > On Tue, Sep 03, 2019 at 02:14:24PM +0200, Michal Hocko wrote:
+> > > > On Mon 02-09-19 03:23:41, William Kucharski wrote:
+> > > > > Add filemap_huge_fault() to attempt to satisfy page
+> > > > > faults on memory-mapped read-only text pages using THP when possible.
 > > > > 
-> > > > dump_tasks has been introduced by quite some time ago fef1bdd68c81
-> > > > ("oom: add sysctl to enable task memory dump"). It's primary purpose is
-> > > > to help analyse oom victim selection decision. This has been certainly
-> > > > useful at times when the heuristic to chose a victim was much more
-> > > > volatile. Since a63d83f427fb ("oom: badness heuristic rewrite")
-> > > > situation became much more stable (mostly because the only selection
-> > > > criterion is the memory usage) and reports about a wrong process to
-> > > > be shot down have become effectively non-existent.
+> > > > This deserves much more description of how the thing is implemented and
+> > > > expected to work. For one thing it is not really clear to me why you
+> > > > need CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP at all. You need a support
+> > > > from the filesystem anyway. So who is going to enable/disable this
+> > > > config?
 > > > 
-> > > Well, I still see OOM sometimes kills wrong processes like ssh, systemd
-> > > processes while LTP OOM tests with staight-forward allocation patterns.
+> > > There are definitely situations in which enabling this code will crash
+> > > the kernel.  But we want to get filesystems to a point where they can
+> > > start working on their support for large pages.  So our workaround is
+> > > to try to get the core pieces merged under a CONFIG_I_KNOW_WHAT_IM_DOING
+> > > flag and let people play with it.  Then continue to work on the core
+> > > to eliminate those places that are broken.
 > > 
-> > Please report those. Most cases I have seen so far just turned out to
-> > work as expected and memory hogs just used oom_score_adj or similar.
-> > 
-> > > I just
-> > > have not had a chance to debug them fully. The situation could be worse with
-> > > more complex allocations like random stress or fuzzy testing.
-> > 
-> > Nothing really prevents enabling the sysctl when doing OOM oriented
-> > testing.
-> > 
-> > > > dump_tasks can generate a lot of output to the kernel log. It is not
-> > > > uncommon that even relative small system has hundreds of tasks running.
-> > > > Generating a lot of output to the kernel log both makes the oom report
-> > > > less convenient to process and also induces a higher load on the printk
-> > > > subsystem which can lead to other problems (e.g. longer stalls to flush
-> > > > all the data to consoles).
-> > > 
-> > > It is only generate output for the victim process where I tested on those
-> > > large
-> > > NUMA machines and the output is fairly manageable.
-> > 
-> > The main question here is whether that information is useful by
-> > _default_ because it is certainly not free. It takes both time to crawl
-> > all processes and cpu cycles to get that information to the console
-> > because printk is not free either. So if it more of "nice to have" than
-> > necessary for oom analysis then it should be disabled by default IMHO.
+> > I am not sure I understand. Each fs has to opt in to the feature
+> > anyway. If it doesn't then there should be no risk of regression, right?
+> > I do not expect any fs would rush an implementation in while not being
+> > sure about the correctness. So how exactly does a config option help
+> > here.
 > 
-> It also feels like more a band-aid micro-optimization with the side-effect that
-> affecting debuggability, as there could be loads of console output anyway during
-> a kernel OOM event including failed allocation warnings. I suppose if you want
-> to change the default behavior, the bar is high with more data and
-> justification.
+> Filesystems won't see large pages unless they've opted into them.
+> But there's a huge amount of page-cache work that needs to get done
+> before this can be enabled by default.  For example, truncate() won't
+> work properly.
+> 
+> Rather than try to do all the page cache work upfront, then wait for the
+> filesystems to catch up, we want to get some basics merged.  Since we've
+> been talking about this for so long without any movement in the kernel
+> towards actual support, this felt like a good way to go.
+> 
+> We could, of course, develop the entire thing out of tree, but that's
+> likely to lead to pain and anguish.
 
-Any specific idea what that justification should be?
+Then I would suggest mentioning all this in the changelog so that the
+overall intention is clear. It is also up to you fs developers to find a
+consensus on how to move forward. I have brought that up mostly because
+I really hate seeing new config options added due to shortage of
+confidence in the code. That really smells like working around standard
+code quality inclusion process.
 
-Because this is not something that you could measure very easily. It is
-very subjective and far from black and white. And I am fully aware of
-that. Hence RFC. That is why we should apply some common sense
-and cost/benefit evaluation.
-
-The cost of an additional output should be quite clear. Now we can
-argue about the benefit. I argue that for an absolute majority of oom
-report I have seen throughout past many years the task list was the
-least useful information of the report. Sure I could go there and double
-check that the victim was selected as designed. In minority cases I
-could use that the task list to confirm that expected-to-be-victim had
-OOM_SCORE_ADJ_MIN for some reason and that was why something esle has
-been selected. Those configuration issues tend to be reproducible and
-are easier to debug with sysctl enabled.
-
-All that being said, arguments tend to weigh more towards IMO.
 -- 
 Michal Hocko
 SUSE Labs
