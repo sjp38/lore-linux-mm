@@ -2,45 +2,57 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C0FDC41514
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:19:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC64BC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:22:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1752821881
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:19:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1752821881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9BECB2087E
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:22:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="sdAJgqyO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BECB2087E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A55716B0003; Tue,  3 Sep 2019 08:19:55 -0400 (EDT)
+	id 28BA96B0003; Tue,  3 Sep 2019 08:22:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A05D16B0005; Tue,  3 Sep 2019 08:19:55 -0400 (EDT)
+	id 23B896B0005; Tue,  3 Sep 2019 08:22:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 91BBE6B0006; Tue,  3 Sep 2019 08:19:55 -0400 (EDT)
+	id 104546B0006; Tue,  3 Sep 2019 08:22:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E38D6B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:19:55 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 0D1A1824CA2A
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:19:55 +0000 (UTC)
-X-FDA: 75893515950.14.word79_1c54975c95133
-X-HE-Tag: word79_1c54975c95133
-X-Filterd-Recvd-Size: 3465
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:19:54 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 21EA5B009;
-	Tue,  3 Sep 2019 12:19:53 +0000 (UTC)
-Date: Tue, 3 Sep 2019 14:19:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Matthew Wilcox <willy@infradead.org>
+Received: from forelay.hostedemail.com (smtprelay0113.hostedemail.com [216.40.44.113])
+	by kanga.kvack.org (Postfix) with ESMTP id E50D46B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:22:14 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 85EEC180AD7C3
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:22:14 +0000 (UTC)
+X-FDA: 75893521788.20.copy35_30a05d9198323
+X-HE-Tag: copy35_30a05d9198323
+X-Filterd-Recvd-Size: 3750
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:22:14 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=ccUGFVNxssVWDcbI4ftnmg58MbgKoeWD8Ifd/JsATGA=; b=sdAJgqyOjMVv5fGaTpFicA5RP
+	0MALv5u8khHy2K9Yl7P37X5h9KAHJlerdtdvJhnb3lJKI4pzP9dQt487I46HmBIrgC7njktl3YgWa
+	SQWOLRQhasxNetbiJq1YJk4ow8C0kTd+vCWMFmUZ6CEBLYUz/expOYSTwdf+ImbTf9OT3sMVRk3t6
+	djywTV4fdBXWnWMXlOtU+Cat+AE2NfVI1wgF9MBF2jwWESybVK2yGLv3CBrmVVHgms+SvUPg8M7I3
+	iEbvurEHnm0jQ2rV1vxDYUqKxI+1SX8YNQGuHQUesSirCQB4QGmdBwrzX3+BvYyxkIGXP6l3GDVH7
+	QA3EPd7bg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i57p2-0006Fn-RW; Tue, 03 Sep 2019 12:22:08 +0000
+Date: Tue, 3 Sep 2019 05:22:08 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: William Kucharski <william.kucharski@oracle.com>,
 	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
@@ -51,73 +63,50 @@ Cc: William Kucharski <william.kucharski@oracle.com>,
 	Chad Mynhier <chad.mynhier@oracle.com>,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	Johannes Weiner <jweiner@fb.com>
-Subject: Re: [PATCH v5 1/2] mm: Allow the page cache to allocate large pages
-Message-ID: <20190903121952.GU14028@dhcp22.suse.cz>
+Subject: Re: [PATCH v5 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+Message-ID: <20190903122208.GE29434@bombadil.infradead.org>
 References: <20190902092341.26712-1-william.kucharski@oracle.com>
- <20190902092341.26712-2-william.kucharski@oracle.com>
- <20190903115748.GS14028@dhcp22.suse.cz>
- <20190903121155.GD29434@bombadil.infradead.org>
+ <20190902092341.26712-3-william.kucharski@oracle.com>
+ <20190903121424.GT14028@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190903121155.GD29434@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190903121424.GT14028@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 03-09-19 05:11:55, Matthew Wilcox wrote:
-> On Tue, Sep 03, 2019 at 01:57:48PM +0200, Michal Hocko wrote:
-> > On Mon 02-09-19 03:23:40, William Kucharski wrote:
-> > > Add an 'order' argument to __page_cache_alloc() and
-> > > do_read_cache_page(). Ensure the allocated pages are compound pages.
-> > 
-> > Why do we need to touch all the existing callers and change them to use
-> > order 0 when none is actually converted to a different order? This just
-> > seem to add a lot of code churn without a good reason. If anything I
-> > would simply add __page_cache_alloc_order and make __page_cache_alloc
-> > call it with order 0 argument.
+On Tue, Sep 03, 2019 at 02:14:24PM +0200, Michal Hocko wrote:
+> On Mon 02-09-19 03:23:41, William Kucharski wrote:
+> > Add filemap_huge_fault() to attempt to satisfy page
+> > faults on memory-mapped read-only text pages using THP when possible.
 > 
-> Patch 2/2 uses a non-zero order.
+> This deserves much more description of how the thing is implemented and
+> expected to work. For one thing it is not really clear to me why you
+> need CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP at all. You need a support
+> from the filesystem anyway. So who is going to enable/disable this
+> config?
 
-It is a new caller and it can use a new function right?
+There are definitely situations in which enabling this code will crash
+the kernel.  But we want to get filesystems to a point where they can
+start working on their support for large pages.  So our workaround is
+to try to get the core pieces merged under a CONFIG_I_KNOW_WHAT_IM_DOING
+flag and let people play with it.  Then continue to work on the core
+to eliminate those places that are broken.
 
-> I agree it's a lot of churn without
-> good reason; that's why I tried to add GFP_ORDER flags a few months ago.
-> Unfortunately, you didn't like that approach either.
+> I cannot really comment on fs specific parts but filemap_huge_fault
+> sounds convoluted so much I cannot wrap my head around it. One thing
+> stand out though. The generic filemap_huge_fault depends on ->readpage
+> doing the right thing which sounds quite questionable to me. If nothing
+> else  I would expect ->readpages to do the job.
 
-Is there any future plan that all/most __page_cache_alloc will get a
-non-zero order argument?
+Ah, that's because you're not a filesystem person ;-)  ->readpages is
+really ->readahead.  It's a crappy interface and should be completely
+redesigned.
 
-> > Also is it so much to ask callers to provide __GFP_COMP explicitly?
-> 
-> Yes, it's an unreasonable burden on the callers.
-
-Care to exaplain why? __GFP_COMP tends to be used in the kernel quite
-extensively.
-
-> Those that pass 0 will
-> have the test optimised away by the compiler (for the non-NUMA case).
-> For the NUMA case, passing zero is going to be only a couple of extra
-> instructions to not set the GFP_COMP flag.
-> 
-> > >  #ifdef CONFIG_NUMA
-> > > -extern struct page *__page_cache_alloc(gfp_t gfp);
-> > > +extern struct page *__page_cache_alloc(gfp_t gfp, unsigned int order);
-> > >  #else
-> > > -static inline struct page *__page_cache_alloc(gfp_t gfp)
-> > > +static inline struct page *__page_cache_alloc(gfp_t gfp, unsigned int order)
-> > >  {
-> > > -	return alloc_pages(gfp, 0);
-> > > +	if (order > 0)
-> > > +		gfp |= __GFP_COMP;
-> > > +	return alloc_pages(gfp, order);
-> > >  }
-> > >  #endif
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks for looking!
 
