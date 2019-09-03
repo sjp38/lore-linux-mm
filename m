@@ -2,134 +2,117 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 009B4C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:05:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9B9FC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:12:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9621D206B8
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:05:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9621D206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 7DC5C208E4
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 12:12:01 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="btqI5faI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DC5C208E4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30DAA6B0003; Tue,  3 Sep 2019 08:05:25 -0400 (EDT)
+	id 15B0F6B0003; Tue,  3 Sep 2019 08:12:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 298EE6B0005; Tue,  3 Sep 2019 08:05:25 -0400 (EDT)
+	id 10B0F6B0005; Tue,  3 Sep 2019 08:12:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 185356B0006; Tue,  3 Sep 2019 08:05:25 -0400 (EDT)
+	id 020F66B0006; Tue,  3 Sep 2019 08:12:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0140.hostedemail.com [216.40.44.140])
-	by kanga.kvack.org (Postfix) with ESMTP id E62516B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:05:24 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 89742908F
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:05:24 +0000 (UTC)
-X-FDA: 75893479368.29.ocean68_2f22385c2af4f
-X-HE-Tag: ocean68_2f22385c2af4f
-X-Filterd-Recvd-Size: 4613
-Received: from relay.sw.ru (relay.sw.ru [185.231.240.75])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:05:23 +0000 (UTC)
-Received: from [172.16.25.5]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1i57Ym-0003BW-HN; Tue, 03 Sep 2019 15:05:20 +0300
-Subject: Re: [BUG] Early OOM and kernel NULL pointer dereference in 4.19.69
-To: Michal Hocko <mhocko@kernel.org>,
- Thomas Lindroth <thomas.lindroth@gmail.com>
-Cc: linux-mm@kvack.org, stable@vger.kernel.org
-References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
- <20190902071617.GC14028@dhcp22.suse.cz>
- <a07da432-1fc1-67de-ae35-93f157bf9a7d@gmail.com>
- <20190903074132.GM14028@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <84c47d16-ff5a-9af0-efd4-5ef78d302170@virtuozzo.com>
-Date: Tue, 3 Sep 2019 15:05:22 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0098.hostedemail.com [216.40.44.98])
+	by kanga.kvack.org (Postfix) with ESMTP id D4ECA6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:12:00 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7E6B6824CA2A
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:12:00 +0000 (UTC)
+X-FDA: 75893496000.22.burn31_68c6bf09ffc5b
+X-HE-Tag: burn31_68c6bf09ffc5b
+X-Filterd-Recvd-Size: 3834
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:11:59 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=8EXrYd4RsH6BhIOlTTrp7nSzyNrjaXwYb7WWqgrRr9Y=; b=btqI5faIUT1LIYYiY9J4zINYa
+	3jWPSYkalrJbyjVLIJldORJvZuDJ/zHsD1VvNmD4bdXCqkmlPA4w9XGItTEClgoh6M0RckxISoiqc
+	r6niZXlB+7EoS7c6IyPny4ucc7gVTb6eTxrg3fmqRSKg4G66qRDSNmqNUpvZeEfnB4R9iTozEskz7
+	bbPH5Fa24IlPi9kjfXG3Rie8eQNOoIZB8hkVd/YqYDz9+EBL80/FVfoKcColNHXuUdCBjstZufBB2
+	hDA2QJyO9yDtah+GC7XcO8XZu47qpuo3x42WciEpEIuFH5lChFZiUVRS6iWB9ohV6ANbP//yvJxUm
+	bozNI4a2g==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i57f9-0002ll-Km; Tue, 03 Sep 2019 12:11:55 +0000
+Date: Tue, 3 Sep 2019 05:11:55 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: William Kucharski <william.kucharski@oracle.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Song Liu <songliubraving@fb.com>,
+	Bob Kasten <robert.a.kasten@intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Chad Mynhier <chad.mynhier@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH v5 1/2] mm: Allow the page cache to allocate large pages
+Message-ID: <20190903121155.GD29434@bombadil.infradead.org>
+References: <20190902092341.26712-1-william.kucharski@oracle.com>
+ <20190902092341.26712-2-william.kucharski@oracle.com>
+ <20190903115748.GS14028@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190903074132.GM14028@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190903115748.GS14028@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 9/3/19 10:41 AM, Michal Hocko wrote:
-> On Mon 02-09-19 21:34:29, Thomas Lindroth wrote:
->> On 9/2/19 9:16 AM, Michal Hocko wrote:
->>> On Sun 01-09-19 22:43:05, Thomas Lindroth wrote:
->>>> After upgrading to the 4.19 series I've started getting problems with
->>>> early OOM.
->>>
->>> What is the kenrel you have updated from? Would it be possible to try
->>> the current Linus' tree?
->>
->> I did some more testing and it turns out this is not a regression after all.
->>
->> I followed up on my hunch and monitored memory.kmem.max_usage_in_bytes while
->> running cgexec -g memory:12G bash -c 'find / -xdev -type f -print0 | \
->>         xargs -0 -n 1 -P 8 stat > /dev/null'
->>
->> Just as memory.kmem.max_usage_in_bytes = memory.kmem.limit_in_bytes the OOM
->> killer kicked in and killed my X server.
->>
->> Using the find|stat approach it was easy to test the problem in a testing VM.
->> I was able to reproduce the problem in all these kernels:
->>   4.9.0
->>   4.14.0
->>   4.14.115
->>   4.19.0
->>   5.2.11
->>
->> 5.3-rc6 didn't build in the VM. The build environment is too old probably.
->>
->> I was curious why I initially couldn't reproduce the problem in 4.14 by
->> building chromium. I was again able to successfully build chromium using
->> 4.14.115. Turns out memory.kmem.max_usage_in_bytes was 1015689216 after
->> building and my limit is set to 1073741824. I guess some unrelated change in
->> memory management raised that slightly for 4.19 triggering the problem.
->>
->> If you want to reproduce for yourself here are the steps:
->> 1. build any kernel above 4.9 using something like my .config
->> 2. setup a v1 memory cgroup with memory.kmem.limit_in_bytes lower than
->>    memory.limit_in_bytes. I used 100M in my testing VM.
->> 3. Run "find / -xdev -type f -print0 | xargs -0 -n 1 -P 8 stat > /dev/null"
->>    in the cgroup.
->> 4. Assuming there is enough inodes on the rootfs the global OOM killer
->>    should kick in when memory.kmem.max_usage_in_bytes =
->>    memory.kmem.limit_in_bytes and kill something outside the cgroup.
+On Tue, Sep 03, 2019 at 01:57:48PM +0200, Michal Hocko wrote:
+> On Mon 02-09-19 03:23:40, William Kucharski wrote:
+> > Add an 'order' argument to __page_cache_alloc() and
+> > do_read_cache_page(). Ensure the allocated pages are compound pages.
 > 
-> This is certainly a bug. Is this still an OOM triggered from
-> pagefault_out_of_memory? Since 4.19 (29ef680ae7c21) the memcg charge
-> path should invoke the memcg oom killer directly from the charge path.
-> If that doesn't happen then the failing charge is either GFP_NOFS or a
-> large allocation.
-> 
-> The former has been fixed just recently by http://lkml.kernel.org/r/cbe54ed1-b6ba-a056-8899-2dc42526371d@i-love.sakura.ne.jp
-> and I suspect this is a fix you are looking for. Although it is curious
-> that you can see a global oom even before because the charge path would
-> mark an oom situation even for NOFS context and it should trigger the
-> memcg oom killer on the way out from the page fault path. So essentially
-> the same call trace except the oom killer should be constrained to the
-> memcg context.
-> 
-> Could you try the above patch please?
-> 
+> Why do we need to touch all the existing callers and change them to use
+> order 0 when none is actually converted to a different order? This just
+> seem to add a lot of code churn without a good reason. If anything I
+> would simply add __page_cache_alloc_order and make __page_cache_alloc
+> call it with order 0 argument.
 
-It won't help. We hitting ->kmem limit here, not the ->memory or ->memsw, so try_charge() is successful and
-only __memcg_kmem_charge_memcg() fails to charge ->kmem and returns -ENOMEM.
+Patch 2/2 uses a non-zero order.  I agree it's a lot of churn without
+good reason; that's why I tried to add GFP_ORDER flags a few months ago.
+Unfortunately, you didn't like that approach either.
 
-Limiting kmem just never worked and it doesn't work now. AFAIK this feature hasn't been finished because 
-there was no clear purpose/use case found. I remember that there was some discussion on lsfmm about this https://lwn.net/Articles/636331/
-but I don't remember the discussion itself.
+> Also is it so much to ask callers to provide __GFP_COMP explicitly?
+
+Yes, it's an unreasonable burden on the callers.  Those that pass 0 will
+have the test optimised away by the compiler (for the non-NUMA case).
+For the NUMA case, passing zero is going to be only a couple of extra
+instructions to not set the GFP_COMP flag.
+
+> >  #ifdef CONFIG_NUMA
+> > -extern struct page *__page_cache_alloc(gfp_t gfp);
+> > +extern struct page *__page_cache_alloc(gfp_t gfp, unsigned int order);
+> >  #else
+> > -static inline struct page *__page_cache_alloc(gfp_t gfp)
+> > +static inline struct page *__page_cache_alloc(gfp_t gfp, unsigned int order)
+> >  {
+> > -	return alloc_pages(gfp, 0);
+> > +	if (order > 0)
+> > +		gfp |= __GFP_COMP;
+> > +	return alloc_pages(gfp, order);
+> >  }
+> >  #endif
+
 
