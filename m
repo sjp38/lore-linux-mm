@@ -2,123 +2,210 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 076A2C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:41:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84962C3A5A5
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 08:02:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9A7322DBF
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:41:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9A7322DBF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 44AE52377D
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 08:02:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44AE52377D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77D956B0003; Tue,  3 Sep 2019 03:41:35 -0400 (EDT)
+	id AC43E6B0003; Tue,  3 Sep 2019 04:02:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 72EA16B0005; Tue,  3 Sep 2019 03:41:35 -0400 (EDT)
+	id 8A6016B0005; Tue,  3 Sep 2019 04:02:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 61D526B0006; Tue,  3 Sep 2019 03:41:35 -0400 (EDT)
+	id 65D096B0006; Tue,  3 Sep 2019 04:02:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0155.hostedemail.com [216.40.44.155])
-	by kanga.kvack.org (Postfix) with ESMTP id 413386B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 03:41:35 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id D24B4181AC9BA
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:41:34 +0000 (UTC)
-X-FDA: 75892814508.26.crime52_47f4a2780c827
-X-HE-Tag: crime52_47f4a2780c827
-X-Filterd-Recvd-Size: 3919
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:41:34 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 95018B649;
-	Tue,  3 Sep 2019 07:41:32 +0000 (UTC)
-Date: Tue, 3 Sep 2019 09:41:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Thomas Lindroth <thomas.lindroth@gmail.com>
-Cc: linux-mm@kvack.org, stable@vger.kernel.org
-Subject: Re: [BUG] Early OOM and kernel NULL pointer dereference in 4.19.69
-Message-ID: <20190903074132.GM14028@dhcp22.suse.cz>
-References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
- <20190902071617.GC14028@dhcp22.suse.cz>
- <a07da432-1fc1-67de-ae35-93f157bf9a7d@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a07da432-1fc1-67de-ae35-93f157bf9a7d@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7CB6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 04:02:06 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id B15CF181AC9B6
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:02:05 +0000 (UTC)
+X-FDA: 75892866210.27.teeth17_696cdb3c1121c
+X-HE-Tag: teeth17_696cdb3c1121c
+X-Filterd-Recvd-Size: 7252
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 08:02:04 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3B2FD344;
+	Tue,  3 Sep 2019 01:02:03 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.42.170])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 312113F246;
+	Tue,  3 Sep 2019 01:01:52 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Mark Brown <broonie@kernel.org>,
+	Steven Price <Steven.Price@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Kees Cook <keescook@chromium.org>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Matthew Wilcox <willy@infradead.org>,
+	Sri Krishna chowdary <schowdary@nvidia.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Russell King - ARM Linux <linux@armlinux.org.uk>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Paul Mackerras <paulus@samba.org>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Vineet Gupta <vgupta@synopsys.com>,
+	James Hogan <jhogan@kernel.org>,
+	Paul Burton <paul.burton@mips.com>,
+	Ralf Baechle <ralf@linux-mips.org>,
+	linux-snps-arc@lists.infradead.org,
+	linux-mips@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux-ia64@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 0/1] mm/debug: Add tests for architecture exported page table helpers
+Date: Tue,  3 Sep 2019 13:31:45 +0530
+Message-Id: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 02-09-19 21:34:29, Thomas Lindroth wrote:
-> On 9/2/19 9:16 AM, Michal Hocko wrote:
-> > On Sun 01-09-19 22:43:05, Thomas Lindroth wrote:
-> > > After upgrading to the 4.19 series I've started getting problems with
-> > > early OOM.
-> > 
-> > What is the kenrel you have updated from? Would it be possible to try
-> > the current Linus' tree?
-> 
-> I did some more testing and it turns out this is not a regression after all.
-> 
-> I followed up on my hunch and monitored memory.kmem.max_usage_in_bytes while
-> running cgexec -g memory:12G bash -c 'find / -xdev -type f -print0 | \
->         xargs -0 -n 1 -P 8 stat > /dev/null'
-> 
-> Just as memory.kmem.max_usage_in_bytes = memory.kmem.limit_in_bytes the OOM
-> killer kicked in and killed my X server.
-> 
-> Using the find|stat approach it was easy to test the problem in a testing VM.
-> I was able to reproduce the problem in all these kernels:
->   4.9.0
->   4.14.0
->   4.14.115
->   4.19.0
->   5.2.11
-> 
-> 5.3-rc6 didn't build in the VM. The build environment is too old probably.
-> 
-> I was curious why I initially couldn't reproduce the problem in 4.14 by
-> building chromium. I was again able to successfully build chromium using
-> 4.14.115. Turns out memory.kmem.max_usage_in_bytes was 1015689216 after
-> building and my limit is set to 1073741824. I guess some unrelated change in
-> memory management raised that slightly for 4.19 triggering the problem.
-> 
-> If you want to reproduce for yourself here are the steps:
-> 1. build any kernel above 4.9 using something like my .config
-> 2. setup a v1 memory cgroup with memory.kmem.limit_in_bytes lower than
->    memory.limit_in_bytes. I used 100M in my testing VM.
-> 3. Run "find / -xdev -type f -print0 | xargs -0 -n 1 -P 8 stat > /dev/null"
->    in the cgroup.
-> 4. Assuming there is enough inodes on the rootfs the global OOM killer
->    should kick in when memory.kmem.max_usage_in_bytes =
->    memory.kmem.limit_in_bytes and kill something outside the cgroup.
+This series adds a test validation for architecture exported page table
+helpers. Patch in the series adds basic transformation tests at various
+levels of the page table.
 
-This is certainly a bug. Is this still an OOM triggered from
-pagefault_out_of_memory? Since 4.19 (29ef680ae7c21) the memcg charge
-path should invoke the memcg oom killer directly from the charge path.
-If that doesn't happen then the failing charge is either GFP_NOFS or a
-large allocation.
+This test was originally suggested by Catalin during arm64 THP migration
+RFC discussion earlier. Going forward it can include more specific tests
+with respect to various generic MM functions like THP, HugeTLB etc and
+platform specific tests.
 
-The former has been fixed just recently by http://lkml.kernel.org/r/cbe54ed1-b6ba-a056-8899-2dc42526371d@i-love.sakura.ne.jp
-and I suspect this is a fix you are looking for. Although it is curious
-that you can see a global oom even before because the charge path would
-mark an oom situation even for NOFS context and it should trigger the
-memcg oom killer on the way out from the page fault path. So essentially
-the same call trace except the oom killer should be constrained to the
-memcg context.
+https://lore.kernel.org/linux-mm/20190628102003.GA56463@arrakis.emea.arm.com/
 
-Could you try the above patch please?
+Questions:
+
+Should alloc_gigantic_page() be made available as an interface for general
+use in the kernel. The test module here uses very similar implementation from
+HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
+needs to be exported through a header.
+
+Matthew Wilcox had expressed concerns regarding memory allocation for mapped
+page table entries at various level. He also suggested using synethetic pfns
+which can be derived from virtual address of a known kernel text symbol like
+kernel_init(). But as discussed previously, it seems like allocated memory
+might still outweigh synthetic pfns. This proposal goes with allocated memory
+but if there is a broader agreement with respect to synthetic pfns, will be
+happy to rework the test.
+
+Testing:
+
+Build and boot tested on arm64 and x86 platforms. While arm64 clears all
+these tests, following errors were reported on x86.
+
+1. WARN_ON(pud_bad(pud)) in pud_populate_tests()
+2. WARN_ON(p4d_bad(p4d)) in p4d_populate_tests()
+
+I would really appreciate if folks can help validate this test on other
+platforms and report back problems if any. Suggestions, comments and
+inputs welcome. Thank you.
+
+Changes in V3:
+
+- Added fallback mechanism for PMD aligned memory allocation failure
+
+Changes in V2:
+
+https://lore.kernel.org/linux-mm/1565335998-22553-1-git-send-email-anshuman.khandual@arm.com/T/#u
+
+- Moved test module and it's config from lib/ to mm/
+- Renamed config TEST_ARCH_PGTABLE as DEBUG_ARCH_PGTABLE_TEST
+- Renamed file from test_arch_pgtable.c to arch_pgtable_test.c
+- Added relevant MODULE_DESCRIPTION() and MODULE_AUTHOR() details
+- Dropped loadable module config option
+- Basic tests now use memory blocks with required size and alignment
+- PUD aligned memory block gets allocated with alloc_contig_range()
+- If PUD aligned memory could not be allocated it falls back on PMD aligned
+  memory block from page allocator and pud_* tests are skipped
+- Clear and populate tests now operate on real in memory page table entries
+- Dummy mm_struct gets allocated with mm_alloc()
+- Dummy page table entries get allocated with [pud|pmd|pte]_alloc_[map]()
+- Simplified [p4d|pgd]_basic_tests(), now has random values in the entries
+
+RFC V1:
+
+https://lore.kernel.org/linux-mm/1564037723-26676-1-git-send-email-anshuman.khandual@arm.com/
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Mark Brown <broonie@kernel.org>
+Cc: Steven Price <Steven.Price@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Sri Krishna chowdary <schowdary@nvidia.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Vineet Gupta <vgupta@synopsys.com>
+Cc: James Hogan <jhogan@kernel.org>
+Cc: Paul Burton <paul.burton@mips.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-snps-arc@lists.infradead.org
+Cc: linux-mips@vger.kernel.org
+Cc: linux-arm-kernel@lists.infradead.org
+Cc: linux-ia64@vger.kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: linux-s390@vger.kernel.org
+Cc: linux-sh@vger.kernel.org
+Cc: sparclinux@vger.kernel.org
+Cc: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org
+
+Anshuman Khandual (1):
+  mm/pgtable/debug: Add test validating architecture page table helpers
+
+ mm/Kconfig.debug       |  14 ++
+ mm/Makefile            |   1 +
+ mm/arch_pgtable_test.c | 425 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 440 insertions(+)
+ create mode 100644 mm/arch_pgtable_test.c
 
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
+
 
