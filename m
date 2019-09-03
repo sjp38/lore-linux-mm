@@ -2,177 +2,291 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86277C3A5A7
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:28:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8CA3C3A5A7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:32:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 20B4A22DBF
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:28:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="BRXYASXf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20B4A22DBF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	by mail.kernel.org (Postfix) with ESMTP id 6D69422CF8
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:32:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D69422CF8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 823E26B0003; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
+	id 00AE86B0003; Tue,  3 Sep 2019 03:32:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D42D6B0005; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
+	id EFBFE6B0005; Tue,  3 Sep 2019 03:32:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C1EE6B0006; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
+	id E13B16B0006; Tue,  3 Sep 2019 03:32:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0154.hostedemail.com [216.40.44.154])
-	by kanga.kvack.org (Postfix) with ESMTP id 45E036B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id C9F6F824CA3A
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:28:35 +0000 (UTC)
-X-FDA: 75892781790.09.wound77_6819f60cfc94f
-X-HE-Tag: wound77_6819f60cfc94f
-X-Filterd-Recvd-Size: 7528
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf39.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:28:35 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id 100so15789573otn.2
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 00:28:35 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=UdMoRPg0KlVqze0pTkNC9rfXaDd7uPSTe82szx43jMg=;
-        b=BRXYASXfXrSYdvQ7cHvdL8g1FGYY5yc7fn4k3rf1HqK5cdyf7DVE1ZRs2ggL6FBlZY
-         jhOxSfrYQhY9BD157Pi5jnSxIhZjG9EG4xisQBVknT3mt+l8TxsfMTbDpomdpXG0MF88
-         /Ul9+UZc5rqz3oUInM3tk4DRzAXTmO9p25Eds=
+Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
+	by kanga.kvack.org (Postfix) with ESMTP id BFBE96B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 03:32:22 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 57EB4824CA39
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:32:22 +0000 (UTC)
+X-FDA: 75892791324.11.queen55_88ffb63d45d22
+X-HE-Tag: queen55_88ffb63d45d22
+X-Filterd-Recvd-Size: 10932
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:32:21 +0000 (UTC)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 1295F335D7
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:32:20 +0000 (UTC)
+Received: by mail-qt1-f200.google.com with SMTP id i19so17948507qtq.17
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 00:32:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=UdMoRPg0KlVqze0pTkNC9rfXaDd7uPSTe82szx43jMg=;
-        b=J2iJYw8RoX9HBZVLTmiqQmXPOZzWtVf00l/2tDten3mkp+IceBhVnYH5Ws/+uzFvUq
-         i9c/ydujxlUAV2lHKDP1/aHk/44M6RV2nN1MtiHbpscOsIzR5UbkvEbcf3EQgFl49fdq
-         Yd0vbwJSIAN89OaisjAVJ/xyKsqfX5iRBk+AAm9Fjcn4OyRubjlU9hZI/TftLvgTQfx8
-         TyFKAuxFjOQT6L9bgXwiqt49bpC36myWeEdMxLWEdS4tAa+O+Tnb6Jbs1hiK2ioCutWX
-         n4JN6kiLWgcAP3dkse/J/0IR4BuqsphmgqXe4okfL0ALsVt6dZzxSYD/Pvkfzi802Qn3
-         8PlQ==
-X-Gm-Message-State: APjAAAWojAgIUt8SBOr4lNoRSCxx4g+PksGn9adoH7ZoIxeiGSHPcGon
-	a9OTz2LRAAlOjfbzvd+ixEm0nxE0p7xzWmAsbIAJMA==
-X-Google-Smtp-Source: APXvYqxNdE/m5cDoeoduzif078Rn/h+XzpbDyvLbalFH6g7b9CtJip46QdskaojSElyMHAM5lUrtBDY5YQw43Yn2gis=
-X-Received: by 2002:a05:6830:1594:: with SMTP id i20mr1193992otr.188.1567495714412;
- Tue, 03 Sep 2019 00:28:34 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to;
+        bh=YKJ/17m0nY3+PfopzWmNRULBrW/5r9BKa8USWY7P99Y=;
+        b=XFBXqF+L+ph+xFBNaUWQX4st6QvhNn0n1ZRDZsIucosVH+UL4gsT7cqTQgdWGZ6Bj7
+         JYAFQktWPsTRlm8OlYMtLKc0JciYrci6DLP6CfJF0vZqOqNOPB5fLFzL9+DA7NuEew8r
+         d8RzROdCDOGWouo8OTegWOjc3L+h+hm4pAcGEDfDXtO39AwmQKlIrUxBO2EU92nyKJ2A
+         XtMmSAf+mYsOd8Ch1r/trdjWjQscevqlWs55CQl8e+YoQfjfcSf9xgyRapGVjaCUN3Mz
+         mpDXG9CxLgI5uRKr0aa4vEy6GwVdx9xzT+uoykf+juLoU2uUaOTzgFRs1lBgaJZ1q6kC
+         VQ1w==
+X-Gm-Message-State: APjAAAVuD5o45gqGiwmazOoZmiAA8/XdDyQfFOHY9ILah56kx8s4HkUt
+	YRP7WfEwrBGGLcMh9m/IZtJT7lS5/8G6ZdxEe4iosldJvfoccUqcNtk6RNsnfBt8wmREoSHAXrn
+	zEHWYdpjWp7s=
+X-Received: by 2002:a05:620a:234:: with SMTP id u20mr10853604qkm.11.1567495939311;
+        Tue, 03 Sep 2019 00:32:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBD33tlOTzZP8VA84/vyopsm4vvDT4u6GJo95GdpFHS9UdnFj15rANJyBZtbYAXvKG/zCLwA==
+X-Received: by 2002:a05:620a:234:: with SMTP id u20mr10853568qkm.11.1567495939082;
+        Tue, 03 Sep 2019 00:32:19 -0700 (PDT)
+Received: from redhat.com (bzq-79-180-62-110.red.bezeqint.net. [79.180.62.110])
+        by smtp.gmail.com with ESMTPSA id e7sm7324858qtp.91.2019.09.03.00.32.12
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 03 Sep 2019 00:32:18 -0700 (PDT)
+Date: Tue, 3 Sep 2019 03:32:10 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com,
+	dave.hansen@intel.com, linux-kernel@vger.kernel.org,
+	willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org,
+	osalvador@suse.de, yang.zhang.wz@gmail.com, pagupta@redhat.com,
+	riel@surriel.com, konrad.wilk@oracle.com, lcapitulino@redhat.com,
+	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
+	dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
+Subject: Re: [PATCH v5 6/6] virtio-balloon: Add support for providing unused
+ page reports to host
+Message-ID: <20190903032759-mutt-send-email-mst@kernel.org>
+References: <20190812213158.22097.30576.stgit@localhost.localdomain>
+ <20190812213356.22097.20751.stgit@localhost.localdomain>
 MIME-Version: 1.0
-References: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
- <20190826201425.17547-4-daniel.vetter@ffwll.ch> <20190827225002.GB30700@ziepe.ca>
- <CAKMK7uHKiLwXLHd1xThZVM1dH-oKrtpDZ=FxLBBwtY7XmJKgtA@mail.gmail.com>
- <20190828184330.GD933@ziepe.ca> <CAKMK7uFJESH1XHTCqYoDb4iMfThxnib3Uz=RUcd7h=SS-TJWbg@mail.gmail.com>
-In-Reply-To: <CAKMK7uFJESH1XHTCqYoDb4iMfThxnib3Uz=RUcd7h=SS-TJWbg@mail.gmail.com>
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Date: Tue, 3 Sep 2019 09:28:23 +0200
-Message-ID: <CAKMK7uET7GL-nmRd_wxkxu0KsiYiSZcGTsSstcUpqaT=mKTbmg@mail.gmail.com>
-Subject: Re: [PATCH 3/5] kernel.h: Add non_block_start/end()
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	DRI Development <dri-devel@lists.freedesktop.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Wei Wang <wvw@google.com>, 
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	Jann Horn <jannh@google.com>, Feng Tang <feng.tang@intel.com>, 
-	Kees Cook <keescook@chromium.org>, Randy Dunlap <rdunlap@infradead.org>, 
-	Daniel Vetter <daniel.vetter@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190812213356.22097.20751.stgit@localhost.localdomain>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 28, 2019 at 8:56 PM Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
-> On Wed, Aug 28, 2019 at 8:43 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > On Wed, Aug 28, 2019 at 08:33:13PM +0200, Daniel Vetter wrote:
-> > > On Wed, Aug 28, 2019 at 12:50 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > > >
-> > > > > diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> > > > > index 4fa360a13c1e..82f84cfe372f 100644
-> > > > > +++ b/include/linux/kernel.h
-> > > > > @@ -217,7 +217,9 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
-> > > > >   * might_sleep - annotation for functions that can sleep
-> > > > >   *
-> > > > >   * this macro will print a stack trace if it is executed in an atomic
-> > > > > - * context (spinlock, irq-handler, ...).
-> > > > > + * context (spinlock, irq-handler, ...). Additional sections where blocking is
-> > > > > + * not allowed can be annotated with non_block_start() and non_block_end()
-> > > > > + * pairs.
-> > > > >   *
-> > > > >   * This is a useful debugging help to be able to catch problems early and not
-> > > > >   * be bitten later when the calling function happens to sleep when it is not
-> > > > > @@ -233,6 +235,25 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
-> > > > >  # define cant_sleep() \
-> > > > >       do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
-> > > > >  # define sched_annotate_sleep()      (current->task_state_change = 0)
-> > > > > +/**
-> > > > > + * non_block_start - annotate the start of section where sleeping is prohibited
-> > > > > + *
-> > > > > + * This is on behalf of the oom reaper, specifically when it is calling the mmu
-> > > > > + * notifiers. The problem is that if the notifier were to block on, for example,
-> > > > > + * mutex_lock() and if the process which holds that mutex were to perform a
-> > > > > + * sleeping memory allocation, the oom reaper is now blocked on completion of
-> > > > > + * that memory allocation. Other blocking calls like wait_event() pose similar
-> > > > > + * issues.
-> > > > > + */
-> > > > > +# define non_block_start() \
-> > > > > +     do { current->non_block_count++; } while (0)
-> > > > > +/**
-> > > > > + * non_block_end - annotate the end of section where sleeping is prohibited
-> > > > > + *
-> > > > > + * Closes a section opened by non_block_start().
-> > > > > + */
-> > > > > +# define non_block_end() \
-> > > > > +     do { WARN_ON(current->non_block_count-- == 0); } while (0)
-> > > >
-> > > > check-patch does not like these, and I agree
-> > > >
-> > > > #101: FILE: include/linux/kernel.h:248:
-> > > > +# define non_block_start() \
-> > > > +       do { current->non_block_count++; } while (0)
-> > > >
-> > > > /tmp/tmp1spfxufy/0006-kernel-h-Add-non_block_start-end-.patch:108: WARNING: Single statement macros should not use a do {} while (0) loop
-> > > > #108: FILE: include/linux/kernel.h:255:
-> > > > +# define non_block_end() \
-> > > > +       do { WARN_ON(current->non_block_count-- == 0); } while (0)
-> > > >
-> > > > Please use a static inline?
-> > >
-> > > We need get_current() plus the task_struct, so this gets real messy
-> > > real fast. Not even sure which header this would fit in, or whether
-> > > I'd need to create a new one. You're insisting on this or respinning
-> > > with the do { } while (0) dropped ok.
-> >
-> > My prefernce is always a static inline, but if the headers are so
-> > twisty we need to use #define to solve a missing include, then I
-> > wouldn't insist on it.
->
-> Cleanest would be a new header I guess, together with might_sleep().
-> But moving that is a bit much I think, there's almost 500 callers of
-> that one from a quick git grep
->
-> > If dropping do while is the only change then I can edit it in..
-> > I think we have the acks now
->
-> Yeah sounds simplest, thanks.
+On Mon, Aug 12, 2019 at 02:33:56PM -0700, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> 
+> Add support for the page reporting feature provided by virtio-balloon.
+> Reporting differs from the regular balloon functionality in that is is
+> much less durable than a standard memory balloon. Instead of creating a
+> list of pages that cannot be accessed the pages are only inaccessible
+> while they are being indicated to the virtio interface. Once the
+> interface has acknowledged them they are placed back into their respective
+> free lists and are once again accessible by the guest system.
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  drivers/virtio/Kconfig              |    1 +
+>  drivers/virtio/virtio_balloon.c     |   65 +++++++++++++++++++++++++++++++++++
+>  include/uapi/linux/virtio_balloon.h |    1 +
+>  3 files changed, 67 insertions(+)
+> 
+> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+> index 078615cf2afc..4b2dd8259ff5 100644
+> --- a/drivers/virtio/Kconfig
+> +++ b/drivers/virtio/Kconfig
+> @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
+>  	tristate "Virtio balloon driver"
+>  	depends on VIRTIO
+>  	select MEMORY_BALLOON
+> +	select PAGE_REPORTING
+>  	---help---
+>  	 This driver supports increasing and decreasing the amount
+>  	 of memory within a KVM guest.
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 2c19457ab573..52f9eeda1877 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -19,6 +19,7 @@
+>  #include <linux/mount.h>
+>  #include <linux/magic.h>
+>  #include <linux/pseudo_fs.h>
+> +#include <linux/page_reporting.h>
+>  
+>  /*
+>   * Balloon device works in 4K page units.  So each page is pointed to by
+> @@ -37,6 +38,9 @@
+>  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
+>  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+>  
+> +/*  limit on the number of pages that can be on the reporting vq */
+> +#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
+> +
+>  #ifdef CONFIG_BALLOON_COMPACTION
+>  static struct vfsmount *balloon_mnt;
+>  #endif
+> @@ -46,6 +50,7 @@ enum virtio_balloon_vq {
+>  	VIRTIO_BALLOON_VQ_DEFLATE,
+>  	VIRTIO_BALLOON_VQ_STATS,
+>  	VIRTIO_BALLOON_VQ_FREE_PAGE,
+> +	VIRTIO_BALLOON_VQ_REPORTING,
+>  	VIRTIO_BALLOON_VQ_MAX
+>  };
+>  
+> @@ -113,6 +118,10 @@ struct virtio_balloon {
+>  
+>  	/* To register a shrinker to shrink memory upon memory pressure */
+>  	struct shrinker shrinker;
+> +
+> +	/* Unused page reporting device */
+> +	struct virtqueue *reporting_vq;
+> +	struct page_reporting_dev_info ph_dev_info;
+>  };
+>  
+>  static struct virtio_device_id id_table[] = {
+> @@ -152,6 +161,32 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+>  
+>  }
+>  
+> +void virtballoon_unused_page_report(struct page_reporting_dev_info *ph_dev_info,
+> +				    unsigned int nents)
+> +{
+> +	struct virtio_balloon *vb =
+> +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
+> +	struct virtqueue *vq = vb->reporting_vq;
+> +	unsigned int unused, err;
+> +
+> +	/* We should always be able to add these buffers to an empty queue. */
+> +	err = virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
+> +				  GFP_NOWAIT | __GFP_NOWARN);
+> +
+> +	/*
+> +	 * In the extremely unlikely case that something has changed and we
+> +	 * are able to trigger an error we will simply display a warning
+> +	 * and exit without actually processing the pages.
+> +	 */
+> +	if (WARN_ON(err))
+> +		return;
+> +
+> +	virtqueue_kick(vq);
+> +
+> +	/* When host has read buffer, this completes via balloon_ack */
+> +	wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
+> +}
+> +
+>  static void set_page_pfns(struct virtio_balloon *vb,
+>  			  __virtio32 pfns[], struct page *page)
+>  {
+> @@ -476,6 +511,7 @@ static int init_vqs(struct virtio_balloon *vb)
+>  	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+>  	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+>  	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> +	names[VIRTIO_BALLOON_VQ_REPORTING] = NULL;
+>  
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>  		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+> @@ -487,11 +523,19 @@ static int init_vqs(struct virtio_balloon *vb)
+>  		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+>  	}
+>  
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
+> +		names[VIRTIO_BALLOON_VQ_REPORTING] = "reporting_vq";
+> +		callbacks[VIRTIO_BALLOON_VQ_REPORTING] = balloon_ack;
+> +	}
+> +
+>  	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+>  					 vqs, callbacks, names, NULL, NULL);
+>  	if (err)
+>  		return err;
+>  
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+> +		vb->reporting_vq = vqs[VIRTIO_BALLOON_VQ_REPORTING];
+> +
+>  	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+>  	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> @@ -931,12 +975,30 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>  		if (err)
+>  			goto out_del_balloon_wq;
+>  	}
+> +
+> +	vb->ph_dev_info.report = virtballoon_unused_page_report;
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
+> +		unsigned int capacity;
+> +
+> +		capacity = min_t(unsigned int,
+> +				 virtqueue_get_vring_size(vb->reporting_vq) - 1,
+> +				 VIRTIO_BALLOON_VRING_HINTS_MAX);
 
-Hi Jason,
+Hmm why - 1 exactly?
+This might end up being 0 in the unusual configuration of vq size 1.
+Also, VIRTIO_BALLOON_VRING_HINTS_MAX is a power of 2 but
+virtqueue_get_vring_size(vb->reporting_vq) - 1 won't
+be if we are using split rings - donnu if that matters.
 
-Do you expect me to resend now, or do you plan to do the patchwork
-appeasement when applying? I've seen you merged the other patches
-(thanks!), but not these two here.
--Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+> +		vb->ph_dev_info.capacity = capacity;
+> +
+> +		err = page_reporting_startup(&vb->ph_dev_info);
+> +		if (err)
+> +			goto out_unregister_shrinker;
+> +	}
+> +
+>  	virtio_device_ready(vdev);
+>  
+>  	if (towards_target(vb))
+>  		virtballoon_changed(vdev);
+>  	return 0;
+>  
+> +out_unregister_shrinker:
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> +		virtio_balloon_unregister_shrinker(vb);
+>  out_del_balloon_wq:
+>  	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+>  		destroy_workqueue(vb->balloon_wq);
+> @@ -965,6 +1027,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
+>  {
+>  	struct virtio_balloon *vb = vdev->priv;
+>  
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+> +		page_reporting_shutdown(&vb->ph_dev_info);
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+>  		virtio_balloon_unregister_shrinker(vb);
+>  	spin_lock_irq(&vb->stop_update_lock);
+> @@ -1034,6 +1098,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
+>  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+>  	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>  	VIRTIO_BALLOON_F_PAGE_POISON,
+> +	VIRTIO_BALLOON_F_REPORTING,
+>  };
+>  
+>  static struct virtio_driver virtio_balloon_driver = {
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> index a1966cd7b677..19974392d324 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -36,6 +36,7 @@
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
+> +#define VIRTIO_BALLOON_F_REPORTING	5 /* Page reporting virtqueue */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
 
