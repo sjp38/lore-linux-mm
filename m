@@ -7,66 +7,66 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E2C0C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 20:05:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D189C3A5A5
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 20:09:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E83BA207E0
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 20:05:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4DFA921883
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 20:09:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="Bc9wK/zb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E83BA207E0
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="RAFKiSFF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DFA921883
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 838976B0005; Tue,  3 Sep 2019 16:05:17 -0400 (EDT)
+	id E02186B0005; Tue,  3 Sep 2019 16:09:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C1BB6B0006; Tue,  3 Sep 2019 16:05:17 -0400 (EDT)
+	id DB3C56B0006; Tue,  3 Sep 2019 16:09:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68A106B0007; Tue,  3 Sep 2019 16:05:17 -0400 (EDT)
+	id CA0A86B0007; Tue,  3 Sep 2019 16:09:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F7E26B0005
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:05:17 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id DFFB9180AD805
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 20:05:16 +0000 (UTC)
-X-FDA: 75894688632.18.hand28_10eba4d543602
-X-HE-Tag: hand28_10eba4d543602
-X-Filterd-Recvd-Size: 7117
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 20:05:16 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id q21so6517385pfn.11
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 13:05:15 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0208.hostedemail.com [216.40.44.208])
+	by kanga.kvack.org (Postfix) with ESMTP id A47296B0005
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:09:14 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 16D7F180AD802
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 20:09:14 +0000 (UTC)
+X-FDA: 75894698628.27.box50_3371858643154
+X-HE-Tag: box50_3371858643154
+X-Filterd-Recvd-Size: 7224
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf30.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 20:09:13 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id d15so2055816pfo.10
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 13:09:13 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=joelfernandes.org; s=google;
         h=from:to:cc:subject:date:message-id:mime-version
          :content-transfer-encoding;
-        bh=29Qri/KXgUDgYfdOZ88fjJJOMZcARQYfy1B4reZQb8c=;
-        b=Bc9wK/zblLGMuThMFStgTMR+Yuk5YZw/2OmzZKkNBCmEcFehCD/s4K1pbKKLrFQA05
-         mPmHzEIztfOvQcEOIKXnzaWKwPLSifbtOQKvCSKx1ILGYfhNrkkFERSz53zkUM9YgF5j
-         2Qzq8rXeRv4y/MaRj50LsMtZJS/kv+gom5Ifo=
+        bh=7eVGP53YTW/D0hbaqvHg3EgbpTi7q/9GTd1TuT/wVbs=;
+        b=RAFKiSFFOo6SWz2LmXsJCz9OopbHRQ1px8LjsohZczWNPODmZ8d250yRDbLckVfPQi
+         fCdXUHhxg3W+O9ovB2KR7q51aN+DvqFDAe0QDKABwNuf+zut+p+XENj3KsQ/Y82HSVH8
+         38RS42Vo8hje0mxI7kPzRZQtRcFgtUsRmiRSc=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
          :content-transfer-encoding;
-        bh=29Qri/KXgUDgYfdOZ88fjJJOMZcARQYfy1B4reZQb8c=;
-        b=Txc2O7dVxqBu0TOeZyVVAsan8SGrTna7deI7xGYsXip7TPCk5EWtPwSll099UpNdAD
-         dj0QHljqPxUgndTf3vnF86a9Rsmn69W+WGd9FsX/LnBbsDBO0+RHnomKFN5TMUBRbmRc
-         3ObFnDt1G3qHEjW8ujECrv8LqdWYOcsrFW3yPtLy1UEoPWc7dv0bOkEX1eOQAkTMnBkC
-         pGcCShp5G1Lgt9gkx1vkeabEpEaVbrKHRRN4xLUhpiC8dwJ5kImKvTEtHIdN2wu6GSJA
-         bPCLTkM37aPDXZJ+1ARulsdD1zWwY6BuoBz0rgj/CGR9/Esmr2KS0hIhkArYgXMBBYM5
-         4YsA==
-X-Gm-Message-State: APjAAAWpsan0aXHNt2EJ6Mxgz0s5HvfrCX4qIrttdN748BqBgz/nEcMr
-	LHtnWiUxRvHvjcav9SHcYhUL5g==
-X-Google-Smtp-Source: APXvYqzWwyyPykUJ8+f6u/buSmFd9exUPGkAK1eD0pBWdCTcvskP3nkPl9BvPjdTnUwebYQ7ayLfuA==
-X-Received: by 2002:a17:90a:d990:: with SMTP id d16mr1009540pjv.55.1567541114848;
-        Tue, 03 Sep 2019 13:05:14 -0700 (PDT)
+        bh=7eVGP53YTW/D0hbaqvHg3EgbpTi7q/9GTd1TuT/wVbs=;
+        b=H3y/OLQvUn5Q44imO7Oi3QPI65D5bxYS66xMwIapQzUG0KtTKr4RiMLj7C/4pmJN/X
+         5p/qLeslQyyHtn3/JpvUd6ZQeR5xAdM42VJBM5GjUi3HpuPqMO7etNVRicaYmeIk5fA9
+         UfIBHzUVHNK+EiA291zbQYQU4jfU6whOQ+r6agES+xyhIDeM007aRoXwryID6v9y2Vcd
+         Aij+aQPcGxFyvObI8X2Ra5xFNrVMOESo/0MUHy5VZbII0gvwGwyfphyFRwSBAGVoXTTY
+         H1kNS+8FLXC2QML4jWXDgeNZtfddot8kAi0rfcSn7nyDQnk/Ylr7WlAL5hU4Agb3kmAi
+         /piQ==
+X-Gm-Message-State: APjAAAU0Y4NverGvWzJj459OJwDwpD0Rvv+2YnUxtXik+55oSHc4h2RC
+	UknIqzCOyDHj94LfYhp6OEIm7w==
+X-Google-Smtp-Source: APXvYqxyyljZGlHrPmCRSYgC2fuoUWmRy8YfTx4pOoOE+ElDtTnIKw5bOMZ4hJBZcO0wfMbBd6wtOA==
+X-Received: by 2002:a62:7641:: with SMTP id r62mr40628483pfc.201.1567541352326;
+        Tue, 03 Sep 2019 13:09:12 -0700 (PDT)
 Received: from joelaf.cam.corp.google.com ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id k36sm16606308pgl.42.2019.09.03.13.05.12
+        by smtp.gmail.com with ESMTPSA id a23sm19651758pfo.80.2019.09.03.13.09.10
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 03 Sep 2019 13:05:14 -0700 (PDT)
+        Tue, 03 Sep 2019 13:09:11 -0700 (PDT)
 From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
 To: linux-kernel@vger.kernel.org
 Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
@@ -86,9 +86,9 @@ Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
 	Michal Hocko <mhocko@suse.cz>,
 	Ralph Campbell <rcampbell@nvidia.com>,
 	Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm: emit tracepoint when RSS changes by threshold
-Date: Tue,  3 Sep 2019 16:05:03 -0400
-Message-Id: <20190903200503.147973-1-joel@joelfernandes.org>
+Subject: [PATCH v2] mm: emit tracepoint when RSS changes by threshold
+Date: Tue,  3 Sep 2019 16:09:05 -0400
+Message-Id: <20190903200905.198642-1-joel@joelfernandes.org>
 X-Mailer: git-send-email 2.23.0.187.g17f5b7556c-goog
 MIME-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
@@ -98,9 +98,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Useful to track how RSS is changing per TGID. Several Android teams have
-been using this patch in various kernel trees for half a year now. Many
-reported to me it is really useful.
+Useful to track how RSS is changing per TGID to detect spikes in RSS and
+memory hogs. Several Android teams have been using this patch in various
+kernel trees for half a year now. Many reported to me it is really
+useful so I'm posting it upstream.
 
 Initial patch developed by Tim Murray. Changes I made from original patch=
 :
@@ -114,6 +115,8 @@ Signed-off-by: Tim Murray <timmurray@google.com>
 Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 
 ---
+
+v1->v2: Added more commit message.
 
 Cc: carmenjackson@google.com
 Cc: mayankgupta@google.com
