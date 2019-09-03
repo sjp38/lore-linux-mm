@@ -2,150 +2,123 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61584C3A5A7
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B847AC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:10:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 242F623431
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7CCAF20674
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:10:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Y0dYwB/x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 242F623431
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ua+qEoKR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CCAF20674
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C75B06B026A; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
+	id E4F706B026B; Tue,  3 Sep 2019 11:10:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C26DE6B026B; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
+	id DCF166B026C; Tue,  3 Sep 2019 11:10:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B3D0E6B026C; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
+	id CBC8D6B026D; Tue,  3 Sep 2019 11:10:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0105.hostedemail.com [216.40.44.105])
-	by kanga.kvack.org (Postfix) with ESMTP id 9476B6B026A
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 3289F181AC9BA
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:02:50 +0000 (UTC)
-X-FDA: 75893926500.23.stop66_8d0b7e9e4fc01
-X-HE-Tag: stop66_8d0b7e9e4fc01
-X-Filterd-Recvd-Size: 5480
-Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:02:49 +0000 (UTC)
-Received: by mail-qt1-f195.google.com with SMTP id l22so8060718qtp.10
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 08:02:48 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=98UJ89ZiZ75QQYhHn10zS32n71fYy3DwoNcRQRVS5xk=;
-        b=Y0dYwB/xEIg2VC6kphV8moKQMLXSqjyrxIDvPmAgzYa7jRAFu+rhArsFpgpxNorwxF
-         gHTeIuv/iD4Osf2V9qXXedGunN+ouk+dYxB/wokeKoDvPfNrjfb1JlTrJ2lG+Iu2xoe8
-         JAbKHDYsO+QD2AGmQ2Q0w+50if55VPTX6DUbkWsl7ddh3kYlzHhS70XKbYo+sutA8I3H
-         LEJJiwbr0XaAYu5yLRW4Jtm0uQBwIfiDkSBfI4x0S/BRs0uUDHQ0ARjWz59xZLqbkBPf
-         J+hyZOZ41bFrhG7YcJvCAOxiTz+SvDl87P2/LOc+17Xg84onz/vXt6zb68kOdAIN4K0V
-         LRzQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=98UJ89ZiZ75QQYhHn10zS32n71fYy3DwoNcRQRVS5xk=;
-        b=ZcFOhhre6qHUcUo20V1CsFGo+v6UM57tvJkPDQByFtik/qv0C/H0KUKtTUKFVEON/c
-         s4wDA2MwSbfMmRbuRp2EcuwsqqhCSybHsg1CgaVpI7fMOo7zyCXZToXUFsBgTqBWF6ij
-         ROxOGTnPsYjilFgy3D32pvzCxB0yZo+GRS2FUhIzMYMjireuCp2QuP0nk/teFh2ZeU/D
-         Xb/hE5LfPY2nVvFX0lj+9GcUUb16kUG0I+BUPWcrmY09TffM/3Oo72LPU4R2HBAmcpvt
-         ycbLv1GTdDksnorI7Zw6qV3HL5qgPh1L3L1RVK1/xFhJSvPQlbDa2KXHE8ql4QSaEX+L
-         /eDA==
-X-Gm-Message-State: APjAAAXe8ycJ3xhoyDbi2W4k92rJVXIwr7zy/p3uKOxi0j2Gctqot+ZB
-	XBgeXwQ5lPHYYd4JoTbqYgBSUA==
-X-Google-Smtp-Source: APXvYqzTAE6mfgfo1ByrawGaOyifrsk7CtcAySIiPJNBqNzUp8BpFsqQkls2qLZH4XeyuvxZZpIQaw==
-X-Received: by 2002:ac8:6a0a:: with SMTP id t10mr19414483qtr.0.1567522968447;
-        Tue, 03 Sep 2019 08:02:48 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id z5sm98214qki.55.2019.09.03.08.02.47
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Sep 2019 08:02:47 -0700 (PDT)
-Message-ID: <1567522966.5576.51.camel@lca.pw>
-Subject: Re: [RFC PATCH] mm, oom: disable dump_tasks by default
-From: Qian Cai <cai@lca.pw>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa
- <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>,
-  LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
-Date: Tue, 03 Sep 2019 11:02:46 -0400
-In-Reply-To: <20190903144512.9374-1-mhocko@kernel.org>
-References: <20190903144512.9374-1-mhocko@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
+	by kanga.kvack.org (Postfix) with ESMTP id A93166B026B
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 11:10:21 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 5515A180AD801
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:10:21 +0000 (UTC)
+X-FDA: 75893945442.08.ice32_3d4118489ff53
+X-HE-Tag: ice32_3d4118489ff53
+X-Filterd-Recvd-Size: 4419
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:10:20 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=kMYjLPkGWlldvgkaEMtVa8ofXfOGNI4Vt2JfjkgF+V8=; b=ua+qEoKR5NGKobxrhyfObMiaz
+	28qJVK5Cmtj469tUpUMjB5lIhBAeCh8YKXRWmBqvQ4pA4q2geWOc7hwsuuLD8+20ifshN6X4mmUS8
+	dnku9KimzBjhNU+wOPyckNP9v2fCKVt0JqP6dfPr2Iy2wR6+wKii5AXoHWgk31haG0tSLeZ9E705l
+	OgK0SqS7wfjf5NjzHOsFVLkmeE914uKAhFYNYTgaxuyEY7xR1vymBvwcopjWnk96vWdEiuI0IbOp7
+	HGt1Xj+QSm5q/t4M5uq0KOhEsWQL/MElDbumvXJxhbLoV4Mop2RQClRXXx2FzsZes+pqT9yHt9vfO
+	O3Dtop/1A==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i5ARj-0008Bn-Vp; Tue, 03 Sep 2019 15:10:15 +0000
+Date: Tue, 3 Sep 2019 08:10:15 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: William Kucharski <william.kucharski@oracle.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Song Liu <songliubraving@fb.com>,
+	Bob Kasten <robert.a.kasten@intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Chad Mynhier <chad.mynhier@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH v5 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+Message-ID: <20190903151015.GF29434@bombadil.infradead.org>
+References: <20190902092341.26712-1-william.kucharski@oracle.com>
+ <20190902092341.26712-3-william.kucharski@oracle.com>
+ <20190903121424.GT14028@dhcp22.suse.cz>
+ <20190903122208.GE29434@bombadil.infradead.org>
+ <20190903125150.GW14028@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190903125150.GW14028@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-09-03 at 16:45 +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->=20
-> dump_tasks has been introduced by quite some time ago fef1bdd68c81
-> ("oom: add sysctl to enable task memory dump"). It's primary purpose is
-> to help analyse oom victim selection decision. This has been certainly
-> useful at times when the heuristic to chose a victim was much more
-> volatile. Since a63d83f427fb ("oom: badness heuristic rewrite")
-> situation became much more stable (mostly because the only selection
-> criterion is the memory usage) and reports about a wrong process to
-> be shot down have become effectively non-existent.
+On Tue, Sep 03, 2019 at 02:51:50PM +0200, Michal Hocko wrote:
+> On Tue 03-09-19 05:22:08, Matthew Wilcox wrote:
+> > On Tue, Sep 03, 2019 at 02:14:24PM +0200, Michal Hocko wrote:
+> > > On Mon 02-09-19 03:23:41, William Kucharski wrote:
+> > > > Add filemap_huge_fault() to attempt to satisfy page
+> > > > faults on memory-mapped read-only text pages using THP when possible.
+> > > 
+> > > This deserves much more description of how the thing is implemented and
+> > > expected to work. For one thing it is not really clear to me why you
+> > > need CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP at all. You need a support
+> > > from the filesystem anyway. So who is going to enable/disable this
+> > > config?
+> > 
+> > There are definitely situations in which enabling this code will crash
+> > the kernel.  But we want to get filesystems to a point where they can
+> > start working on their support for large pages.  So our workaround is
+> > to try to get the core pieces merged under a CONFIG_I_KNOW_WHAT_IM_DOING
+> > flag and let people play with it.  Then continue to work on the core
+> > to eliminate those places that are broken.
+> 
+> I am not sure I understand. Each fs has to opt in to the feature
+> anyway. If it doesn't then there should be no risk of regression, right?
+> I do not expect any fs would rush an implementation in while not being
+> sure about the correctness. So how exactly does a config option help
+> here.
 
-Well, I still see OOM sometimes kills wrong processes like ssh, systemd
-processes while LTP OOM tests with staight-forward allocation patterns. I=
- just
-have not had a chance to debug them fully. The situation could be worse w=
-ith
-more complex allocations like random stress or fuzzy testing.
+Filesystems won't see large pages unless they've opted into them.
+But there's a huge amount of page-cache work that needs to get done
+before this can be enabled by default.  For example, truncate() won't
+work properly.
 
->=20
-> dump_tasks can generate a lot of output to the kernel log. It is not
-> uncommon that even relative small system has hundreds of tasks running.
-> Generating a lot of output to the kernel log both makes the oom report
-> less convenient to process and also induces a higher load on the printk
-> subsystem which can lead to other problems (e.g. longer stalls to flush
-> all the data to consoles).
+Rather than try to do all the page cache work upfront, then wait for the
+filesystems to catch up, we want to get some basics merged.  Since we've
+been talking about this for so long without any movement in the kernel
+towards actual support, this felt like a good way to go.
 
-It is only generate output for the victim process where I tested on those=
- large
-NUMA machines and the output is fairly manageable.
+We could, of course, develop the entire thing out of tree, but that's
+likely to lead to pain and anguish.
 
->=20
-> Therefore change the default of oom_dump_tasks to not print the task
-> list by default. The sysctl remains in place for anybody who might need
-> to get this additional information. The oom report still provides an
-> information about the allocation context and the state of the MM
-> subsystem which should be sufficient to analyse most of the oom
-> situations.
->=20
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> =C2=A0mm/oom_kill.c | 2 +-
-> =C2=A01 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index eda2e2a0bdc6..d0353705c6e6 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -52,7 +52,7 @@
-> =C2=A0
-> =C2=A0int sysctl_panic_on_oom;
-> =C2=A0int sysctl_oom_kill_allocating_task;
-> -int sysctl_oom_dump_tasks =3D 1;
-> +int sysctl_oom_dump_tasks;
-> =C2=A0
-> =C2=A0/*
-> =C2=A0 * Serializes oom killer invocations (out_of_memory()) from all c=
-ontexts to
 
