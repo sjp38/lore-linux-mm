@@ -2,544 +2,173 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=FAKE_REPLY_C,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ABAF0C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 09:46:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E708AC3A5A7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 10:00:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C40E22D6D
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 09:46:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C40E22D6D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8227C22CF7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 10:00:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8227C22CF7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lge.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01DA86B0008; Tue,  3 Sep 2019 05:46:26 -0400 (EDT)
+	id C476C6B0003; Tue,  3 Sep 2019 06:00:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0E9E6B000A; Tue,  3 Sep 2019 05:46:25 -0400 (EDT)
+	id BF7516B0005; Tue,  3 Sep 2019 06:00:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFCEA6B000C; Tue,  3 Sep 2019 05:46:25 -0400 (EDT)
+	id AE6136B0006; Tue,  3 Sep 2019 06:00:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0071.hostedemail.com [216.40.44.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A7A436B0008
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 05:46:25 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 3F832824CA3A
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 09:46:25 +0000 (UTC)
-X-FDA: 75893129130.22.linen28_8f49a48de1439
-X-HE-Tag: linen28_8f49a48de1439
-X-Filterd-Recvd-Size: 15945
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 09:46:24 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9F7AD1570;
-	Tue,  3 Sep 2019 02:46:23 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.42.170])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 6C9123F59C;
-	Tue,  3 Sep 2019 02:46:16 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	akpm@linux-foundation.org,
-	catalin.marinas@arm.com,
-	will@kernel.org
-Cc: mark.rutland@arm.com,
-	mhocko@suse.com,
-	ira.weiny@intel.com,
-	david@redhat.com,
-	cai@lca.pw,
-	logang@deltatee.com,
-	cpandya@codeaurora.org,
-	arunks@codeaurora.org,
-	dan.j.williams@intel.com,
-	mgorman@techsingularity.net,
-	osalvador@suse.de,
-	ard.biesheuvel@arm.com,
-	steve.capper@arm.com,
-	broonie@kernel.org,
-	valentin.schneider@arm.com,
-	Robin.Murphy@arm.com,
-	steven.price@arm.com,
-	suzuki.poulose@arm.com
-Subject: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
-Date: Tue,  3 Sep 2019 15:15:58 +0530
-Message-Id: <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
-References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0135.hostedemail.com [216.40.44.135])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F0756B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 06:00:04 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2CD8232635
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 10:00:04 +0000 (UTC)
+X-FDA: 75893163528.30.rings94_74da62be3b432
+X-HE-Tag: rings94_74da62be3b432
+X-Filterd-Recvd-Size: 5337
+Received: from lgeamrelo11.lge.com (lgeamrelo12.lge.com [156.147.23.52])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 10:00:02 +0000 (UTC)
+Received: from unknown (HELO lgemrelse7q.lge.com) (156.147.1.151)
+	by 156.147.23.52 with ESMTP; 3 Sep 2019 18:59:59 +0900
+X-Original-SENDERIP: 156.147.1.151
+X-Original-MAILFROM: sangwoo2.park@lge.com
+Received: from unknown (HELO LGEARND18B2) (10.168.178.132)
+	by 156.147.1.151 with ESMTP; 3 Sep 2019 18:59:59 +0900
+X-Original-SENDERIP: 10.168.178.132
+X-Original-MAILFROM: sangwoo2.park@lge.com
+Date: Tue, 3 Sep 2019 18:59:59 +0900
+From: Park Sangwoo <sangwoo2.park@lge.com>
+To: akpm@linux-foundation.org, vbabka@suse.cz, dan.j.williams@intel.com,
+	mhocko@suse.com, mgorman@techsingularity.net,
+	richard.weiyang@gmail.com, hannes@cmpxchg.org,
+	arunks@codeaurora.org, osalvador@suse.de, rppt@linux.vnet.ibm.com,
+	alexander.h.duyck@linux.intel.com, glider@google.com,
+	gregkh@linuxfoundation.org, guro@fb.com, jannh@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: RE: Re: Re: [PATCH] mm: Add nr_free_highatomimic to fix incorrect
+ watermatk routine
+Message-ID: <20190903095959.GA4458@LGEARND18B2>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+User-Agent: Mutt/1.5.24 (2015-08-30)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The arch code for hot-remove must tear down portions of the linear map and
-vmemmap corresponding to memory being removed. In both cases the page
-tables mapping these regions must be freed, and when sparse vmemmap is in
-use the memory backing the vmemmap must also be freed.
+>On Mon 02-09-19 13:34:54, Sangwoo=EF=BF=BD wrote:
+>>>On Fri 30-08-19 18:25:53, Sangwoo wrote:
+>>>> The highatomic migrate block can be increased to 1% of Total memory.
+>>>> And, this is for only highorder ( > 0 order). So, this block size is
+>>>> excepted during check watermark if allocation type isn't alloc_harde=
+r.
+>>>>
+>>>> It has problem. The usage of highatomic is already calculated at
+>> NR_FREE_PAGES.
+>>>> So, if we except total block size of highatomic, it's twice minus si=
+ze of
+>>allocated
+>>>> highatomic.
+>>>> It's cause allocation fail although free pages enough.
+>>>>
+>>>> We checked this by random test on my target(8GB RAM).
+>>>>
+>>>>  Binder:6218_2: page allocation failure: order:0, mode:0x14200ca
+>> (GFP_HIGHUSER_MOVABLE), nodemask=3D(null)
+>>>>  Binder:6218_2 cpuset=3Dbackground mems_allowed=3D0
+>>>
+>>>How come this order-0 sleepable allocation fails? The upstream kernel
+>>>doesn't fail those allocations unless the process context is killed by
+>>>the oom killer.
+>>=20
+>> Most calltacks are zsmalloc, as shown below.
+>
+>What makes those allocations special so that they fail unlike any other
+>normal order-0 requests? Also do you see the same problem with the
+>current upstream kernel? Is it possible this is an Android specific
+>issue?
 
-This patch adds a new remove_pagetable() helper which can be used to tear
-down either region, and calls it from vmemmap_free() and
-___remove_pgd_mapping(). The sparse_vmap argument determines whether the
-backing memory will be freed.
+There is the other case of fail order-0 fail.
+----
+hvdcp_opti: page allocation failure: order:0, mode:0x1004000(GFP_NOWAIT|_=
+_GFP_COMP), nodemask=3D(null)
+hvdcp_opti cpuset=3D/ mems_allowed=3D0
+CPU: 0 PID: 1882 Comm: hvdcp_opti Tainted: P S      W  O    4.14.83-perf+=
+ #1
+Hardware name: Qualcomm Technologies, Inc. SM6150 PM6150 LG Electronics, =
+mh3_lao_kr, rev-C (DT)
+Call trace:
+dump_backtrace+0x0/0x1f0
+show_stack+0x18/0x20
+dump_stack+0xc4/0x100
+warn_alloc+0x100/0x198
+__alloc_pages_nodemask+0x116c/0x1188
+new_slab+0x130/0x5e0
+___slab_alloc+0x490/0x610
+kmem_cache_alloc+0x2a8/0x2c8
+avc_alloc_node+0x34/0x268
+avc_compute_av+0xb8/0x1f8
+avc_has_perm_noaudit+0xcc/0x100
+selinux_inode_permission+0x100/0x1b0
+security_inode_permission+0x58/0x78
+__inode_permission2+0x40/0xe8
+may_open+0x78/0x118
+path_openat+0x8f8/0x14d0
+do_filp_open+0x74/0x120
+do_sys_open+0x13c/0x260
+SyS_openat+0x10/0x18
+el0_svc_naked+0x34/0x38
+snipped...
+DMA free:11320kB min:3440kB low:46092kB high:47812kB active_anon:143344kB=
+ inactive_anon:145812kB active_file:171900kB inactive_file:146976kB u
+lowmem_reserve[]: 0 1901 1901
+Normal free:3928kB min:3940kB low:52748kB high:54716kB active_anon:85100k=
+B inactive_anon:81772kB active_file:103312kB inactive_file:114732kB u
+lowmem_reserve[]: 0 0 0
+DMA: 343*4kB (UMECH) 947*8kB (UMCH) 26*16kB (UH) 23*32kB (UH) 11*64kB (H)=
+ 6*128kB (H) 3*256kB (H) 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 12340kB
+Normal: 798*4kB (UMH) 104*8kB (UMH) 20*16kB (U) 3*32kB (UH) 11*64kB (H) 1=
+*128kB (H) 1*256kB (H) 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 5528kB
+----
+In my test, most case are using camera. So, memory usage is increased mom=
+entarily,
+it cause free page go to under low value of watermark.
+If free page is under low and 0-order fail is occured, its normal operati=
+on.
+But, although free page is higher than min, fail is occurred.
+After fix routin for checking highatomic size, it's not reproduced.
 
-remove_pagetable() makes two distinct passes over the kernel page table.
-In the first pass it unmaps, invalidates applicable TLB cache and frees
-backing memory if required (vmemmap) for each mapped leaf entry. In the
-second pass it looks for empty page table sections whose page table page
-can be unmapped, TLB invalidated and freed.
+I now develop smartphone is applied kernel-4.14. And I didn't checked cur=
+rent upstream kernel.
+I thinks this symptom can be occurred the any platform that have use-case=
+ of memory intensive moment.
 
-While freeing intermediate level page table pages bail out if any of its
-entries are still valid. This can happen for partially filled kernel page
-table either from a previously attempted failed memory hot add or while
-removing an address range which does not span the entire page table page
-range.
-
-The vmemmap region may share levels of table with the vmalloc region.
-There can be conflicts between hot remove freeing page table pages with
-a concurrent vmalloc() walking the kernel page table. This conflict can
-not just be solved by taking the init_mm ptl because of existing locking
-scheme in vmalloc(). Hence unlike linear mapping, skip freeing page table
-pages while tearing down vmemmap mapping when vmalloc and vmemmap ranges
-overlap.
-
-While here update arch_add_memory() to handle __add_pages() failures by
-just unmapping recently added kernel linear mapping. Now enable memory hot
-remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
-
-This implementation is overall inspired from kernel page table tear down
-procedure on X86 architecture.
-
-Acked-by: Steve Capper <steve.capper@arm.com>
-Acked-by: David Hildenbrand <david@redhat.com>
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm64/Kconfig              |   3 +
- arch/arm64/include/asm/memory.h |   1 +
- arch/arm64/mm/mmu.c             | 338 +++++++++++++++++++++++++++++++-
- 3 files changed, 333 insertions(+), 9 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 6481964b6425..0079820af308 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -274,6 +274,9 @@ config ZONE_DMA32
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 
-+config ARCH_ENABLE_MEMORY_HOTREMOVE
-+	def_bool y
-+
- config SMP
- 	def_bool y
- 
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index b61b50bf68b1..615dcd08acfa 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -54,6 +54,7 @@
- #define MODULES_VADDR		(BPF_JIT_REGION_END)
- #define MODULES_VSIZE		(SZ_128M)
- #define VMEMMAP_START		(-VMEMMAP_SIZE - SZ_2M)
-+#define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
- #define PCI_IO_END		(VMEMMAP_START - SZ_2M)
- #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
- #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index ee1bf416368d..980d761a7327 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -60,6 +60,14 @@ static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
- 
- static DEFINE_SPINLOCK(swapper_pgdir_lock);
- 
-+/*
-+ * This represents if vmalloc and vmemmap address range overlap with
-+ * each other on an intermediate level kernel page table entry which
-+ * in turn helps in deciding whether empty kernel page table pages
-+ * if any can be freed during memory hotplug operation.
-+ */
-+static bool vmalloc_vmemmap_overlap;
-+
- void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd)
- {
- 	pgd_t *fixmap_pgdp;
-@@ -723,6 +731,250 @@ int kern_addr_valid(unsigned long addr)
- 
- 	return pfn_valid(pte_pfn(pte));
- }
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+static void free_hotplug_page_range(struct page *page, size_t size)
-+{
-+	WARN_ON(!page || PageReserved(page));
-+	free_pages((unsigned long)page_address(page), get_order(size));
-+}
-+
-+static void free_hotplug_pgtable_page(struct page *page)
-+{
-+	free_hotplug_page_range(page, PAGE_SIZE);
-+}
-+
-+static void free_pte_table(pmd_t *pmdp, unsigned long addr)
-+{
-+	struct page *page;
-+	pte_t *ptep;
-+	int i;
-+
-+	ptep = pte_offset_kernel(pmdp, 0UL);
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		if (!pte_none(READ_ONCE(ptep[i])))
-+			return;
-+	}
-+
-+	page = pmd_page(READ_ONCE(*pmdp));
-+	pmd_clear(pmdp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void free_pmd_table(pud_t *pudp, unsigned long addr)
-+{
-+	struct page *page;
-+	pmd_t *pmdp;
-+	int i;
-+
-+	if (CONFIG_PGTABLE_LEVELS <= 2)
-+		return;
-+
-+	pmdp = pmd_offset(pudp, 0UL);
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (!pmd_none(READ_ONCE(pmdp[i])))
-+			return;
-+	}
-+
-+	page = pud_page(READ_ONCE(*pudp));
-+	pud_clear(pudp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void free_pud_table(pgd_t *pgdp, unsigned long addr)
-+{
-+	struct page *page;
-+	pud_t *pudp;
-+	int i;
-+
-+	if (CONFIG_PGTABLE_LEVELS <= 3)
-+		return;
-+
-+	pudp = pud_offset(pgdp, 0UL);
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		if (!pud_none(READ_ONCE(pudp[i])))
-+			return;
-+	}
-+
-+	page = pgd_page(READ_ONCE(*pgdp));
-+	pgd_clear(pgdp);
-+	__flush_tlb_kernel_pgtable(addr);
-+	free_hotplug_pgtable_page(page);
-+}
-+
-+static void unmap_hotplug_pte_range(pmd_t *pmdp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	struct page *page;
-+	pte_t *ptep, pte;
-+
-+	do {
-+		ptep = pte_offset_kernel(pmdp, addr);
-+		pte = READ_ONCE(*ptep);
-+		if (pte_none(pte))
-+			continue;
-+
-+		WARN_ON(!pte_present(pte));
-+		page = sparse_vmap ? pte_page(pte) : NULL;
-+		pte_clear(&init_mm, addr, ptep);
-+		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-+		if (sparse_vmap)
-+			free_hotplug_page_range(page, PAGE_SIZE);
-+	} while (addr += PAGE_SIZE, addr < end);
-+}
-+
-+static void unmap_hotplug_pmd_range(pud_t *pudp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	unsigned long next;
-+	struct page *page;
-+	pmd_t *pmdp, pmd;
-+
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		pmdp = pmd_offset(pudp, addr);
-+		pmd = READ_ONCE(*pmdp);
-+		if (pmd_none(pmd))
-+			continue;
-+
-+		WARN_ON(!pmd_present(pmd));
-+		if (pmd_sect(pmd)) {
-+			page = sparse_vmap ? pmd_page(pmd) : NULL;
-+			pmd_clear(pmdp);
-+			flush_tlb_kernel_range(addr, next);
-+			if (sparse_vmap)
-+				free_hotplug_page_range(page, PMD_SIZE);
-+			continue;
-+		}
-+		WARN_ON(!pmd_table(pmd));
-+		unmap_hotplug_pte_range(pmdp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void unmap_hotplug_pud_range(pgd_t *pgdp, unsigned long addr,
-+				    unsigned long end, bool sparse_vmap)
-+{
-+	unsigned long next;
-+	struct page *page;
-+	pud_t *pudp, pud;
-+
-+	do {
-+		next = pud_addr_end(addr, end);
-+		pudp = pud_offset(pgdp, addr);
-+		pud = READ_ONCE(*pudp);
-+		if (pud_none(pud))
-+			continue;
-+
-+		WARN_ON(!pud_present(pud));
-+		if (pud_sect(pud)) {
-+			page = sparse_vmap ? pud_page(pud) : NULL;
-+			pud_clear(pudp);
-+			flush_tlb_kernel_range(addr, next);
-+			if (sparse_vmap)
-+				free_hotplug_page_range(page, PUD_SIZE);
-+			continue;
-+		}
-+		WARN_ON(!pud_table(pud));
-+		unmap_hotplug_pmd_range(pudp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void unmap_hotplug_range(unsigned long addr, unsigned long end,
-+				bool sparse_vmap)
-+{
-+	unsigned long next;
-+	pgd_t *pgdp, pgd;
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		pgdp = pgd_offset_k(addr);
-+		pgd = READ_ONCE(*pgdp);
-+		if (pgd_none(pgd))
-+			continue;
-+
-+		WARN_ON(!pgd_present(pgd));
-+		unmap_hotplug_pud_range(pgdp, addr, next, sparse_vmap);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_pte_table(pmd_t *pmdp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	pte_t *ptep, pte;
-+
-+	do {
-+		ptep = pte_offset_kernel(pmdp, addr);
-+		pte = READ_ONCE(*ptep);
-+		WARN_ON(!pte_none(pte));
-+	} while (addr += PAGE_SIZE, addr < end);
-+}
-+
-+static void free_empty_pmd_table(pud_t *pudp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	unsigned long next;
-+	pmd_t *pmdp, pmd;
-+
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		pmdp = pmd_offset(pudp, addr);
-+		pmd = READ_ONCE(*pmdp);
-+		if (pmd_none(pmd))
-+			continue;
-+
-+		WARN_ON(!pmd_present(pmd) || !pmd_table(pmd) || pmd_sect(pmd));
-+		free_empty_pte_table(pmdp, addr, next);
-+		free_pte_table(pmdp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_pud_table(pgd_t *pgdp, unsigned long addr,
-+				 unsigned long end)
-+{
-+	unsigned long next;
-+	pud_t *pudp, pud;
-+
-+	do {
-+		next = pud_addr_end(addr, end);
-+		pudp = pud_offset(pgdp, addr);
-+		pud = READ_ONCE(*pudp);
-+		if (pud_none(pud))
-+			continue;
-+
-+		WARN_ON(!pud_present(pud) || !pud_table(pud) || pud_sect(pud));
-+		free_empty_pmd_table(pudp, addr, next);
-+		free_pmd_table(pudp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void free_empty_tables(unsigned long addr, unsigned long end)
-+{
-+	unsigned long next;
-+	pgd_t *pgdp, pgd;
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		pgdp = pgd_offset_k(addr);
-+		pgd = READ_ONCE(*pgdp);
-+		if (pgd_none(pgd))
-+			continue;
-+
-+		WARN_ON(!pgd_present(pgd));
-+		free_empty_pud_table(pgdp, addr, next);
-+		free_pud_table(pgdp, addr);
-+	} while (addr = next, addr < end);
-+}
-+
-+static void remove_pagetable(unsigned long start, unsigned long end,
-+			     bool sparse_vmap)
-+{
-+	unmap_hotplug_range(start, end, sparse_vmap);
-+	free_empty_tables(start, end);
-+}
-+#endif
-+
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- #if !ARM64_SWAPPER_USES_SECTION_MAPS
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-@@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
- void vmemmap_free(unsigned long start, unsigned long end,
- 		struct vmem_altmap *altmap)
- {
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/*
-+	 * FIXME: We should have called remove_pagetable(start, end, true).
-+	 * vmemmap and vmalloc virtual range might share intermediate kernel
-+	 * page table entries. Removing vmemmap range page table pages here
-+	 * can potentially conflict with a concurrent vmalloc() allocation.
-+	 *
-+	 * This is primarily because vmalloc() does not take init_mm ptl for
-+	 * the entire page table walk and it's modification. Instead it just
-+	 * takes the lock while allocating and installing page table pages
-+	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
-+	 * entry via memory hot remove can cause vmalloc() kernel page table
-+	 * walk pointers to be invalid on the fly which can cause corruption
-+	 * or worst, a crash.
-+	 *
-+	 * So free_empty_tables() gets called where vmalloc and vmemmap range
-+	 * do not overlap at any intermediate level kernel page table entry.
-+	 */
-+	unmap_hotplug_range(start, end, true);
-+	if (!vmalloc_vmemmap_overlap)
-+		free_empty_tables(start, end);
-+#endif
- }
- #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
- 
-@@ -1048,10 +1322,18 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-+static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
-+{
-+	unsigned long end = start + size;
-+
-+	WARN_ON(pgdir != init_mm.pgd);
-+	remove_pagetable(start, end, false);
-+}
-+
- int arch_add_memory(int nid, u64 start, u64 size,
- 			struct mhp_restrictions *restrictions)
- {
--	int flags = 0;
-+	int ret, flags = 0;
- 
- 	if (rodata_full || debug_pagealloc_enabled())
- 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-@@ -1059,9 +1341,14 @@ int arch_add_memory(int nid, u64 start, u64 size,
- 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
- 			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
- 
--	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
-+	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
- 			   restrictions);
-+	if (ret)
-+		__remove_pgd_mapping(swapper_pg_dir,
-+				     __phys_to_virt(start), size);
-+	return ret;
- }
-+
- void arch_remove_memory(int nid, u64 start, u64 size,
- 			struct vmem_altmap *altmap)
- {
-@@ -1069,14 +1356,47 @@ void arch_remove_memory(int nid, u64 start, u64 size,
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 
--	/*
--	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
--	 * adding fails). Until then, this function should only be used
--	 * during memory hotplug (adding memory), not for memory
--	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
--	 * unlocked yet.
--	 */
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	__remove_pages(zone, start_pfn, nr_pages, altmap);
-+	__remove_pgd_mapping(swapper_pg_dir, __phys_to_virt(start), size);
-+}
-+
-+static int __init find_vmalloc_vmemmap_overlap(void)
-+{
-+	unsigned long gap_start, gap_end;
-+
-+	/*
-+	 * vmalloc and vmemmap address ranges should be linearly
-+	 * increasing and non-overlapping before the gap between
-+	 * them can be measured.
-+	 */
-+	BUILD_BUG_ON(VMALLOC_END <= VMALLOC_START);
-+	BUILD_BUG_ON(VMEMMAP_END <= VMEMMAP_START);
-+	BUILD_BUG_ON((VMEMMAP_START >= VMALLOC_START)
-+			&& (VMEMMAP_START <= VMALLOC_END));
-+	BUILD_BUG_ON((VMEMMAP_END >= VMALLOC_START)
-+			&& (VMEMMAP_END <= VMALLOC_END));
-+
-+	/*
-+	 * vmalloc and vmemmap can only be non-overlapping disjoint
-+	 * ranges. So [gap_start..gap_end] is determined which will
-+	 * represent the gap between the above mentioned ranges.
-+	 */
-+	if (VMEMMAP_START > VMALLOC_END) {
-+		gap_start = VMALLOC_END;
-+		gap_end = VMEMMAP_START;
-+	} else {
-+		gap_start = VMEMMAP_END;
-+		gap_end = VMALLOC_START;
-+	}
-+
-+	/*
-+	 * Race condition during memory hot-remove exists when the
-+	 * gap edges share same PGD entry in kernel page table.
-+	 */
-+	if ((gap_start & PGDIR_MASK) == (gap_end & PGDIR_MASK))
-+		vmalloc_vmemmap_overlap = true;
-+	return 0;
- }
-+early_initcall(find_vmalloc_vmemmap_overlap);
- #endif
--- 
-2.20.1
-
+>
+>>  Call trace:
+>>   dump_backtrace+0x0/0x1f0
+>>   show_stack+0x18/0x20
+>>   dump_stack+0xc4/0x100
+>>   warn_alloc+0x100/0x198
+>>   __alloc_pages_nodemask+0x116c/0x1188
+>>   do_swap_page+0x10c/0x6f0
+>>   handle_pte_fault+0x12c/0xfe0
+>>   handle_mm_fault+0x1d0/0x328
+>>   do_page_fault+0x2a0/0x3e0
+>>   do_translation_fault+0x44/0xa8
+>>   do_mem_abort+0x4c/0xd0
+>>   el1_da+0x24/0x84
+>>   __arch_copy_to_user+0x5c/0x220
+>>   binder_ioctl+0x20c/0x740
+>>   compat_SyS_ioctl+0x128/0x248
+>>   __sys_trace_return+0x0/0x4
+>
 
