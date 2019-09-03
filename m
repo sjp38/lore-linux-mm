@@ -2,121 +2,124 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67CFAC3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 16:06:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77C8EC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 16:28:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E02622CF8
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 16:06:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C32623789
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 16:28:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="e3t1McXM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E02622CF8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="oCJ92zCv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C32623789
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6DD16B0010; Tue,  3 Sep 2019 12:06:41 -0400 (EDT)
+	id CD1626B0003; Tue,  3 Sep 2019 12:28:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C44C06B0269; Tue,  3 Sep 2019 12:06:41 -0400 (EDT)
+	id C81D26B0005; Tue,  3 Sep 2019 12:28:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B59F06B026A; Tue,  3 Sep 2019 12:06:41 -0400 (EDT)
+	id B71466B0006; Tue,  3 Sep 2019 12:28:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0144.hostedemail.com [216.40.44.144])
-	by kanga.kvack.org (Postfix) with ESMTP id 92FD56B0010
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:06:41 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 376491EFD
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:06:41 +0000 (UTC)
-X-FDA: 75894087402.15.crook52_748577d51cf4f
-X-HE-Tag: crook52_748577d51cf4f
-X-Filterd-Recvd-Size: 3713
-Received: from mail-pf1-f194.google.com (mail-pf1-f194.google.com [209.85.210.194])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:06:40 +0000 (UTC)
-Received: by mail-pf1-f194.google.com with SMTP id y9so11069661pfl.4
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 09:06:40 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=tqiMeM8TceesmPz2bTRikxBBQDBEs3u6ayncNAD+gSk=;
-        b=e3t1McXM+B7+qPx+6xlw63jz2BIyLqfLkwAuPUpZ/KBlMqhABGIuIsh/P2+qg4fL3G
-         e68oPxPeHi8vjpPuXdOVgYVl7iyc9re3mqNsfOKETT5TLTMCJariudPc5aEYUvdJIMIr
-         8GsII5RUZLQEHyo9d62A4LFpgd69nti5zrZ7Fp+W993mrs8mrA6NQAypayAo89Qeh692
-         oYxKPcTw6O0k6WJPPZjWHpbXrBkjaz6giJxa+GF34nICobYKGyS0s0tAEw8F6vxQbAFt
-         t6J97R9xlt3Cwo1btDvuXlruov3D0WO6G2ERLjOiOc9McIhcixZ4rT8uvKQxri0cBUNW
-         EbcQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=tqiMeM8TceesmPz2bTRikxBBQDBEs3u6ayncNAD+gSk=;
-        b=ttudkTzcSNutQhj8Il0QavRUSCrnZD2ysDzeGmU+Ay1oFsLJg5hwnj2h+tK3A5x3z0
-         qzvOL9O+4apg+Bjh08WuVTnnt7HOm1O4o0lUiLMvmUNwc5r48j9xJgB4MX0/RU5A5SY1
-         RZZdODnDPCjRQvnkz8N9nZj4PfMSYY2yf0YfNkemc/KgHpkF5P8YiCP3/KO2sj5rlPyC
-         tDVzkuoP9db+u6FDAtdDauOasC7loRB4JNPXXpAYrZ43YAm7jGDqqR5kqgpp+EvVhCVD
-         3CRsOIUSOqf7JF1vo9saamYJUA0Bz4EhxpzmlawTiNavOdNINVq2oIOelRybFm0vDZWg
-         1lqA==
-X-Gm-Message-State: APjAAAVQBXJfRRt94VYmsCTCCJLWJwj1tjdHcYYZMfqfENfE8b/dHfpi
-	iLOVRlEpUhif1luE6UFKjOE=
-X-Google-Smtp-Source: APXvYqylZr4jbswujqwYAo39xphsMw3eAgJhDESJUjXAsNJEvXeRyMT0McdB5r6QPlWEFyI3l5Gd5g==
-X-Received: by 2002:a63:2903:: with SMTP id p3mr16265577pgp.306.1567526799745;
-        Tue, 03 Sep 2019 09:06:39 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id t11sm18501567pgb.33.2019.09.03.09.06.26
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 03 Sep 2019 09:06:39 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org
-Cc: cl@linux.com,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH 5/5] mm, slab_common: Make initializing KMALLOC_DMA start from 1
-Date: Wed,  4 Sep 2019 00:04:30 +0800
-Message-Id: <20190903160430.1368-6-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190903160430.1368-1-lpf.vector@gmail.com>
-References: <20190903160430.1368-1-lpf.vector@gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0130.hostedemail.com [216.40.44.130])
+	by kanga.kvack.org (Postfix) with ESMTP id 932CA6B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 12:28:39 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 00167180AD801
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:28:38 +0000 (UTC)
+X-FDA: 75894142758.03.burn17_1140517f73d46
+X-HE-Tag: burn17_1140517f73d46
+X-Filterd-Recvd-Size: 4151
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 16:28:38 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=A01EoZVAbENBU2ODnei5aZC/eSyCxIe7RviRDSpgglA=; b=oCJ92zCv0vaLqsiIF+BEQ5E5E
+	8tWg574OR1tXDNAdgxaEW9ZOtC9RgXU1YeUw55xOc80zTVRnxZCyUCNLfBkNAZiwoSCt+KyE7f7Kk
+	ECF8MrNiznXkAufY1RvmwEc4odtOEh9+oHbf3hsI4VKg4VwUYZq5xwAupL2R1uln6DSGhJXwYQuI8
+	RZQyCR8PGBPL7nxrArCSdqjcBVWN6LLgHZFUTqJMg7UzRJqLSd6mxYw8FwJFmVgpPJ2xIqwp5z5fm
+	/eE8MkNJ96Iu/HNE71eque6R66Ku7pz2Xo1iouPfCUsPb8CZ13tGOYrgSNMyfPJp/XL4BMK5TpA+i
+	lQqXK0fyg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i5BfT-000149-Ek; Tue, 03 Sep 2019 16:28:31 +0000
+Date: Tue, 3 Sep 2019 09:28:31 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: William Kucharski <william.kucharski@oracle.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Song Liu <songliubraving@fb.com>,
+	Bob Kasten <robert.a.kasten@intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Chad Mynhier <chad.mynhier@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH v5 1/2] mm: Allow the page cache to allocate large pages
+Message-ID: <20190903162831.GI29434@bombadil.infradead.org>
+References: <20190902092341.26712-1-william.kucharski@oracle.com>
+ <20190902092341.26712-2-william.kucharski@oracle.com>
+ <20190903115748.GS14028@dhcp22.suse.cz>
+ <20190903121155.GD29434@bombadil.infradead.org>
+ <20190903121952.GU14028@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190903121952.GU14028@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_caches[KMALLOC_NORMAL][0] will never be initialized,
-so the loop should start at 1 instead of 0
+On Tue, Sep 03, 2019 at 02:19:52PM +0200, Michal Hocko wrote:
+> On Tue 03-09-19 05:11:55, Matthew Wilcox wrote:
+> > On Tue, Sep 03, 2019 at 01:57:48PM +0200, Michal Hocko wrote:
+> > > On Mon 02-09-19 03:23:40, William Kucharski wrote:
+> > > > Add an 'order' argument to __page_cache_alloc() and
+> > > > do_read_cache_page(). Ensure the allocated pages are compound pages.
+> > > 
+> > > Why do we need to touch all the existing callers and change them to use
+> > > order 0 when none is actually converted to a different order? This just
+> > > seem to add a lot of code churn without a good reason. If anything I
+> > > would simply add __page_cache_alloc_order and make __page_cache_alloc
+> > > call it with order 0 argument.
+> > 
+> > Patch 2/2 uses a non-zero order.
+> 
+> It is a new caller and it can use a new function right?
+> 
+> > I agree it's a lot of churn without
+> > good reason; that's why I tried to add GFP_ORDER flags a few months ago.
+> > Unfortunately, you didn't like that approach either.
+> 
+> Is there any future plan that all/most __page_cache_alloc will get a
+> non-zero order argument?
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- mm/slab_common.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I'm not sure about "most".  It will certainly become more common, as
+far as I can tell.
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index af45b5278fdc..c81fc7dc2946 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1236,7 +1236,7 @@ void __init create_kmalloc_caches(slab_flags_t flag=
-s)
- 	slab_state =3D UP;
-=20
- #ifdef CONFIG_ZONE_DMA
--	for (i =3D 0; i <=3D KMALLOC_SHIFT_HIGH; i++) {
-+	for (i =3D 1; i <=3D KMALLOC_SHIFT_HIGH; i++) {
- 		struct kmem_cache *s =3D kmalloc_caches[KMALLOC_NORMAL][i];
-=20
- 		if (s) {
---=20
-2.21.0
+> > > Also is it so much to ask callers to provide __GFP_COMP explicitly?
+> > 
+> > Yes, it's an unreasonable burden on the callers.
+> 
+> Care to exaplain why? __GFP_COMP tends to be used in the kernel quite
+> extensively.
+
+Most of the places which call this function get their gfp_t from
+mapping->gfp_mask.  If we only want to allocate a single page, we
+must not set __GFP_COMP.  If we want to allocate a large page, we must
+set __GFP_COMP.  Rather than require individual filesystems to concern
+themselves with this wart of the GFP interface, we can solve it in the
+page cache.
 
 
