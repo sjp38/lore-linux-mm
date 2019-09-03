@@ -2,197 +2,150 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70B48C41514
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61584C3A5A7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E9ED22D6D
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 242F623431
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 15:02:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jKTgxbew"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E9ED22D6D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Y0dYwB/x"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 242F623431
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB37D6B0266; Tue,  3 Sep 2019 11:02:00 -0400 (EDT)
+	id C75B06B026A; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B8AC46B026A; Tue,  3 Sep 2019 11:02:00 -0400 (EDT)
+	id C26DE6B026B; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A9FF66B026B; Tue,  3 Sep 2019 11:02:00 -0400 (EDT)
+	id B3D0E6B026C; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0133.hostedemail.com [216.40.44.133])
-	by kanga.kvack.org (Postfix) with ESMTP id 865CD6B0266
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 11:02:00 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 1C3AF824CA0E
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:02:00 +0000 (UTC)
-X-FDA: 75893924400.09.straw17_85c332ba20e31
-X-HE-Tag: straw17_85c332ba20e31
-X-Filterd-Recvd-Size: 6836
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:01:59 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id 4so5745448pgm.12
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 08:01:59 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0105.hostedemail.com [216.40.44.105])
+	by kanga.kvack.org (Postfix) with ESMTP id 9476B6B026A
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 11:02:50 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 3289F181AC9BA
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:02:50 +0000 (UTC)
+X-FDA: 75893926500.23.stop66_8d0b7e9e4fc01
+X-HE-Tag: stop66_8d0b7e9e4fc01
+X-Filterd-Recvd-Size: 5480
+Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 15:02:49 +0000 (UTC)
+Received: by mail-qt1-f195.google.com with SMTP id l22so8060718qtp.10
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 08:02:48 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=a2fhN1NcP29VAX6Q4kuHnoYPTW0IlOqHifPZstOm4mo=;
-        b=jKTgxbewf7sPASPHDIRjZy/DSg3ccnPxPhmVM1qw2+3zyIY1XYDZ5fOOV+Je7/21m3
-         /zKF5xLg2gmAdqSC/V898UGcMHe8vo0jdhWTZPgtUj+4omdGaDQMpZ3rsz2yJjr23hYB
-         VWOBGrtzqY/vAsw1rWOghUctwpPEduxbmy9VqF3hWvqrKcQjlRWpYEzPXKGnu1GIrzvs
-         dP3X5JiFfCiv0SkWuWyA7f/+6J5Z1Gt4/cUXSH+H7NXJi7Pg2eWYRkbsNF5QkBggK6xh
-         3T8Og5eFyiiSTQzmTPgE3TpO3TTIBa3NbJSq9u0nCtrLFCbWmpJVWeOaKlj/WrA42Fxn
-         LTNg==
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=98UJ89ZiZ75QQYhHn10zS32n71fYy3DwoNcRQRVS5xk=;
+        b=Y0dYwB/xEIg2VC6kphV8moKQMLXSqjyrxIDvPmAgzYa7jRAFu+rhArsFpgpxNorwxF
+         gHTeIuv/iD4Osf2V9qXXedGunN+ouk+dYxB/wokeKoDvPfNrjfb1JlTrJ2lG+Iu2xoe8
+         JAbKHDYsO+QD2AGmQ2Q0w+50if55VPTX6DUbkWsl7ddh3kYlzHhS70XKbYo+sutA8I3H
+         LEJJiwbr0XaAYu5yLRW4Jtm0uQBwIfiDkSBfI4x0S/BRs0uUDHQ0ARjWz59xZLqbkBPf
+         J+hyZOZ41bFrhG7YcJvCAOxiTz+SvDl87P2/LOc+17Xg84onz/vXt6zb68kOdAIN4K0V
+         LRzQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=a2fhN1NcP29VAX6Q4kuHnoYPTW0IlOqHifPZstOm4mo=;
-        b=rbBfzRW1vv9y60DEzzPsfMOBAmkRcLSoxbaAq5uqDsu+i5tomVL8cFVAtZ5jazoulw
-         wlnVDttuWzgMecBCIy1a0cwU8NDmTOVMN/S8eKCC81XlhoHE4yMg5HAx9i6j30tAqgTb
-         P16aa2hbYuGypLdRjfrChvjO49qJq74XtDcfcyGuuhPdKyhkAKFcTm2wvbOSI8kgdZpr
-         rXm6fONYlcwq+HY/98yB7buL0iLtrZUj4WWU7yOZAK2qlcrbZ3du51s3vgcivf0h+/VI
-         k1UoPPU7G2aVEExEhharRngR342p+P0Nfb4KPSm9QRR4yp4nhbYxv4TfMiz5LSfGQe1q
-         R0jQ==
-X-Gm-Message-State: APjAAAU0VYEMsS5OqHPV0hb2JHvdGCTFjTsZUFRvTWdD4FoEvaF6iQbn
-	GGfTNcqakPm7fHMivYEXgZU25zDAnhK4Q7t7Gs8WuA==
-X-Google-Smtp-Source: APXvYqzoH/zqH0zVgfmZ7SrzRTTfX8La3Wn+15p5UKdCPhfC1viIQJ8QHtV6dTQPzQxiTvlGTgw/QngMDvTtPJdudiE=
-X-Received: by 2002:a63:3006:: with SMTP id w6mr30960993pgw.440.1567522917541;
- Tue, 03 Sep 2019 08:01:57 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190903145536.3390-1-dja@axtens.net> <20190903145536.3390-6-dja@axtens.net>
-In-Reply-To: <20190903145536.3390-6-dja@axtens.net>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 3 Sep 2019 17:01:46 +0200
-Message-ID: <CAAeHK+w_HKVh___E0j3hctt_efSPR3PwKuO5XNpf=w5obfYSSA@mail.gmail.com>
-Subject: Re: [PATCH v7 5/5] kasan debug: track pages allocated for vmalloc shadow
-To: Daniel Axtens <dja@axtens.net>
-Cc: kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, "the arch/x86 maintainers" <x86@kernel.org>, 
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Mark Rutland <mark.rutland@arm.com>, Dmitry Vyukov <dvyukov@google.com>, 
-	Christophe Leroy <christophe.leroy@c-s.fr>, PowerPC <linuxppc-dev@lists.ozlabs.org>, 
-	gor@linux.ibm.com
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=98UJ89ZiZ75QQYhHn10zS32n71fYy3DwoNcRQRVS5xk=;
+        b=ZcFOhhre6qHUcUo20V1CsFGo+v6UM57tvJkPDQByFtik/qv0C/H0KUKtTUKFVEON/c
+         s4wDA2MwSbfMmRbuRp2EcuwsqqhCSybHsg1CgaVpI7fMOo7zyCXZToXUFsBgTqBWF6ij
+         ROxOGTnPsYjilFgy3D32pvzCxB0yZo+GRS2FUhIzMYMjireuCp2QuP0nk/teFh2ZeU/D
+         Xb/hE5LfPY2nVvFX0lj+9GcUUb16kUG0I+BUPWcrmY09TffM/3Oo72LPU4R2HBAmcpvt
+         ycbLv1GTdDksnorI7Zw6qV3HL5qgPh1L3L1RVK1/xFhJSvPQlbDa2KXHE8ql4QSaEX+L
+         /eDA==
+X-Gm-Message-State: APjAAAXe8ycJ3xhoyDbi2W4k92rJVXIwr7zy/p3uKOxi0j2Gctqot+ZB
+	XBgeXwQ5lPHYYd4JoTbqYgBSUA==
+X-Google-Smtp-Source: APXvYqzTAE6mfgfo1ByrawGaOyifrsk7CtcAySIiPJNBqNzUp8BpFsqQkls2qLZH4XeyuvxZZpIQaw==
+X-Received: by 2002:ac8:6a0a:: with SMTP id t10mr19414483qtr.0.1567522968447;
+        Tue, 03 Sep 2019 08:02:48 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id z5sm98214qki.55.2019.09.03.08.02.47
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Sep 2019 08:02:47 -0700 (PDT)
+Message-ID: <1567522966.5576.51.camel@lca.pw>
+Subject: Re: [RFC PATCH] mm, oom: disable dump_tasks by default
+From: Qian Cai <cai@lca.pw>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa
+ <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>,
+  LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Date: Tue, 03 Sep 2019 11:02:46 -0400
+In-Reply-To: <20190903144512.9374-1-mhocko@kernel.org>
+References: <20190903144512.9374-1-mhocko@kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 3, 2019 at 4:56 PM Daniel Axtens <dja@axtens.net> wrote:
->
-> Provide the current number of vmalloc shadow pages in
-> /sys/kernel/debug/kasan_vmalloc/shadow_pages.
+On Tue, 2019-09-03 at 16:45 +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>=20
+> dump_tasks has been introduced by quite some time ago fef1bdd68c81
+> ("oom: add sysctl to enable task memory dump"). It's primary purpose is
+> to help analyse oom victim selection decision. This has been certainly
+> useful at times when the heuristic to chose a victim was much more
+> volatile. Since a63d83f427fb ("oom: badness heuristic rewrite")
+> situation became much more stable (mostly because the only selection
+> criterion is the memory usage) and reports about a wrong process to
+> be shot down have become effectively non-existent.
 
-Maybe it makes sense to put this into /sys/kernel/debug/kasan/
-(without _vmalloc) and name e.g. vmalloc_shadow_pages? In case we want
-to expose more generic KASAN debugging info later.
+Well, I still see OOM sometimes kills wrong processes like ssh, systemd
+processes while LTP OOM tests with staight-forward allocation patterns. I=
+ just
+have not had a chance to debug them fully. The situation could be worse w=
+ith
+more complex allocations like random stress or fuzzy testing.
 
->
-> Signed-off-by: Daniel Axtens <dja@axtens.net>
->
+>=20
+> dump_tasks can generate a lot of output to the kernel log. It is not
+> uncommon that even relative small system has hundreds of tasks running.
+> Generating a lot of output to the kernel log both makes the oom report
+> less convenient to process and also induces a higher load on the printk
+> subsystem which can lead to other problems (e.g. longer stalls to flush
+> all the data to consoles).
+
+It is only generate output for the victim process where I tested on those=
+ large
+NUMA machines and the output is fairly manageable.
+
+>=20
+> Therefore change the default of oom_dump_tasks to not print the task
+> list by default. The sysctl remains in place for anybody who might need
+> to get this additional information. The oom report still provides an
+> information about the allocation context and the state of the MM
+> subsystem which should be sufficient to analyse most of the oom
+> situations.
+>=20
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->
-> Merging this is probably overkill, but I leave it to the discretion
-> of the broader community.
->
-> On v4 (no dynamic freeing), I saw the following approximate figures
-> on my test VM:
->
->  - fresh boot: 720
->  - after test_vmalloc: ~14000
->
-> With v5 (lazy dynamic freeing):
->
->  - boot: ~490-500
->  - running modprobe test_vmalloc pushes the figures up to sometimes
->     as high as ~14000, but they drop down to ~560 after the test ends.
->     I'm not sure where the extra sixty pages are from, but running the
->     test repeately doesn't cause the number to keep growing, so I don't
->     think we're leaking.
->  - with vmap_stack, spawning tasks pushes the figure up to ~4200, then
->     some clearing kicks in and drops it down to previous levels again.
-> ---
->  mm/kasan/common.c | 26 ++++++++++++++++++++++++++
->  1 file changed, 26 insertions(+)
->
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index e33cbab83309..e40854512417 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -35,6 +35,7 @@
->  #include <linux/vmalloc.h>
->  #include <linux/bug.h>
->  #include <linux/uaccess.h>
-> +#include <linux/debugfs.h>
->
->  #include <asm/tlbflush.h>
->
-> @@ -750,6 +751,8 @@ core_initcall(kasan_memhotplug_init);
->  #endif
->
->  #ifdef CONFIG_KASAN_VMALLOC
-> +static u64 vmalloc_shadow_pages;
-> +
->  static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
->                                       void *unused)
->  {
-> @@ -776,6 +779,7 @@ static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr,
->         if (likely(pte_none(*ptep))) {
->                 set_pte_at(&init_mm, addr, ptep, pte);
->                 page = 0;
-> +               vmalloc_shadow_pages++;
->         }
->         spin_unlock(&init_mm.page_table_lock);
->         if (page)
-> @@ -829,6 +833,7 @@ static int kasan_depopulate_vmalloc_pte(pte_t *ptep, unsigned long addr,
->         if (likely(!pte_none(*ptep))) {
->                 pte_clear(&init_mm, addr, ptep);
->                 free_page(page);
-> +               vmalloc_shadow_pages--;
->         }
->         spin_unlock(&init_mm.page_table_lock);
->
-> @@ -947,4 +952,25 @@ void kasan_release_vmalloc(unsigned long start, unsigned long end,
->                                        (unsigned long)shadow_end);
->         }
->  }
-> +
-> +static __init int kasan_init_vmalloc_debugfs(void)
-> +{
-> +       struct dentry *root, *count;
-> +
-> +       root = debugfs_create_dir("kasan_vmalloc", NULL);
-> +       if (IS_ERR(root)) {
-> +               if (PTR_ERR(root) == -ENODEV)
-> +                       return 0;
-> +               return PTR_ERR(root);
-> +       }
-> +
-> +       count = debugfs_create_u64("shadow_pages", 0444, root,
-> +                                  &vmalloc_shadow_pages);
-> +
-> +       if (IS_ERR(count))
-> +               return PTR_ERR(root);
-> +
-> +       return 0;
-> +}
-> +late_initcall(kasan_init_vmalloc_debugfs);
->  #endif
-> --
-> 2.20.1
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190903145536.3390-6-dja%40axtens.net.
+> =C2=A0mm/oom_kill.c | 2 +-
+> =C2=A01 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index eda2e2a0bdc6..d0353705c6e6 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -52,7 +52,7 @@
+> =C2=A0
+> =C2=A0int sysctl_panic_on_oom;
+> =C2=A0int sysctl_oom_kill_allocating_task;
+> -int sysctl_oom_dump_tasks =3D 1;
+> +int sysctl_oom_dump_tasks;
+> =C2=A0
+> =C2=A0/*
+> =C2=A0 * Serializes oom killer invocations (out_of_memory()) from all c=
+ontexts to
 
