@@ -4,51 +4,52 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3D63C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 13:12:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83CACC3A5A7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 13:17:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9D822341E
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 13:12:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9D822341E
+	by mail.kernel.org (Postfix) with ESMTP id 37CBD2053B
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 13:17:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37CBD2053B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 154926B0003; Tue,  3 Sep 2019 09:12:51 -0400 (EDT)
+	id AEE346B0005; Tue,  3 Sep 2019 09:17:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 105F96B0005; Tue,  3 Sep 2019 09:12:51 -0400 (EDT)
+	id A9E9B6B0006; Tue,  3 Sep 2019 09:17:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 043306B0006; Tue,  3 Sep 2019 09:12:50 -0400 (EDT)
+	id 9B54A6B0008; Tue,  3 Sep 2019 09:17:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0061.hostedemail.com [216.40.44.61])
-	by kanga.kvack.org (Postfix) with ESMTP id D45A66B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 09:12:50 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 68731824CA35
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 13:12:50 +0000 (UTC)
-X-FDA: 75893649300.21.book43_35d977ad43657
-X-HE-Tag: book43_35d977ad43657
-X-Filterd-Recvd-Size: 2341
+Received: from forelay.hostedemail.com (smtprelay0243.hostedemail.com [216.40.44.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C00C6B0005
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 09:17:40 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 28C559063
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 13:17:40 +0000 (UTC)
+X-FDA: 75893661480.24.ear43_60051e7295018
+X-HE-Tag: ear43_60051e7295018
+X-Filterd-Recvd-Size: 3039
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 13:12:49 +0000 (UTC)
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 13:17:39 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6DFE6AF38;
-	Tue,  3 Sep 2019 13:12:47 +0000 (UTC)
-Date: Tue, 3 Sep 2019 15:12:46 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 252E0B116;
+	Tue,  3 Sep 2019 13:17:38 +0000 (UTC)
+Date: Tue, 3 Sep 2019 15:17:37 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Kefeng Wang <wangkefeng.wang@huawei.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: do not hash address in print_bad_pte()
-Message-ID: <20190903131246.GX14028@dhcp22.suse.cz>
-References: <20190831011816.141002-1-wangkefeng.wang@huawei.com>
+To: sunqiuyang <sunqiuyang@huawei.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH 1/1] mm/migrate: fix list corruption in migration of
+ non-LRU movable pages
+Message-ID: <20190903131737.GB18939@dhcp22.suse.cz>
+References: <20190903082746.20736-1-sunqiuyang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190831011816.141002-1-wangkefeng.wang@huawei.com>
+In-Reply-To: <20190903082746.20736-1-sunqiuyang@huawei.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -56,41 +57,65 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 31-08-19 09:18:16, Kefeng Wang wrote:
-> Using %px to show the actual address in print_bad_pte()
-> to help us to debug issue.
+On Tue 03-09-19 16:27:46, sunqiuyang wrote:
+> From: Qiuyang Sun <sunqiuyang@huawei.com>
+> 
+> Currently, after a page is migrated, it
+> 1) has its PG_isolated flag cleared in move_to_new_page(), and
+> 2) is deleted from its LRU list (cc->migratepages) in unmap_and_move().
+> However, between steps 1) and 2), the page could be isolated by another
+> thread in isolate_movable_page(), and added to another LRU list, leading
+> to list_del corruption later.
 
-Yes, those values are of no use when hashed. At least __dump_page prints
-mapping directly so there is no reason to differ here. anon_vma doesn't
-really disclose much more AFAICS. Printing the addr might disclose
-randomization offset for a vma but process usually doesn't live for long
-after a bad pte is detected so it should be reasonably safe unless I
-miss something
- 
-> Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+Care to explain the race? Both paths use page_lock AFAICS
+> 
+> This patch fixes the bug by moving list_del into the critical section
+> protected by lock_page(), so that a page will not be isolated again before
+> it has been deleted from its LRU list.
+> 
+> Signed-off-by: Qiuyang Sun <sunqiuyang@huawei.com>
 > ---
->  mm/memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  mm/migrate.c | 11 +++--------
+>  1 file changed, 3 insertions(+), 8 deletions(-)
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e2bb51b6242e..3f0874c9ca38 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -518,7 +518,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
->  		 (long long)pte_val(pte), (long long)pmd_val(*pmd));
->  	if (page)
->  		dump_page(page, "bad pte");
-> -	pr_alert("addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
-> +	pr_alert("addr:%px vm_flags:%08lx anon_vma:%px mapping:%px index:%lx\n",
->  		 (void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
->  	pr_alert("file:%pD fault:%ps mmap:%ps readpage:%ps\n",
->  		 vma->vm_file,
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index a42858d..c58a606 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1124,6 +1124,8 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>  	/* Drop an anon_vma reference if we took one */
+>  	if (anon_vma)
+>  		put_anon_vma(anon_vma);
+> +	if (rc != -EAGAIN)
+> +		list_del(&page->lru);
+>  	unlock_page(page);
+>  out:
+>  	/*
+> @@ -1190,6 +1192,7 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>  			put_new_page(newpage, private);
+>  		else
+>  			put_page(newpage);
+> +		list_del(&page->lru);
+>  		goto out;
+>  	}
+>  
+> @@ -1200,14 +1203,6 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>  out:
+>  	if (rc != -EAGAIN) {
+>  		/*
+> -		 * A page that has been migrated has all references
+> -		 * removed and will be freed. A page that has not been
+> -		 * migrated will have kepts its references and be
+> -		 * restored.
+> -		 */
+> -		list_del(&page->lru);
+> -
+> -		/*
+>  		 * Compaction can migrate also non-LRU pages which are
+>  		 * not accounted to NR_ISOLATED_*. They can be recognized
+>  		 * as __PageMovable
 > -- 
-> 2.20.1
-> 
+> 1.8.3.1
 
 -- 
 Michal Hocko
