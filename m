@@ -2,259 +2,177 @@ Return-Path: <SRS0=NQQQ=W6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F994C3A5A5
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 06:13:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86277C3A5A7
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:28:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C8F720828
-	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 06:13:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 20B4A22DBF
+	for <linux-mm@archiver.kernel.org>; Tue,  3 Sep 2019 07:28:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="YjRuCzff";
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="BGGBVzaR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C8F720828
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
+	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="BRXYASXf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20B4A22DBF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85D766B0003; Tue,  3 Sep 2019 02:13:23 -0400 (EDT)
+	id 823E26B0003; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80CE26B0005; Tue,  3 Sep 2019 02:13:23 -0400 (EDT)
+	id 7D42D6B0005; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 723926B0006; Tue,  3 Sep 2019 02:13:23 -0400 (EDT)
+	id 6C1EE6B0006; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0232.hostedemail.com [216.40.44.232])
-	by kanga.kvack.org (Postfix) with ESMTP id 51A0F6B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 02:13:23 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id EA0F5181AC9B6
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 06:13:22 +0000 (UTC)
-X-FDA: 75892592244.03.rat76_1d7264b60c62b
-X-HE-Tag: rat76_1d7264b60c62b
-X-Filterd-Recvd-Size: 8498
-Received: from smtp.codeaurora.org (smtp.codeaurora.org [198.145.29.96])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 06:13:22 +0000 (UTC)
-Received: by smtp.codeaurora.org (Postfix, from userid 1000)
-	id 28B59607C3; Tue,  3 Sep 2019 06:13:21 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1567491201;
-	bh=EAThsBaKcYZgko7XipbHIzYcjvnW9rfcyExadPugr44=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=YjRuCzffDR0Ta/vqhsQlCpClQhMT4touEh2P5yT3UbCE0fAVnBALg3LL2NRs5B03u
-	 eXlhphuOaSTZQ+M6ZCuxVKgnQ+6UneYpLXZKmziShJlePqITLT4lOFA8ajmSwOCCtF
-	 2+dsNHVvdqIJL+DXiKNSUF9AttIOu7IbSJh/gCPQ=
-Received: from [10.204.83.131] (blr-c-bdr-fw-01_globalnat_allzones-outside.qualcomm.com [103.229.19.19])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: vinmenon@smtp.codeaurora.org)
-	by smtp.codeaurora.org (Postfix) with ESMTPSA id 1CFA0602EE;
-	Tue,  3 Sep 2019 06:13:18 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1567491200;
-	bh=EAThsBaKcYZgko7XipbHIzYcjvnW9rfcyExadPugr44=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=BGGBVzaR4+yVAPRuQX26dJIU+QxDJ5GMiWwA742nZRo/S3rIgw0dulbCChytmNZ+S
-	 QEvdGKudd/efBSe+YZgx1aUWqoGhQWEgdrHIKA9rbrkhjnRR8KCgx87D5KT9B82EdF
-	 oLBB1OHFs2dqJHst0A5yswD9cFQCb0K2whWkR3i4=
-DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org 1CFA0602EE
-Authentication-Results: pdx-caf-mail.web.codeaurora.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
-Authentication-Results: pdx-caf-mail.web.codeaurora.org; spf=none smtp.mailfrom=vinmenon@codeaurora.org
-Subject: Re: [PATCH] mm: fix the race between swapin_readahead and
- SWP_SYNCHRONOUS_IO path
-To: Michal Hocko <mhocko@kernel.org>
-Cc: minchan@kernel.org, linux-mm@kvack.org
-References: <1567169011-4748-1-git-send-email-vinmenon@codeaurora.org>
- <20190902132104.GJ14028@dhcp22.suse.cz>
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Message-ID: <79303914-d6a6-011a-150f-74488c8e12f2@codeaurora.org>
-Date: Tue, 3 Sep 2019 11:43:16 +0530
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0154.hostedemail.com [216.40.44.154])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E036B0003
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 03:28:36 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id C9F6F824CA3A
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:28:35 +0000 (UTC)
+X-FDA: 75892781790.09.wound77_6819f60cfc94f
+X-HE-Tag: wound77_6819f60cfc94f
+X-Filterd-Recvd-Size: 7528
+Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 07:28:35 +0000 (UTC)
+Received: by mail-ot1-f67.google.com with SMTP id 100so15789573otn.2
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 00:28:35 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ffwll.ch; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=UdMoRPg0KlVqze0pTkNC9rfXaDd7uPSTe82szx43jMg=;
+        b=BRXYASXfXrSYdvQ7cHvdL8g1FGYY5yc7fn4k3rf1HqK5cdyf7DVE1ZRs2ggL6FBlZY
+         jhOxSfrYQhY9BD157Pi5jnSxIhZjG9EG4xisQBVknT3mt+l8TxsfMTbDpomdpXG0MF88
+         /Ul9+UZc5rqz3oUInM3tk4DRzAXTmO9p25Eds=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=UdMoRPg0KlVqze0pTkNC9rfXaDd7uPSTe82szx43jMg=;
+        b=J2iJYw8RoX9HBZVLTmiqQmXPOZzWtVf00l/2tDten3mkp+IceBhVnYH5Ws/+uzFvUq
+         i9c/ydujxlUAV2lHKDP1/aHk/44M6RV2nN1MtiHbpscOsIzR5UbkvEbcf3EQgFl49fdq
+         Yd0vbwJSIAN89OaisjAVJ/xyKsqfX5iRBk+AAm9Fjcn4OyRubjlU9hZI/TftLvgTQfx8
+         TyFKAuxFjOQT6L9bgXwiqt49bpC36myWeEdMxLWEdS4tAa+O+Tnb6Jbs1hiK2ioCutWX
+         n4JN6kiLWgcAP3dkse/J/0IR4BuqsphmgqXe4okfL0ALsVt6dZzxSYD/Pvkfzi802Qn3
+         8PlQ==
+X-Gm-Message-State: APjAAAWojAgIUt8SBOr4lNoRSCxx4g+PksGn9adoH7ZoIxeiGSHPcGon
+	a9OTz2LRAAlOjfbzvd+ixEm0nxE0p7xzWmAsbIAJMA==
+X-Google-Smtp-Source: APXvYqxNdE/m5cDoeoduzif078Rn/h+XzpbDyvLbalFH6g7b9CtJip46QdskaojSElyMHAM5lUrtBDY5YQw43Yn2gis=
+X-Received: by 2002:a05:6830:1594:: with SMTP id i20mr1193992otr.188.1567495714412;
+ Tue, 03 Sep 2019 00:28:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190902132104.GJ14028@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+References: <20190826201425.17547-1-daniel.vetter@ffwll.ch>
+ <20190826201425.17547-4-daniel.vetter@ffwll.ch> <20190827225002.GB30700@ziepe.ca>
+ <CAKMK7uHKiLwXLHd1xThZVM1dH-oKrtpDZ=FxLBBwtY7XmJKgtA@mail.gmail.com>
+ <20190828184330.GD933@ziepe.ca> <CAKMK7uFJESH1XHTCqYoDb4iMfThxnib3Uz=RUcd7h=SS-TJWbg@mail.gmail.com>
+In-Reply-To: <CAKMK7uFJESH1XHTCqYoDb4iMfThxnib3Uz=RUcd7h=SS-TJWbg@mail.gmail.com>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Date: Tue, 3 Sep 2019 09:28:23 +0200
+Message-ID: <CAKMK7uET7GL-nmRd_wxkxu0KsiYiSZcGTsSstcUpqaT=mKTbmg@mail.gmail.com>
+Subject: Re: [PATCH 3/5] kernel.h: Add non_block_start/end()
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	DRI Development <dri-devel@lists.freedesktop.org>, Peter Zijlstra <peterz@infradead.org>, 
+	Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
+	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Wei Wang <wvw@google.com>, 
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, 
+	Jann Horn <jannh@google.com>, Feng Tang <feng.tang@intel.com>, 
+	Kees Cook <keescook@chromium.org>, Randy Dunlap <rdunlap@infradead.org>, 
+	Daniel Vetter <daniel.vetter@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Michal,
-
-Thanks for reviewing this.
-
-
-On 9/2/2019 6:51 PM, Michal Hocko wrote:
-> On Fri 30-08-19 18:13:31, Vinayak Menon wrote:
->> The following race is observed due to which a processes faulting
->> on a swap entry, finds the page neither in swapcache nor swap. This
->> causes zram to give a zero filled page that gets mapped to the
->> process, resulting in a user space crash later.
->>
->> Consider parent and child processes Pa and Pb sharing the same swap
->> slot with swap_count 2. Swap is on zram with SWP_SYNCHRONOUS_IO set.
->> Virtual address 'VA' of Pa and Pb points to the shared swap entry.
->>
->> Pa                                       Pb
->>
->> fault on VA                              fault on VA
->> do_swap_page                             do_swap_page
->> lookup_swap_cache fails                  lookup_swap_cache fails
->>                                          Pb scheduled out
->> swapin_readahead (deletes zram entry)
->> swap_free (makes swap_count 1)
->>                                          Pb scheduled in
->>                                          swap_readpage (swap_count =3D=
-=3D 1)
->>                                          Takes SWP_SYNCHRONOUS_IO path
->>                                          zram enrty absent
->>                                          zram gives a zero filled page
-> This sounds like a zram issue, right? Why is a generic swap path change=
-d
-> then?
-
-
-I think zram entry being deleted by Pa and zram giving out a zeroed page =
-to Pb is normal.
-
-This is because zram avoids lazy swap slot freeing by implementing gendis=
-k->fops->swap_slot_free_notify
-
-and swap_slot_free_notify deletes the zram entry because the page is in s=
-wapcache.
-
-The issue is that Pb attempted a swapcache lookup before Pa brought the p=
-age to swapcache, and failed. If
-
-Pb had taken the swapin_readahead path, __read_swap_cache_async would hav=
-e performed a second lookup
-
-and found the page in swapcache. The issue here is that due to the lookup=
- failure and swap_count being 1,
-
-it takes the=C2=A0 SWP_SYNCHRONOUS_IO path and does a direct read which i=
-s bound to fail. So it seems to me as
-
-a problem in the way SWP_SYNCHRONOUS_IO is handled in do_swap_page, and n=
-ot a problem with zram.
-
-Any swap device that sets SWP_SYNCHRONOUS_IO and implements swap_slot_fre=
-e_notify can hit this bug.
-
-do_swap_page first brings in the page to swapcache and then decrements th=
-e swap_count, and SWP_SYNCHRONOUS_IO
-
-code in do_swap_page performs the swapcache and swap_count checks in the =
-same order. Due to thread preemption
-
-described in the sequence above, it can happen that the SWP_SYNCHRONOUS_I=
-O path fails in swapcache check, but sees
-
-the swap_count decremented later, thus missing a valid swapcache entry.
-
-I have not tested, but the following patch may also fix the issue.
-
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 063c0c1..a5ca05f 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -463,6 +463,7 @@ extern sector_t map_swap_page(struct page *, struct b=
-lock_device **);
-=C2=A0extern sector_t swapdev_block(int, pgoff_t);
-=C2=A0extern int page_swapcount(struct page *);
-=C2=A0extern int __swap_count(swp_entry_t entry);
-+extern bool __swap_has_cache(swp_entry_t entry);
-=C2=A0extern int __swp_swapcount(swp_entry_t entry);
-=C2=A0extern int swp_swapcount(swp_entry_t entry);
-=C2=A0extern struct swap_info_struct *page_swap_info(struct page *);
-@@ -589,6 +590,11 @@ static inline int __swap_count(swp_entry_t entry)
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return 0;
-=C2=A0}
-
-+static bool __swap_has_cache(swp_entry_t entry)
-+{
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return 0;
-+}
-+
-=C2=A0static inline int __swp_swapcount(swp_entry_t entry)
-=C2=A0{
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return 0;
-
-diff --git a/mm/memory.c b/mm/memory.c
-index e0c232f..a13511f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2778,7 +2778,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 struct swap_info_struct *si =3D swp_swap_info(entry);
-
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 if (si->flags & SWP_SYNCHRONOUS_IO &&
--=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 __swap_count(entry) =3D=3D 1) {
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 __swap_count(entry) =3D=3D 1 &&
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 !__swap_has_cache(entry)) {
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 /* skip s=
-wapcache */
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 page =3D =
-alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 vmf->address);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 80445f4..2a1554a8 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1459,6 +1459,20 @@ int __swap_count(swp_entry_t entry)
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return count;
-=C2=A0}
-
-+bool __swap_has_cache(swp_entry_t entry)
-+{
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 struct swap_info_struct *si;
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 pgoff_t offset =3D swp_offset(entry=
-);
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 bool has_cache=C2=A0 =3D false;
-+
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 si =3D get_swap_device(entry);
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (si) {
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0 has_cache =3D !!(si->swap_map[offset] & SWAP_HAS_CACHE);
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0 put_swap_device(si);
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }
-+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return has_cache;
-+}
-+
-=C2=A0static int swap_swapcount(struct swap_info_struct *si, swp_entry_t =
-entry)
-=C2=A0{
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 int count =3D 0;
-
-
+On Wed, Aug 28, 2019 at 8:56 PM Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+> On Wed, Aug 28, 2019 at 8:43 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > On Wed, Aug 28, 2019 at 08:33:13PM +0200, Daniel Vetter wrote:
+> > > On Wed, Aug 28, 2019 at 12:50 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > > >
+> > > > > diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+> > > > > index 4fa360a13c1e..82f84cfe372f 100644
+> > > > > +++ b/include/linux/kernel.h
+> > > > > @@ -217,7 +217,9 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
+> > > > >   * might_sleep - annotation for functions that can sleep
+> > > > >   *
+> > > > >   * this macro will print a stack trace if it is executed in an atomic
+> > > > > - * context (spinlock, irq-handler, ...).
+> > > > > + * context (spinlock, irq-handler, ...). Additional sections where blocking is
+> > > > > + * not allowed can be annotated with non_block_start() and non_block_end()
+> > > > > + * pairs.
+> > > > >   *
+> > > > >   * This is a useful debugging help to be able to catch problems early and not
+> > > > >   * be bitten later when the calling function happens to sleep when it is not
+> > > > > @@ -233,6 +235,25 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
+> > > > >  # define cant_sleep() \
+> > > > >       do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
+> > > > >  # define sched_annotate_sleep()      (current->task_state_change = 0)
+> > > > > +/**
+> > > > > + * non_block_start - annotate the start of section where sleeping is prohibited
+> > > > > + *
+> > > > > + * This is on behalf of the oom reaper, specifically when it is calling the mmu
+> > > > > + * notifiers. The problem is that if the notifier were to block on, for example,
+> > > > > + * mutex_lock() and if the process which holds that mutex were to perform a
+> > > > > + * sleeping memory allocation, the oom reaper is now blocked on completion of
+> > > > > + * that memory allocation. Other blocking calls like wait_event() pose similar
+> > > > > + * issues.
+> > > > > + */
+> > > > > +# define non_block_start() \
+> > > > > +     do { current->non_block_count++; } while (0)
+> > > > > +/**
+> > > > > + * non_block_end - annotate the end of section where sleeping is prohibited
+> > > > > + *
+> > > > > + * Closes a section opened by non_block_start().
+> > > > > + */
+> > > > > +# define non_block_end() \
+> > > > > +     do { WARN_ON(current->non_block_count-- == 0); } while (0)
+> > > >
+> > > > check-patch does not like these, and I agree
+> > > >
+> > > > #101: FILE: include/linux/kernel.h:248:
+> > > > +# define non_block_start() \
+> > > > +       do { current->non_block_count++; } while (0)
+> > > >
+> > > > /tmp/tmp1spfxufy/0006-kernel-h-Add-non_block_start-end-.patch:108: WARNING: Single statement macros should not use a do {} while (0) loop
+> > > > #108: FILE: include/linux/kernel.h:255:
+> > > > +# define non_block_end() \
+> > > > +       do { WARN_ON(current->non_block_count-- == 0); } while (0)
+> > > >
+> > > > Please use a static inline?
+> > >
+> > > We need get_current() plus the task_struct, so this gets real messy
+> > > real fast. Not even sure which header this would fit in, or whether
+> > > I'd need to create a new one. You're insisting on this or respinning
+> > > with the do { } while (0) dropped ok.
+> >
+> > My prefernce is always a static inline, but if the headers are so
+> > twisty we need to use #define to solve a missing include, then I
+> > wouldn't insist on it.
 >
->> Fix this by reading the swap_count before lookup_swap_cache, which con=
-forms
->> with the order in which page is added to swap cache and swap count is
->> decremented in do_swap_page. In the race case above, this will let Pb =
-take
->> the readahead path and thus pick the proper page from swapcache.
->>
->> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> Cleanest would be a new header I guess, together with might_sleep().
+> But moving that is a bit much I think, there's almost 500 callers of
+> that one from a quick git grep
+>
+> > If dropping do while is the only change then I can edit it in..
+> > I think we have the acks now
+>
+> Yeah sounds simplest, thanks.
+
+Hi Jason,
+
+Do you expect me to resend now, or do you plan to do the patchwork
+appeasement when applying? I've seen you merged the other patches
+(thanks!), but not these two here.
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
