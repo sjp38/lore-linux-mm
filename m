@@ -2,106 +2,115 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DC0BC3A5A7
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 13:53:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 517B6C3A5A9
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:07:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10D0E23401
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 13:53:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="Z4jm5Q2L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10D0E23401
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	by mail.kernel.org (Postfix) with ESMTP id 20EE722CEA
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:07:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20EE722CEA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3426F6B000E; Wed,  4 Sep 2019 09:53:27 -0400 (EDT)
+	id B24CC6B0003; Wed,  4 Sep 2019 10:07:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F25C6B0010; Wed,  4 Sep 2019 09:53:27 -0400 (EDT)
+	id AAE436B0006; Wed,  4 Sep 2019 10:07:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 084096B0266; Wed,  4 Sep 2019 09:53:27 -0400 (EDT)
+	id 99CCF6B0007; Wed,  4 Sep 2019 10:07:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
-	by kanga.kvack.org (Postfix) with ESMTP id D904D6B000E
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 09:53:26 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 7DC73180AD802
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 13:53:26 +0000 (UTC)
-X-FDA: 75897380412.18.mouth01_1dfcd9e79b751
-X-HE-Tag: mouth01_1dfcd9e79b751
-X-Filterd-Recvd-Size: 3282
-Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net [95.108.205.193])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 13:53:25 +0000 (UTC)
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 182CE2E1AF9;
-	Wed,  4 Sep 2019 16:53:23 +0300 (MSK)
-Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id aEmyyOzLzc-rMC8F2bH;
-	Wed, 04 Sep 2019 16:53:23 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1567605203; bh=tOkluSvMOilQtaQgeVN/jbLnmLXdvX3Fp9s5Z6P8s1g=;
-	h=In-Reply-To:Message-ID:References:Date:To:From:Subject:Cc;
-	b=Z4jm5Q2LTUYVSo8olrY0Quoi7AQsTBhZjF73yqtYmYod1nau/phdgy6bQwtVIC7rj
-	 788ePHQp13uvQW1vUeIf1xWUaY30sg+qS9qy1od1dkNufOcq1HIh0Z6xLrECdoAQoF
-	 GlBmDVdNCEbC2tjP/Z03EJTXlxSojcqYxr6uTv9Y=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:c142:79c2:9d86:677a])
-	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id wlKkVkryLz-rMDao1Sr;
-	Wed, 04 Sep 2019 16:53:22 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: [PATCH v1 7/7] mm/mlock: recharge mlocked pages at culling by vmscan
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, Roman Gushchin <guro@fb.com>,
- Johannes Weiner <hannes@cmpxchg.org>
-Date: Wed, 04 Sep 2019 16:53:22 +0300
-Message-ID: <156760520240.6560.4933207338618527335.stgit@buzz>
-In-Reply-To: <156760509382.6560.17364256340940314860.stgit@buzz>
-References: <156760509382.6560.17364256340940314860.stgit@buzz>
-User-Agent: StGit/0.17.1-dirty
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from forelay.hostedemail.com (smtprelay0170.hostedemail.com [216.40.44.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7236F6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:07:46 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1D58D180AD804
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:07:46 +0000 (UTC)
+X-FDA: 75897416532.30.59F2920
+Received: from filter.hostedemail.com (10.5.16.251.rfc1918.com [10.5.16.251])
+	by smtpin30.hostedemail.com (Postfix) with ESMTP id 78F00180B3CBC
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:06:15 +0000 (UTC)
+X-HE-Tag: rail59_8db3ccfed2334
+X-Filterd-Recvd-Size: 3727
+Received: from mailgw01.mediatek.com (unknown [210.61.82.183])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:06:13 +0000 (UTC)
+X-UUID: f362c8a6c104411aa10ef7ebe1987d5b-20190904
+X-UUID: f362c8a6c104411aa10ef7ebe1987d5b-20190904
+Received: from mtkexhb02.mediatek.inc [(172.21.101.103)] by mailgw01.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0809 with TLS)
+	with ESMTP id 2107079500; Wed, 04 Sep 2019 22:06:06 +0800
+Received: from mtkcas09.mediatek.inc (172.21.101.178) by
+ mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Wed, 4 Sep 2019 22:06:05 +0800
+Received: from [172.21.84.99] (172.21.84.99) by mtkcas09.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Wed, 4 Sep 2019 22:06:04 +0800
+Message-ID: <1567605965.32522.14.camel@mtksdccf07>
+Subject: Re: [PATCH 1/2] mm/kasan: dump alloc/free stack for page allocator
+From: Walter Wu <walter-zh.wu@mediatek.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+CC: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
+	<glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
+	<matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin
+ Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
+	<kasan-dev@googlegroups.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
+Date: Wed, 4 Sep 2019 22:06:05 +0800
+In-Reply-To: <401064ae-279d-bef3-a8d5-0fe155d0886d@suse.cz>
+References: <20190904065133.20268-1-walter-zh.wu@mediatek.com>
+	 <401064ae-279d-bef3-a8d5-0fe155d0886d@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If mlock cannot catch page in LRU then it isn't moved into unevictable lru.
-These pages are 'culled' by reclaimer and moved into unevictable lru.
-It seems pages locked with MLOCK_ONFAULT always go through this path.
+On Wed, 2019-09-04 at 14:49 +0200, Vlastimil Babka wrote:
+> On 9/4/19 8:51 AM, Walter Wu wrote:
+> > This patch is KASAN report adds the alloc/free stacks for page allocator
+> > in order to help programmer to see memory corruption caused by page.
+> > 
+> > By default, KASAN doesn't record alloc/free stack for page allocator.
+> > It is difficult to fix up page use-after-free issue.
+> > 
+> > This feature depends on page owner to record the last stack of pages.
+> > It is very helpful for solving the page use-after-free or out-of-bound.
+> > 
+> > KASAN report will show the last stack of page, it may be:
+> > a) If page is in-use state, then it prints alloc stack.
+> >    It is useful to fix up page out-of-bound issue.
+> 
+> I expect this will conflict both in syntax and semantics with my series [1] that
+> adds the freeing stack to page_owner when used together with debug_pagealloc,
+> and it's now in mmotm. Glad others see the need as well :) Perhaps you could
+> review the series, see if it fulfils your usecase (AFAICS the series should be a
+> superset, by storing both stacks at once), and perhaps either make KASAN enable
+> debug_pagealloc, or turn KASAN into an alternative enabler of the functionality
+> there?
+> 
+> Thanks, Vlastimil
+> 
+> [1] https://lore.kernel.org/linux-mm/20190820131828.22684-1-vbabka@suse.cz/t/#u
+> 
+Thanks your information.
+We focus on the smartphone, so it doesn't enable
+CONFIG_TRANSPARENT_HUGEPAGE, Is it invalid for our usecase?
+And It looks like something is different, because we only need last
+stack of page, so it can decrease memory overhead.
+I will try to enable debug_pagealloc(with your patch) and KASAN, then we
+see the result.
 
-Reclaimer calls try_to_unmap for already isolated pages, thus on this path
-we could freely change page to owner of any mlock vma we found in rmap.
-
-This patch passes flag TTU_LRU_ISOLATED into try_to_ummap to move pages
-in mmlock_vma_page().
-
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- mm/vmscan.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bf7a05e8a717..2060f254dd6b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1345,7 +1345,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * processes. Try to unmap it here.
- 		 */
- 		if (page_mapped(page)) {
--			enum ttu_flags flags = ttu_flags | TTU_BATCH_FLUSH;
-+			enum ttu_flags flags = ttu_flags | TTU_BATCH_FLUSH |
-+					       TTU_LRU_ISOLATED;
- 
- 			if (unlikely(PageTransHuge(page)))
- 				flags |= TTU_SPLIT_HUGE_PMD;
+Thanks.
+Walter 
 
 
