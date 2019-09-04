@@ -2,233 +2,160 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BA11C3A5A9
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:16:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BBDEDC3A5A9
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:29:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B6D322CF5
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:16:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B6D322CF5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 847C521726
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:29:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 847C521726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFC266B0006; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
+	id 090636B0003; Wed,  4 Sep 2019 16:29:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AAABE6B0007; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
+	id 040A16B0006; Wed,  4 Sep 2019 16:29:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 972756B0008; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
+	id E98D86B0007; Wed,  4 Sep 2019 16:29:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FF666B0006
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id F1E4D1F1F
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:16:35 +0000 (UTC)
-X-FDA: 75898345950.27.park23_1c6f80aa70a31
-X-HE-Tag: park23_1c6f80aa70a31
-X-Filterd-Recvd-Size: 8696
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:16:35 +0000 (UTC)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x84KC61E040917
-	for <linux-mm@kvack.org>; Wed, 4 Sep 2019 16:16:34 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2utjrp2xwj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Sep 2019 16:16:33 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 4 Sep 2019 21:16:30 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 4 Sep 2019 21:16:21 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x84KGKlh51314888
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 4 Sep 2019 20:16:20 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7DEAAAE045;
-	Wed,  4 Sep 2019 20:16:20 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 50121AE04D;
-	Wed,  4 Sep 2019 20:16:19 +0000 (GMT)
-Received: from thinkpad (unknown [9.152.96.45])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed,  4 Sep 2019 20:16:19 +0000 (GMT)
-Date: Wed, 4 Sep 2019 22:16:18 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-        Vlastimil
- Babka <vbabka@suse.cz>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Mike Rapoport
- <rppt@linux.vnet.ibm.com>,
-        Jason Gunthorpe <jgg@ziepe.ca>,
-        Dan Williams
- <dan.j.williams@intel.com>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Michal
- Hocko <mhocko@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
-        Mark Brown
- <broonie@kernel.org>, Steven Price <Steven.Price@arm.com>,
-        Ard Biesheuvel
- <ard.biesheuvel@linaro.org>,
-        Masahiro Yamada
- <yamada.masahiro@socionext.com>,
-        Kees Cook <keescook@chromium.org>,
-        Tetsuo
- Handa <penguin-kernel@i-love.sakura.ne.jp>,
-        Matthew Wilcox
- <willy@infradead.org>,
-        Sri Krishna chowdary <schowdary@nvidia.com>,
-        Dave
- Hansen <dave.hansen@intel.com>,
-        Russell King - ARM Linux
- <linux@armlinux.org.uk>,
-        Michael Ellerman <mpe@ellerman.id.au>,
-        Paul
- Mackerras <paulus@samba.org>,
-        Martin Schwidefsky <schwidefsky@de.ibm.com>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        "David S. Miller"
- <davem@davemloft.net>,
-        Vineet Gupta <vgupta@synopsys.com>, James Hogan
- <jhogan@kernel.org>,
-        Paul Burton <paul.burton@mips.com>,
-        Ralf Baechle
- <ralf@linux-mips.org>,
-        linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
-        linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-In-Reply-To: <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
-	<1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
+Received: from forelay.hostedemail.com (smtprelay0073.hostedemail.com [216.40.44.73])
+	by kanga.kvack.org (Postfix) with ESMTP id C93336B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:29:16 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 31615180AD801
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:29:16 +0000 (UTC)
+X-FDA: 75898377912.18.pig06_8ae1ba8f80e4b
+X-HE-Tag: pig06_8ae1ba8f80e4b
+X-Filterd-Recvd-Size: 5039
+Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:29:14 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Sep 2019 13:29:12 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,468,1559545200"; 
+   d="scan'208";a="190278966"
+Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
+  by FMSMGA003.fm.intel.com with ESMTP; 04 Sep 2019 13:29:12 -0700
+Received: from fmsmsx151.amr.corp.intel.com (10.18.125.4) by
+ FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Wed, 4 Sep 2019 13:29:12 -0700
+Received: from crsmsx152.amr.corp.intel.com (172.18.7.35) by
+ FMSMSX151.amr.corp.intel.com (10.18.125.4) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Wed, 4 Sep 2019 13:20:22 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.249]) by
+ CRSMSX152.amr.corp.intel.com ([169.254.5.223]) with mapi id 14.03.0439.000;
+ Wed, 4 Sep 2019 14:20:21 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka
+	<vbabka@suse.cz>
+CC: zhong jiang <zhongjiang@huawei.com>, "mhocko@kernel.org"
+	<mhocko@kernel.org>, "anshuman.khandual@arm.com" <anshuman.khandual@arm.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Aneesh Kumar K.V
+	<aneesh.kumar@linux.vnet.ibm.com>
+Subject: RE: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
+Thread-Topic: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
+Thread-Index: AQHVYwudPt5si0bTnEuchA1jrW3MqKcbxUIAgAB74AD//7RlYA==
+Date: Wed, 4 Sep 2019 20:20:20 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E898E9C17@CRSMSX101.amr.corp.intel.com>
+References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
+	<5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
+ <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
+In-Reply-To: <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiM2QzNjAwMjUtNzk3Ny00MzU5LWJiYTQtMmNjNGVkZmIzMjUxIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiaFJIcythc1NNZ2VGam41eVwvREN2ZzQ0TDVRelpUYVwvWWZOM3BraHJxa1Q5RlJSdlE2cFdkdVRianlWYW9CbTByIn0=
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.2.0.6
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-X-TM-AS-GCONF: 00
-x-cbid: 19090420-0020-0000-0000-00000367C323
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19090420-0021-0000-0000-000021BD3453
-Message-Id: <20190904221618.1b624a98@thinkpad>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-04_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1909040202
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  3 Sep 2019 13:31:46 +0530
-Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+> Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
+>=20
+> On Wed, 4 Sep 2019 13:24:58 +0200 Vlastimil Babka <vbabka@suse.cz>
+> wrote:
+>=20
+> > On 9/4/19 12:26 PM, zhong jiang wrote:
+> > > With the help of unsigned_lesser_than_zero.cocci. Unsigned 'nr_pages"=
+'
+> > > compare with zero. And __get_user_pages_locked will return an long
+> value.
+> > > Hence, Convert the long to compare with zero is feasible.
+> >
+> > It would be nicer if the parameter nr_pages was long again instead of
+> > unsigned long (note there are two variants of the function, so both sho=
+uld
+> be changed).
+>=20
+> nr_pages should be unsigned - it's a count of pages!
+>=20
+> The bug is that __get_user_pages_locked() returns a signed long which can
+> be a -ve errno.
 
-> This adds a test module which will validate architecture page table helpers
-> and accessors regarding compliance with generic MM semantics expectations.
-> This will help various architectures in validating changes to the existing
-> page table helpers or addition of new ones.
-> 
-> Test page table and memory pages creating it's entries at various level are
-> all allocated from system memory with required alignments. If memory pages
-> with required size and alignment could not be allocated, then all depending
-> individual tests are skipped.
+Ok...  This is my bad...  I think this is the correct fix though.  Not chan=
+ging the type of nr_pages.
 
-This looks very useful, thanks. Of course, s390 is quite special and does
-not work nicely with this patch (yet), mostly because of our dynamic page
-table levels/folding. Still need to figure out what can be fixed in the arch
-code and what would need to be changed in the test module. See below for some
-generic comments/questions.
+Sorry,
+Ira
 
-At least one real bug in the s390 code was already revealed by this, which
-is very nice. In pmd/pud_bad(), we also check large pmds/puds for sanity,
-instead of reporting them as bad, which is apparently not how it is expected.
-
-[...]
-> +/*
-> + * Basic operations
-> + *
-> + * mkold(entry)			= An old and not a young entry
-> + * mkyoung(entry)		= A young and not an old entry
-> + * mkdirty(entry)		= A dirty and not a clean entry
-> + * mkclean(entry)		= A clean and not a dirty entry
-> + * mkwrite(entry)		= A write and not a write protected entry
-> + * wrprotect(entry)		= A write protected and not a write entry
-> + * pxx_bad(entry)		= A mapped and non-table entry
-> + * pxx_same(entry1, entry2)	= Both entries hold the exact same value
-> + */
-> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
-
-Why is P4D_SIZE missing in the VADDR_TEST calculation?
-
-[...]
-> +
-> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
-> +static void pud_clear_tests(pud_t *pudp)
-> +{
-> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
-> +	pud_clear(pudp);
-> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
-> +}
-
-For pgd/p4d/pud_clear(), we only clear if the page table level is present
-and not folded. The memset() here overwrites the table type bits, so
-pud_clear() will not clear anything on s390 and the pud_none() check will
-fail.
-Would it be possible to OR a (larger) random value into the table, so that
-the lower 12 bits would be preserved?
-
-> +
-> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
-> +{
-> +	/*
-> +	 * This entry points to next level page table page.
-> +	 * Hence this must not qualify as pud_bad().
-> +	 */
-> +	pmd_clear(pmdp);
-> +	pud_clear(pudp);
-> +	pud_populate(mm, pudp, pmdp);
-> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
-> +}
-
-This will populate the pud with a pmd pointer that does not point to the
-beginning of the pmd table, but to the second entry (because of how
-VADDR_TEST is constructed). This will result in failing pud_bad() check
-on s390. Not sure why/how it works on other archs, but would it be possible
-to align pmdp down to the beginning of the pmd table (and similar for the
-other pxd_populate_tests)?
-
-[...]
-> +
-> +	p4d_free(mm, saved_p4dp);
-> +	pud_free(mm, saved_pudp);
-> +	pmd_free(mm, saved_pmdp);
-> +	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
-
-pgtable_t is arch-specific, and on s390 it is not a struct page pointer,
-but a pte pointer. So this will go wrong, also on all other archs (if any)
-where pgtable_t is not struct page.
-Would it be possible to use pte_free_kernel() instead, and just pass
-saved_ptep directly?
-
-Regards,
-Gerald
+>=20
+> I think it's best if __get_user_pages_locked() is to get itself a new loc=
+al with
+> the same type as its return value.  Something like:
+>=20
+> --- a/mm/gup.c~a
+> +++ a/mm/gup.c
+> @@ -1450,6 +1450,7 @@ static long check_and_migrate_cma_pages(
+>  	bool drain_allow =3D true;
+>  	bool migrate_allow =3D true;
+>  	LIST_HEAD(cma_page_list);
+> +	long ret;
+>=20
+>  check_again:
+>  	for (i =3D 0; i < nr_pages;) {
+> @@ -1511,17 +1512,18 @@ check_again:
+>  		 * again migrating any new CMA pages which we failed to
+> isolate
+>  		 * earlier.
+>  		 */
+> -		nr_pages =3D __get_user_pages_locked(tsk, mm, start,
+> nr_pages,
+> +		ret =3D __get_user_pages_locked(tsk, mm, start, nr_pages,
+>  						   pages, vmas, NULL,
+>  						   gup_flags);
+>=20
+> -		if ((nr_pages > 0) && migrate_allow) {
+> +		nr_pages =3D ret;
+> +		if (ret > 0 && migrate_allow) {
+>  			drain_allow =3D true;
+>  			goto check_again;
+>  		}
+>  	}
+>=20
+> -	return nr_pages;
+> +	return ret;
+>  }
+>  #else
+>  static long check_and_migrate_cma_pages(struct task_struct *tsk,
+>=20
+>=20
 
 
