@@ -2,193 +2,173 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 389F8C3A5AB
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:40:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFCECC3A5A9
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:42:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0663622CF5
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:40:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0663622CF5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 841EA208E4
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:42:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ZGqEH+6G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 841EA208E4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C5CD6B0003; Wed,  4 Sep 2019 16:40:26 -0400 (EDT)
+	id 31F326B0003; Wed,  4 Sep 2019 16:42:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84F7D6B0006; Wed,  4 Sep 2019 16:40:26 -0400 (EDT)
+	id 2CEE96B0006; Wed,  4 Sep 2019 16:42:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EF656B0007; Wed,  4 Sep 2019 16:40:26 -0400 (EDT)
+	id 1BE626B0007; Wed,  4 Sep 2019 16:42:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0174.hostedemail.com [216.40.44.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 47D126B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:40:26 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id D8A9E181AC9AE
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:40:25 +0000 (UTC)
-X-FDA: 75898406010.18.frogs10_5afecebe7af21
-X-HE-Tag: frogs10_5afecebe7af21
-X-Filterd-Recvd-Size: 7943
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:40:25 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A3C62AE35;
-	Wed,  4 Sep 2019 20:40:23 +0000 (UTC)
-Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: zhong jiang <zhongjiang@huawei.com>, mhocko@kernel.org,
- anshuman.khandual@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Ira Weiny <ira.weiny@intel.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
- <5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
- <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <29d686c3-9407-e953-42f4-a4224b9333e7@suse.cz>
-Date: Wed, 4 Sep 2019 22:40:22 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0154.hostedemail.com [216.40.44.154])
+	by kanga.kvack.org (Postfix) with ESMTP id EE64C6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:42:22 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8B1A9181AC9AE
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:42:22 +0000 (UTC)
+X-FDA: 75898410924.08.rose02_6bf9ef92ca727
+X-HE-Tag: rose02_6bf9ef92ca727
+X-Filterd-Recvd-Size: 6507
+Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:42:21 +0000 (UTC)
+Received: by mail-qt1-f196.google.com with SMTP id a13so110948qtj.1
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 13:42:21 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=eWOicZgj5Of+wSfvuMxF3nPebfxOImDgPFtP2TA8Hig=;
+        b=ZGqEH+6G7pAd8jrzjuGDhWkoWvtaL64D3AW2jvc0zj1/oUJplf2IrF6gHKD5s2FsPw
+         Adfze0hKG7/rv+15yzEJjiUX6og3ZyANLD8D4ERpNzpK9YlV6uONlh9xQeKTGv+ZrquI
+         hSKMreZSUi810Y6ZWKEeb9LD1PXnDKImDqVZgjLKigfeMpRxfjBMo9OZoosRbYdu8/79
+         bC/LvgoUb75NX3rr7WrL9taazuGhCpGAeDkOOoK6nNbcPd9ea3wqJdnrB3QlTAQjQaHv
+         uAIhyBb8pqdsGUBbUJ1GvBMJDm22LpVbJdi/xMfxcFKEw56+qyPT7o3odV4a7QNQbRiw
+         /B9A==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=eWOicZgj5Of+wSfvuMxF3nPebfxOImDgPFtP2TA8Hig=;
+        b=oU1UT9gB8mzAdtrei1mg6w5ZR67t3FaZEEk10NXjm/puHjYjg6+pHBtEnyaogizkXP
+         o3+snVZ+ZwJTvG2nJ/DZKWto5UYyD7WBaQqj56c+iLKWbI8qn9lVZ92OgeS+1xa2zLIv
+         Xy4NL+13IFvYTKEOk2GaXaJqVccRaUhmHvwIiFpYa8VJJQC8HBKYPvvopS3jrVAnqsxY
+         zujxKHbwrUKmR8gjW5Z7UyyUwiniunQfUkRatZKEIRSyW0aV9F0XQ/GopGQ+nRYq39bl
+         nzoSH6P76RSXTtHL9eG+/GF6tkWfrHUo13c99JRs2G4AG1HHCswBZZKeFqKg8SkcDM3g
+         DWmg==
+X-Gm-Message-State: APjAAAXku/pSRMN67giBWha0M8FgDOzuN/pSpx94VFuWn8pWsHJZNs3M
+	WPkwBopVamAliWKT/tHWMMVOrA==
+X-Google-Smtp-Source: APXvYqzrVP6ndOunjL/GKt4iRlQLcQKI3XbQbJtOPG0ryuO40Hl4uyz7HZzI+zOrG63rLQ5vi9A3iw==
+X-Received: by 2002:a0c:8c0b:: with SMTP id n11mr26275353qvb.66.1567629741114;
+        Wed, 04 Sep 2019 13:42:21 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id z200sm87656qkb.5.2019.09.04.13.42.18
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Sep 2019 13:42:20 -0700 (PDT)
+Message-ID: <1567629737.5576.87.camel@lca.pw>
+Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
+From: Qian Cai <cai@lca.pw>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko
+ <mhocko@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>,
+ davem@davemloft.net,  netdev@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, Steven
+ Rostedt <rostedt@goodmis.org>
+Date: Wed, 04 Sep 2019 16:42:17 -0400
+In-Reply-To: <20190904144850.GA8296@tigerII.localdomain>
+References: <20190903132231.GC18939@dhcp22.suse.cz>
+	 <1567525342.5576.60.camel@lca.pw> <20190903185305.GA14028@dhcp22.suse.cz>
+	 <1567546948.5576.68.camel@lca.pw> <20190904061501.GB3838@dhcp22.suse.cz>
+	 <20190904064144.GA5487@jagdpanzerIV> <20190904065455.GE3838@dhcp22.suse.cz>
+	 <20190904071911.GB11968@jagdpanzerIV> <20190904074312.GA25744@jagdpanzerIV>
+	 <1567599263.5576.72.camel@lca.pw>
+	 <20190904144850.GA8296@tigerII.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/4/19 8:48 PM, Andrew Morton wrote:
-> On Wed, 4 Sep 2019 13:24:58 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
-> 
->> On 9/4/19 12:26 PM, zhong jiang wrote:
->>> With the help of unsigned_lesser_than_zero.cocci. Unsigned 'nr_pages"'
->>> compare with zero. And __get_user_pages_locked will return an long value.
->>> Hence, Convert the long to compare with zero is feasible.
->>
->> It would be nicer if the parameter nr_pages was long again instead of unsigned
->> long (note there are two variants of the function, so both should be changed).
-> 
-> nr_pages should be unsigned - it's a count of pages!
+On Wed, 2019-09-04 at 23:48 +0900, Sergey Senozhatsky wrote:
+> On (09/04/19 08:14), Qian Cai wrote:
+> > > Plus one more check - waitqueue_active(&log_wait). printk() adds
+> > > pending irq_work only if there is a user-space process sleeping on
+> > > log_wait and irq_work is not already scheduled. If the syslog is
+> > > active or there is noone to wakeup then we don't queue irq_work.
+> >=20
+> > Another possibility for this potential livelock is that those printk(=
+) from
+> > warn_alloc(), dump_stack() and show_mem() increase the time it needs =
+to
+> > process
+> > build_skb() allocation failures significantly under memory pressure. =
+As the
+> > result, ksoftirqd() could be rescheduled during that time via a diffe=
+rent
+> > CPU
+> > (this is a large x86 NUMA system anyway),
+> >=20
+> > [83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0run_ksoftirqd+0x1f/0=
+x40
+> > [83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0smpboot_thread_fn+0x=
+255/0x440
+> > [83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0kthread+0x1df/0x200
+> > [83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0ret_from_fork+0x35/0=
+x40
+>=20
+> Hum hum hum...
+>=20
+> So I can, _probably_, think of several patches.
+>=20
+> First, move wake_up_klogd() back to console_unlock().
+>=20
+> Second, move `printk_pending' out of per-CPU region and make it global.
+> So we will have just one printk irq_work scheduled across all CPUs;
+> currently we have one irq_work per CPU. I think I sent a patch a long
+> long time ago, but we never discussed it, as far as I remember.
+>=20
+> > In addition, those printk() will deal with console drivers or even a
+> > networking
+> > console, so it is probably not unusual that it could call irq_exit()-
+> > __do_softirq() at one point and then this livelock.
+>=20
+> Do you use netcon? Because this, theoretically, can open up one more
+> vector. netcon allocates skbs from ->write() path. We call con drivers'
+> ->write() from printk_safe context, so should netcon skb allocation
+> warn we will scedule one more irq_work on that CPU to flush per-CPU
+> printk_safe buffer.
+>=20
+> If this is the case, then we can stop calling console_driver() under
+> printk_safe. I sent a patch a while ago, but we agreed to keep the
+> things the way they are, fot the time being.
+>=20
+> Let me think more.
 
-Hm right, I thought check_and_migrate_cma_pages() could be already
-called with negative nr_pages from __gup_longterm_locked(), but I missed
-there's a if (rc < 0) goto out before that.
+To summary, those look to me are all good long-term improvement that woul=
+d
+reduce the likelihood of this kind of livelock in general especially for =
+other
+unknown allocations that happen while processing softirqs, but it is stil=
+l up to
+the air if it fixes it 100% in all situations as printk() is going to tak=
+e more
+time and could deal with console hardware that involve irq_exit() anyway.
 
-> The bug is that __get_user_pages_locked() returns a signed long which
-> can be a -ve errno.
-> 
-> I think it's best if __get_user_pages_locked() is to get itself a new
+On the other hand, adding __GPF_NOWARN in the build_skb() allocation will=
+ fix
+this known NET_TX_SOFTIRQ case which is common when softirqd involved at =
+least
+in short-term. It even have a benefit to reduce the overall warn_alloc() =
+noise
+out there.
 
-You mean check_and_migrate_cma_pages()
-
-> local with the same type as its return value.  Something like:
-
-Agreed.
-
-> --- a/mm/gup.c~a
-> +++ a/mm/gup.c
-> @@ -1450,6 +1450,7 @@ static long check_and_migrate_cma_pages(
->  	bool drain_allow = true;
->  	bool migrate_allow = true;
->  	LIST_HEAD(cma_page_list);
-> +	long ret;
-
-Should be initialized to nr_pages in case we don't go via "if
-(!list_empty(&cma_page_list))" at all.
-
->  
->  check_again:
->  	for (i = 0; i < nr_pages;) {
-> @@ -1511,17 +1512,18 @@ check_again:
->  		 * again migrating any new CMA pages which we failed to isolate
->  		 * earlier.
->  		 */
-> -		nr_pages = __get_user_pages_locked(tsk, mm, start, nr_pages,
-> +		ret = __get_user_pages_locked(tsk, mm, start, nr_pages,
->  						   pages, vmas, NULL,
->  						   gup_flags);
->  
-> -		if ((nr_pages > 0) && migrate_allow) {
-> +		nr_pages = ret;
-> +		if (ret > 0 && migrate_allow) {
->  			drain_allow = true;
->  			goto check_again;
->  		}
->  	}
->  
-> -	return nr_pages;
-> +	return ret;
->  }
->  #else
->  static long check_and_migrate_cma_pages(struct task_struct *tsk,
-> 
-> 
-
+I can resubmit with an update changelog. Does it make any sense?
 
