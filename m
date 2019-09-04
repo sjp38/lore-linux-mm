@@ -2,735 +2,146 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 239D8C3A5A9
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:19:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52373C3A5A9
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:22:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C123123402
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:19:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 12E8D2339E
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:22:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="1MAO3olt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C123123402
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=arm-com.20150623.gappssmtp.com header.i=@arm-com.20150623.gappssmtp.com header.b="1snVJDaz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12E8D2339E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B0E66B0003; Wed,  4 Sep 2019 10:19:46 -0400 (EDT)
+	id 8814D6B0003; Wed,  4 Sep 2019 10:22:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6878F6B0006; Wed,  4 Sep 2019 10:19:46 -0400 (EDT)
+	id 833566B0006; Wed,  4 Sep 2019 10:22:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 528076B0007; Wed,  4 Sep 2019 10:19:46 -0400 (EDT)
+	id 748BA6B0007; Wed,  4 Sep 2019 10:22:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C6926B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:19:46 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C338783FC
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:19:45 +0000 (UTC)
-X-FDA: 75897446730.12.yard78_72308dea7f157
-X-HE-Tag: yard78_72308dea7f157
-X-Filterd-Recvd-Size: 23623
-Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:19:44 +0000 (UTC)
-Received: by mail-ed1-f67.google.com with SMTP id z9so17339223edq.8
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 07:19:44 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0074.hostedemail.com [216.40.44.74])
+	by kanga.kvack.org (Postfix) with ESMTP id 562246B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:22:17 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E60B92C8A
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:22:16 +0000 (UTC)
+X-FDA: 75897453072.03.salt38_88416c5dbcd43
+X-HE-Tag: salt38_88416c5dbcd43
+X-Filterd-Recvd-Size: 5655
+Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:22:16 +0000 (UTC)
+Received: by mail-pl1-f194.google.com with SMTP id d3so9673255plr.1
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 07:22:16 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=IBoj6Yt0vAXXvjfGBhbQPt08BNUVDVJb97KrFIx4mW4=;
-        b=1MAO3oltDdtt/rSRaPHr8j9WQb257fuo8jpsAn27fbwKTzvoORs+1FDgG31EQJ0nSh
-         gbxHvyNs96KKpw2FUApx5tSPYaOnbMp0WnNdY6QHXmyxRrY1K9f9CuAIecmFxMYXPwky
-         67Y3o6Up3ZP6jgBYq8VrNspcs+x4YqCUgrFe9lfDEOjZf7ZeV6y/hwNgDX8FrLOH5geC
-         U2eBxXNurWVtCaIhxiX4ZVG/EoKQ9kLuyLEQ3c5W0w3nmtjWopzCXBtwDvAhitK3DrmR
-         k0r9Ur73r5UYBsn7jgyuPeRt/2pB7vLIKI2aftavmwXNzAt71wEmKkvLgYASwdub6RdR
-         CcNw==
+        d=arm-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=zLfyPE0SwETDkvtq1bsqjNVDjHFo5NFhYLI0JJDHf+U=;
+        b=1snVJDaz07aE2jmpN2RYpCQk1j6M/Srf+5TWc6mM9g3qTtc/LGhpFS8SBr3wKWtEUs
+         2vYCnwXgW9GP8u+jBChNFuPMJ8iwZ9V7Xcr5VSkZ9pwacLNBnQbE0mDlDmHrKh6ex7KU
+         dEWnsOFqHjya8jp54mNersHodjBUqcvphyH7IfadVYLHKiPHrbJWewxG3TVx7nFeFjiN
+         rQk268Xl9j6jNOHV5Tft4pL4TgqePxl2lKQ7MPMfBiNESFOZceoezwFHn8NU4khM2WX0
+         p/zEYa4oRctpb7xuorIQkOq1Zv3b4yQo/bzlGSKATz5xFIwT+rPVQBDntFMkz5DnGdMA
+         4y8w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=IBoj6Yt0vAXXvjfGBhbQPt08BNUVDVJb97KrFIx4mW4=;
-        b=iJTwlxjbZcTQlN/NBASWWd1t5ylBm1Eyyq+0SPRwUO6swysjDZj8f/tJ2+yhd2A4Qx
-         laciDj1ElQwuWCuJ+QEINnaT3xiJ9ZK42uOi4YqujEjL/vaCtRinEqV9Icdkyk14c6jq
-         Mam6jkulAyuux5VDiVVXe/egK4AGa9O/OUi8caiC1nX6l82UkOxiSzOLLTMVZm93gzX7
-         YcPdw6OfH4SuoHoWKyhNG4ol/FZ/eEiNOTs5XY96DpJnaNz+0zmpZ4Y1jbpdNcliCB1a
-         WZJYmKKtoTFnQfLtGAgUJFuS4cpNn6fnJmAxE/CTJKSgztIvfcvh81Hd3BL6Gc5bURni
-         RpcA==
-X-Gm-Message-State: APjAAAW3NXZ1hF6Q5upDK+Q935IzuClVl3W4DLE1awvn3Wm86LbWrN4K
-	MI1SXzn9l4Dpl6yFeClA72LPSw==
-X-Google-Smtp-Source: APXvYqxqecjGo3YexDyuEHi4DxtpqC+N5YnaUi3Z1hNeiNdEhbEeAjhnE2sdDMWcmnFvCY0iHqFcFw==
-X-Received: by 2002:aa7:c649:: with SMTP id z9mr33892712edr.97.1567606783210;
-        Wed, 04 Sep 2019 07:19:43 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id w14sm4120554eda.69.2019.09.04.07.19.42
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Sep 2019 07:19:42 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 98363102752; Wed,  4 Sep 2019 17:19:50 +0300 (+03)
-Date: Wed, 4 Sep 2019 17:19:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Mark Brown <broonie@kernel.org>,
-	Steven Price <Steven.Price@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Kees Cook <keescook@chromium.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Matthew Wilcox <willy@infradead.org>,
-	Sri Krishna chowdary <schowdary@nvidia.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Russell King - ARM Linux <linux@armlinux.org.uk>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Vineet Gupta <vgupta@synopsys.com>, James Hogan <jhogan@kernel.org>,
-	Paul Burton <paul.burton@mips.com>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-	x86@kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-Message-ID: <20190904141950.ykoe3h7b4hcvnysu@box>
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
- <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=zLfyPE0SwETDkvtq1bsqjNVDjHFo5NFhYLI0JJDHf+U=;
+        b=jTh5E0njM7v/gONKl7zkjf/U+ouzxfDaqG8eleUi6OWlOT9noVfQelVaJ/a0Yl1KEz
+         db1mFMHImZC5T3cNZoWotQW3ICAqHLNkwappW1W/XemTZyVa9TDPDglTZOSQzH2X4pJF
+         pBI7nE0xh6ayw3vqk5yF30vbUz4tCAlGMJwT/rtPPKalSgMGg1DlyxkgjpkPml5NwmAx
+         PV7ZK8AhntYtrKEKEk7KOrE6bN3rn7rp8ZCY9V1yGU4wzt2u6roR+oOrs+LQVY1WBgcy
+         5cC0/L5Oa0vj3rqrFzzGUxmKlkAqALTF6R+a+zSN9MnfHYPkOfC/FZe+4n8dGyBiNp8u
+         l/3A==
+X-Gm-Message-State: APjAAAUs/QrrCLFkT/fraBGzIzMrm0xS4v03HfNRLgXsMulbUwAifJC9
+	fuWa41s8IQBOY50JRjdTfpyOFVOFj752us4yW8mmuER1xf4=
+X-Google-Smtp-Source: APXvYqwXlRS/Ftz/KVLDn4/l/NIOLb/ncyHE2q5troSsqlmTwDtLGgmlgtnwK5RjJr9zJVjSABvjyUk7dHWl92vOS74=
+X-Received: by 2002:a17:902:8a93:: with SMTP id p19mr41493501plo.106.1567606935073;
+ Wed, 04 Sep 2019 07:22:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
-User-Agent: NeoMutt/20180716
+References: <20190904005831.153934-1-justin.he@arm.com> <fd22d787-3240-fe42-3ca3-9e8a98f86fce@arm.com>
+In-Reply-To: <fd22d787-3240-fe42-3ca3-9e8a98f86fce@arm.com>
+From: Catalin Marinas <catalin.marinas@arm.com>
+Date: Wed, 4 Sep 2019 15:22:03 +0100
+Message-ID: <CAHkRjk6cQTu7N+UanTspWm_LyABRhfPHQn1+PPdaHYrTC3PtfQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix double page fault on arm64 if PTE_AF is cleared
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Jia He <justin.he@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Matthew Wilcox <willy@infradead.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Ralph Campbell <rcampbell@nvidia.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	Peter Zijlstra <peterz@infradead.org>, Dave Airlie <airlied@redhat.com>, 
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Thomas Hellstrom <thellstrom@vmware.com>, 
+	Souptick Joarder <jrdr.linux@gmail.com>, linux-mm <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 03, 2019 at 01:31:46PM +0530, Anshuman Khandual wrote:
-> This adds a test module which will validate architecture page table helpers
-> and accessors regarding compliance with generic MM semantics expectations.
-> This will help various architectures in validating changes to the existing
-> page table helpers or addition of new ones.
-> 
-> Test page table and memory pages creating it's entries at various level are
-> all allocated from system memory with required alignments. If memory pages
-> with required size and alignment could not be allocated, then all depending
-> individual tests are skipped.
+On Wed, 4 Sep 2019 at 04:20, Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
+> On 09/04/2019 06:28 AM, Jia He wrote:
+> > @@ -2152,20 +2153,30 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+> >        */
+> >       if (unlikely(!src)) {
+> >               void *kaddr = kmap_atomic(dst);
+> > -             void __user *uaddr = (void __user *)(va & PAGE_MASK);
+> > +             void __user *uaddr = (void __user *)(vmf->address & PAGE_MASK);
+> > +             pte_t entry;
+> >
+> >               /*
+> >                * This really shouldn't fail, because the page is there
+> >                * in the page tables. But it might just be unreadable,
+> >                * in which case we just give up and fill the result with
+> > -              * zeroes.
+> > +              * zeroes. If PTE_AF is cleared on arm64, it might
+> > +              * cause double page fault here. so makes pte young here
+> >                */
+> > +             if (!pte_young(vmf->orig_pte)) {
+> > +                     entry = pte_mkyoung(vmf->orig_pte);
+> > +                     if (ptep_set_access_flags(vmf->vma, vmf->address,
+> > +                             vmf->pte, entry, vmf->flags & FAULT_FLAG_WRITE))
+> > +                             update_mmu_cache(vmf->vma, vmf->address,
+> > +                                             vmf->pte);
+> > +             }
+> > +
+> >               if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
+>
+> Should not page fault be disabled when doing this ?
 
-See my comments below.
+Page faults are already disabled by the kmap_atomic(). But that only
+means that you don't deadlock trying to take the mmap_sem again.
 
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Mark Brown <broonie@kernel.org>
-> Cc: Steven Price <Steven.Price@arm.com>
-> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Sri Krishna chowdary <schowdary@nvidia.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Russell King - ARM Linux <linux@armlinux.org.uk>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Vineet Gupta <vgupta@synopsys.com>
-> Cc: James Hogan <jhogan@kernel.org>
-> Cc: Paul Burton <paul.burton@mips.com>
-> Cc: Ralf Baechle <ralf@linux-mips.org>
-> Cc: linux-snps-arc@lists.infradead.org
-> Cc: linux-mips@vger.kernel.org
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Cc: sparclinux@vger.kernel.org
-> Cc: x86@kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> 
-> Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
->  mm/Kconfig.debug       |  14 ++
->  mm/Makefile            |   1 +
->  mm/arch_pgtable_test.c | 425 +++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 440 insertions(+)
->  create mode 100644 mm/arch_pgtable_test.c
-> 
-> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-> index 327b3ebf23bf..ce9c397f7b07 100644
-> --- a/mm/Kconfig.debug
-> +++ b/mm/Kconfig.debug
-> @@ -117,3 +117,17 @@ config DEBUG_RODATA_TEST
->      depends on STRICT_KERNEL_RWX
->      ---help---
->        This option enables a testcase for the setting rodata read-only.
-> +
-> +config DEBUG_ARCH_PGTABLE_TEST
-> +	bool "Test arch page table helpers for semantics compliance"
-> +	depends on MMU
-> +	depends on DEBUG_KERNEL
-> +	help
-> +	  This options provides a kernel module which can be used to test
-> +	  architecture page table helper functions on various platform in
-> +	  verifying if they comply with expected generic MM semantics. This
-> +	  will help architectures code in making sure that any changes or
-> +	  new additions of these helpers will still conform to generic MM
-> +	  expected semantics.
-> +
-> +	  If unsure, say N.
-> diff --git a/mm/Makefile b/mm/Makefile
-> index d996846697ef..bb572c5aa8c5 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -86,6 +86,7 @@ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
->  obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
->  obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
->  obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
-> +obj-$(CONFIG_DEBUG_ARCH_PGTABLE_TEST) += arch_pgtable_test.o
->  obj-$(CONFIG_PAGE_OWNER) += page_owner.o
->  obj-$(CONFIG_CLEANCACHE) += cleancache.o
->  obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
-> diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
-> new file mode 100644
-> index 000000000000..f15be8a73723
-> --- /dev/null
-> +++ b/mm/arch_pgtable_test.c
-> @@ -0,0 +1,425 @@
-> +// SPDX-License-Identifier: GPL-2.0-only
-> +/*
-> + * This kernel module validates architecture page table helpers &
-> + * accessors and helps in verifying their continued compliance with
-> + * generic MM semantics.
-> + *
-> + * Copyright (C) 2019 ARM Ltd.
-> + *
-> + * Author: Anshuman Khandual <anshuman.khandual@arm.com>
-> + */
-> +#define pr_fmt(fmt) "arch_pgtable_test: %s " fmt, __func__
-> +
-> +#include <linux/kernel.h>
-> +#include <linux/hugetlb.h>
-> +#include <linux/mm.h>
-> +#include <linux/mman.h>
-> +#include <linux/mm_types.h>
-> +#include <linux/module.h>
-> +#include <linux/printk.h>
-> +#include <linux/swap.h>
-> +#include <linux/swapops.h>
-> +#include <linux/pfn_t.h>
-> +#include <linux/gfp.h>
-> +#include <linux/spinlock.h>
-> +#include <linux/sched/mm.h>
-> +#include <asm/pgalloc.h>
-> +#include <asm/pgtable.h>
-> +
-> +/*
-> + * Basic operations
-> + *
-> + * mkold(entry)			= An old and not a young entry
-> + * mkyoung(entry)		= A young and not an old entry
-> + * mkdirty(entry)		= A dirty and not a clean entry
-> + * mkclean(entry)		= A clean and not a dirty entry
-> + * mkwrite(entry)		= A write and not a write protected entry
-> + * wrprotect(entry)		= A write protected and not a write entry
-> + * pxx_bad(entry)		= A mapped and non-table entry
-> + * pxx_same(entry1, entry2)	= Both entries hold the exact same value
-> + */
-> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
+> Ideally it should
+> have also called access_ok() on the user address range first.
 
-What is special about this address? How do you know if it is not occupied
-yet?
+Not necessary, we've already got a vma and the access to the vma checked.
 
-> +#define VMA_TEST_FLAGS	(VM_READ|VM_WRITE|VM_EXEC)
-> +#define RANDOM_NZVALUE	(0xbe)
-> +
-> +static bool pud_aligned;
-> +static bool pmd_aligned;
-> +
-> +extern struct mm_struct *mm_alloc(void);
-> +
-> +static void pte_basic_tests(struct page *page, pgprot_t prot)
-> +{
-> +	pte_t pte = mk_pte(page, prot);
-> +
-> +	WARN_ON(!pte_same(pte, pte));
-> +	WARN_ON(!pte_young(pte_mkyoung(pte)));
-> +	WARN_ON(!pte_dirty(pte_mkdirty(pte)));
-> +	WARN_ON(!pte_write(pte_mkwrite(pte)));
-> +	WARN_ON(pte_young(pte_mkold(pte)));
-> +	WARN_ON(pte_dirty(pte_mkclean(pte)));
-> +	WARN_ON(pte_write(pte_wrprotect(pte)));
-> +}
-> +
-> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE
-> +static void pmd_basic_tests(struct page *page, pgprot_t prot)
-> +{
-> +	pmd_t pmd;
-> +
-> +	/*
-> +	 * Memory block here must be PMD_SIZE aligned. Abort this
-> +	 * test in case we could not allocate such a memory block.
-> +	 */
-> +	if (!pmd_aligned) {
-> +		pr_warn("Could not proceed with PMD tests\n");
-> +		return;
-> +	}
-> +
-> +	pmd = mk_pmd(page, prot);
-> +	WARN_ON(!pmd_same(pmd, pmd));
-> +	WARN_ON(!pmd_young(pmd_mkyoung(pmd)));
-> +	WARN_ON(!pmd_dirty(pmd_mkdirty(pmd)));
-> +	WARN_ON(!pmd_write(pmd_mkwrite(pmd)));
-> +	WARN_ON(pmd_young(pmd_mkold(pmd)));
-> +	WARN_ON(pmd_dirty(pmd_mkclean(pmd)));
-> +	WARN_ON(pmd_write(pmd_wrprotect(pmd)));
-> +	/*
-> +	 * A huge page does not point to next level page table
-> +	 * entry. Hence this must qualify as pmd_bad().
-> +	 */
-> +	WARN_ON(!pmd_bad(pmd_mkhuge(pmd)));
-> +}
-> +#else
-> +static void pmd_basic_tests(struct page *page, pgprot_t prot) { }
-> +#endif
-> +
-> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-> +static void pud_basic_tests(struct page *page, pgprot_t prot)
-> +{
-> +	pud_t pud;
-> +
-> +	/*
-> +	 * Memory block here must be PUD_SIZE aligned. Abort this
-> +	 * test in case we could not allocate such a memory block.
-> +	 */
-> +	if (!pud_aligned) {
-> +		pr_warn("Could not proceed with PUD tests\n");
-> +		return;
-> +	}
-> +
-> +	pud = pfn_pud(page_to_pfn(page), prot);
-> +	WARN_ON(!pud_same(pud, pud));
-> +	WARN_ON(!pud_young(pud_mkyoung(pud)));
-> +	WARN_ON(!pud_write(pud_mkwrite(pud)));
-> +	WARN_ON(pud_write(pud_wrprotect(pud)));
-> +	WARN_ON(pud_young(pud_mkold(pud)));
-> +
-> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
-> +	/*
-> +	 * A huge page does not point to next level page table
-> +	 * entry. Hence this must qualify as pud_bad().
-> +	 */
-> +	WARN_ON(!pud_bad(pud_mkhuge(pud)));
-> +#endif
-> +}
-> +#else
-> +static void pud_basic_tests(struct page *page, pgprot_t prot) { }
-> +#endif
-> +
-> +static void p4d_basic_tests(struct page *page, pgprot_t prot)
-> +{
-> +	p4d_t p4d;
-> +
-> +	memset(&p4d, RANDOM_NZVALUE, sizeof(p4d_t));
-> +	WARN_ON(!p4d_same(p4d, p4d));
-> +}
-> +
-> +static void pgd_basic_tests(struct page *page, pgprot_t prot)
-> +{
-> +	pgd_t pgd;
-> +
-> +	memset(&pgd, RANDOM_NZVALUE, sizeof(pgd_t));
-> +	WARN_ON(!pgd_same(pgd, pgd));
-> +}
-> +
-> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
-> +static void pud_clear_tests(pud_t *pudp)
-> +{
-> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
-> +	pud_clear(pudp);
-> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
-> +}
-> +
-> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
-> +{
-> +	/*
-> +	 * This entry points to next level page table page.
-> +	 * Hence this must not qualify as pud_bad().
-> +	 */
-> +	pmd_clear(pmdp);
-> +	pud_clear(pudp);
-> +	pud_populate(mm, pudp, pmdp);
-> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
-> +}
-> +#else
-> +static void pud_clear_tests(pud_t *pudp) { }
-> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
-> +{
-> +}
-> +#endif
-> +
-> +#if !defined(__PAGETABLE_PUD_FOLDED) && !defined(__ARCH_HAS_5LEVEL_HACK)
-> +static void p4d_clear_tests(p4d_t *p4dp)
-> +{
-> +	memset(p4dp, RANDOM_NZVALUE, sizeof(p4d_t));
-> +	p4d_clear(p4dp);
-> +	WARN_ON(!p4d_none(READ_ONCE(*p4dp)));
-> +}
-> +
-> +static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
-> +{
-> +	/*
-> +	 * This entry points to next level page table page.
-> +	 * Hence this must not qualify as p4d_bad().
-> +	 */
-> +	pud_clear(pudp);
-> +	p4d_clear(p4dp);
-> +	p4d_populate(mm, p4dp, pudp);
-> +	WARN_ON(p4d_bad(READ_ONCE(*p4dp)));
-> +}
-> +#else
-> +static void p4d_clear_tests(p4d_t *p4dp) { }
-> +static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
-> +{
-> +}
-> +#endif
-> +
-> +#ifndef __PAGETABLE_P4D_FOLDED
-> +static void pgd_clear_tests(pgd_t *pgdp)
-> +{
-> +	memset(pgdp, RANDOM_NZVALUE, sizeof(pgd_t));
-> +	pgd_clear(pgdp);
-> +	WARN_ON(!pgd_none(READ_ONCE(*pgdp)));
-> +}
-> +
-> +static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
-> +{
-> +	/*
-> +	 * This entry points to next level page table page.
-> +	 * Hence this must not qualify as pgd_bad().
-> +	 */
-> +	p4d_clear(p4dp);
-> +	pgd_clear(pgdp);
-> +	pgd_populate(mm, pgdp, p4dp);
-> +	WARN_ON(pgd_bad(READ_ONCE(*pgdp)));
-> +}
-> +#else
-> +static void pgd_clear_tests(pgd_t *pgdp) { }
-> +static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
-> +{
-> +}
-> +#endif
+> The point
+> is that the caller of __copy_from_user_inatomic() must make sure that
+> there cannot be any page fault while doing the actual copy.
 
-This will not work if p4d is folded at runtime. Like for x86-64 and s390.
+When you copy from a user address, in general that's not guaranteed,
+more of a best effort.
 
-Here's the fixup. It should work for both x86-64 and s390, but I only
-tested on x86-64:
+> But also it
+> should be done in generic way, something like in access_ok(). The current
+> proposal here seems very specific to arm64 case.
 
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 52e5f5f2240d..b882792a3999 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -40,6 +40,8 @@ static inline bool pgtable_l5_enabled(void)
- #define pgtable_l5_enabled() 0
- #endif /* CONFIG_X86_5LEVEL */
- 
-+#define mm_p4d_folded(mm) (!pgtable_l5_enabled())
-+
- extern unsigned int pgdir_shift;
- extern unsigned int ptrs_per_p4d;
- 
-diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
-index f15be8a73723..206fe3334a28 100644
---- a/mm/arch_pgtable_test.c
-+++ b/mm/arch_pgtable_test.c
-@@ -193,9 +193,11 @@ static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
- }
- #endif
- 
--#ifndef __PAGETABLE_P4D_FOLDED
- static void pgd_clear_tests(pgd_t *pgdp)
- {
-+	if (mm_p4d_folded(mm))
-+		return;
-+
- 	memset(pgdp, RANDOM_NZVALUE, sizeof(pgd_t));
- 	pgd_clear(pgdp);
- 	WARN_ON(!pgd_none(READ_ONCE(*pgdp)));
-@@ -203,6 +205,9 @@ static void pgd_clear_tests(pgd_t *pgdp)
- 
- static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
- {
-+	if (mm_p4d_folded(mm))
-+		return;
-+
- 	/*
- 	 * This entry points to next level page table page.
- 	 * Hence this must not qualify as pgd_bad().
-@@ -212,12 +217,6 @@ static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
- 	pgd_populate(mm, pgdp, p4dp);
- 	WARN_ON(pgd_bad(READ_ONCE(*pgdp)));
- }
--#else
--static void pgd_clear_tests(pgd_t *pgdp) { }
--static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
--{
--}
--#endif
- 
- static void pte_clear_tests(pte_t *ptep)
- {
-
-> +
-> +static void pte_clear_tests(pte_t *ptep)
-> +{
-> +	memset(ptep, RANDOM_NZVALUE, sizeof(pte_t));
-> +	pte_clear(NULL, 0, ptep);
-> +	WARN_ON(!pte_none(READ_ONCE(*ptep)));
-> +}
-> +
-> +static void pmd_clear_tests(pmd_t *pmdp)
-> +{
-> +	memset(pmdp, RANDOM_NZVALUE, sizeof(pmd_t));
-> +	pmd_clear(pmdp);
-> +	WARN_ON(!pmd_none(READ_ONCE(*pmdp)));
-> +}
-> +
-> +static void pmd_populate_tests(struct mm_struct *mm, pmd_t *pmdp,
-> +			       pgtable_t pgtable)
-> +{
-> +	/*
-> +	 * This entry points to next level page table page.
-> +	 * Hence this must not qualify as pmd_bad().
-> +	 */
-> +	pmd_clear(pmdp);
-> +	pmd_populate(mm, pmdp, pgtable);
-> +	WARN_ON(pmd_bad(READ_ONCE(*pmdp)));
-> +}
-> +
-> +static bool pfn_range_valid(struct zone *z, unsigned long start_pfn,
-> +			    unsigned long nr_pages)
-> +{
-> +	unsigned long i, end_pfn = start_pfn + nr_pages;
-> +	struct page *page;
-> +
-> +	for (i = start_pfn; i < end_pfn; i++) {
-> +		if (!pfn_valid(i))
-> +			return false;
-> +
-> +		page = pfn_to_page(i);
-> +
-> +		if (page_zone(page) != z)
-> +			return false;
-> +
-> +		if (PageReserved(page))
-> +			return false;
-> +
-> +		if (page_count(page) > 0)
-> +			return false;
-> +
-> +		if (PageHuge(page))
-> +			return false;
-> +	}
-> +	return true;
-> +}
-> +
-> +static struct page *alloc_gigantic_page(nodemask_t *nodemask,
-> +					int nid, gfp_t gfp_mask, int order)
-> +{
-> +	struct zonelist *zonelist;
-> +	struct zone *zone;
-> +	struct zoneref *z;
-> +	enum zone_type zonesel;
-> +	unsigned long ret, pfn, flags, nr_pages;
-> +
-> +	nr_pages = 1UL << order;
-> +	zonesel = gfp_zone(gfp_mask);
-> +	zonelist = node_zonelist(nid, gfp_mask);
-> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, zonesel, nodemask) {
-> +		spin_lock_irqsave(&zone->lock, flags);
-> +		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
-> +		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
-> +			if (pfn_range_valid(zone, pfn, nr_pages)) {
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +				ret = alloc_contig_range(pfn, pfn + nr_pages,
-> +							 MIGRATE_MOVABLE,
-> +							 gfp_mask);
-> +				if (!ret)
-> +					return pfn_to_page(pfn);
-> +				spin_lock_irqsave(&zone->lock, flags);
-> +			}
-> +			pfn += nr_pages;
-> +		}
-> +		spin_unlock_irqrestore(&zone->lock, flags);
-> +	}
-> +	return NULL;
-> +}
-> +
-> +static struct page *alloc_mapped_page(void)
-> +{
-> +	gfp_t gfp_mask = GFP_KERNEL | __GFP_ZERO;
-> +	struct page *page = NULL;
-> +
-> +	page = alloc_gigantic_page(&node_states[N_MEMORY], first_memory_node,
-> +				   gfp_mask, get_order(PUD_SIZE));
-> +	if (page) {
-> +		pud_aligned = true;
-> +		pmd_aligned = true;
-> +		return page;
-> +	}
-> +
-> +	page = alloc_pages(gfp_mask, get_order(PMD_SIZE));
-> +	if (page) {
-> +		pmd_aligned = true;
-> +		return page;
-> +	}
-> +	return alloc_page(gfp_mask);
-> +}
-> +
-> +static void free_mapped_page(struct page *page)
-> +{
-> +	if (pud_aligned) {
-> +		unsigned long pfn = page_to_pfn(page);
-> +
-> +		free_contig_range(pfn, 1ULL << get_order(PUD_SIZE));
-> +		return;
-> +	}
-> +
-> +	if (pmd_aligned) {
-> +		int order = get_order(PMD_SIZE);
-> +
-> +		free_pages((unsigned long)page_address(page), order);
-> +		return;
-> +	}
-> +	free_page((unsigned long)page_address(page));
-> +}
-> +
-> +static int __init arch_pgtable_tests_init(void)
-> +{
-> +	struct mm_struct *mm;
-> +	struct page *page;
-> +	pgd_t *pgdp;
-> +	p4d_t *p4dp, *saved_p4dp;
-> +	pud_t *pudp, *saved_pudp;
-> +	pmd_t *pmdp, *saved_pmdp;
-> +	pte_t *ptep, *saved_ptep;
-> +	pgprot_t prot = vm_get_page_prot(VMA_TEST_FLAGS);
-> +	unsigned long vaddr = VADDR_TEST;
-> +
-> +	mm = mm_alloc();
-> +	if (!mm) {
-> +		pr_err("mm_struct allocation failed\n");
-> +		return 1;
-> +	}
-> +
-> +	page = alloc_mapped_page();
-> +	if (!page) {
-> +		pr_err("memory allocation failed\n");
-> +		return 1;
-> +	}
-> +
-> +	pgdp = pgd_offset(mm, vaddr);
-> +	p4dp = p4d_alloc(mm, pgdp, vaddr);
-> +	pudp = pud_alloc(mm, p4dp, vaddr);
-> +	pmdp = pmd_alloc(mm, pudp, vaddr);
-> +	ptep = pte_alloc_map(mm, pmdp, vaddr);
-> +
-> +	/*
-> +	 * Save all the page table page addresses as the page table
-> +	 * entries will be used for testing with random or garbage
-> +	 * values. These saved addresses will be used for freeing
-> +	 * page table pages.
-> +	 */
-> +	saved_p4dp = p4d_offset(pgdp, 0UL);
-> +	saved_pudp = pud_offset(p4dp, 0UL);
-> +	saved_pmdp = pmd_offset(pudp, 0UL);
-> +	saved_ptep = pte_offset_map(pmdp, 0UL);
-> +
-> +	pte_basic_tests(page, prot);
-> +	pmd_basic_tests(page, prot);
-> +	pud_basic_tests(page, prot);
-> +	p4d_basic_tests(page, prot);
-> +	pgd_basic_tests(page, prot);
-> +
-> +	pte_clear_tests(ptep);
-> +	pmd_clear_tests(pmdp);
-> +	pud_clear_tests(pudp);
-> +	p4d_clear_tests(p4dp);
-> +	pgd_clear_tests(pgdp);
-> +
-> +	pmd_populate_tests(mm, pmdp, (pgtable_t) page);
-
-This is not correct for architectures that defines pgtable_t as pte_t
-pointer, not struct page pointer.
-
-> +	pud_populate_tests(mm, pudp, pmdp);
-> +	p4d_populate_tests(mm, p4dp, pudp);
-> +	pgd_populate_tests(mm, pgdp, p4dp);
-
-This is wrong. All p?dp points to the second entry in page table entry.
-This is not valid pointer for page table and triggers p?d_bad() on x86.
-
-Use saved_p?dp instead.
-
-> +
-> +	p4d_free(mm, saved_p4dp);
-> +	pud_free(mm, saved_pudp);
-> +	pmd_free(mm, saved_pmdp);
-> +	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
-> +
-> +	mm_dec_nr_puds(mm);
-> +	mm_dec_nr_pmds(mm);
-> +	mm_dec_nr_ptes(mm);
-> +	__mmdrop(mm);
-> +
-> +	free_mapped_page(page);
-> +	return 0;
-> +}
-> +
-> +static void __exit arch_pgtable_tests_exit(void) { }
-> +
-> +module_init(arch_pgtable_tests_init);
-> +module_exit(arch_pgtable_tests_exit);
-> +
-> +MODULE_LICENSE("GPL v2");
-> +MODULE_AUTHOR("Anshuman Khandual <anshuman.khandual@arm.com>");
-> +MODULE_DESCRIPTION("Test archicture page table helpers");
-> -- 
-> 2.20.1
-> 
-> 
+The commit log didn't explain the problem properly. On arm64 without
+hardware Access Flag, copying from user will fail because the pte is
+old and cannot be marked young. So we always end up with zeroed page
+after fork() + CoW for pfn mappings.
 
 -- 
- Kirill A. Shutemov
+Catalin
 
