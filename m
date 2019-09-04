@@ -2,124 +2,113 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02E85C3A5A8
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:24:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B765FC3A5A7
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:29:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5DD422DBF
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:24:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5DD422DBF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 7AAD1206B8
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:29:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7AAD1206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 636D76B0006; Wed,  4 Sep 2019 10:24:33 -0400 (EDT)
+	id 2893B6B0003; Wed,  4 Sep 2019 10:29:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E7846B0007; Wed,  4 Sep 2019 10:24:33 -0400 (EDT)
+	id 23A546B0006; Wed,  4 Sep 2019 10:29:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5246E6B0008; Wed,  4 Sep 2019 10:24:33 -0400 (EDT)
+	id 1295E6B0007; Wed,  4 Sep 2019 10:29:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0090.hostedemail.com [216.40.44.90])
-	by kanga.kvack.org (Postfix) with ESMTP id 342DD6B0006
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:24:33 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id BAE31180AD804
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:24:32 +0000 (UTC)
-X-FDA: 75897458784.09.rose59_a67ae4650625
-X-HE-Tag: rose59_a67ae4650625
-X-Filterd-Recvd-Size: 4238
-Received: from mailgw02.mediatek.com (unknown [210.61.82.184])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:24:31 +0000 (UTC)
-X-UUID: fe267de637764d1c8c1e2ed01f75eca6-20190904
-X-UUID: fe267de637764d1c8c1e2ed01f75eca6-20190904
-Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw02.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0809 with TLS)
-	with ESMTP id 1751036984; Wed, 04 Sep 2019 22:24:26 +0800
-Received: from mtkcas09.mediatek.inc (172.21.101.178) by
- mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Wed, 4 Sep 2019 22:24:23 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas09.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Wed, 4 Sep 2019 22:24:22 +0800
-Message-ID: <1567607063.32522.24.camel@mtksdccf07>
-Subject: Re: [PATCH 1/2] mm/kasan: dump alloc/free stack for page allocator
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-CC: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
-	<glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
-	<matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
-	<kasan-dev@googlegroups.com>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>, <linux-arm-kernel@lists.infradead.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
-Date: Wed, 4 Sep 2019 22:24:23 +0800
-In-Reply-To: <7998e8f1-e5e2-da84-ea1f-33e696015dce@suse.cz>
-References: <20190904065133.20268-1-walter-zh.wu@mediatek.com>
-	 <401064ae-279d-bef3-a8d5-0fe155d0886d@suse.cz>
-	 <1567605965.32522.14.camel@mtksdccf07>
-	 <7998e8f1-e5e2-da84-ea1f-33e696015dce@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0210.hostedemail.com [216.40.44.210])
+	by kanga.kvack.org (Postfix) with ESMTP id E75506B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:29:04 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 8AC6B82437D2
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:29:04 +0000 (UTC)
+X-FDA: 75897470208.08.art80_3215c4a2d2562
+X-HE-Tag: art80_3215c4a2d2562
+X-Filterd-Recvd-Size: 3005
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:29:04 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B16A0AEF6;
+	Wed,  4 Sep 2019 14:29:02 +0000 (UTC)
+Date: Wed, 4 Sep 2019 16:29:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Thomas Lindroth <thomas.lindroth@gmail.com>, linux-mm@kvack.org
+Subject: Re: [BUG] kmemcg limit defeats __GFP_NOFAIL allocation
+Message-ID: <20190904142902.GZ3838@dhcp22.suse.cz>
+References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
+ <666dbcde-1b8a-9e2d-7d1f-48a117c78ae1@I-love.SAKURA.ne.jp>
+ <ccf79dd9-b2e5-0d78-f520-164d198f9ca4@gmail.com>
+ <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
+ <20190904112500.GO3838@dhcp22.suse.cz>
+ <0056063b-46ff-0ebd-ff0d-c96a1f9ae6b1@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0056063b-46ff-0ebd-ff0d-c96a1f9ae6b1@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-09-04 at 16:13 +0200, Vlastimil Babka wrote:
-> On 9/4/19 4:06 PM, Walter Wu wrote:
-> > On Wed, 2019-09-04 at 14:49 +0200, Vlastimil Babka wrote:
-> >> On 9/4/19 8:51 AM, Walter Wu wrote:
-> >> > This patch is KASAN report adds the alloc/free stacks for page allocator
-> >> > in order to help programmer to see memory corruption caused by page.
-> >> > 
-> >> > By default, KASAN doesn't record alloc/free stack for page allocator.
-> >> > It is difficult to fix up page use-after-free issue.
-> >> > 
-> >> > This feature depends on page owner to record the last stack of pages.
-> >> > It is very helpful for solving the page use-after-free or out-of-bound.
-> >> > 
-> >> > KASAN report will show the last stack of page, it may be:
-> >> > a) If page is in-use state, then it prints alloc stack.
-> >> >    It is useful to fix up page out-of-bound issue.
-> >> 
-> >> I expect this will conflict both in syntax and semantics with my series [1] that
-> >> adds the freeing stack to page_owner when used together with debug_pagealloc,
-> >> and it's now in mmotm. Glad others see the need as well :) Perhaps you could
-> >> review the series, see if it fulfils your usecase (AFAICS the series should be a
-> >> superset, by storing both stacks at once), and perhaps either make KASAN enable
-> >> debug_pagealloc, or turn KASAN into an alternative enabler of the functionality
-> >> there?
-> >> 
-> >> Thanks, Vlastimil
-> >> 
-> >> [1] https://lore.kernel.org/linux-mm/20190820131828.22684-1-vbabka@suse.cz/t/#u
-> >> 
-> > Thanks your information.
-> > We focus on the smartphone, so it doesn't enable
-> > CONFIG_TRANSPARENT_HUGEPAGE, Is it invalid for our usecase?
+On Wed 04-09-19 23:19:31, Tetsuo Handa wrote:
+> On 2019/09/04 20:25, Michal Hocko wrote:
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 9ec5e12486a7..05a4828edf9d 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2820,7 +2820,8 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+> >  		return ret;
+> >  
+> >  	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+> > -	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+> > +	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter) &&
+> > +	    !(gfp_mask & __GFP_NOFAIL)) {
+> >  		cancel_charge(memcg, nr_pages);
+> >  		return -ENOMEM;
+> >  	}
+> > 
 > 
-> The THP fix is not required for the rest of the series, it was even merged to
-> mainline separately.
-> 
-> > And It looks like something is different, because we only need last
-> > stack of page, so it can decrease memory overhead.
-> 
-> That would save you depot_stack_handle_t (which is u32) per page. I guess that's
-> nothing compared to KASAN overhead?
-> 
-If we can use less memory, we can achieve what we want. Why not?
+> With s/gfp_mask/gfp/ applied, I get no crash but got below warning.
+> I don't know relevance with the patch.
 
-Thanks.
-Walter
-
-
+Ohh, right. We are trying to uncharge something that hasn't been charged
+because page_counter_try_charge has failed. So the fix needs to be more
+involved. Sorry, I should have realized that.
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9ec5e12486a7..e18108b2b786 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2821,6 +2821,16 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+ 
+ 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+ 	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
++
++		/*
++		 * Enforce __GFP_NOFAIL allocation because callers are not
++		 * prepared to see failures and likely do not have any failure
++		 * handling code.
++		 */
++		if (gfp & __GFP_NOFAIL) {
++			page_counter_charge(&memcg->kmem, nr_pages);
++			return 0;
++		}
+ 		cancel_charge(memcg, nr_pages);
+ 		return -ENOMEM;
+ 	}
+-- 
+Michal Hocko
+SUSE Labs
 
