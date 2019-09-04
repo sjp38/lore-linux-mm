@@ -2,143 +2,114 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F2BEC3A5A8
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 06:41:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57544C41514
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 06:47:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C860022CF5
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 06:41:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1AC702339D
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 06:47:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FjCcM5Nc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C860022CF5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=ugedal.com header.i=@ugedal.com header.b="fM7h7Ro/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AC702339D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ugedal.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6576F6B0007; Wed,  4 Sep 2019 02:41:51 -0400 (EDT)
+	id 987506B0003; Wed,  4 Sep 2019 02:47:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6086F6B000A; Wed,  4 Sep 2019 02:41:51 -0400 (EDT)
+	id 9393E6B0006; Wed,  4 Sep 2019 02:47:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 51EFD6B000C; Wed,  4 Sep 2019 02:41:51 -0400 (EDT)
+	id 84DB96B0007; Wed,  4 Sep 2019 02:47:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FF776B0007
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 02:41:51 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C0A75181AC9B6
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 06:41:50 +0000 (UTC)
-X-FDA: 75896292780.06.hill22_2d267302fd627
-X-HE-Tag: hill22_2d267302fd627
-X-Filterd-Recvd-Size: 4878
-Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 06:41:50 +0000 (UTC)
-Received: by mail-pg1-f196.google.com with SMTP id i18so10664383pgl.11
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 23:41:50 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0035.hostedemail.com [216.40.44.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 63A056B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 02:47:49 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id EE554180AD801
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 06:47:48 +0000 (UTC)
+X-FDA: 75896307816.22.meal37_6145ca108ca53
+X-HE-Tag: meal37_6145ca108ca53
+X-Filterd-Recvd-Size: 3471
+Received: from mail-lf1-f66.google.com (mail-lf1-f66.google.com [209.85.167.66])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 06:47:48 +0000 (UTC)
+Received: by mail-lf1-f66.google.com with SMTP id x80so3840933lff.3
+        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 23:47:48 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=DMpkUZoYpQuFlQy5IOlVsmVJ1SynRY2j23KVkYnZyyw=;
-        b=FjCcM5NcsALyToL+/efgvC10cKWuqAB0RrY/JdhE1rrAavMTWUVT2Va1pxl4+6dfjc
-         ATNamgIRbZdeqT26YDOWRLRksxuy2GgYbX0gZQwfAaIBWshGqhVn5qlLbphca4ajsMqJ
-         rxOd4uQtu0aFOsIKM8ORWHN/VqnLM7rSY0+Ck0XmrE+7MusNB16oYMpS3HAASXXerExy
-         IENPoRF8Yd8lTFWd09ip1MiqKXWHnNTfTp/WKFt45OYwSc8soXmjAiB99WLWyxVUWfiT
-         dZ4rxmssPdThUID22OHy0Gr3E2X7mWEfm+4BEBmJ2moopZKpSbKYBZcr3IJ56rPFWe73
-         X/sg==
+        d=ugedal.com; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=VCpvUPnGtMaFPkKWpq/J1xLXz67crIRrfnDYom7vI1g=;
+        b=fM7h7Ro/Da9WkUH/yjvTgbmcfpyqgsXqgsXMpf/v288stiaUjSytVzf1AFKEWqfC4Q
+         dfWwvOPgLO1omPbDDVx+9013ZTdWFpJy+eZybOosvQUXXfuCAy5zm+A9++Rmt61Q64tA
+         FgkZNJiV0QABtIiPLAt4+baM6Vs4uyY1iEqdO7WlqvOUIJRo61FsBaU2Li0hhiXJRSGH
+         PldVQeDsENp+y/92d79U0uyGqPPSFEDp+0Lp9hDv4JpUWsSW6cCza/vmv/tcsqbDlAUD
+         9kqc/YZWXoP7yaz2QY9lutn1Pd/34+ZrMiL6R7reWwLkA/haqxNURUGKoSZBZ1OM+DJX
+         Ge4w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=DMpkUZoYpQuFlQy5IOlVsmVJ1SynRY2j23KVkYnZyyw=;
-        b=WaJcA1t1zJJH4FRFoYv9U7/1uL8AGbER0OL/uqiuvqm9h0KaDJqW4DSx/vt+UZ1GBq
-         DRX+JnECPXscCct5jR+uABHHCcvGzadHNiRTZHQibaPWkHeOpDJdbSexJZsFyCBNTrjf
-         C8s3JLOIEUqoIR9+h7AutodLYDD0Wt7nkt6U2INAlLlrDTF8dTdysKPwL/nVeX50Q1bn
-         fp48uVmJjxx9gJVVIqouGI1vNG+Db6KTESRqrWx/TkFiflBAKfk9CQzaaKbpJf6fWCxN
-         QVFYKe0s9Feyw2lUuM4BjxYbmlhNuzDfLEQndV1sYhGNW9/Tx+aPfVkqs+L754ZzWWAS
-         0WcA==
-X-Gm-Message-State: APjAAAX2lVoP4BNyYE7m/E2Llybq6UbwBjvuR6lhy1ACHWbHxu1tcJpB
-	qW7kBRbCA4pR5VbOs6ejSyg=
-X-Google-Smtp-Source: APXvYqyfXC8L7rj1syVBr+7repNVVgjAKOV7Ku9+6MkbERA0AwGQUvVilgxRxmnY29sZeht3XH0xuQ==
-X-Received: by 2002:a62:65c7:: with SMTP id z190mr45930199pfb.9.1567579309211;
-        Tue, 03 Sep 2019 23:41:49 -0700 (PDT)
-Received: from localhost ([175.223.23.37])
-        by smtp.gmail.com with ESMTPSA id e189sm23617073pgc.15.2019.09.03.23.41.47
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=VCpvUPnGtMaFPkKWpq/J1xLXz67crIRrfnDYom7vI1g=;
+        b=q3LNBs6hPubaHbUtaegI9kCyWvXvoyUAv0ck5uU7d83VZUxvhaQ/1Kcyci7r7qg1Dy
+         YwVh35vuslDMaIJ7f/EuWGbp9ahAW4l3nkWhGgFDpkdcO7oOK2lfYHT/NabPr/GnzQqE
+         gIsRu64iiNllaKZTuIUbV7WPqyfFeBIa91xUd9TK7uVvlOeva5agZ89wqxbCtPRoOdh4
+         W4jFYPHfltVubSjkct+8yTzKmKs68+zzwFv8Bp9oAJCh6UEwfl159KlwZLXcgXlcWgHF
+         ZegQc5zMg44RZb10fd9nDQy1SsCdOFjlEuGPn4bIxO/lseAVT1V8R1ZS9DI1Xrg27Gtx
+         fFdg==
+X-Gm-Message-State: APjAAAUxPAM+O0lFv/krKnHAHaldPawDxpdHZwAtwBtLWFn1VwSEZF6e
+	pNc1phxotoXxogCga328pHgBOdAgbI2zkw==
+X-Google-Smtp-Source: APXvYqzfFtKPoonHXM4AZdh4mJOJhhl2Y8xYGA+4gUVPiMpRz4I9lf1kZTJRY4o47kAPlzJLuuUN5w==
+X-Received: by 2002:ac2:4a70:: with SMTP id q16mr9016716lfp.4.1567579666730;
+        Tue, 03 Sep 2019 23:47:46 -0700 (PDT)
+Received: from xps13.wlan.ntnu.no ([2001:700:300:4010:e6a4:71ff:fe46:cbe8])
+        by smtp.gmail.com with ESMTPSA id a20sm3376721lff.78.2019.09.03.23.47.45
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 03 Sep 2019 23:41:48 -0700 (PDT)
-Date: Wed, 4 Sep 2019 15:41:44 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Qian Cai <cai@lca.pw>, Eric Dumazet <eric.dumazet@gmail.com>,
-	davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-Message-ID: <20190904064144.GA5487@jagdpanzerIV>
-References: <1567177025-11016-1-git-send-email-cai@lca.pw>
- <6109dab4-4061-8fee-96ac-320adf94e130@gmail.com>
- <1567178728.5576.32.camel@lca.pw>
- <229ebc3b-1c7e-474f-36f9-0fa603b889fb@gmail.com>
- <20190903132231.GC18939@dhcp22.suse.cz>
- <1567525342.5576.60.camel@lca.pw>
- <20190903185305.GA14028@dhcp22.suse.cz>
- <1567546948.5576.68.camel@lca.pw>
- <20190904061501.GB3838@dhcp22.suse.cz>
+        Tue, 03 Sep 2019 23:47:45 -0700 (PDT)
+From: Odin Ugedal <odin@ugedal.com>
+To: 
+Cc: tj@kernel.org,
+	Odin Ugedal <odin@ugedal.com>,
+	linux-mm@kvack.org (open list:MEMORY MANAGEMENT),
+	linux-kernel@vger.kernel.org (open list)
+Subject: [PATCH] mm,hugetlb_cgroup: Fix typo failcntfile in comment
+Date: Wed,  4 Sep 2019 08:47:09 +0200
+Message-Id: <20190904064711.14490-1-odin@ugedal.com>
+X-Mailer: git-send-email 2.23.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20190904061501.GB3838@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000019, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/04/19 08:15), Michal Hocko wrote:
-> > If you look at the original report, the failed allocation dump_stack(=
-) is,
-> >=20
-> > =A0<IRQ>
-> > =A0warn_alloc.cold.43+0x8a/0x148
-> > =A0__alloc_pages_nodemask+0x1a5c/0x1bb0
-> > =A0alloc_pages_current+0x9c/0x110
-> > =A0allocate_slab+0x34a/0x11f0
-> > =A0new_slab+0x46/0x70
-> > =A0___slab_alloc+0x604/0x950
-> > =A0__slab_alloc+0x12/0x20
-> > =A0kmem_cache_alloc+0x32a/0x400
-> > =A0__build_skb+0x23/0x60
-> > =A0build_skb+0x1a/0xb0
-> > =A0igb_clean_rx_irq+0xafc/0x1010 [igb]
-> > =A0igb_poll+0x4bb/0xe30 [igb]
-> > =A0net_rx_action+0x244/0x7a0
-> > =A0__do_softirq+0x1a0/0x60a
-> > =A0irq_exit+0xb5/0xd0
-> > =A0do_IRQ+0x81/0x170
-> > =A0common_interrupt+0xf/0xf
-> > =A0</IRQ>
-> >=20
-> > Since it has no __GFP_NOWARN to begin with, it will call,
+Change "failcntfile" to "failcnt file"
 
-I think that DEFAULT_RATELIMIT_INTERVAL and DEFAULT_RATELIMIT_BURST
-are good when we ratelimit just a single printk() call, so the ratelimit
-is "max 10 kernel log lines in 5 seconds".
+Signed-off-by: Odin Ugedal <odin@ugedal.com>
+---
+ mm/hugetlb_cgroup.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-But the thing is different in case of dump_stack() + show_mem() +
-some other output. Because now we ratelimit not a single printk() line,
-but hundreds of them. The ratelimit becomes - 10 * $$$ lines in 5 seconds
-(IOW, now we talk about thousands of lines). Significantly more permissiv=
-e
-ratelimiting.
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 68c2f2f3c05b..3b004028c490 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -379,7 +379,7 @@ static void __init __hugetlb_cgroup_file_init(int idx=
+)
+ 	cft->write =3D hugetlb_cgroup_reset;
+ 	cft->read_u64 =3D hugetlb_cgroup_read_u64;
+=20
+-	/* Add the failcntfile */
++	/* Add the failcnt file */
+ 	cft =3D &h->cgroup_files[3];
+ 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.failcnt", buf);
+ 	cft->private  =3D MEMFILE_PRIVATE(idx, RES_FAILCNT);
+--=20
+2.23.0
 
-	-ss
 
