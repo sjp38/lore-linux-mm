@@ -2,193 +2,154 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36CBCC3A59E
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06860C3A59E
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC5BE21726
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="pJ2gHKdG";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="ijbRmKJi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC5BE21726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id B61D721881
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B61D721881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 790B86B0007; Wed,  4 Sep 2019 19:14:00 -0400 (EDT)
+	id 483386B0008; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 740AF6B0008; Wed,  4 Sep 2019 19:14:00 -0400 (EDT)
+	id 433146B000A; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 609AA6B000A; Wed,  4 Sep 2019 19:14:00 -0400 (EDT)
+	id 322AF6B000C; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0010.hostedemail.com [216.40.44.10])
-	by kanga.kvack.org (Postfix) with ESMTP id 407FE6B0007
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:14:00 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id EB5AC824CA3D
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:13:59 +0000 (UTC)
-X-FDA: 75898792998.25.point85_7a1e16967b62d
-X-HE-Tag: point85_7a1e16967b62d
-X-Filterd-Recvd-Size: 10002
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:13:58 +0000 (UTC)
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x84NALdV018693;
-	Wed, 4 Sep 2019 16:13:57 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=4Ul75V30fqg4tJL6AUehuDGJapCIoB5ZrB+HTS8LLpk=;
- b=pJ2gHKdGifN8CNjgU7HV5nuCIIzfX11XJlKcHZM1ax6ypV1uSDfZ0+MCD639VYr9SaI5
- Q8ffYW1o3OYG1MEZx+arnhT12sHPGBLXg9+H6e7nya15X2AORb+HugoAUORjVRJedbLm
- gPixdCfnK5QjfNCWIvchAjgFmqoMj4Jcy0E= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2utkkxrw3b-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 04 Sep 2019 16:13:57 -0700
-Received: from prn-hub04.TheFacebook.com (2620:10d:c081:35::128) by
- prn-hub03.TheFacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 4 Sep 2019 16:13:56 -0700
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.28) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 4 Sep 2019 16:13:55 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=CP8Vy9gCfe6jVZlVq3h2laL28bShAkcIYnoVtqg/m1O+UCYb+B6JYFUpRkfrWVwIjm5Fn3kp/J1j4jpI6mWdK6xvhcs3qoowR5ylEqIrDC7jsahr9wv362rLY428iNR5KOpeMSnYPUKnu7Ny/i3ZIPa4h8pRp+Ff5i2+AK7pHZW16mzzXAwqja9leMP88ezYqlxRfJg2BWIHo0JIA+YQ23ZqHIptp3wOSlly1Yn632/DOChiXIq0UiQkbzk6EoshqiVUg6I6QonuUolU7NrvsDUgG0KP8Phi9Td0JdWdaFA5X9SaC2OtAaOzEUx5uufeMCBnYG3eYTOUiuEzAvG+Dw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4Ul75V30fqg4tJL6AUehuDGJapCIoB5ZrB+HTS8LLpk=;
- b=k64lqFJhVnpK/yOl9Sk4XijnRsWwPiZDI2HXxr7HPNAfSiYrwniyHibGTwKFODuxs7eCIvoE55O4TFnr2AQ2Dqb5wz1dcQSqij1Mk56kAEKys6Qr/yf37ilJNsLZE6ogK+YamRtqFu2Z4tcmFpiMsVbZEYN9uZ23IspzhjPJQcSmxaSFe1tzjg+sibVYX9Z1LomNCEBwJ27rf+1y7IpeXvTc3zL3HkCnVlDzYs9XS4AWYi0BQT9pPJsZdn+eM2m+V9nkHhjlnVKoFCh4ts/pmLp5iQxdjCOVDx/UNGSJtTGwe1UHhmW1risYtZuaA01xEqtYcMXZzCLwWZdWWK2JtQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4Ul75V30fqg4tJL6AUehuDGJapCIoB5ZrB+HTS8LLpk=;
- b=ijbRmKJisfWxcyzK5Y351mYbicHFxusReORY87YCZb366NVHVOckZpGPneVHegf1M9DI0Y/cRefOlTKhb8SxOd6oWeuAhy6q/O9at8kBTDNpwmZcRQUM4Y5UmyHY4ySvJeKFe27cuZcI6vNYqmgUpBJGQYiVt1+MgZtFzWULsNQ=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB3468.namprd15.prod.outlook.com (20.179.48.149) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2220.18; Wed, 4 Sep 2019 23:13:54 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e%3]) with mapi id 15.20.2220.022; Wed, 4 Sep 2019
- 23:13:54 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        "cgroups@vger.kernel.org"
-	<cgroups@vger.kernel.org>,
-        Michal Hocko <mhocko@suse.com>, Johannes Weiner
-	<hannes@cmpxchg.org>
-Subject: Re: [PATCH v1 0/7] mm/memcontrol: recharge mlocked pages
-Thread-Topic: [PATCH v1 0/7] mm/memcontrol: recharge mlocked pages
-Thread-Index: AQHVYygb4ML2nlRWy0qljqLE4Dgc06ccJoIA
-Date: Wed, 4 Sep 2019 23:13:54 +0000
-Message-ID: <20190904231350.GA5246@tower.dhcp.thefacebook.com>
-References: <156760509382.6560.17364256340940314860.stgit@buzz>
-In-Reply-To: <156760509382.6560.17364256340940314860.stgit@buzz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR22CA0035.namprd22.prod.outlook.com
- (2603:10b6:300:69::21) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:9261]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 8ec29334-f3db-4bb4-1fe2-08d7318d8e46
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600166)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:DM6PR15MB3468;
-x-ms-traffictypediagnostic: DM6PR15MB3468:
-x-microsoft-antispam-prvs: <DM6PR15MB34688EC908D5FCCDA9F14471BEB80@DM6PR15MB3468.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 0150F3F97D
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(136003)(376002)(39860400002)(366004)(346002)(189003)(199004)(476003)(486006)(446003)(11346002)(46003)(256004)(8676002)(81156014)(316002)(102836004)(386003)(6506007)(186003)(33656002)(6512007)(53936002)(6486002)(54906003)(9686003)(8936002)(14444005)(4326008)(71200400001)(71190400001)(6246003)(86362001)(229853002)(25786009)(6916009)(6116002)(76176011)(52116002)(6436002)(2906002)(99286004)(66946007)(64756008)(66446008)(14454004)(478600001)(1076003)(7736002)(5660300002)(81166006)(66556008)(66476007)(305945005);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB3468;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: C2e56HbFY+/a8mHr765490FuHJJ2s6Rg/WIqdFaLJGPqkAAId9mNruXp2154h2G7ASXfM6BW03IDOGadXMmUocYAka42ER1X7KNOMFwee2rjvPy0v9CCB4VeRLvTQ00Ji7rrZWkfzldeDj/P2VJfAoQMD6MYJWBRfuLSKwU2/B6MZunWuMgc15+1XWBZamTMlMqrcnl2NZ1YX6U6DREOmXuHclJSK3ys23r7sEdkWSO86lrDQDV7J8AL+QJ0X44zRRSDfc+OJKXvnSUd4YgIzXOc7jdnAlRw4hTOtzF9I97IhLPqO5xV1sAvz0ZtDGEPL0sMVuywMDlgMO9f1P+14jz7PIAqrlwXSFuHKE++AzrPW2XeOlbDMMUZHZJZlHeHO8kPEWed92OSl55IxJUhFRkT+GBdsNiR+4XC7+tfNmw=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <59294D3005729C4181703E55A0E5DA85@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DFDE6B0008
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id ACFD12C96
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:14:11 +0000 (UTC)
+X-FDA: 75898793502.26.glass54_7bbc97421d221
+X-HE-Tag: glass54_7bbc97421d221
+X-Filterd-Recvd-Size: 6829
+Received: from mga04.intel.com (mga04.intel.com [192.55.52.120])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:14:10 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Sep 2019 16:14:08 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,468,1559545200"; 
+   d="scan'208";a="187784257"
+Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
+  by orsmga006.jf.intel.com with ESMTP; 04 Sep 2019 16:14:08 -0700
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Matthew Wilcox <willy@infradead.org>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org,
+ "Shutemov, Kirill" <kirill.shutemov@intel.com>
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+ <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <3b67e4d8-ba67-e7b2-f4d1-1276262d349e@intel.com>
+Date: Wed, 4 Sep 2019 16:14:08 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 8ec29334-f3db-4bb4-1fe2-08d7318d8e46
-X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Sep 2019 23:13:54.6342
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: J/wqnvY0MdP4D4+gNgsu4mazdmv7rS8soYR/HeOiNtyTeZgukuQL4gmDN0NY94Ae
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB3468
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:6.0.70,1.0.8
- definitions=2019-09-04_06:2019-09-04,2019-09-04 signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 malwarescore=0
- lowpriorityscore=0 spamscore=0 priorityscore=1501 phishscore=0
- mlxlogscore=999 mlxscore=0 clxscore=1015 adultscore=0 suspectscore=0
- impostorscore=0 bulkscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.12.0-1906280000 definitions=main-1909040225
-X-FB-Internal: deliver
+In-Reply-To: <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 04, 2019 at 04:53:08PM +0300, Konstantin Khlebnikov wrote:
-> Currently mlock keeps pages in cgroups where they were accounted.
-> This way one container could affect another if they share file cache.
-> Typical case is writing (downloading) file in one container and then
-> locking in another. After that first container cannot get rid of cache.
+On 9/3/19 1:01 AM, Anshuman Khandual wrote:
+> This adds a test module which will validate architecture page table hel=
+pers
+> and accessors regarding compliance with generic MM semantics expectatio=
+ns.
+> This will help various architectures in validating changes to the exist=
+ing
+> page table helpers or addition of new ones.
 
-Yeah, it's a valid problem, and it's not about mlocked pages only,
-the same thing is true for generic pagecache. The only difference is that
-in theory memory pressure should fix everything. But in reality
-pagecache used by the second container can be very hot, so the first
-once can't really get rid of it.
-In other words, there is no way to pass a pagecache page between cgroups
-without evicting it and re-reading from a storage, which is sub-optimal
-in many cases.
+This looks really cool.  The "only" complication on x86 is the large
+number of compile and runtime options that we have.  When this gets
+merged, it would be really nice to make sure that the 0day guys have
+good coverage of all the configurations.
 
-We thought about new madvise(), which will uncharge pagecache but set
-a new page flag, which will mean something like "whoever first starts using
-the page, should be charged for it". But it never materialized in a patchse=
-t.
-
-> Also removed cgroup stays pinned by these mlocked pages.
-
-Tbh, I don't think it's a big issue here. If only there is a huge number
-of 1-page sized mlock areas, but this seems to be unlikely.
-
->=20
-> This patchset implements recharging pages to cgroup of mlock user.
->=20
-> There are three cases:
-> * recharging at first mlock
-> * recharging at munlock to any remaining mlock
-> * recharging at 'culling' in reclaimer to any existing mlock
->=20
-> To keep things simple recharging ignores memory limit. After that memory
-> usage temporary could be higher than limit but cgroup will reclaim memory
-> later or trigger oom, which is valid outcome when somebody mlock too much=
-.
-
-OOM is a concern here. If quitting an application will cause an immediate O=
-OM
-in an other cgroup, that's not so good. Ideally it should work like
-memory.high, forcing all threads in the second cgroup into direct reclaim.
-
-Thanks!
+I'm not _quite_ sure what kind of bugs it will catch on x86 and I
+suspect it'll have more value for the other architectures, but it seems
+harmless enough.
 
