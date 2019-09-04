@@ -2,160 +2,158 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8FEBC3A5AB
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:44:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32A7EC3A5AB
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:54:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8742022CED
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:44:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8742022CED
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id E98A721883
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:54:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="lL5TlUCt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E98A721883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CEDB6B0003; Wed,  4 Sep 2019 16:44:55 -0400 (EDT)
+	id 7F7676B0003; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27F2A6B0006; Wed,  4 Sep 2019 16:44:55 -0400 (EDT)
+	id 7A8976B0006; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16EEE6B0007; Wed,  4 Sep 2019 16:44:55 -0400 (EDT)
+	id 6BEBD6B0007; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0145.hostedemail.com [216.40.44.145])
-	by kanga.kvack.org (Postfix) with ESMTP id EA47F6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:44:54 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 8CE28180AD802
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:44:54 +0000 (UTC)
-X-FDA: 75898417308.02.knife15_8213f869bc248
-X-HE-Tag: knife15_8213f869bc248
-X-Filterd-Recvd-Size: 7227
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:44:53 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B19D4AD5D;
-	Wed,  4 Sep 2019 20:44:52 +0000 (UTC)
-Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: zhong jiang <zhongjiang@huawei.com>, mhocko@kernel.org,
- anshuman.khandual@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Ira Weiny <ira.weiny@intel.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
- <5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
- <20190904120159.d4026b573f419838d77e991d@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <8817c107-71d9-e47c-8dba-5f7eea30a140@suse.cz>
-Date: Wed, 4 Sep 2019 22:44:51 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0112.hostedemail.com [216.40.44.112])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C55F6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id C6FF4180AD801
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:54:49 +0000 (UTC)
+X-FDA: 75898442298.01.grade47_4736d83212229
+X-HE-Tag: grade47_4736d83212229
+X-Filterd-Recvd-Size: 5643
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:54:49 +0000 (UTC)
+Received: by mail-io1-f66.google.com with SMTP id h144so32131120iof.7
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 13:54:49 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=vXwoIRD/HomfAGA3enlPIWun5YO8zmnB2AFzW0Iniws=;
+        b=lL5TlUCtshbicXBX7o8SDAZtZAKYXC6ca2f5A9ldF6R14qEtWGy99KueQps418Znq9
+         nw1RLiYAkb29C6Cfvhf3pDnBrnOMftTxL0cYvm/oCqZOub6VMXqVfVa2aWTgjSr4r4gj
+         8MPzqz7MtWfwJUNQo6KkZ7T76dRaxG/HeGS4IoscFtXW3YiOUivL81MJNqyOmTtrXfBt
+         FEP+y4hCVNmDxZ1WzytKXQkbjsItc+aiZlQ5r32sAp8B+XE3wc1ogHHQaB3hdPCP7KzD
+         fF+6ITHH/T4LiOKChbaM11LaRBRmjfa66V0sB+gCbPI1l5aDRVuBbn6GWlOoZa6zD2tK
+         SenA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=vXwoIRD/HomfAGA3enlPIWun5YO8zmnB2AFzW0Iniws=;
+        b=RefOG+sy2YJqNvDgYO+mle6oB5BxZikCG7XzsiNF6hMbbpGAulzTdr6lnCFHJ0Opp5
+         4w0tNIT4t29wWRoBI1LrelhaKjXOAPNQapyndJqPhFq+uxv0XKxOwe/6Mg+2NVxOFDXi
+         3QO4zL5bB6c+1GkBG3B6TloUubhM7XkCc1eRzhYvxTyogsm3TLnPFsL9Rlk4E+JnyA72
+         eAIzYvSj+G9yZkRG28efF2I/qKcJFK/5Dd2178UBa50bfUyaGdzdZS3n8F4jw0s5CpBv
+         7fqCAL8vzv+GvPcSLN73LwvUntNbgyee18/zB7x2gBu4dk1Haw69R3RZDq+e68R6/us+
+         ECag==
+X-Gm-Message-State: APjAAAU09qUDZwz4LVO48G5n5GWrZo5ldsNwa2qNXSO0idToyciEsSsH
+	Wl5sWGPB/YCwe3XV9JFZpa8kTg==
+X-Google-Smtp-Source: APXvYqw87BnjWR9GdN8CRA7xMoVsDrp0wOKoOFPjmTBeJqSfmuF9wzp9tZO06jjNNw9zgpEiqOgfrA==
+X-Received: by 2002:a5e:9813:: with SMTP id s19mr2214175ioj.263.1567630488336;
+        Wed, 04 Sep 2019 13:54:48 -0700 (PDT)
+Received: from google.com ([2620:15c:183:0:9f3b:444a:4649:ca05])
+        by smtp.gmail.com with ESMTPSA id j26sm36426ioe.18.2019.09.04.13.54.47
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 04 Sep 2019 13:54:47 -0700 (PDT)
+Date: Wed, 4 Sep 2019 14:54:43 -0600
+From: Yu Zhao <yuzhao@google.com>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Will Deacon <will@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
+	Dave Airlie <airlied@redhat.com>,
+	Thomas Hellstrom <thellstrom@vmware.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: replace is_zero_pfn with is_huge_zero_pmd for thp
+Message-ID: <20190904205443.GA70057@google.com>
+References: <20190825200621.211494-1-yuzhao@google.com>
+ <20190826131858.GB15933@bombadil.infradead.org>
+ <20190826170934.7c2f4340@thinkpad>
 MIME-Version: 1.0
-In-Reply-To: <20190904120159.d4026b573f419838d77e991d@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190826170934.7c2f4340@thinkpad>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/4/19 9:01 PM, Andrew Morton wrote:
-> On Wed, 4 Sep 2019 13:24:58 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Mon, Aug 26, 2019 at 05:09:34PM +0200, Gerald Schaefer wrote:
+> On Mon, 26 Aug 2019 06:18:58 -0700
+> Matthew Wilcox <willy@infradead.org> wrote:
 > 
->> On 9/4/19 12:26 PM, zhong jiang wrote:
->>> With the help of unsigned_lesser_than_zero.cocci. Unsigned 'nr_pages"'
->>> compare with zero. And __get_user_pages_locked will return an long value.
->>> Hence, Convert the long to compare with zero is feasible.
->>
->> It would be nicer if the parameter nr_pages was long again instead of unsigned
->> long (note there are two variants of the function, so both should be changed).
->>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>
->> Fixes: 932f4a630a69 ("mm/gup: replace get_user_pages_longterm() with FOLL_LONGTERM")
->>
->> (which changed long to unsigned long)
->>
->> AFAICS... stable shouldn't be needed as the only "risk" is that we goto
->> check_again even when we fail, which should be harmless.
->>
+> > Why did you not cc Gerald who wrote the patch?  You can't just
+> > run get_maintainers.pl and call it good.
+> > 
+> > On Sun, Aug 25, 2019 at 02:06:21PM -0600, Yu Zhao wrote:
+> > > For hugely mapped thp, we use is_huge_zero_pmd() to check if it's
+> > > zero page or not.
+> > > 
+> > > We do fill ptes with my_zero_pfn() when we split zero thp pmd, but
+> > >  this is not what we have in vm_normal_page_pmd().
+> > > pmd_trans_huge_lock() makes sure of it.
+> > > 
+> > > This is a trivial fix for /proc/pid/numa_maps, and AFAIK nobody
+> > > complains about it.
+> > > 
+> > > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> > > ---
+> > >  mm/memory.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index e2bb51b6242e..ea3c74855b23 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -654,7 +654,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+> > >  
+> > >  	if (pmd_devmap(pmd))
+> > >  		return NULL;
+> > > -	if (is_zero_pfn(pfn))
+> > > +	if (is_huge_zero_pmd(pmd))
+> > >  		return NULL;
+> > >  	if (unlikely(pfn > highest_memmap_pfn))
+> > >  		return NULL;
+> > > -- 
+> > > 2.23.0.187.g17f5b7556c-goog
+> > >   
 > 
-> Really?  If nr_pages gets a value of -EFAULT from the
-> __get_user_pages_locked() call, check_and_migrate_cma_pages() will go
-> berzerk?
+> Looks good to me. The "_pmd" versions for can_gather_numa_stats() and
+> vm_normal_page() were introduced to avoid using pte_present/dirty() on
+> pmds, which is not affected by this patch.
+> 
+> In fact, for vm_normal_page_pmd() I basically copied most of the code
+> from vm_normal_page(), including the is_zero_pfn(pfn) check, which does
+> look wrong to me now. Using is_huge_zero_pmd() should be correct.
+> 
+> Maybe the description could also mention the symptom of this bug?
+> I would assume that it affects anon/dirty accounting in gather_pte_stats(),
+> for huge mappings, if zero page mappings are not correctly recognized.
 
-Hmm it should only reach that goto when it migrated something, which
-means it won't have to be migrated again, so eventually it should
-terminate. But it's very subtle, so I might be wrong.
-
-> And does __get_user_pages_locked() correctly handle a -ve errno
-> returned by __get_user_pages()?  It's hard to see how...
-
-I think it does, but agree.
-
+Hi, sorry for not copying you on the original email. I came across
+this while I was looking at the code. I'm not aware of any symptom.
+Thank you.
 
