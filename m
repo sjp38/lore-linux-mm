@@ -2,188 +2,233 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B20B7C41514
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:15:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BA11C3A5A9
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:16:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 73F6E23401
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:15:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73F6E23401
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0B6D322CF5
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:16:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B6D322CF5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EAB16B0003; Wed,  4 Sep 2019 16:15:11 -0400 (EDT)
+	id AFC266B0006; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 072EE6B0006; Wed,  4 Sep 2019 16:15:11 -0400 (EDT)
+	id AAABE6B0007; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA32F6B0007; Wed,  4 Sep 2019 16:15:10 -0400 (EDT)
+	id 972756B0008; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
-	by kanga.kvack.org (Postfix) with ESMTP id C15E86B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:15:10 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 6122F181AC9B4
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:15:10 +0000 (UTC)
-X-FDA: 75898342380.17.smile03_ff3e6a674542
-X-HE-Tag: smile03_ff3e6a674542
-X-Filterd-Recvd-Size: 6431
-Received: from mga11.intel.com (mga11.intel.com [192.55.52.93])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:15:09 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Sep 2019 13:15:08 -0700
-X-IronPort-AV: E=Sophos;i="5.64,468,1559545200"; 
-   d="scan'208";a="187738920"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga006-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Sep 2019 13:15:07 -0700
-Message-ID: <d451a4b08bfe5fc6ccc60b85d229baf011a37809.camel@linux.intel.com>
-Subject: Re: [PATCH v7 6/6] virtio-balloon: Add support for providing unused
- page reports to host
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, 
- dave.hansen@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, 
- mhocko@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, 
- virtio-dev@lists.oasis-open.org, osalvador@suse.de,
- yang.zhang.wz@gmail.com,  pagupta@redhat.com, riel@surriel.com,
- konrad.wilk@oracle.com,  lcapitulino@redhat.com, wei.w.wang@intel.com,
- aarcange@redhat.com,  pbonzini@redhat.com, dan.j.williams@intel.com
-Date: Wed, 04 Sep 2019 13:15:07 -0700
-In-Reply-To: <20190904151506-mutt-send-email-mst@kernel.org>
-References: <20190904150920.13848.32271.stgit@localhost.localdomain>
-	 <20190904151102.13848.65770.stgit@localhost.localdomain>
-	 <20190904151506-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF666B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:16:36 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id F1E4D1F1F
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:16:35 +0000 (UTC)
+X-FDA: 75898345950.27.park23_1c6f80aa70a31
+X-HE-Tag: park23_1c6f80aa70a31
+X-Filterd-Recvd-Size: 8696
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:16:35 +0000 (UTC)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x84KC61E040917
+	for <linux-mm@kvack.org>; Wed, 4 Sep 2019 16:16:34 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2utjrp2xwj-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 04 Sep 2019 16:16:33 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Wed, 4 Sep 2019 21:16:30 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 4 Sep 2019 21:16:21 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x84KGKlh51314888
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 4 Sep 2019 20:16:20 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7DEAAAE045;
+	Wed,  4 Sep 2019 20:16:20 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 50121AE04D;
+	Wed,  4 Sep 2019 20:16:19 +0000 (GMT)
+Received: from thinkpad (unknown [9.152.96.45])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed,  4 Sep 2019 20:16:19 +0000 (GMT)
+Date: Wed, 4 Sep 2019 22:16:18 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+        Vlastimil
+ Babka <vbabka@suse.cz>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Thomas Gleixner <tglx@linutronix.de>,
+        Mike Rapoport
+ <rppt@linux.vnet.ibm.com>,
+        Jason Gunthorpe <jgg@ziepe.ca>,
+        Dan Williams
+ <dan.j.williams@intel.com>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Michal
+ Hocko <mhocko@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
+        Mark Brown
+ <broonie@kernel.org>, Steven Price <Steven.Price@arm.com>,
+        Ard Biesheuvel
+ <ard.biesheuvel@linaro.org>,
+        Masahiro Yamada
+ <yamada.masahiro@socionext.com>,
+        Kees Cook <keescook@chromium.org>,
+        Tetsuo
+ Handa <penguin-kernel@i-love.sakura.ne.jp>,
+        Matthew Wilcox
+ <willy@infradead.org>,
+        Sri Krishna chowdary <schowdary@nvidia.com>,
+        Dave
+ Hansen <dave.hansen@intel.com>,
+        Russell King - ARM Linux
+ <linux@armlinux.org.uk>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        Paul
+ Mackerras <paulus@samba.org>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        "David S. Miller"
+ <davem@davemloft.net>,
+        Vineet Gupta <vgupta@synopsys.com>, James Hogan
+ <jhogan@kernel.org>,
+        Paul Burton <paul.burton@mips.com>,
+        Ralf Baechle
+ <ralf@linux-mips.org>,
+        linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+In-Reply-To: <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+	<1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19090420-0020-0000-0000-00000367C323
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19090420-0021-0000-0000-000021BD3453
+Message-Id: <20190904221618.1b624a98@thinkpad>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-04_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909040202
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-09-04 at 15:17 -0400, Michael S. Tsirkin wrote:
-> On Wed, Sep 04, 2019 at 08:11:02AM -0700, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > 
-> > Add support for the page reporting feature provided by virtio-balloon.
-> > Reporting differs from the regular balloon functionality in that is is
-> > much less durable than a standard memory balloon. Instead of creating a
-> > list of pages that cannot be accessed the pages are only inaccessible
-> > while they are being indicated to the virtio interface. Once the
-> > interface has acknowledged them they are placed back into their respective
-> > free lists and are once again accessible by the guest system.
-> > 
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > ---
-> >  drivers/virtio/Kconfig              |    1 +
-> >  drivers/virtio/virtio_balloon.c     |   65 +++++++++++++++++++++++++++++++++++
-> >  include/uapi/linux/virtio_balloon.h |    1 +
-> >  3 files changed, 67 insertions(+)
-> > 
-> > diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-> > index 078615cf2afc..4b2dd8259ff5 100644
-> > --- a/drivers/virtio/Kconfig
-> > +++ b/drivers/virtio/Kconfig
-> > @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
-> >  	tristate "Virtio balloon driver"
-> >  	depends on VIRTIO
-> >  	select MEMORY_BALLOON
-> > +	select PAGE_REPORTING
-> >  	---help---
-> >  	 This driver supports increasing and decreasing the amount
-> >  	 of memory within a KVM guest.
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index 2c19457ab573..0b400bb382c0 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -19,6 +19,7 @@
-> >  #include <linux/mount.h>
-> >  #include <linux/magic.h>
-> >  #include <linux/pseudo_fs.h>
-> > +#include <linux/page_reporting.h>
-> >  
-> >  /*
-> >   * Balloon device works in 4K page units.  So each page is pointed to by
-> > @@ -37,6 +38,9 @@
-> >  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
-> >  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
-> >  
-> > +/*  limit on the number of pages that can be on the reporting vq */
-> > +#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
-> > +
-> >  #ifdef CONFIG_BALLOON_COMPACTION
-> >  static struct vfsmount *balloon_mnt;
-> >  #endif
-> > @@ -46,6 +50,7 @@ enum virtio_balloon_vq {
-> >  	VIRTIO_BALLOON_VQ_DEFLATE,
-> >  	VIRTIO_BALLOON_VQ_STATS,
-> >  	VIRTIO_BALLOON_VQ_FREE_PAGE,
-> > +	VIRTIO_BALLOON_VQ_REPORTING,
-> >  	VIRTIO_BALLOON_VQ_MAX
-> >  };
-> >  
-> > @@ -113,6 +118,10 @@ struct virtio_balloon {
-> >  
-> >  	/* To register a shrinker to shrink memory upon memory pressure */
-> >  	struct shrinker shrinker;
-> > +
-> > +	/* Unused page reporting device */
-> > +	struct virtqueue *reporting_vq;
-> > +	struct page_reporting_dev_info ph_dev_info;
-> >  };
-> >  
-> >  static struct virtio_device_id id_table[] = {
-> > @@ -152,6 +161,32 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-> >  
-> >  }
-> >  
-> > +void virtballoon_unused_page_report(struct page_reporting_dev_info *ph_dev_info,
-> > +				    unsigned int nents)
-> > +{
-> > +	struct virtio_balloon *vb =
-> > +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
-> > +	struct virtqueue *vq = vb->reporting_vq;
-> > +	unsigned int unused, err;
-> > +
-> > +	/* We should always be able to add these buffers to an empty queue. */
-> > +	err = virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
-> > +				  GFP_NOWAIT | __GFP_NOWARN);
-> > +
-> > +	/*
-> > +	 * In the extremely unlikely case that something has changed and we
-> > +	 * are able to trigger an error we will simply display a warning
-> > +	 * and exit without actually processing the pages.
-> > +	 */
-> > +	if (WARN_ON(err))
-> > +		return;
-> > +
-> > +	virtqueue_kick(vq);
-> > +
-> > +	/* When host has read buffer, this completes via balloon_ack */
-> > +	wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
-> > +}
-> > +
+On Tue,  3 Sep 2019 13:31:46 +0530
+Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+
+> This adds a test module which will validate architecture page table helpers
+> and accessors regarding compliance with generic MM semantics expectations.
+> This will help various architectures in validating changes to the existing
+> page table helpers or addition of new ones.
 > 
-> So just to make sure I understand, this always passes a single
-> buf to the vq and then waits until that completes, correct?
+> Test page table and memory pages creating it's entries at various level are
+> all allocated from system memory with required alignments. If memory pages
+> with required size and alignment could not be allocated, then all depending
+> individual tests are skipped.
 
-Correct.
+This looks very useful, thanks. Of course, s390 is quite special and does
+not work nicely with this patch (yet), mostly because of our dynamic page
+table levels/folding. Still need to figure out what can be fixed in the arch
+code and what would need to be changed in the test module. See below for some
+generic comments/questions.
 
-> Thus there are never outstanding bufs on the vq and this
-> is why we don't need e.g. any cleanup.
+At least one real bug in the s390 code was already revealed by this, which
+is very nice. In pmd/pud_bad(), we also check large pmds/puds for sanity,
+instead of reporting them as bad, which is apparently not how it is expected.
 
-Yes. Basically this will wait until the queue has been processed by the
-host before we process any additional pages. We can't have the pages in an
-unknown state when we put them back so we have to wait here until we know
-they have been fully reported to the host.
+[...]
+> +/*
+> + * Basic operations
+> + *
+> + * mkold(entry)			= An old and not a young entry
+> + * mkyoung(entry)		= A young and not an old entry
+> + * mkdirty(entry)		= A dirty and not a clean entry
+> + * mkclean(entry)		= A clean and not a dirty entry
+> + * mkwrite(entry)		= A write and not a write protected entry
+> + * wrprotect(entry)		= A write protected and not a write entry
+> + * pxx_bad(entry)		= A mapped and non-table entry
+> + * pxx_same(entry1, entry2)	= Both entries hold the exact same value
+> + */
+> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
+
+Why is P4D_SIZE missing in the VADDR_TEST calculation?
+
+[...]
+> +
+> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
+> +static void pud_clear_tests(pud_t *pudp)
+> +{
+> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+> +	pud_clear(pudp);
+> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+> +}
+
+For pgd/p4d/pud_clear(), we only clear if the page table level is present
+and not folded. The memset() here overwrites the table type bits, so
+pud_clear() will not clear anything on s390 and the pud_none() check will
+fail.
+Would it be possible to OR a (larger) random value into the table, so that
+the lower 12 bits would be preserved?
+
+> +
+> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
+> +{
+> +	/*
+> +	 * This entry points to next level page table page.
+> +	 * Hence this must not qualify as pud_bad().
+> +	 */
+> +	pmd_clear(pmdp);
+> +	pud_clear(pudp);
+> +	pud_populate(mm, pudp, pmdp);
+> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
+> +}
+
+This will populate the pud with a pmd pointer that does not point to the
+beginning of the pmd table, but to the second entry (because of how
+VADDR_TEST is constructed). This will result in failing pud_bad() check
+on s390. Not sure why/how it works on other archs, but would it be possible
+to align pmdp down to the beginning of the pmd table (and similar for the
+other pxd_populate_tests)?
+
+[...]
+> +
+> +	p4d_free(mm, saved_p4dp);
+> +	pud_free(mm, saved_pudp);
+> +	pmd_free(mm, saved_pmdp);
+> +	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
+
+pgtable_t is arch-specific, and on s390 it is not a struct page pointer,
+but a pte pointer. So this will go wrong, also on all other archs (if any)
+where pgtable_t is not struct page.
+Would it be possible to use pte_free_kernel() instead, and just pass
+saved_ptep directly?
+
+Regards,
+Gerald
 
 
