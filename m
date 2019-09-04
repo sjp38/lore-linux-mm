@@ -2,101 +2,110 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EFF5C3A5A8
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 11:25:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E7F0C3A5A7
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 11:25:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E5E122CED
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 11:25:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E5E122CED
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id D244722CED
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 11:25:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D244722CED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A40226B0003; Wed,  4 Sep 2019 07:25:02 -0400 (EDT)
+	id 5FB736B0006; Wed,  4 Sep 2019 07:25:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F0B16B0006; Wed,  4 Sep 2019 07:25:02 -0400 (EDT)
+	id 55E786B0007; Wed,  4 Sep 2019 07:25:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 905986B0007; Wed,  4 Sep 2019 07:25:02 -0400 (EDT)
+	id 425B86B0008; Wed,  4 Sep 2019 07:25:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AB736B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:25:02 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id CC81C40EE
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 11:25:01 +0000 (UTC)
-X-FDA: 75897006402.26.girl89_2bdaa37b10105
-X-HE-Tag: girl89_2bdaa37b10105
-X-Filterd-Recvd-Size: 2445
+Received: from forelay.hostedemail.com (smtprelay0029.hostedemail.com [216.40.44.29])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED116B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:25:04 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 8176E99B2
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 11:25:03 +0000 (UTC)
+X-FDA: 75897006486.28.pin23_2c19b4565692f
+X-HE-Tag: pin23_2c19b4565692f
+X-Filterd-Recvd-Size: 2726
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 11:25:01 +0000 (UTC)
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 11:25:02 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9693EB049;
-	Wed,  4 Sep 2019 11:24:59 +0000 (UTC)
-Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
-To: zhong jiang <zhongjiang@huawei.com>, akpm@linux-foundation.org,
- mhocko@kernel.org
-Cc: anshuman.khandual@arm.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Ira Weiny <ira.weiny@intel.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
-Date: Wed, 4 Sep 2019 13:24:58 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+	by mx1.suse.de (Postfix) with ESMTP id A3B9CAFDB;
+	Wed,  4 Sep 2019 11:25:01 +0000 (UTC)
+Date: Wed, 4 Sep 2019 13:25:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Thomas Lindroth <thomas.lindroth@gmail.com>, linux-mm@kvack.org
+Subject: Re: [BUG] kmemcg limit defeats __GFP_NOFAIL allocation
+Message-ID: <20190904112500.GO3838@dhcp22.suse.cz>
+References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
+ <666dbcde-1b8a-9e2d-7d1f-48a117c78ae1@I-love.SAKURA.ne.jp>
+ <ccf79dd9-b2e5-0d78-f520-164d198f9ca4@gmail.com>
+ <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/4/19 12:26 PM, zhong jiang wrote:
-> With the help of unsigned_lesser_than_zero.cocci. Unsigned 'nr_pages"'
-> compare with zero. And __get_user_pages_locked will return an long value.
-> Hence, Convert the long to compare with zero is feasible.
+On Wed 04-09-19 18:36:06, Tetsuo Handa wrote:
+[...]
+> The first bug is that __memcg_kmem_charge_memcg() in mm/memcontrol.c is
+> failing to return 0 when it is a __GFP_NOFAIL allocation request.
+> We should ignore limits when it is a __GFP_NOFAIL allocation request.
 
-It would be nicer if the parameter nr_pages was long again instead of unsigned
-long (note there are two variants of the function, so both should be changed).
-
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-
-Fixes: 932f4a630a69 ("mm/gup: replace get_user_pages_longterm() with FOLL_LONGTERM")
-
-(which changed long to unsigned long)
-
-AFAICS... stable shouldn't be needed as the only "risk" is that we goto
-check_again even when we fail, which should be harmless.
-
-Vlastimil
-
-> ---
->  mm/gup.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+OK, fixing that sounds like a reasonable thing to do.
+ 
+> If we force __memcg_kmem_charge_memcg() to return 0, then
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 23a9f9c..956d5a1 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1508,7 +1508,7 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
->  						   pages, vmas, NULL,
->  						   gup_flags);
->  
-> -		if ((nr_pages > 0) && migrate_allow) {
-> +		if (((long)nr_pages > 0) && migrate_allow) {
->  			drain_allow = true;
->  			goto check_again;
->  		}
+> ----------
+>         struct page_counter *counter;
+>         int ret;
 > 
+> +       if (gfp & __GFP_NOFAIL)
+> +               return 0;
+> +
+>         ret = try_charge(memcg, gfp, nr_pages);
+>         if (ret)
+>                 return ret;
+> ----------
 
+This should be more likely something like
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9ec5e12486a7..05a4828edf9d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2820,7 +2820,8 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+ 		return ret;
+ 
+ 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+-	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
++	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter) &&
++	    !(gfp_mask & __GFP_NOFAIL)) {
+ 		cancel_charge(memcg, nr_pages);
+ 		return -ENOMEM;
+ 	}
+
+> the second bug that alloc_slabmgmt() in mm/slab.c is returning NULL
+> when it is a __GFP_NOFAIL allocation request will appear.
+> I don't know how to handle this.
+
+I am sorry, I do not follow, why would alloc_slabmgmt return NULL
+with forcing gfp_nofail charges?
+-- 
+Michal Hocko
+SUSE Labs
 
