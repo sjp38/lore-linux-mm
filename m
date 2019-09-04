@@ -2,137 +2,165 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04164C3A5A7
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 07:19:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EC5BC3A5A8
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 07:20:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD6842339D
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 07:19:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kAd/S4It"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD6842339D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 77C802339E
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 07:20:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77C802339E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5035E6B0003; Wed,  4 Sep 2019 03:19:18 -0400 (EDT)
+	id 10BA36B0006; Wed,  4 Sep 2019 03:20:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B32E6B0006; Wed,  4 Sep 2019 03:19:18 -0400 (EDT)
+	id 0E2786B0007; Wed,  4 Sep 2019 03:20:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3C9166B0007; Wed,  4 Sep 2019 03:19:18 -0400 (EDT)
+	id EEC186B0008; Wed,  4 Sep 2019 03:20:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
-	by kanga.kvack.org (Postfix) with ESMTP id 1612C6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:19:18 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 76276181AC9B6
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:19:17 +0000 (UTC)
-X-FDA: 75896387154.12.screw51_51104ae65f31b
-X-HE-Tag: screw51_51104ae65f31b
-X-Filterd-Recvd-Size: 4785
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:19:16 +0000 (UTC)
-Received: by mail-pf1-f193.google.com with SMTP id h195so6103239pfe.5
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 00:19:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=n1xJLcKf6G7UK7Awxu+0eoxUIpLlcPu/xrtHp78aqKs=;
-        b=kAd/S4ItI9NfrNpl4fV3Iwmom3OvfqoEARr0paqvmqdlwOatMUrX35wBFrH+vd34o9
-         82skrRaOLz+25PCNJzD0/wanlpygzPg4D94SOqVmK/bwNXKcBwMzLSFKW/Q7F+IqqNDb
-         16E+YzXxzTGFrevpw+oPQmLAZM5kPNxfjwalJJYMA1qL8+8uW5KPSkiQ0V/HgF3o6Y6l
-         W8uRNNygMdlbhE5G9awFudVHh6GGQNxcMNKbrcxGnP3n5b+PlGCKUyHA563NZ3p0gEnD
-         z6vvHdrJ3GcWZb2eNVn6uzYfAr6rYxjuAAO5N9Fmpg0ZwxTcXakFTj40FpBFWyIgOodq
-         N3Gw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=n1xJLcKf6G7UK7Awxu+0eoxUIpLlcPu/xrtHp78aqKs=;
-        b=HggtmVljOIDak07qkpF3TzQsBpRgu5xcZ6jfGwLq+V/74mPZdKCXpNBcZoWxq4ap3H
-         P2p5DQoWseINtSAel4XXv1xxZdrs31IhJZ6/JyJ0PV+RpfZ8XI4M3DHP/AU330zu365j
-         ezR/7/6wNmfDQx9aLuM+wXXdaMJMEycC8py+rEAC5ADTuqhDaSTbXOf4Xx9uLjtOWBiB
-         /89DJ3zZo1SxvykcfwtA9OT7A0WHXFlgQhwwxwP2Iln1pnGGfBVU41g3LnTPkGQ8NZA0
-         R49PQKVuYeZ1NYeDwpByEVcE1wt+2HZ4yvuZvrxVK2sQedQXdjTwNu1Nd6XCci1lGECY
-         Qa4g==
-X-Gm-Message-State: APjAAAV4OPxAvPrgMb9crpzYbHvlwG3hm6a1McyrjIxfZ3pIXc2DrcEd
-	OjrnjbweOz1kVdlJ0jpik70=
-X-Google-Smtp-Source: APXvYqzRaeXZEO+6LGaGeK4K4LMnx1yY/nhZrTQwTO0+RRnG1IFJHv+PBZ1wPsB7+32Gq0gbpGAb7Q==
-X-Received: by 2002:a17:90a:8996:: with SMTP id v22mr3517563pjn.131.1567581555849;
-        Wed, 04 Sep 2019 00:19:15 -0700 (PDT)
-Received: from localhost ([175.223.23.37])
-        by smtp.gmail.com with ESMTPSA id s5sm21619783pfm.97.2019.09.04.00.19.13
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 04 Sep 2019 00:19:14 -0700 (PDT)
-Date: Wed, 4 Sep 2019 16:19:11 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Qian Cai <cai@lca.pw>, Eric Dumazet <eric.dumazet@gmail.com>,
-	davem@davemloft.net, netdev@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-Message-ID: <20190904071911.GB11968@jagdpanzerIV>
-References: <6109dab4-4061-8fee-96ac-320adf94e130@gmail.com>
- <1567178728.5576.32.camel@lca.pw>
- <229ebc3b-1c7e-474f-36f9-0fa603b889fb@gmail.com>
- <20190903132231.GC18939@dhcp22.suse.cz>
- <1567525342.5576.60.camel@lca.pw>
- <20190903185305.GA14028@dhcp22.suse.cz>
- <1567546948.5576.68.camel@lca.pw>
- <20190904061501.GB3838@dhcp22.suse.cz>
- <20190904064144.GA5487@jagdpanzerIV>
- <20190904065455.GE3838@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0108.hostedemail.com [216.40.44.108])
+	by kanga.kvack.org (Postfix) with ESMTP id CD51D6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:20:08 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 62919824CA30
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:20:08 +0000 (UTC)
+X-FDA: 75896389296.01.bag76_58695bc48542c
+X-HE-Tag: bag76_58695bc48542c
+X-Filterd-Recvd-Size: 7685
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 07:20:07 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 0DD84B69D;
+	Wed,  4 Sep 2019 07:20:05 +0000 (UTC)
+Subject: Re: [PATCH v2 2/2] mm, sl[aou]b: guarantee natural alignment for
+ kmalloc(power-of-two)
+To: Ming Lei <ming.lei@redhat.com>, Christoph Hellwig <hch@lst.de>
+Cc: Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>,
+ Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Dave Chinner <david@fromorbit.com>,
+ "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
+ James Bottomley <James.Bottomley@hansenpartnership.com>,
+ linux-btrfs@vger.kernel.org
+References: <20190826111627.7505-1-vbabka@suse.cz>
+ <20190826111627.7505-3-vbabka@suse.cz>
+ <0100016cd98bb2c1-a2af7539-706f-47ba-a68e-5f6a91f2f495-000000@email.amazonses.com>
+ <20190828194607.GB6590@bombadil.infradead.org>
+ <20190829073921.GA21880@dhcp22.suse.cz>
+ <0100016ce39e6bb9-ad20e033-f3f4-4e6d-85d6-87e7d07823ae-000000@email.amazonses.com>
+ <20190901005205.GA2431@bombadil.infradead.org>
+ <0100016cf8c3033d-bbcc9ba3-2d59-4654-a7c2-8ba094f8a7de-000000@email.amazonses.com>
+ <20190903205312.GK29434@bombadil.infradead.org>
+ <20190904051933.GA10218@lst.de> <20190904064043.GA7578@ming.t460p>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <54e82c0d-aedc-3976-4b29-4f669ac59cae@suse.cz>
+Date: Wed, 4 Sep 2019 09:20:03 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190904065455.GE3838@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.003763, version=1.2.4
+In-Reply-To: <20190904064043.GA7578@ming.t460p>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/04/19 08:54), Michal Hocko wrote:
-> I am sorry, I could have been more explicit when CCing you.
+On 9/4/19 8:40 AM, Ming Lei wrote:
+> On Wed, Sep 04, 2019 at 07:19:33AM +0200, Christoph Hellwig wrote:
+>> On Tue, Sep 03, 2019 at 01:53:12PM -0700, Matthew Wilcox wrote:
+>>>> Its enabled in all full debug session as far as I know. Fedora for
+>>>> example has been running this for ages to find breakage in device drivers
+>>>> etc etc.
+>>>
+>>> Are you telling me nobody uses the ramdisk driver on fedora?  Because
+>>> that's one of the affected drivers.
+>>
+>> For pmem/brd misaligned memory alone doesn't seem to be the problem.
+>> Misaligned memory that cross a page barrier is.  And at least XFS
+>> before my log recovery changes only used kmalloc for smaller than
+>> page size allocation, so this case probably didn't hit.
+> 
+> BTW, does sl[aou]b guarantee that smaller than page size allocation via kmalloc()
+> won't cross page boundary any time?
 
-Oh, sorry! My bad!
+AFAIK no, it's the same as with the alignment. After this patch, that
+guarantee would follow from the alignment one for power of two sizes,
+but sizes 96 and 192 could still cross page boundary.
 
-> Sure the ratelimit is part of the problem. But I was more interested
-> in the potential livelock (infinite loop) mentioned by Qian Cai. It
-> is not important whether we generate one or more lines of output from
-> the softirq context as long as the printk generates more irq processing
-> which might end up doing the same. Is this really possible?
+> Thanks,
+> Ming
+> 
 
-Hmm. I need to look at this more... wake_up_klogd() queues work only once
-on particular CPU: irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
-
-bool irq_work_queue()
-{
-	/* Only queue if not already pending */
-	if (!irq_work_claim(work))
-		return false;
-
-	 __irq_work_queue_local(work);
-}
-
-softirqs are processed in batches, right? The softirq batch can add XXXX
-lines to printk logbuf, but there will be only one PRINTK_PENDING_WAKEUP
-queued. Qian Cai mentioned that "net_rx_action softirqs again which are
-plenty due to connected via ssh etc." so the proportion still seems to be
-N:1 - we process N softirqs, add 1 printk irq_work.
-
-But need to think more.
-Interesting question.
-
-	-ss
 
