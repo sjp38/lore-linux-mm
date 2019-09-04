@@ -2,183 +2,132 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D28BC3A5A2
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 03:24:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 589F6C3A5A2
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 03:24:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4B3821897
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 03:24:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1ACBA22CF5
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 03:24:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aIOpzqUM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4B3821897
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ml+1imRv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1ACBA22CF5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FE006B0003; Tue,  3 Sep 2019 23:24:25 -0400 (EDT)
+	id AE4856B0006; Tue,  3 Sep 2019 23:24:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AEB96B0006; Tue,  3 Sep 2019 23:24:25 -0400 (EDT)
+	id A95026B0007; Tue,  3 Sep 2019 23:24:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69CB66B0007; Tue,  3 Sep 2019 23:24:25 -0400 (EDT)
+	id 983276B0008; Tue,  3 Sep 2019 23:24:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0138.hostedemail.com [216.40.44.138])
-	by kanga.kvack.org (Postfix) with ESMTP id 426A36B0003
-	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 23:24:25 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id AF4FFAC0A
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:24:24 +0000 (UTC)
-X-FDA: 75895795248.17.care82_438aed16ea157
-X-HE-Tag: care82_438aed16ea157
-X-Filterd-Recvd-Size: 6194
-Received: from mail-lj1-f194.google.com (mail-lj1-f194.google.com [209.85.208.194])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:24:24 +0000 (UTC)
-Received: by mail-lj1-f194.google.com with SMTP id h3so11309720ljb.5
-        for <linux-mm@kvack.org>; Tue, 03 Sep 2019 20:24:23 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=YcK3/y3M/0YXrOuuPTwztt6NID6ZpNe9KPTNvrMrEWQ=;
-        b=aIOpzqUMV/A0dnG9n/5KyHemYAFQY5TPigJU9atZMROpInjsZ5Rp6bL0nPr5ehwsQw
-         lzgM++PugG3vWhxGLm4dlFA5eyHP1ewzhTSxZYEcNRm4ucByyLogukQrBpGomBXNfOpB
-         eRR961wcKT2JFO1DN5LmyStommNr4E5wMl2D5PMAn0XByRtJCHYDfOh6X4I/zT2WNuNj
-         5BQmk6YHzTL4VTukyA56/4zMjAXgbsRLm0I/lcPgT0pDFHNI/o6xd9TzIzTEaZbDxe24
-         C+qSrjBgjffn+9ISRdkcoRBMCboMDweP0Ehhtz5BJPO2c11I0qn26DdFjB7L1wWCRHUQ
-         Xv2g==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc:content-transfer-encoding;
-        bh=YcK3/y3M/0YXrOuuPTwztt6NID6ZpNe9KPTNvrMrEWQ=;
-        b=NsBkmW36ksDxU1P6dkyYylYOCd+ZJ6upEloqngQW7aSZIGWrH7BgjVEQ2bJEbHReyc
-         ddCZRT+OtgrQZ7cffD+r2iNmp+xAt/dSo3tOBsYLcXWOUWatC9XMtKVtT6bIAmrk/9Ij
-         Ref5L4MoSDmj9dKCxo6T2mM7JUCeYK+g9aRBst6Zo8MrqmgHmgHpIbvOCmbfIHvLm/o5
-         YqXe9bTaycgLdG2GFXhG1/dQwY3YHx2S9eVs3Yis6FNYSSGlgftlzLGAG9340ajpIByk
-         Xpjq34d6oeogSd7caK18Sids4eBxDA9Qxu+WlmWpoLxZKcf4WolAdVBrz+9DTA3IVCjw
-         +UHg==
-X-Gm-Message-State: APjAAAWAOTvscXsLp4b2pIvpC9xxvdUXrFBr8pqdMxaNcebIiqsmHl9k
-	c/5SLlUa2JgSFBeY1D+u0aXQxusAzkkpAZJOaeY=
-X-Google-Smtp-Source: APXvYqwyOYzbfLpZIRUCsJ3ehB6OE32PazN0+fk5schcHdQrPHRnp4LIJ4b11ROaozjdfjlobw67dDOrU00x3qP6gDI=
-X-Received: by 2002:a2e:534e:: with SMTP id t14mr21945713ljd.218.1567567462673;
- Tue, 03 Sep 2019 20:24:22 -0700 (PDT)
-MIME-Version: 1.0
-References: <1567086657-22528-1-git-send-email-totty.lu@gmail.com> <1f0e6e1a-c947-f389-801e-b1d748cb5bce@oracle.com>
-In-Reply-To: <1f0e6e1a-c947-f389-801e-b1d748cb5bce@oracle.com>
-From: =?UTF-8?B?6ZmG5b+X5Yia?= <totty.lu@gmail.com>
-Date: Wed, 4 Sep 2019 11:24:13 +0800
-Message-ID: <CAFa9Ja9Y4ixQjwr2VBg5-rTc2ie0i6B=g2c3B-UuGoAdsWvJYA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/hugetlb: avoid looping to the same hugepage if
- !pages and !vmas
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: luzhigang001@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Zhigang Lu <tonnylu@tencent.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
+	by kanga.kvack.org (Postfix) with ESMTP id 752B96B0006
+	for <linux-mm@kvack.org>; Tue,  3 Sep 2019 23:24:33 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 25B17824CA3A
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:24:33 +0000 (UTC)
+X-FDA: 75895795626.26.stem59_44c71f842d434
+X-HE-Tag: stem59_44c71f842d434
+X-Filterd-Recvd-Size: 4963
+Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 03:24:32 +0000 (UTC)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x843Mauu178986;
+	Wed, 4 Sep 2019 03:23:43 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2019-08-05; bh=THg7OdVe+H13Wicp3Cku/2yXM5fjaUIJKiClqu9N+6k=;
+ b=ml+1imRv3FyfRRKBibYB55RAT0zuUhxlyxyxn5PfjBciWwyXB/CGi7rRpmQCSoic2nwt
+ X6hs2+7Ib5gpGV6DrkZ8lo+16HG/GTj/g5XxhPt4UkOZKO9nu7mDt7T4S13BWfbGHpJK
+ xCK9T9UpiQRtu5nkpuOMef4VgoK5jrjyK/rPwSX5+b3RH51Pat8P+uBjq6d3UJv03e00
+ 7PkyIJTkqHkba9FNUaQnsfNVy6gxKRQO716wX5+jeVBMVtCWF+NdtgPbpcf0LK1D/nu7
+ iQM/oqJiii79c8WrluV84b+fIEr1Rv0ANQLhc2S7icP40mWjnTZtszpaNz8V28tpH9N1 6g== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by userp2120.oracle.com with ESMTP id 2ut5a6r08x-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 04 Sep 2019 03:23:43 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x843NguE082969;
+	Wed, 4 Sep 2019 03:23:42 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3020.oracle.com with ESMTP id 2ut1hmrf4g-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 04 Sep 2019 03:23:42 +0000
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x843NamI026386;
+	Wed, 4 Sep 2019 03:23:36 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 03 Sep 2019 20:23:35 -0700
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 13.0 \(3578.1\))
+Subject: Re: [PATCH v5 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190903191528.GC14028@dhcp22.suse.cz>
+Date: Tue, 3 Sep 2019 21:23:34 -0600
+Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Song Liu <songliubraving@fb.com>,
+        Bob Kasten <robert.a.kasten@intel.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Chad Mynhier <chad.mynhier@oracle.com>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Johannes Weiner <jweiner@fb.com>
+Content-Transfer-Encoding: 7bit
+Message-Id: <4AB1ABA7-B659-41B7-8364-132AD3608FA6@oracle.com>
+References: <20190902092341.26712-1-william.kucharski@oracle.com>
+ <20190902092341.26712-3-william.kucharski@oracle.com>
+ <20190903121424.GT14028@dhcp22.suse.cz>
+ <20190903122208.GE29434@bombadil.infradead.org>
+ <20190903125150.GW14028@dhcp22.suse.cz>
+ <20190903151015.GF29434@bombadil.infradead.org>
+ <20190903191528.GC14028@dhcp22.suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+X-Mailer: Apple Mail (2.3578.1)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9369 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1909040034
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9369 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1909040034
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Kravetz <mike.kravetz@oracle.com> =E4=BA=8E2019=E5=B9=B49=E6=9C=884=E6=
-=97=A5=E5=91=A8=E4=B8=89 =E4=B8=8A=E5=8D=885:26=E5=86=99=E9=81=93=EF=BC=9A
->
-> On 8/29/19 6:50 AM, Zhigang Lu wrote:
-> > From: Zhigang Lu <tonnylu@tencent.com>
-> >
-> > When mmapping an existing hugetlbfs file with MAP_POPULATE, we find
-> > it is very time consuming. For example, mmapping a 128GB file takes
-> > about 50 milliseconds. Sampling with perfevent shows it spends 99%
-> > time in the same_page loop in follow_hugetlb_page().
-> >
-> > samples: 205  of event 'cycles', Event count (approx.): 136686374
-> > -  99.04%  test_mmap_huget  [kernel.kallsyms]  [k] follow_hugetlb_page
-> >         follow_hugetlb_page
-> >         __get_user_pages
-> >         __mlock_vma_pages_range
-> >         __mm_populate
-> >         vm_mmap_pgoff
-> >         sys_mmap_pgoff
-> >         sys_mmap
-> >         system_call_fastpath
-> >         __mmap64
-> >
-> > follow_hugetlb_page() is called with pages=3DNULL and vmas=3DNULL, so f=
-or
-> > each hugepage, we run into the same_page loop for pages_per_huge_page()
-> > times, but doing nothing. With this change, it takes less then 1
-> > millisecond to mmap a 128GB file in hugetlbfs.
->
-> Thanks for the analysis!
->
-> Just curious, do you have an application that does this (mmap(MAP_POPULAT=
-E)
-> for an existing hugetlbfs file), or was this part of some test suite or
-> debug code?
 
-Yes, DPDK and SPDK actually do this in vhost_user.c.
-vhost_setup_mem_table() {
-...
-mmap_size =3D RTE_ALIGN_CEIL(mmap_size, alignment);
 
-mmap_addr =3D mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
-MAP_SHARED | MAP_POPULATE, fd, 0);
-...
-}
+> On Sep 3, 2019, at 1:15 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> Then I would suggest mentioning all this in the changelog so that the
+> overall intention is clear. It is also up to you fs developers to find a
+> consensus on how to move forward. I have brought that up mostly because
+> I really hate seeing new config options added due to shortage of
+> confidence in the code. That really smells like working around standard
+> code quality inclusion process.
 
->
-> > Signed-off-by: Zhigang Lu <tonnylu@tencent.com>
-> > Reviewed-by: Haozhong Zhang <hzhongzhang@tencent.com>
-> > Reviewed-by: Zongming Zhang <knightzhang@tencent.com>
-> > Acked-by: Matthew Wilcox <willy@infradead.org>
-> > ---
-> >  mm/hugetlb.c | 11 +++++++++++
-> >  1 file changed, 11 insertions(+)
-> >
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 6d7296d..2df941a 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -4391,6 +4391,17 @@ long follow_hugetlb_page(struct mm_struct *mm, s=
-truct vm_area_struct *vma,
-> >                               break;
-> >                       }
-> >               }
->
-> It might be helpful to add a comment here to help readers of the code.
-> Something like:
->
+I do mention a good deal of this in the blurb in part [0/2] of the patch,
+though I don't cover the readpage/readpages() debate. Ideally readpage()
+should do just that, read a page, based on the size of the page passed,
+and not assume "page" means "PAGESIZE."
 
-Thanks, I will add this comment and send a new version.
+I can also make the "help" text for the option more descriptive if
+desired.
 
->                 /*
->                  * If subpage information not requested, update counters
->                  * and skip the same_page loop below.
->                  */
-> > +
-> > +             if (!pages && !vmas && !pfn_offset &&
-> > +                 (vaddr + huge_page_size(h) < vma->vm_end) &&
-> > +                 (remainder >=3D pages_per_huge_page(h))) {
-> > +                     vaddr +=3D huge_page_size(h);
-> > +                     remainder -=3D pages_per_huge_page(h);
-> > +                     i +=3D pages_per_huge_page(h);
-> > +                     spin_unlock(ptl);
-> > +                     continue;
-> > +             }
-> > +
-> >  same_page:
-> >               if (pages) {
-> >                       pages[i] =3D mem_map_offset(page, pfn_offset);
-> >
->
-> With a comment added to the code,
-> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-> --
-> Mike Kravetz
+Thanks for your comments!
 
