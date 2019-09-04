@@ -2,158 +2,250 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32A7EC3A5AB
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:54:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0EC3C3A5AB
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:55:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E98A721883
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:54:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="lL5TlUCt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E98A721883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 81C8221883
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 20:55:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81C8221883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F7676B0003; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
+	id 2EDFD6B0006; Wed,  4 Sep 2019 16:55:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A8976B0006; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
+	id 29E816B0007; Wed,  4 Sep 2019 16:55:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BEBD6B0007; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
+	id 1B5F66B0008; Wed,  4 Sep 2019 16:55:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0112.hostedemail.com [216.40.44.112])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C55F6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:54:50 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id C6FF4180AD801
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:54:49 +0000 (UTC)
-X-FDA: 75898442298.01.grade47_4736d83212229
-X-HE-Tag: grade47_4736d83212229
-X-Filterd-Recvd-Size: 5643
-Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:54:49 +0000 (UTC)
-Received: by mail-io1-f66.google.com with SMTP id h144so32131120iof.7
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 13:54:49 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=vXwoIRD/HomfAGA3enlPIWun5YO8zmnB2AFzW0Iniws=;
-        b=lL5TlUCtshbicXBX7o8SDAZtZAKYXC6ca2f5A9ldF6R14qEtWGy99KueQps418Znq9
-         nw1RLiYAkb29C6Cfvhf3pDnBrnOMftTxL0cYvm/oCqZOub6VMXqVfVa2aWTgjSr4r4gj
-         8MPzqz7MtWfwJUNQo6KkZ7T76dRaxG/HeGS4IoscFtXW3YiOUivL81MJNqyOmTtrXfBt
-         FEP+y4hCVNmDxZ1WzytKXQkbjsItc+aiZlQ5r32sAp8B+XE3wc1ogHHQaB3hdPCP7KzD
-         fF+6ITHH/T4LiOKChbaM11LaRBRmjfa66V0sB+gCbPI1l5aDRVuBbn6GWlOoZa6zD2tK
-         SenA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=vXwoIRD/HomfAGA3enlPIWun5YO8zmnB2AFzW0Iniws=;
-        b=RefOG+sy2YJqNvDgYO+mle6oB5BxZikCG7XzsiNF6hMbbpGAulzTdr6lnCFHJ0Opp5
-         4w0tNIT4t29wWRoBI1LrelhaKjXOAPNQapyndJqPhFq+uxv0XKxOwe/6Mg+2NVxOFDXi
-         3QO4zL5bB6c+1GkBG3B6TloUubhM7XkCc1eRzhYvxTyogsm3TLnPFsL9Rlk4E+JnyA72
-         eAIzYvSj+G9yZkRG28efF2I/qKcJFK/5Dd2178UBa50bfUyaGdzdZS3n8F4jw0s5CpBv
-         7fqCAL8vzv+GvPcSLN73LwvUntNbgyee18/zB7x2gBu4dk1Haw69R3RZDq+e68R6/us+
-         ECag==
-X-Gm-Message-State: APjAAAU09qUDZwz4LVO48G5n5GWrZo5ldsNwa2qNXSO0idToyciEsSsH
-	Wl5sWGPB/YCwe3XV9JFZpa8kTg==
-X-Google-Smtp-Source: APXvYqw87BnjWR9GdN8CRA7xMoVsDrp0wOKoOFPjmTBeJqSfmuF9wzp9tZO06jjNNw9zgpEiqOgfrA==
-X-Received: by 2002:a5e:9813:: with SMTP id s19mr2214175ioj.263.1567630488336;
-        Wed, 04 Sep 2019 13:54:48 -0700 (PDT)
-Received: from google.com ([2620:15c:183:0:9f3b:444a:4649:ca05])
-        by smtp.gmail.com with ESMTPSA id j26sm36426ioe.18.2019.09.04.13.54.47
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 04 Sep 2019 13:54:47 -0700 (PDT)
-Date: Wed, 4 Sep 2019 14:54:43 -0600
-From: Yu Zhao <yuzhao@google.com>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>,
+Received: from forelay.hostedemail.com (smtprelay0057.hostedemail.com [216.40.44.57])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA3F6B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 16:55:24 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 9D16D180AD801
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:55:24 +0000 (UTC)
+X-FDA: 75898443768.27.kick82_4c4a247465b03
+X-HE-Tag: kick82_4c4a247465b03
+X-Filterd-Recvd-Size: 9834
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 20:55:24 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0783C7FD45;
+	Wed,  4 Sep 2019 20:55:23 +0000 (UTC)
+Received: from mail (ovpn-120-101.rdu2.redhat.com [10.10.120.101])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id BF5735D9E1;
+	Wed,  4 Sep 2019 20:55:22 +0000 (UTC)
+Date: Wed, 4 Sep 2019 16:55:22 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Will Deacon <will@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-	Dave Airlie <airlied@redhat.com>,
-	Thomas Hellstrom <thellstrom@vmware.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: replace is_zero_pfn with is_huge_zero_pmd for thp
-Message-ID: <20190904205443.GA70057@google.com>
-References: <20190825200621.211494-1-yuzhao@google.com>
- <20190826131858.GB15933@bombadil.infradead.org>
- <20190826170934.7c2f4340@thinkpad>
+	Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [patch for-5.3 0/4] revert immediate fallback to remote hugepages
+Message-ID: <20190904205522.GA9871@redhat.com>
+References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190826170934.7c2f4340@thinkpad>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 04 Sep 2019 20:55:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2019 at 05:09:34PM +0200, Gerald Schaefer wrote:
-> On Mon, 26 Aug 2019 06:18:58 -0700
-> Matthew Wilcox <willy@infradead.org> wrote:
+On Wed, Sep 04, 2019 at 12:54:15PM -0700, David Rientjes wrote:
+> Two commits:
 > 
-> > Why did you not cc Gerald who wrote the patch?  You can't just
-> > run get_maintainers.pl and call it good.
-> > 
-> > On Sun, Aug 25, 2019 at 02:06:21PM -0600, Yu Zhao wrote:
-> > > For hugely mapped thp, we use is_huge_zero_pmd() to check if it's
-> > > zero page or not.
-> > > 
-> > > We do fill ptes with my_zero_pfn() when we split zero thp pmd, but
-> > >  this is not what we have in vm_normal_page_pmd().
-> > > pmd_trans_huge_lock() makes sure of it.
-> > > 
-> > > This is a trivial fix for /proc/pid/numa_maps, and AFAIK nobody
-> > > complains about it.
-> > > 
-> > > Signed-off-by: Yu Zhao <yuzhao@google.com>
-> > > ---
-> > >  mm/memory.c | 2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index e2bb51b6242e..ea3c74855b23 100644
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -654,7 +654,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
-> > >  
-> > >  	if (pmd_devmap(pmd))
-> > >  		return NULL;
-> > > -	if (is_zero_pfn(pfn))
-> > > +	if (is_huge_zero_pmd(pmd))
-> > >  		return NULL;
-> > >  	if (unlikely(pfn > highest_memmap_pfn))
-> > >  		return NULL;
-> > > -- 
-> > > 2.23.0.187.g17f5b7556c-goog
-> > >   
+> commit a8282608c88e08b1782141026eab61204c1e533f
+> Author: Andrea Arcangeli <aarcange@redhat.com>
+> Date:   Tue Aug 13 15:37:53 2019 -0700
 > 
-> Looks good to me. The "_pmd" versions for can_gather_numa_stats() and
-> vm_normal_page() were introduced to avoid using pte_present/dirty() on
-> pmds, which is not affected by this patch.
+>     Revert "mm, thp: restore node-local hugepage allocations"
 > 
-> In fact, for vm_normal_page_pmd() I basically copied most of the code
-> from vm_normal_page(), including the is_zero_pfn(pfn) check, which does
-> look wrong to me now. Using is_huge_zero_pmd() should be correct.
+> commit 92717d429b38e4f9f934eed7e605cc42858f1839
+> Author: Andrea Arcangeli <aarcange@redhat.com>
+> Date:   Tue Aug 13 15:37:50 2019 -0700
 > 
-> Maybe the description could also mention the symptom of this bug?
-> I would assume that it affects anon/dirty accounting in gather_pte_stats(),
-> for huge mappings, if zero page mappings are not correctly recognized.
+>     Revert "Revert "mm, thp: consolidate THP gfp handling into alloc_hugepage_direct_gfpmask""
+> 
+> made their way into 5.3-rc5
+> 
+> We (mostly Linus, Andrea, and myself) have been discussing offlist how to
+> implement a sane default allocation strategy for hugepages on NUMA
+> platforms.
+> 
+> With these reverts in place, the page allocator will happily allocate a
+> remote hugepage immediately rather than try to make a local hugepage
+> available.  This incurs a substantial performance degradation when
+> memory compaction would have otherwise made a local hugepage available.
+> 
+> This series reverts those reverts and attempts to propose a more sane
+> default allocation strategy specifically for hugepages.  Andrea
+> acknowledges this is likely to fix the swap storms that he originally
+> reported that resulted in the patches that removed __GFP_THISNODE from
+> hugepage allocations.
 
-Hi, sorry for not copying you on the original email. I came across
-this while I was looking at the code. I'm not aware of any symptom.
-Thank you.
+I sent a single comment about this patch in the private email thread
+you started, and I quote my answer below for full disclosure:
+
+============
+> This is an admittedly hacky solution that shouldn't cause anybody to 
+> regress based on NUMA and the semantics of MADV_HUGEPAGE for the past 
+> 4 1/2 years for users whose workload does fit within a socket.
+
+How can you live with the below if you can't live with 5.3-rc6? Here
+you allocate remote THP if the local THP allocation fails.
+
+>  			page = __alloc_pages_node(hpage_node,
+>  						gfp | __GFP_THISNODE, order);
+> +
+> +			/*
+> +			 * If hugepage allocations are configured to always
+> +			 * synchronous compact or the vma has been madvised
+> +			 * to prefer hugepage backing, retry allowing remote
+> +			 * memory as well.
+> +			 */
+> +			if (!page && (gfp & __GFP_DIRECT_RECLAIM))
+> +				page = __alloc_pages_node(hpage_node,
+> +						gfp | __GFP_NORETRY, order);
+> +
+
+You're still going to get THP allocate remote _before_ you have a
+chance to allocate 4k local this way. __GFP_NORETRY won't make any
+difference when there's THP immediately available in the remote nodes.
+
+My suggestion is to stop touching and tweaking the gfp_mask second
+parameter, and I suggest you to tweak the third parameter instead. If
+you set the order=(1<<0)|(1<<9) (instead of current order = 9), only
+then we'll move in the right direction and we'll get something that
+can work better than 5.3-rc6 no matter what which workload you throw
+at it.
+
+> +		 if (order >= pageblock_order && (gfp_mask & __GFP_IO)) {
+> +			/*
+> +			 * If allocating entire pageblock(s) and compaction
+> +			 * failed because all zones are below low watermarks
+> +			 * or is prohibited because it recently failed at this
+> +			 * order, fail immediately.
+> +			 *
+> +			 * Reclaim is
+> +			 *  - potentially very expensive because zones are far
+> +			 *    below their low watermarks or this is part of very
+> +			 *    bursty high order allocations,
+> +			 *  - not guaranteed to help because isolate_freepages()
+> +			 *    may not iterate over freed pages as part of its
+> +			 *    linear scan, and
+> +			 *  - unlikely to make entire pageblocks free on its
+> +			 *    own.
+> +			 */
+> +			if (compact_result == COMPACT_SKIPPED ||
+> +			    compact_result == COMPACT_DEFERRED)
+> +				goto nopage;
+> +		}
+> +
+
+Overall this patch would solve the swap storms and it's similar to
+__GFP_COMPACTONLY but it also allows to allocate THP in the remote
+nodes if remote THP are immediately available in the buddy (despite
+there may also be local 4k memory immediately available in the
+buddy). So it's just better than just __GFP_COMPACTONLY but it still
+cripples compaction a bit and it won't really work a whole lot
+different than 5.3-rc6 in terms of prioritizing local 4k over remote
+THP.
+
+So it's not clear why you can't live with 5.3-rc6 if you can live with
+the above that will provide you no more guarantees than 5.3-rc6 to get
+local 4k before remote THP.
+
+Thanks,
+Andrea
+==============
+
+> The immediate goal is to return 5.3 to the behavior the kernel has
+> implemented over the past several years so that remote hugepages are
+> not immediately allocated when local hugepages could have been made
+> available because the increased access latency is untenable.
+
+Remote hugepages are immediately allocated before local 4k pages with
+that patch you sent.
+
+> +				page = __alloc_pages_node(hpage_node,
+> +						gfp | __GFP_NORETRY, order);
+
+This doesn't prevent to allocate remote THP if they are immediately
+available.
+
+> Merging these reverts late in the rc cycle to change behavior that has
+> existed for years and is known (and acknowledged) to create performance
+> degradations when local hugepages could have been made available serves
+> no purpose other than to make the development of a sane default policy
+> much more difficult under time pressure and to accelerate decisions that
+> will affect how userspace is written (and how it has regressed) that
+> otherwise require carefully crafted and detailed implementations.
+
+Your change is calling alloc_pages first with __GFP_THISNODE in a
+__GFP_COMPACTONLY way, and then it falls back immediately to allocate
+2M on all nodes, including the local node for a second time, before
+allocating local 4k (with a magical __GFP_NORETRY which won't make a
+difference anyway if the 2m pages are immediately available).
+
+> Thus, this patch series returns 5.3 to the long-standing allocation
+> strategy that Linux has had for years and proposes to follow-up changes
+> that can be discussed that Andrea acknowledges will avoid the swap storms
+> that initially triggered this discussion in the first place.
+
+I said one good thing about this patch series, that it fixes the swap
+storms. But upstream 5.3 fixes the swap storms too and what you sent
+is not nearly equivalent to the mempolicy that Michal was willing
+to provide you and that we thought you needed to get bigger guarantees
+of getting only local 2m or local 4k pages.
+
+In fact we could weaken the aggressiveness of the proposed mempolicy
+of an order of magnitude if you can live with the above and the above
+performs well for you.
+
+If you could post an open source reproducer of your proprietary binary
+that got regressed by 5.3, we could help finding a solution. Instead
+it's not clear how you can live with this patch series, but not with
+5.3 and also why you insist not making this new allocation policy an
+opt-in mempolicy.
+
+Furthermore no generic benchmark has been run on this series to be
+sure it won't regress performance for common workloads. So it's
+certainly more risky than the current 5.3 status which matches what's
+running in production on most enterprise distro.
+
+I thought you clarified that the page fault latency was not the
+primary reason you had __GFP_THISNODE there. If instead you've still
+got a latency issue in the 2M page fault and that was the real reason
+of __GFP_THISNODE, why don't you lower the latency of compaction in
+remote nodes without having to call alloc_pages 3 times? I mean I
+proposed to call alloc_pages just once instead of the current twice,
+with your patch we'd be calling alloc_pages three times, with a
+repetition attempt even on the 2m page size on the local node.
+
+Obviously this "hacky solution" is better than 5.3-rc4 and all
+previous because it at least doesn't create swap storms. What's not
+clear is how this is going to work better than upstream for you. What
+I think will happen is that this will work similarly to
+__GFP_COMPACTONLY and it'll will weaken THP utilization ratio for
+MADV_HUGEPAGE users and it's not tested to be sure it won't perform
+worse in other conditions.
+
+Thanks,
+Andrea
 
