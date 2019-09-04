@@ -2,104 +2,101 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A077C3A5A7
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:49:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51569C3A5AB
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:52:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0AF3A208E4
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:49:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F12122339E
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 14:52:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WqjoJjQ8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AF3A208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sFYGsFae"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F12122339E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 90B6D6B0003; Wed,  4 Sep 2019 10:48:57 -0400 (EDT)
+	id 86BE56B0003; Wed,  4 Sep 2019 10:52:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8BADB6B0006; Wed,  4 Sep 2019 10:48:57 -0400 (EDT)
+	id 7F5706B0006; Wed,  4 Sep 2019 10:52:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7AA556B0007; Wed,  4 Sep 2019 10:48:57 -0400 (EDT)
+	id 66FF06B0007; Wed,  4 Sep 2019 10:52:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0175.hostedemail.com [216.40.44.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 581696B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:48:57 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id E03D0824CA30
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:48:56 +0000 (UTC)
-X-FDA: 75897520272.07.straw60_4e03b63014153
-X-HE-Tag: straw60_4e03b63014153
-X-Filterd-Recvd-Size: 5791
-Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:48:55 +0000 (UTC)
-Received: by mail-pg1-f196.google.com with SMTP id u17so11374098pgi.6
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 07:48:55 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0034.hostedemail.com [216.40.44.34])
+	by kanga.kvack.org (Postfix) with ESMTP id 3910C6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 10:52:48 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D94AC180AD804
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:52:47 +0000 (UTC)
+X-FDA: 75897529974.25.legs19_6f9f3bc2d591b
+X-HE-Tag: legs19_6f9f3bc2d591b
+X-Filterd-Recvd-Size: 17532
+Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:52:46 +0000 (UTC)
+Received: by mail-pf1-f196.google.com with SMTP id y72so5816452pfb.12
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 07:52:46 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=Y0Way3KHGFmyr4IdZ55Bi63R1MS1mhVmJWvvJPi7ufE=;
-        b=WqjoJjQ8S4lX609PlOBqGbYMVGDW7BSa431Cl3izLPCn2DMGQleTv8LbHmsWiS7r8y
-         3JBCO4Y7rkL3QwMisIOFGqPHMRGV1eYsP2nTVd7+HwuE+3C0R0aiKGrpBfCK60fVcbX2
-         he68y1N5zS8z7CyMnvMi5M+U7rBvjYxHV/cj1ewYaH+4V/YN13QxCf2oX0yCS/S5kPt5
-         HDYpFbswKqkb6MfUh8lIsVrnwnSBMUUb/2Xj7bVOnd+ieTuy4ee2NK1wYGtdpo1iHMRK
-         5pFsIVK7r+xOWL8aIhfOGEVEuZOWvZ6HNWXP9SlgVmFFA8hEu1/HHk4sys20eOt9tLql
-         6vHw==
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=qo9btwDVywt5Z4ijSkpPcdJcIxoBud+XrMQP8DLBtZA=;
+        b=sFYGsFaeqOIttaX75Mh0Jt6LsiFSSow8MH7y6a52jVXYkPlB1jD+rvA4kSYVmUJSrq
+         ojaEis6BbnDlau6vVkJKwiWkmN6zMu//M8lERzORRYA28oks7bKvz+fi2QSu5aHhBXJm
+         O/PmjUuBojgWEQa6N+q6OiUTmJ5L9TMtAmd+gBA/NdlmY1MODkn3rLfzDaOCv9tRsacx
+         4dmkg20CXiWx+J7ZAz0xREJaTi8oA5eF/vV3VC3sYSLhW9lwFJRkFdCbQjsqOmODrC3r
+         Jc7rxpY3eSw3R+jZ29b3q93JyDXmqBWLrqLsbJmUM1evPQg9JO6Jb87uqDCH8BQY1hzb
+         0PwQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:date:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=Y0Way3KHGFmyr4IdZ55Bi63R1MS1mhVmJWvvJPi7ufE=;
-        b=sz2YsdmGpHCjaabubAQvnER+KFI+zBinVl/pULqu1Gec8pEtGRFb433qqSCAEkZUpQ
-         LrCuwrfdUDaq06E3k3tHTO9y6uzwu3xp35wFubVVWdpMZlN+C2uf1KrhCWNz64hJhoKy
-         GvcD0aEx+pHk3g0/qQGYJI2hEsDb2/vYl5baFnaoslldtiJOPtWG6kOkfUw6oT1k0KOr
-         4UlVHo05v9BB7YUaP6IRD0vwLyzT8Twu6ymwdAZC2UEYgg603s9cfSOZvxNpFJpmgtib
-         QRozFqG3sRkngsj2w2nhShXg3vWSesvGhCgeyMfA389RU37lPC2h64vlx/xXOKw6NF+0
-         7ovw==
-X-Gm-Message-State: APjAAAUo6trDuoqfLOkJ4fmtr0LQviGLB6oqHeO1zcPaep9/DbCJqsX3
-	FYh+9mAic7Nqe7NHSfqARRU=
-X-Google-Smtp-Source: APXvYqxW6zv9Q8MMQUyy/57EoTj5mk4de72N7EcxPzQhS0BTGdBSndFBF7RHG+eJ6QvAnkqTlGVRzA==
-X-Received: by 2002:a17:90a:ac14:: with SMTP id o20mr5434986pjq.143.1567608534744;
-        Wed, 04 Sep 2019 07:48:54 -0700 (PDT)
-Received: from localhost ([121.137.63.184])
-        by smtp.gmail.com with ESMTPSA id m4sm21145034pgs.71.2019.09.04.07.48.52
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 04 Sep 2019 07:48:53 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-X-Google-Original-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Date: Wed, 4 Sep 2019 23:48:50 +0900
-To: Qian Cai <cai@lca.pw>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Eric Dumazet <eric.dumazet@gmail.com>, davem@davemloft.net,
-	netdev@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-Message-ID: <20190904144850.GA8296@tigerII.localdomain>
-References: <20190903132231.GC18939@dhcp22.suse.cz>
- <1567525342.5576.60.camel@lca.pw>
- <20190903185305.GA14028@dhcp22.suse.cz>
- <1567546948.5576.68.camel@lca.pw>
- <20190904061501.GB3838@dhcp22.suse.cz>
- <20190904064144.GA5487@jagdpanzerIV>
- <20190904065455.GE3838@dhcp22.suse.cz>
- <20190904071911.GB11968@jagdpanzerIV>
- <20190904074312.GA25744@jagdpanzerIV>
- <1567599263.5576.72.camel@lca.pw>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc:content-transfer-encoding;
+        bh=qo9btwDVywt5Z4ijSkpPcdJcIxoBud+XrMQP8DLBtZA=;
+        b=cyIOVTY2amZdCDbzbzjvo+8+v9fGvpFCr0L5U61djZ+ET9yOS//k7nIU4ZQfm3dv8b
+         As1ndr3tmci5wn8Qe+YyRo49RcqVyV7UOm6bhSABewZuXz6VVNQAAQ96MA3U3xhcz4HS
+         8mOswbR/yKyeTbemCBggzSWA2tCwBp2VHNb+oAwrd70UnIPBVpnCcNdMX1YegoLISWfv
+         XOy966+tnIyyBFV4sUukTl7Xgsqvtk2U5QRV6hWtlZEelr93rYdyq1+fmfnnBgXPVACX
+         KwpcdloRF3Ajz6+94U6fmKp+wWXInxqHzCDROX7zdrVWn3/LmMRqpvJGsq7JHy/uQxA0
+         /5GA==
+X-Gm-Message-State: APjAAAWyLmXDzcJiD0WedalbmAW4C4RLcdcPox9npYUB3uvasPP3uPxm
+	ji3QQEqYGLdfttg2YELZtpiNbR7dyINmSOc1kSzp081glJeDMQ==
+X-Google-Smtp-Source: APXvYqwZikXx2qjQtQDGtXVxmy03OmbTt42Hq77Y/o/GV+iGPZsxsZsTVPVlPZ5ZZxAgajR2zq/oq6os3dIlpFoD/6c=
+X-Received: by 2002:a62:db84:: with SMTP id f126mr21108068pfg.25.1567608765533;
+ Wed, 04 Sep 2019 07:52:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1567599263.5576.72.camel@lca.pw>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+References: <cover.1561386715.git.andreyknvl@google.com> <0999c80cd639b78ae27c0674069d552833227564.1561386715.git.andreyknvl@google.com>
+ <6af3f619-4356-2f67-ed76-92beceb1e0a0@arm.com> <CAAeHK+yhbUcuLhoetjGUbqM4j9fX84hbwmxzNPF+e1zXj6nKNw@mail.gmail.com>
+ <d6bc5c4b-68b5-0a58-0f52-8bce20986dcf@arm.com>
+In-Reply-To: <d6bc5c4b-68b5-0a58-0f52-8bce20986dcf@arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 4 Sep 2019 16:52:34 +0200
+Message-ID: <CAAeHK+xXN_oHt0rAcWdTs0XhkYRhWqf3iv-n+dYmY075xosJnw@mail.gmail.com>
+Subject: Re: [PATCH v18 15/15] selftests, arm64: add a selftest for passing
+ tagged pointers to kernel
+To: Cristian Marussi <cristian.marussi@arm.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
+	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
+	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
+	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -107,54 +104,344 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/04/19 08:14), Qian Cai wrote:
-> > Plus one more check - waitqueue_active(&log_wait). printk() adds
-> > pending irq_work only if there is a user-space process sleeping on
-> > log_wait and irq_work is not already scheduled. If the syslog is
-> > active or there is noone to wakeup then we don't queue irq_work.
->=20
-> Another possibility for this potential livelock is that those printk() =
-from
-> warn_alloc(), dump_stack() and show_mem() increase the time it needs to=
- process
-> build_skb() allocation failures significantly under memory pressure. As=
- the
-> result, ksoftirqd() could be rescheduled during that time via a differe=
-nt CPU
-> (this is a large x86 NUMA system anyway),
->=20
-> [83605.577256][=A0=A0=A0C31]=A0=A0run_ksoftirqd+0x1f/0x40
-> [83605.577256][=A0=A0=A0C31]=A0=A0smpboot_thread_fn+0x255/0x440
-> [83605.577256][=A0=A0=A0C31]=A0=A0kthread+0x1df/0x200
-> [83605.577256][=A0=A0=A0C31]=A0=A0ret_from_fork+0x35/0x40
+On Fri, Aug 23, 2019 at 7:49 PM Cristian Marussi
+<cristian.marussi@arm.com> wrote:
+>
+>
+> Hi
+>
+> On 23/08/2019 18:16, Andrey Konovalov wrote:
+> > On Fri, Aug 23, 2019 at 3:56 PM Cristian Marussi
+> > <cristian.marussi@arm.com> wrote:
+> >>
+> >> Hi Andrey
+> >>
+> >> On 24/06/2019 15:33, Andrey Konovalov wrote:
+> >>> This patch is a part of a series that extends kernel ABI to allow to =
+pass
+> >>> tagged user pointers (with the top byte set to something else other t=
+han
+> >>> 0x00) as syscall arguments.
+> >>>
+> >>> This patch adds a simple test, that calls the uname syscall with a
+> >>> tagged user pointer as an argument. Without the kernel accepting tagg=
+ed
+> >>> user pointers the test fails with EFAULT.
+> >>>
+> >>> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> >>> ---
+> >>>  tools/testing/selftests/arm64/.gitignore      |  1 +
+> >>>  tools/testing/selftests/arm64/Makefile        | 11 +++++++
+> >>>  .../testing/selftests/arm64/run_tags_test.sh  | 12 ++++++++
+> >>>  tools/testing/selftests/arm64/tags_test.c     | 29 +++++++++++++++++=
+++
+> >>>  4 files changed, 53 insertions(+)
+> >>>  create mode 100644 tools/testing/selftests/arm64/.gitignore
+> >>>  create mode 100644 tools/testing/selftests/arm64/Makefile
+> >>>  create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
+> >>>  create mode 100644 tools/testing/selftests/arm64/tags_test.c
+> >>
+> >> After building a fresh Kernel from arm64/for-next-core from scratch at=
+:
+> >>
+> >> commit 239ab658bea3b387424501e7c416640d6752dc0c
+> >> Merge: 6bfa3134bd3a 42d038c4fb00 1243cb6a676f d55c5f28afaf d06fa5a118f=
+1 34b5560db40d
+> >> Author: Will Deacon <will@kernel.org>
+> >> Date:   Thu Aug 22 18:23:53 2019 +0100
+> >>
+> >>     Merge branches 'for-next/error-injection', 'for-next/tbi', 'for-ne=
+xt/psci-cpuidle', 'for-next/cpu-topology' and 'for-next/52-bit-kva' into fo=
+r-next/core
+> >>
+> >>
+> >> KSFT arm64 tests build is broken for me, both setting or not KBUILD_OU=
+TPUT=3D
+> >>
+> >> 13:30 $ make TARGETS=3Darm64 kselftest-clean
+> >> make[1]: Entering directory '/home/crimar01/ARM/dev/src/pdsw/out_linux=
+'
+> >> rm -f -r /home/crimar01/ARM/dev/src/pdsw/out_linux//kselftest/arm64/ta=
+gs_test
+> >> make[1]: Leaving directory '/home/crimar01/ARM/dev/src/pdsw/out_linux'
+> >>
+> >> =E2=9C=94 ~/ARM/dev/src/pdsw/linux [arm64_for_next_core|=E2=80=A68=E2=
+=9A=91 23]
+> >>
+> >> 13:30 $ make TARGETS=3Darm64 kselftest
+> >> make[1]: Entering directory '/home/crimar01/ARM/dev/src/pdsw/out_linux=
+'
+> >> arch/arm64/Makefile:56: CROSS_COMPILE_COMPAT not defined or empty, the=
+ compat vDSO will not be built
+> >> make --no-builtin-rules INSTALL_HDR_PATH=3D$BUILD/usr \
+> >>         ARCH=3Darm64 -C ../../.. headers_install
+> >>   HOSTCC  scripts/basic/fixdep
+> >>   HOSTCC  scripts/unifdef
+> >> ...
+> >> ...
+> >>   HDRINST usr/include/asm/msgbuf.h
+> >>   HDRINST usr/include/asm/shmbuf.h
+> >>   INSTALL /home/crimar01/ARM/dev/src/pdsw/out_linux//kselftest/usr/inc=
+lude
+> >> /opt/toolchains/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin/aarch=
+64-linux-gnu-gcc     tags_test.c  -o /home/crimar01/ARM/dev/src/pdsw/out_li=
+nux//kselftest/arm64/tags_test
+> >> tags_test.c: In function =E2=80=98main=E2=80=99:
+> >> tags_test.c:21:12: error: =E2=80=98PR_SET_TAGGED_ADDR_CTRL=E2=80=99 un=
+declared (first use in this function); did you mean =E2=80=98PR_GET_TID_ADD=
+RESS=E2=80=99?
+> >>   if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0) =
+=3D=3D 0)
+> >>             ^~~~~~~~~~~~~~~~~~~~~~~
+> >>             PR_GET_TID_ADDRESS
+> >> tags_test.c:21:12: note: each undeclared identifier is reported only o=
+nce for each function it appears in
+> >> tags_test.c:21:37: error: =E2=80=98PR_TAGGED_ADDR_ENABLE=E2=80=99 unde=
+clared (first use in this function); did you mean =E2=80=98PR_GET_DUMPABLE=
+=E2=80=99?
+> >>   if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0) =
+=3D=3D 0)
+> >>                                      ^~~~~~~~~~~~~~~~~~~~~
+> >>                                      PR_GET_DUMPABLE
+> >> ../lib.mk:138: recipe for target '/home/crimar01/ARM/dev/src/pdsw/out_=
+linux//kselftest/arm64/tags_test' failed
+> >> make[3]: *** [/home/crimar01/ARM/dev/src/pdsw/out_linux//kselftest/arm=
+64/tags_test] Error 1
+> >> Makefile:136: recipe for target 'all' failed
+> >> make[2]: *** [all] Error 2
+> >> /home/crimar01/ARM/dev/src/pdsw/linux/Makefile:1237: recipe for target=
+ 'kselftest' failed
+> >> make[1]: *** [kselftest] Error 2
+> >> make[1]: Leaving directory '/home/crimar01/ARM/dev/src/pdsw/out_linux'
+> >> Makefile:179: recipe for target 'sub-make' failed
+> >> make: *** [sub-make] Error 2
+> >>
+> >> Despite seeing KSFT installing Kernel Headers, they cannot be found.
+> >>
+> >> Fixing this patch like this make it work for me:
+> >>
+> >> diff --git a/tools/testing/selftests/arm64/Makefile b/tools/testing/se=
+lftests/arm64/Makefile
+> >> index a61b2e743e99..f9f79fb272f0 100644
+> >> --- a/tools/testing/selftests/arm64/Makefile
+> >> +++ b/tools/testing/selftests/arm64/Makefile
+> >> @@ -4,6 +4,7 @@
+> >>  ARCH ?=3D $(shell uname -m 2>/dev/null || echo not)
+> >>
+> >>  ifneq (,$(filter $(ARCH),aarch64 arm64))
+> >> +CFLAGS +=3D -I../../../../usr/include/
+> >>  TEST_GEN_PROGS :=3D tags_test
+> >>  TEST_PROGS :=3D run_tags_test.sh
+> >>  endif
+> >>
+> >> but is not really a proper fix since it does NOT account for case in w=
+hich you have
+> >> installed the Kernel Headers in a non standard location like when you =
+use KBUILD_OUTPUT.
+> >>
+> >> Am I missing something ?
+> >
+> > Hm, PR_SET_TAGGED_ADDR_CTRL is defined in include/uapi/linux/prctl.h,
+> > and the test has #include <sys/prctl.h> so as long as you've updated
+> > your kernel headers this should work.
+> >
+> > (I'm OOO next week, I'll see if I can reproduce this once I'm back).
+>
+> Ok. Thanks for the reply.
+>
+> I think I've got it in my local tree having cloned arm64/for-next-core:
+>
+> 18:32 $ egrep -A 10 PR_SET_TAG ./include/uapi/linux/prctl.h
+> #define PR_SET_TAGGED_ADDR_CTRL         55
+> #define PR_GET_TAGGED_ADDR_CTRL         56
+> # define PR_TAGGED_ADDR_ENABLE          (1UL << 0)
+>
+> #endif /* _LINUX_PRCTL_H */
+>
+> and Kernel header are locally installed in my kernel src dir (by KSFT ind=
+eed)
+>
+> 18:34 $ egrep -RA 10 PR_SET_TAG usr/include/
+> usr/include/linux/prctl.h:#define PR_SET_TAGGED_ADDR_CTRL               5=
+5
+> usr/include/linux/prctl.h-#define PR_GET_TAGGED_ADDR_CTRL               5=
+6
+> usr/include/linux/prctl.h-# define PR_TAGGED_ADDR_ENABLE                (=
+1UL << 0)
+> usr/include/linux/prctl.h-
+> usr/include/linux/prctl.h-#endif /* _LINUX_PRCTL_H */
+>
+> but how are they supposed to be found if nor the test Makefile
+> neither the KSFT Makefile who installs them pass any -I options to the
+> compiler ?
+> I suppose <sys/prctl.h> tries to include arch specific headers from the r=
+egular system path,
+> but when you are cross-compiling ?
+>
+> 18:34 $ make TARGETS=3Darm64 kselftest
+> make[1]: Entering directory '/home/crimar01/ARM/dev/src/pdsw/out_linux'
+> arch/arm64/Makefile:56: CROSS_COMPILE_COMPAT not defined or empty, the co=
+mpat vDSO will not be built
+> make --no-builtin-rules INSTALL_HDR_PATH=3D$BUILD/usr \
+>         ARCH=3Darm64 -C ../../.. headers_install
+>   INSTALL /home/crimar01/ARM/dev/src/pdsw/out_linux/kselftest/usr/include
+> /opt/toolchains/gcc-arm-8.3-2019.03-x86_64-aarch64-linux-gnu/bin/aarch64-=
+linux-gnu-gcc -Wall -O2 -g    tags_test.c  -o /home/crimar01/ARM/dev/src/pd=
+sw/out_linux/kselftest/arm64/tags/tags_test
+> tags_test.c: In function =E2=80=98main=E2=80=99:
+> tags_test.c:20:12: error: =E2=80=98PR_SET_TAGGED_ADDR_CTRL=E2=80=99 undec=
+lared (first use in this function); did you mean =E2=80=98PR_GET_TID_ADDRES=
+S=E2=80=99?
+>   if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0) =3D=
+=3D 0)
+>             ^~~~~~~~~~~~~~~~~~~~~~~
+>             PR_GET_TID_ADDRESS
+> tags_test.c:20:12: note: each undeclared identifier is reported only once=
+ for each function it appears in
+> tags_test.c:20:37: error: =E2=80=98PR_TAGGED_ADDR_ENABLE=E2=80=99 undecla=
+red (first use in this function); did you mean =E2=80=98PR_GET_DUMPABLE=E2=
+=80=99?
+>   if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0) =3D=
+=3D 0)
+>                                      ^~~~~~~~~~~~~~~~~~~~~
+>                                      PR_GET_DUMPABLE
+> ../../lib.mk:138: recipe for target '/home/crimar01/ARM/dev/src/pdsw/out_=
+linux/kselftest/arm64/tags/tags_test' failed
+> make[4]: *** [/home/crimar01/ARM/dev/src/pdsw/out_linux/kselftest/arm64/t=
+ags/tags_test] Error 1
+> Makefile:19: recipe for target 'all' failed
+> make[3]: *** [all] Error 2
+> Makefile:137: recipe for target 'all' failed
+> make[2]: *** [all] Error 2
+> /home/crimar01/ARM/dev/src/pdsw/linux/Makefile:1236: recipe for target 'k=
+selftest' failed
+> make[1]: *** [kselftest] Error 2
+> make[1]: Leaving directory '/home/crimar01/ARM/dev/src/pdsw/out_linux'
+> Makefile:179: recipe for target 'sub-make' failed
+> make: *** [sub-make] Error 2
+>
+>
+> In fact many KSFT testcases seems to brutally add default headers path:
+>
+> tools/testing/selftests/memfd/Makefile:CFLAGS +=3D -I../../../../include/=
+uapi/
+> tools/testing/selftests/memfd/Makefile:CFLAGS +=3D -I../../../../include/
+> tools/testing/selftests/memfd/Makefile:CFLAGS +=3D -I../../../../usr/incl=
+ude/
+> tools/testing/selftests/net/Makefile:CFLAGS +=3D -I../../../../usr/includ=
+e/
+> tools/testing/selftests/membarrier/Makefile:CFLAGS +=3D -g -I../../../../=
+usr/include/
+> ...
 
-Hum hum hum...
+Hi Cristian!
 
-So I can, _probably_, think of several patches.
+Indeed, I can reproduce the issue. I don't know what's the proper way
+to resolve this. Adding "CFLAGS +=3D -I../../../../usr/include/" looks
+good to me. AFAICS your series resolves this issue in a similar way,
+but I think we should fix this before the current rc is released. Do
+you want to submit a patch that adds this simple fix or should I do
+that?
 
-First, move wake_up_klogd() back to console_unlock().
+Thanks!
 
-Second, move `printk_pending' out of per-CPU region and make it global.
-So we will have just one printk irq_work scheduled across all CPUs;
-currently we have one irq_work per CPU. I think I sent a patch a long
-long time ago, but we never discussed it, as far as I remember.
-
-> In addition, those printk() will deal with console drivers or even a ne=
-tworking
-> console, so it is probably not unusual that it could call irq_exit()-
->__do_softirq() at one point and then this livelock.
-
-Do you use netcon? Because this, theoretically, can open up one more
-vector. netcon allocates skbs from ->write() path. We call con drivers'
-->write() from printk_safe context, so should netcon skb allocation
-warn we will scedule one more irq_work on that CPU to flush per-CPU
-printk_safe buffer.
-
-If this is the case, then we can stop calling console_driver() under
-printk_safe. I sent a patch a while ago, but we agreed to keep the
-things the way they are, fot the time being.
-
-Let me think more.
-
-	-ss
+>
+> Cheers
+>
+> Cristian
+> >
+> >
+> >
+> >>
+> >> Thanks
+> >>
+> >> Cristian
+> >>
+> >>>
+> >>> diff --git a/tools/testing/selftests/arm64/.gitignore b/tools/testing=
+/selftests/arm64/.gitignore
+> >>> new file mode 100644
+> >>> index 000000000000..e8fae8d61ed6
+> >>> --- /dev/null
+> >>> +++ b/tools/testing/selftests/arm64/.gitignore
+> >>> @@ -0,0 +1 @@
+> >>> +tags_test
+> >>> diff --git a/tools/testing/selftests/arm64/Makefile b/tools/testing/s=
+elftests/arm64/Makefile
+> >>> new file mode 100644
+> >>> index 000000000000..a61b2e743e99
+> >>> --- /dev/null
+> >>> +++ b/tools/testing/selftests/arm64/Makefile
+> >>> @@ -0,0 +1,11 @@
+> >>> +# SPDX-License-Identifier: GPL-2.0
+> >>> +
+> >>> +# ARCH can be overridden by the user for cross compiling
+> >>> +ARCH ?=3D $(shell uname -m 2>/dev/null || echo not)
+> >>> +
+> >>> +ifneq (,$(filter $(ARCH),aarch64 arm64))
+> >>> +TEST_GEN_PROGS :=3D tags_test
+> >>> +TEST_PROGS :=3D run_tags_test.sh
+> >>> +endif
+> >>> +
+> >>> +include ../lib.mk
+> >>> diff --git a/tools/testing/selftests/arm64/run_tags_test.sh b/tools/t=
+esting/selftests/arm64/run_tags_test.sh
+> >>> new file mode 100755
+> >>> index 000000000000..745f11379930
+> >>> --- /dev/null
+> >>> +++ b/tools/testing/selftests/arm64/run_tags_test.sh
+> >>> @@ -0,0 +1,12 @@
+> >>> +#!/bin/sh
+> >>> +# SPDX-License-Identifier: GPL-2.0
+> >>> +
+> >>> +echo "--------------------"
+> >>> +echo "running tags test"
+> >>> +echo "--------------------"
+> >>> +./tags_test
+> >>> +if [ $? -ne 0 ]; then
+> >>> +     echo "[FAIL]"
+> >>> +else
+> >>> +     echo "[PASS]"
+> >>> +fi
+> >>> diff --git a/tools/testing/selftests/arm64/tags_test.c b/tools/testin=
+g/selftests/arm64/tags_test.c
+> >>> new file mode 100644
+> >>> index 000000000000..22a1b266e373
+> >>> --- /dev/null
+> >>> +++ b/tools/testing/selftests/arm64/tags_test.c
+> >>> @@ -0,0 +1,29 @@
+> >>> +// SPDX-License-Identifier: GPL-2.0
+> >>> +
+> >>> +#include <stdio.h>
+> >>> +#include <stdlib.h>
+> >>> +#include <unistd.h>
+> >>> +#include <stdint.h>
+> >>> +#include <sys/prctl.h>
+> >>> +#include <sys/utsname.h>
+> >>> +
+> >>> +#define SHIFT_TAG(tag)               ((uint64_t)(tag) << 56)
+> >>> +#define SET_TAG(ptr, tag)    (((uint64_t)(ptr) & ~SHIFT_TAG(0xff)) |=
+ \
+> >>> +                                     SHIFT_TAG(tag))
+> >>> +
+> >>> +int main(void)
+> >>> +{
+> >>> +     static int tbi_enabled =3D 0;
+> >>> +     struct utsname *ptr, *tagged_ptr;
+> >>> +     int err;
+> >>> +
+> >>> +     if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0,=
+ 0) =3D=3D 0)
+> >>> +             tbi_enabled =3D 1;
+> >>> +     ptr =3D (struct utsname *)malloc(sizeof(*ptr));
+> >>> +     if (tbi_enabled)
+> >>> +             tagged_ptr =3D (struct utsname *)SET_TAG(ptr, 0x42);
+> >>> +     err =3D uname(tagged_ptr);
+> >>> +     free(ptr);
+> >>> +
+> >>> +     return err;
+> >>> +}
+> >>>
+> >>
+>
 
