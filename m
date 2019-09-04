@@ -2,111 +2,168 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2E65C3A5A9
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:52:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B524C3A5A8
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:52:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ADFB523431
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:52:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADFB523431
+	by mail.kernel.org (Postfix) with ESMTP id C09472339D
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:52:52 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="QOvybiJz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C09472339D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 40B566B0003; Wed,  4 Sep 2019 08:52:29 -0400 (EDT)
+	id 62EBF6B0006; Wed,  4 Sep 2019 08:52:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3BB3E6B0006; Wed,  4 Sep 2019 08:52:29 -0400 (EDT)
+	id 5DED96B0007; Wed,  4 Sep 2019 08:52:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A9CF6B0007; Wed,  4 Sep 2019 08:52:29 -0400 (EDT)
+	id 4F4276B0008; Wed,  4 Sep 2019 08:52:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0239.hostedemail.com [216.40.44.239])
-	by kanga.kvack.org (Postfix) with ESMTP id 039EA6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 08:52:28 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 8AECE8125
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:52:28 +0000 (UTC)
-X-FDA: 75897226776.07.idea01_4fc7a89065e24
-X-HE-Tag: idea01_4fc7a89065e24
-X-Filterd-Recvd-Size: 3111
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:52:28 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1084EAF47;
-	Wed,  4 Sep 2019 12:52:27 +0000 (UTC)
-Date: Wed, 4 Sep 2019 14:52:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: sunqiuyang <sunqiuyang@huawei.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [PATCH 1/1] mm/migrate: fix list corruption in migration of
- non-LRU movable pages
-Message-ID: <20190904125226.GV3838@dhcp22.suse.cz>
-References: <20190903082746.20736-1-sunqiuyang@huawei.com>
- <20190903131737.GB18939@dhcp22.suse.cz>
- <157FC541501A9C4C862B2F16FFE316DC190C1B09@dggeml512-mbx.china.huawei.com>
- <20190904063836.GD3838@dhcp22.suse.cz>
- <157FC541501A9C4C862B2F16FFE316DC190C2EBD@dggeml512-mbx.china.huawei.com>
- <20190904081408.GF3838@dhcp22.suse.cz>
- <157FC541501A9C4C862B2F16FFE316DC190C3402@dggeml512-mbx.china.huawei.com>
+Received: from forelay.hostedemail.com (smtprelay0007.hostedemail.com [216.40.44.7])
+	by kanga.kvack.org (Postfix) with ESMTP id 303506B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 08:52:52 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 9322382437C9
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:52:51 +0000 (UTC)
+X-FDA: 75897227742.25.maid08_531d16e63765d
+X-HE-Tag: maid08_531d16e63765d
+X-Filterd-Recvd-Size: 6221
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:52:51 +0000 (UTC)
+Received: from tleilax.poochiereds.net (68-20-15-154.lightspeed.rlghnc.sbcglobal.net [68.20.15.154])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8B30F21883;
+	Wed,  4 Sep 2019 12:52:48 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1567601569;
+	bh=XG+z6BHhOmv9W2OyuDcqw63mHyObz78oeswsmfEdF1U=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=QOvybiJzp85IlBNCfwgLsBnLV9DR4UQ+d3iO+92iuV9rSa0S6OBqWysT1ufEq9jPg
+	 Uc8pw3mW3WhdRGHShvIhIShiLbWPqR1oIpH89892Mb1phi9Lqta58kkyAJU+pCa6lo
+	 XwT3v0mpqc9uUS8Hbn+5AeFK7k62BlqLx2/zGjmo=
+Message-ID: <2227b44d9e36f9bd129c73ee77c03b35d023236a.camel@kernel.org>
+Subject: Re: [RFC PATCH v2 02/19] fs/locks: Add Exclusive flag to user
+ Layout lease
+From: Jeff Layton <jlayton@kernel.org>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton
+ <akpm@linux-foundation.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams
+ <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Jan Kara
+ <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, John Hubbard
+ <jhubbard@nvidia.com>,  Michal Hocko <mhocko@suse.com>,
+ linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org, 
+ linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, 
+ linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Date: Wed, 04 Sep 2019 08:52:47 -0400
+In-Reply-To: <20190829233408.GD18249@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+	 <20190809225833.6657-3-ira.weiny@intel.com>
+	 <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
+	 <20190814215630.GQ6129@dread.disaster.area>
+	 <e6f4f619967f4551adb5003d0364770fde2b8110.camel@kernel.org>
+	 <20190829233408.GD18249@iweiny-DESK2.sc.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <157FC541501A9C4C862B2F16FFE316DC190C3402@dggeml512-mbx.china.huawei.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 04-09-19 12:19:11, sunqiuyang wrote:
-> > Do not top post please
-> > 
-> > On Wed 04-09-19 07:27:25, sunqiuyang wrote:
-> > > isolate_migratepages_block() from another thread may try to isolate the page again:
-> > >
-> > > for (; low_pfn < end_pfn; low_pfn++) {
-> > >   /* ... */
-> > >   page = pfn_to_page(low_pfn);
-> > >  /* ... */
-> > >   if (!PageLRU(page)) {
-> > >     if (unlikely(__PageMovable(page)) && !PageIsolated(page)) {
-> > >         /* ... */
-> > >         if (!isolate_movable_page(page, isolate_mode))
-> > >           goto isolate_success;
-> > >       /*... */
-> > > isolate_success:
-> > >      list_add(&page->lru, &cc->migratepages);
-> > >
-> > > And this page will be added to another list.
-> > > Or, do you see any reason that the page cannot go through this path?
-> > 
-> > The page shouldn't be __PageMovable after the migration is done. All the
-> > state should have been transfered to the new page IIUC.
-> > 
->
-> I don't see where page->mapping is modified after the migration is done. 
+On Thu, 2019-08-29 at 16:34 -0700, Ira Weiny wrote:
+> Missed this.  sorry.
 > 
-> Actually, the last comment in move_to_new_page() says,
-> "Anonymous and movable page->mapping will be cleard by
-> free_pages_prepare so don't reset it here for keeping
-> the type to work PageAnon, for example. "
+> On Mon, Aug 26, 2019 at 06:41:07AM -0400, Jeff Layton wrote:
+> > On Thu, 2019-08-15 at 07:56 +1000, Dave Chinner wrote:
+> > > On Wed, Aug 14, 2019 at 10:15:06AM -0400, Jeff Layton wrote:
+> > > > On Fri, 2019-08-09 at 15:58 -0700, ira.weiny@intel.com wrote:
+> > > > > From: Ira Weiny <ira.weiny@intel.com>
+> > > > > 
+> > > > > Add an exclusive lease flag which indicates that the layout mechanism
+> > > > > can not be broken.
+> > > > > 
+> > > > > Exclusive layout leases allow the file system to know that pages may be
+> > > > > GUP pined and that attempts to change the layout, ie truncate, should be
+> > > > > failed.
+> > > > > 
+> > > > > A process which attempts to break it's own exclusive lease gets an
+> > > > > EDEADLOCK return to help determine that this is likely a programming bug
+> > > > > vs someone else holding a resource.
+> > > .....
+> > > > > diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
+> > > > > index baddd54f3031..88b175ceccbc 100644
+> > > > > --- a/include/uapi/asm-generic/fcntl.h
+> > > > > +++ b/include/uapi/asm-generic/fcntl.h
+> > > > > @@ -176,6 +176,8 @@ struct f_owner_ex {
+> > > > >  
+> > > > >  #define F_LAYOUT	16      /* layout lease to allow longterm pins such as
+> > > > >  				   RDMA */
+> > > > > +#define F_EXCLUSIVE	32      /* layout lease is exclusive */
+> > > > > +				/* FIXME or shoudl this be F_EXLCK??? */
+> > > > >  
+> > > > >  /* operations for bsd flock(), also used by the kernel implementation */
+> > > > >  #define LOCK_SH		1	/* shared lock */
+> > > > 
+> > > > This interface just seems weird to me. The existing F_*LCK values aren't
+> > > > really set up to be flags, but are enumerated values (even if there are
+> > > > some gaps on some arches). For instance, on parisc and sparc:
+> > > 
+> > > I don't think we need to worry about this - the F_WRLCK version of
+> > > the layout lease should have these exclusive access semantics (i.e
+> > > other ops fail rather than block waiting for lease recall) and hence
+> > > the API shouldn't need a new flag to specify them.
+> > > 
+> > > i.e. the primary difference between F_RDLCK and F_WRLCK layout
+> > > leases is that the F_RDLCK is a shared, co-operative lease model
+> > > where only delays in operations will be seen, while F_WRLCK is a
+> > > "guarantee exclusive access and I don't care what it breaks"
+> > > model... :)
+> > > 
+> > 
+> > Not exactly...
+> > 
+> > F_WRLCK and F_RDLCK leases can both be broken, and will eventually time
+> > out if there is conflicting access. The F_EXCLUSIVE flag on the other
+> > hand is there to prevent any sort of lease break from 
 > 
-> Or did I miss something? Thanks,
+> Right EXCLUSIVE will not break for any reason.  It will fail truncate and hole
+> punch as we discussed back in June.  This is for the use case where the user
+> has handed this file/pages off to some hardware for which removing the lease
+> would be impossible.  _And_ we don't anticipate any valid use case that someone
+> will need to truncate short of killing the process to free up file system
+> space.
+> 
+> > I'm guessing what Ira really wants with the F_EXCLUSIVE flag is
+> > something akin to what happens when we set fl_break_time to 0 in the
+> > nfsd code. nfsd never wants the locks code to time out a lease of any
+> > sort, since it handles that timeout itself.
+> > 
+> > If you're going to add this functionality, it'd be good to also convert
+> > knfsd to use it as well, so we don't end up with multiple ways to deal
+> > with that situation.
+> 
+> Could you point me at the source for knfsd?  I looked in 
+> 
+> git://git.linux-nfs.org/projects/steved/nfs-utils.git
+> 
+> but I don't see anywhere leases are used in that source?
+> 
 
-This talks about mapping rather than flags stored in the mapping.
-I can see that in tree migration handlers (z3fold_page_migrate,
-vmballoon_migratepage via balloon_page_delete, zs_page_migrate via
-reset_page) all reset the movable flag. I am not sure whether that is a
-documented requirement or just a coincidence. Maybe it should be
-documented. I would like to hear from Minchan.
+Ahh sorry that wasn't clear. It's the fs/nfsd directory in the Linux
+kernel sources. See nfsd4_layout_lm_break and nfsd_break_deleg_cb in
+particular.
 
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@kernel.org>
+
 
