@@ -2,53 +2,54 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0720DC3A5AA
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 18:48:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F390C3A5A8
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 19:02:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C1362208E4
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 18:48:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E8E8721670
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 19:02:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="l48eplRt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1362208E4
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pDxHaccz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8E8721670
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CF176B0003; Wed,  4 Sep 2019 14:48:23 -0400 (EDT)
+	id 58DE36B0003; Wed,  4 Sep 2019 15:02:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67FF56B0006; Wed,  4 Sep 2019 14:48:23 -0400 (EDT)
+	id 564266B0006; Wed,  4 Sep 2019 15:02:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5952E6B0007; Wed,  4 Sep 2019 14:48:23 -0400 (EDT)
+	id 456F86B0007; Wed,  4 Sep 2019 15:02:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0236.hostedemail.com [216.40.44.236])
-	by kanga.kvack.org (Postfix) with ESMTP id 331326B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 14:48:23 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id CE741180AD804
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 18:48:22 +0000 (UTC)
-X-FDA: 75898123644.09.voice42_83528e16a6e63
-X-HE-Tag: voice42_83528e16a6e63
-X-Filterd-Recvd-Size: 3342
+Received: from forelay.hostedemail.com (smtprelay0205.hostedemail.com [216.40.44.205])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EDCB6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 15:02:02 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id B708C52A7
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:02:01 +0000 (UTC)
+X-FDA: 75898158042.28.plant35_68f6c49e17e11
+X-HE-Tag: plant35_68f6c49e17e11
+X-Filterd-Recvd-Size: 2820
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 18:48:22 +0000 (UTC)
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:02:01 +0000 (UTC)
 Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 03D9C2077B;
-	Wed,  4 Sep 2019 18:48:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id DE7CD2087E;
+	Wed,  4 Sep 2019 19:01:59 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1567622901;
-	bh=y/U9awkp5NHEKyToOdNfhASID49ak7lJitv2XnwM8ig=;
+	s=default; t=1567623720;
+	bh=A0p265L38NV6UyAt6+h0NKJkV9Yhds5FJHvN1ygxV4c=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=l48eplRtfDQ9dCB0z0/vjJSBpp4+nu72sQ5JB/xFiwEi+5YkL02O902322DNOoXq0
-	 2o6b81X9JJkXjkuTU3+Rlwzma+WoPy3wed9pWDdYoHBGHF78R5LfS/3ZeheTMIWMgh
-	 bKmluPnWE7bN+EqOrCD1L/bEcjgC3ET+et+hF2Yw=
-Date: Wed, 4 Sep 2019 11:48:20 -0700
+	b=pDxHacczS7aRbBpwyiXA4vrhf5y08lCIaa7YP/dIu1wq26LCRg6bclT5fKTTVLyGH
+	 1U3klZixQDuOyfP5k6u7kLvIMKM4+3SRc7wXpKnAnVKk8yB7IRbiJtdR3maDYRkAfA
+	 mu7Oteopa+BITB2kX1vIAZjqSCc0R63PbOkQ7VYE=
+Date: Wed, 4 Sep 2019 12:01:59 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: zhong jiang <zhongjiang@huawei.com>, mhocko@kernel.org,
@@ -56,7 +57,7 @@ Cc: zhong jiang <zhongjiang@huawei.com>, mhocko@kernel.org,
  linux-kernel@vger.kernel.org, Ira Weiny <ira.weiny@intel.com>,
  "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
-Message-Id: <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
+Message-Id: <20190904120159.d4026b573f419838d77e991d@linux-foundation.org>
 In-Reply-To: <5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
 References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
 	<5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
@@ -79,47 +80,22 @@ On Wed, 4 Sep 2019 13:24:58 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 > 
 > It would be nicer if the parameter nr_pages was long again instead of unsigned
 > long (note there are two variants of the function, so both should be changed).
+> 
+> > Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> 
+> Fixes: 932f4a630a69 ("mm/gup: replace get_user_pages_longterm() with FOLL_LONGTERM")
+> 
+> (which changed long to unsigned long)
+> 
+> AFAICS... stable shouldn't be needed as the only "risk" is that we goto
+> check_again even when we fail, which should be harmless.
+> 
 
-nr_pages should be unsigned - it's a count of pages!
+Really?  If nr_pages gets a value of -EFAULT from the
+__get_user_pages_locked() call, check_and_migrate_cma_pages() will go
+berzerk?
 
-The bug is that __get_user_pages_locked() returns a signed long which
-can be a -ve errno.
-
-I think it's best if __get_user_pages_locked() is to get itself a new
-local with the same type as its return value.  Something like:
-
---- a/mm/gup.c~a
-+++ a/mm/gup.c
-@@ -1450,6 +1450,7 @@ static long check_and_migrate_cma_pages(
- 	bool drain_allow = true;
- 	bool migrate_allow = true;
- 	LIST_HEAD(cma_page_list);
-+	long ret;
- 
- check_again:
- 	for (i = 0; i < nr_pages;) {
-@@ -1511,17 +1512,18 @@ check_again:
- 		 * again migrating any new CMA pages which we failed to isolate
- 		 * earlier.
- 		 */
--		nr_pages = __get_user_pages_locked(tsk, mm, start, nr_pages,
-+		ret = __get_user_pages_locked(tsk, mm, start, nr_pages,
- 						   pages, vmas, NULL,
- 						   gup_flags);
- 
--		if ((nr_pages > 0) && migrate_allow) {
-+		nr_pages = ret;
-+		if (ret > 0 && migrate_allow) {
- 			drain_allow = true;
- 			goto check_again;
- 		}
- 	}
- 
--	return nr_pages;
-+	return ret;
- }
- #else
- static long check_and_migrate_cma_pages(struct task_struct *tsk,
-
+And does __get_user_pages_locked() correctly handle a -ve errno
+returned by __get_user_pages()?  It's hard to see how...
 
 
