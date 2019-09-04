@@ -2,109 +2,142 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74C3FC3A5AA
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 17:18:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6EB5C3A5A8
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 17:50:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38E5521726
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 17:18:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8E89621670
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 17:50:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Rlc1qhvZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38E5521726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hQwnhGyg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E89621670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB8F16B0003; Wed,  4 Sep 2019 13:18:13 -0400 (EDT)
+	id D3D9C6B0003; Wed,  4 Sep 2019 13:50:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C699C6B0006; Wed,  4 Sep 2019 13:18:13 -0400 (EDT)
+	id CECE36B0006; Wed,  4 Sep 2019 13:50:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B58A46B0007; Wed,  4 Sep 2019 13:18:13 -0400 (EDT)
+	id C02746B0007; Wed,  4 Sep 2019 13:50:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0200.hostedemail.com [216.40.44.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97F2B6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 13:18:13 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 411AC181AC9BF
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 17:18:13 +0000 (UTC)
-X-FDA: 75897896466.22.feast37_47b3cfb25d42a
-X-HE-Tag: feast37_47b3cfb25d42a
-X-Filterd-Recvd-Size: 4220
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 17:18:12 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id o101so21349693ota.8
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 10:18:12 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=fWAo+cPvJp3pRuv/EjTjzujk+3Lx4B3tuClNVfFzxqE=;
-        b=Rlc1qhvZ/ZQZfeXisjWKvvbzrb0mPj0GtsVSCztE1V6gBxbgVkBtlwBpQfC2Ws0iBt
-         j4bJSkCe2TVLeJe5NK/C6H5I6WMPrjn2HB/p4HGS4lLapqisnUcpYcsHcOvLEXufOiOS
-         /Rxvb97yf7u2LLniuekAdg3DDYKhLMQQEx4l4CR7VYkoEEETOko7EYgS9GpF9q0C/2r2
-         dvVVNg9ufoLzzbx/qnE1LgO1GRYro3b/T25vZuduFuyj1S3ATJ9kKptK/TWQwnUUnEId
-         EIySB20LH9efVW3/EMHOaxC/bSdaLLY2mfjzFeoqVQWPb5Tyj8/Q733yJqVbiiK1ODNC
-         HxmA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=fWAo+cPvJp3pRuv/EjTjzujk+3Lx4B3tuClNVfFzxqE=;
-        b=TKoIG2azPbQeaMz7vOwYy3Jkhyyal233Lb/HBW30nzPNivZEjeGC2uezAMYzZLm8vi
-         ywYvvu3zqs2NwtztvL2E9i8Xvz75KFCJVOCxjC9fS/wZxScfxNUFVJbINO7kxx6xJ+u1
-         YagA8o87yG5R3a6hA/0X6pWGHRihLm7ENJ6QpAXZEUyZTCBD2gN7cBB4rYHP5I71d0BD
-         59Jdk4mcv9WZMoYcBGhCWRy/UBONHsP9CS9Z9pt3Vhzd6X0+mcCL5OoEKyZC0MvzJGzq
-         frWEwGxUOc7KZnlUUkwv0yNxnc0reCBZfDH2MWUYD98AuRntGW6WYvwAJsDv0TX2fWyd
-         PYZg==
-X-Gm-Message-State: APjAAAWgZvDPDQYq9937MWvoxIh2Hv/c5Ud1pss7LQHa7oFbEE0xXODf
-	M2DRl2y7UlzEapPj9NgHXsO6Vokf1bGl6/jEDKpqkA==
-X-Google-Smtp-Source: APXvYqxB6/QFXnZ/bEnS1j2lA+AClqCX06L5cZV7XAFcGub2RVPZyKFEhbHeaZgG1pDQGqQfQ9P+zjb+4LI/qsUMqOE=
-X-Received: by 2002:a9d:30c2:: with SMTP id r2mr17813816otg.186.1567617491603;
- Wed, 04 Sep 2019 10:18:11 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0121.hostedemail.com [216.40.44.121])
+	by kanga.kvack.org (Postfix) with ESMTP id A05A26B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 13:50:39 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 4472A87CB
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 17:50:39 +0000 (UTC)
+X-FDA: 75897978198.06.leaf28_3fcdee288a35f
+X-HE-Tag: leaf28_3fcdee288a35f
+X-Filterd-Recvd-Size: 5513
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 17:50:38 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=CIqD9dcYxtNCrgWQIrMf8L3+LM7O9X+A/lkCmo4M2x0=; b=hQwnhGyg/RQE7bI5c1GIoOCYY
+	i8fXusrFw+ZYvagRav4y0tXfBu3TQga+Gth1ihSElm7RH1ROvrEWaT5JCuGlKcMHO8ALAbMn/UWsK
+	eSIdyexxKaqxBwa4PQxsqFN4qMd8OT/cq3XFQq0W2L4/xyS58DqCoHkXMz6ugjWftlwSggVOqNXYf
+	LjLBluBr7+zheu0hs8XizeW4QqfjgEX/WXitI1d80XTScsVyKCFu84Q+JTToZUiLHcAQfXVUXW9yP
+	50+Am7AdNPlF37rTEjRAmYgTwrL9WlTKp9UJjpuIqmOEQfzbT71WKeVetyvVkTb8XKwBiww5xv3LJ
+	0iIlTTZCg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i5ZQO-0007vf-FW; Wed, 04 Sep 2019 17:50:32 +0000
+Date: Wed, 4 Sep 2019 10:50:32 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Dominique Martinet <asmadeus@codewreck.org>
+Cc: linux-mm@kvack.org
+Subject: Re: How to use huge pages in drivers?
+Message-ID: <20190904175032.GL29434@bombadil.infradead.org>
+References: <20190903182627.GA6079@nautica>
+ <20190903184230.GJ29434@bombadil.infradead.org>
+ <20190903212815.GA7518@nautica>
+ <20190904170056.GA9825@nautica>
 MIME-Version: 1.0
-References: <20190903200905.198642-1-joel@joelfernandes.org>
- <20190904084508.GL3838@dhcp22.suse.cz> <20190904153258.GH240514@google.com> <20190904153759.GC3838@dhcp22.suse.cz>
-In-Reply-To: <20190904153759.GC3838@dhcp22.suse.cz>
-From: Daniel Colascione <dancol@google.com>
-Date: Wed, 4 Sep 2019 10:17:33 -0700
-Message-ID: <CAKOZueuGML_ZX8Pk5csLK7TWEVwqGj=KZTh2TELNsLytkrHCTQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: emit tracepoint when RSS changes by threshold
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joel Fernandes <joel@joelfernandes.org>, linux-kernel <linux-kernel@vger.kernel.org>, 
-	Tim Murray <timmurray@google.com>, Carmen Jackson <carmenjackson@google.com>, 
-	Mayank Gupta <mayankgupta@google.com>, Steven Rostedt <rostedt@goodmis.org>, 
-	Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Android Kernel Team <kernel-team@android.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, 
-	linux-mm <linux-mm@kvack.org>, Matthew Wilcox <willy@infradead.org>, 
-	Ralph Campbell <rcampbell@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190904170056.GA9825@nautica>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 4, 2019 at 8:38 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > but also for reducing
-> > tracing noise. Flooding the traces makes it less useful for long traces and
-> > post-processing of traces. IOW, the overhead reduction is a bonus.
->
-> This is not really anything special for this tracepoint though.
-> Basically any tracepoint in a hot path is in the same situation and I do
-> not see a point why each of them should really invent its own way to
-> throttle. Maybe there is some way to do that in the tracing subsystem
-> directly.
+On Wed, Sep 04, 2019 at 07:00:56PM +0200, Dominique Martinet wrote:
+> Dominique Martinet wrote on Tue, Sep 03, 2019:
+> > Matthew Wilcox wrote on Tue, Sep 03, 2019:
+> > > > What I'd like to know is:
+> > > >  - we know (assuming the other side isn't too bugged, but if it is we're
+> > > > fucked up anyway) exactly what huge-page-sized physical memory range has
+> > > > been mapped on the other side, is there a way to manually gather the
+> > > > pages corresponding and merge them into a huge page?
+> > > 
+> > > You're using the word 'page' here, but I suspect what you really mean is
+> > > "pfn" or "pte".  As you've described it, it doesn't matter what data structure
+> > > Linux is using for the memory, since Linux doesn't know about the memory.
+> > 
+> > Correct, we're already using vmf_insert_pfn
+> 
+> Actually let me take that back, vmf_insert_pfn is only used if
+> pfn_valid() is false, probably as a safeguard of sort(?).
+> The normal case went with pfn_to_page(pfn) + vm_insert_page() so, as
+> things stands.
+> I do have a few more questions if you could humor me a bit more...
+> 
+>  - the vma was created with a vm_flags including VM_MIXEDMAP for some
+> reason, I don't know why.
+> If I change it to VM_PFNMAP (which sounds better here from the little I
+> understand of this as we do not need cow and looks a bit simpler?), I
+> can remove the vm_insert_page() path and use the vmf_insert_pfn one
+> instead, which appears to work fine for simple programs... But the
+> kernel thread for my network adapter (bxi... which is not upstream
+> either I guess.. sigh..) no longer tries to fault via my custom .fault
+> vm operation... Which means I probably did need MIXEDMAP ?
 
-I agree. I'd rather not special-case RSS in this way, especially not
-with a hardcoded aggregation and thresholding configuration. It should
-be possible to handle high-frequency trace data point aggregation in a
-general way. Why shouldn't we be able to get a time series for, say,
-dirty pages? Or various slab counts? IMHO, any counter on the system
-ought to be observable in a uniform way.
+Strange ... PFNMAP absolutely should try to fault via the ->fault
+vm operation (although see below)
+
+>  - ignoring that for now (it's not like I need to switch to PFNMAP);
+> adding vmf_insert_pfn_pmd() for when the remote side uses large pages,
+> it complains that the vmf->pmd is not a pmd_none nor huge nor a devmap
+> (this check appears specific to rhel7 kernel, I could temporarily test
+> with an upstream kernel but the network adapter won't work there so I'll
+> need this to work on this ultimately)
+> 
+> It looks like handle_mm_fault() will always try to allocate a pmd so it
+> should never be empty in my fault handler, and I don't see anything else
+> than vmf_insert_pfn_pmd() setting the mkdevmap flag, and it's not huge
+> either...
+> (on a dump, the the pmd content is 175cb18067, so these flags according
+> to crash for x86_64 are (PRESENT|RW|USER|ACCESSED|DIRTY))
+> 
+> I tried adding a huge_fault vm op thinking it might be called with a
+> more appropriate pmd but it doesn't seem to be called at all in my
+> case..? I would have assumed from the code that it would try every page
+
+You shouldn't be calling vmf_insert_pfn_pmd() from a regular ->fault
+handler, as by then the fault handler has already inserted a PMD.
+The ->huge_fault handler is the place to call it from.
+
+You may need to force PMD-alignment for your call to mmap().
+
+> Long story short, I think I have some deeper undestanding problem about
+> the whole thing. Do I also need to use some specific flags when that
+> special file is mmap'd to allow huge_fault to be called ?
+> I think transparent_hugepage_enabled(vma) is fine, but the vmf.pmd found
+> in __handle_mm_fault is probably already not none at this point...?
+> 
+> Thanks again, feel free to ignore me for a bit longer I'll keep digging
+> my own grave, writing to a rubber duck that might have an idea of how
+> far the wrong way I've gone already helps... :D
+
+Hope these pointers are slightly more useful than a rubber duck ;-)
 
