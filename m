@@ -2,154 +2,241 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06860C3A59E
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA3FEC41514
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:59:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B61D721881
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:14:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B61D721881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8438B21883
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 23:59:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="fIXcKTuK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8438B21883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 483386B0008; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
+	id 12B476B0003; Wed,  4 Sep 2019 19:59:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 433146B000A; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
+	id 103726B000E; Wed,  4 Sep 2019 19:59:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 322AF6B000C; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
+	id F35106B0010; Wed,  4 Sep 2019 19:59:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DFDE6B0008
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:14:12 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id ACFD12C96
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:14:11 +0000 (UTC)
-X-FDA: 75898793502.26.glass54_7bbc97421d221
-X-HE-Tag: glass54_7bbc97421d221
-X-Filterd-Recvd-Size: 6829
-Received: from mga04.intel.com (mga04.intel.com [192.55.52.120])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:14:10 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Sep 2019 16:14:08 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,468,1559545200"; 
-   d="scan'208";a="187784257"
-Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
-  by orsmga006.jf.intel.com with ESMTP; 04 Sep 2019 16:14:08 -0700
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+Received: from forelay.hostedemail.com (smtprelay0110.hostedemail.com [216.40.44.110])
+	by kanga.kvack.org (Postfix) with ESMTP id D215B6B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 19:59:58 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 77C77824CA32
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:59:58 +0000 (UTC)
+X-FDA: 75898908876.07.stove37_570243354f839
+X-HE-Tag: stove37_570243354f839
+X-Filterd-Recvd-Size: 10721
+Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:59:57 +0000 (UTC)
+Received: by mail-pf1-f196.google.com with SMTP id b13so461552pfo.8
+        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 16:59:57 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=+X0h1ts+MVZV3XmIkyVf8C7h9fPhIeM62LiNUi/8G3A=;
+        b=fIXcKTuKnw1UQvuGKxVfWjVBLyghLw9pQEsEMRAmxScf17+aBm3Cvg9tH3Hv/qq4N8
+         XY3oHrgvMGnbEjRBcNRLZWnoBnDDaGy8fwfMIdo47scstvvgyR5PJU9HTQSZ5XeFp3mO
+         NYlWoLk6u5yQzec20/dwKo37T07QPkcJtAnlbjF6xT1SS3yepMYpGkFrSSoZ7ANWPm3u
+         XHIlwi//MzAp/RUrsh/BDboGHEDtIslWQG2G4DuB5D2aQQ9eWAf9ME24K/JCMuE3dARF
+         f1CewAzQ8PFVk/yA7tw5y9Cm5mTJTRUkBrTE52Dwkey+N0yzq7NFTT7QtwvXnsJmvG2W
+         HUXA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=+X0h1ts+MVZV3XmIkyVf8C7h9fPhIeM62LiNUi/8G3A=;
+        b=MRt/UDwNwiqbyQnqwFdYxaIZZnvrL/k/iZat4EehVeN30xlxFNIZmEQ1K9I5w50rlE
+         We6gflUHk55FCKNPTGYXohkP2Jcy97yK2WB8Trc7GRZ050N1MoAmYWRlvoSnshhXPR/F
+         rixWAm9d3PyphSbEhA3Ci8KgyVC9rmpHpzuOFxUduGuhMOTRF+YYhpQk50qPKhlWiSSH
+         4vNmZPKh1Xm0HUs0ODkc00atswI2SdDRxFI2RfLMgCNK5dEvuCbN3iGCeou7a3v6Gf7D
+         5omcXwFzSdPYJOKbNn6QICmbALHv+yTRlt1KWDKaN6QdDt3ewYUxglRmSDCngF4bPmXH
+         ugCA==
+X-Gm-Message-State: APjAAAWcQnS17ryEyluz482Upl+YmsWM5SPL62CVDk6ycT+lwWQRIyMN
+	8l/vj6dXzRzrBvBvtXwGLxNLuA==
+X-Google-Smtp-Source: APXvYqyEWakNdGwZHc9tgEvaXh3mgZ+5G0M2yH3pF4rpPHtMAxCZpiCY2+Z+EgCxeLIppsp6X/hLYQ==
+X-Received: by 2002:aa7:8251:: with SMTP id e17mr356053pfn.189.1567641596235;
+        Wed, 04 Sep 2019 16:59:56 -0700 (PDT)
+Received: from sspatil-glaptop2.roam.corp.google.com (96-90-215-179-static.hfc.comcastbusiness.net. [96.90.215.179])
+        by smtp.gmail.com with ESMTPSA id k14sm214018pgi.20.2019.09.04.16.59.54
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 04 Sep 2019 16:59:55 -0700 (PDT)
+Date: Wed, 4 Sep 2019 16:59:53 -0700
+From: sspatil@google.com
+To: dancol@google.com, joel@joelfernandes.org, surenb@google.com,
+ linux-kernel@vger.kernel.org, timmurray@google.com, carmenjackson@google.com,
+ mayankgupta@google.com, rostedt@goodmis.org, minchan@kernel.org,
+ akpm@linux-foundation.org, kernel-team@android.com, aneesh.kumar@linux.ibm.com,
+ dan.j.williams@intel.com, jglisse@redhat.com, linux-mm@kvack.org,
+ willy@infradead.org, mhocko@suse.cz, rcampbell@nvidia.com, vbabka@suse.cz,
+ sspatil+mutt@google.com
+Cc: Joel Fernandes <joel@joelfernandes.org>,
+ Suren Baghdasaryan <surenb@google.com>,
+ LKML <linux-kernel@vger.kernel.org>, Tim Murray <timmurray@google.com>,
+ Carmen Jackson <carmenjackson@google.com>,
+ Mayank Gupta <mayankgupta@google.com>,
+ Steven Rostedt <rostedt@goodmis.org>, Minchan Kim <minchan@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ kernel-team <kernel-team@android.com>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
  Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Matthew Wilcox <willy@infradead.org>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org,
- "Shutemov, Kirill" <kirill.shutemov@intel.com>
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
- <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <3b67e4d8-ba67-e7b2-f4d1-1276262d349e@intel.com>
-Date: Wed, 4 Sep 2019 16:14:08 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+ Jerome Glisse <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>,
+ Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.cz>,
+ Ralph Campbell <rcampbell@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH v2] mm: emit tracepoint when RSS changes by threshold
+Message-ID: <20190904235953.GH14859@google.com>
+References: <20190903200905.198642-1-joel@joelfernandes.org>
+ <CAJuCfpEXpYq2i3zNbJ3w+R+QXTuMyzwL6S9UpiGEDvTioKORhQ@mail.gmail.com>
+ <CAKOZuesWV9yxbS9+T5+p1Ty1-=vFeYcHuO=6MgzTY8akMhbFbQ@mail.gmail.com>
+ <20190904051549.GB256568@google.com>
+ <CAKOZuet_M7nu5PYQj1iZErXV8hSZnjv4kMokVyumixVXibveoQ@mail.gmail.com>
+ <20190904145941.GF240514@google.com>
+ <CAKOZuevvgANuaZc9P09=+tcM5MasPPvpkVmWf8wucsnVpdY8mg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZuevvgANuaZc9P09=+tcM5MasPPvpkVmWf8wucsnVpdY8mg@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/3/19 1:01 AM, Anshuman Khandual wrote:
-> This adds a test module which will validate architecture page table hel=
-pers
-> and accessors regarding compliance with generic MM semantics expectatio=
-ns.
-> This will help various architectures in validating changes to the exist=
-ing
-> page table helpers or addition of new ones.
+On Wed, Sep 04, 2019 at 10:15:10AM -0700, 'Daniel Colascione' via kernel-team wrote:
+> On Wed, Sep 4, 2019 at 7:59 AM Joel Fernandes <joel@joelfernandes.org> wrote:
+> >
+> > On Tue, Sep 03, 2019 at 10:42:53PM -0700, Daniel Colascione wrote:
+> > > On Tue, Sep 3, 2019 at 10:15 PM Joel Fernandes <joel@joelfernandes.org> wrote:
+> > > >
+> > > > On Tue, Sep 03, 2019 at 09:51:20PM -0700, Daniel Colascione wrote:
+> > > > > On Tue, Sep 3, 2019 at 9:45 PM Suren Baghdasaryan <surenb@google.com> wrote:
+> > > > > >
+> > > > > > On Tue, Sep 3, 2019 at 1:09 PM Joel Fernandes (Google)
+> > > > > > <joel@joelfernandes.org> wrote:
+> > > > > > >
+> > > > > > > Useful to track how RSS is changing per TGID to detect spikes in RSS and
+> > > > > > > memory hogs. Several Android teams have been using this patch in various
+> > > > > > > kernel trees for half a year now. Many reported to me it is really
+> > > > > > > useful so I'm posting it upstream.
+> > > > >
+> > > > > It's also worth being able to turn off the per-task memory counter
+> > > > > caching, otherwise you'll have two levels of batching before the
+> > > > > counter gets updated, IIUC.
+> > > >
+> > > > I prefer to keep split RSS accounting turned on if it is available.
+> > >
+> > > Why? AFAIK, nobody's produced numbers showing that split accounting
+> > > has a real benefit.
+> >
+> > I am not too sure. Have you checked the original patches that added this
+> > stuff though? It seems to me the main win would be on big systems that have
+> > to pay for atomic updates.
+> 
+> I looked into this issue the last time I mentioned split mm
+> accounting. See [1]. It's my sense that the original change was
+> inadequately justified; Michal Hocko seems to agree. I've tried
+> disabling split rss accounting locally on a variety of systems ---
+> Android, laptop, desktop --- and failed to notice any difference. It's
+> possible that some difference appears at a scale beyond that to which
+> I have access, but if the benefit of split rss accounting is limited
+> to these cases, split rss accounting shouldn't be on by default, since
+> it comes at a cost in consistency.
+> 
+> [1] https://lore.kernel.org/linux-mm/20180227100234.GF15357@dhcp22.suse.cz/
+> 
+> > > > I think
+> > > > discussing split RSS accounting is a bit out of scope of this patch as well.
+> > >
+> > > It's in-scope, because with split RSS accounting, allocated memory can
+> > > stay accumulated in task structs for an indefinite time without being
+> > > flushed to the mm. As a result, if you take the stream of virtual
+> > > memory management system calls that  program makes on one hand, and VM
+> > > counter values on the other, the two don't add up. For various kinds
+> > > of robustness (trace self-checking, say) it's important that various
+> > > sources of data add up.
+> > >
+> > > If we're adding a configuration knob that controls how often VM
+> > > counters get reflected in system trace points, we should also have a
+> > > knob to control delayed VM counter operations. The whole point is for
+> > > users to be able to specify how precisely they want VM counter changes
+> > > reported to analysis tools.
+> >
+> > We're not adding more configuration knobs.
+> 
+> This position doesn't seem to be the thread consensus yet.
+> 
+> > > > Any improvements on that front can be a follow-up.
+> > > >
+> > > > Curious, has split RSS accounting shown you any issue with this patch?
+> > >
+> > > Split accounting has been a source of confusion for a while now: it
+> > > causes that numbers-don't-add-up problem even when sampling from
+> > > procfs instead of reading memory tracepoint data.
+> >
+> > I think you can just disable split RSS accounting if it does not work well
+> > for your configuration.
+> 
+> There's no build-time configuration for split RSS accounting. It's not
+> reasonable to expect people to carry patches just to get their memory
+> usage numbers to add up.
 
-This looks really cool.  The "only" complication on x86 is the large
-number of compile and runtime options that we have.  When this gets
-merged, it would be really nice to make sure that the 0day guys have
-good coverage of all the configurations.
+sure, may be send a patch to make one in that case or for deleting the split
+RSS accounting code like you said below.
 
-I'm not _quite_ sure what kind of bugs it will catch on x86 and I
-suspect it'll have more value for the other architectures, but it seems
-harmless enough.
+> 
+> > Also AFAIU, every TASK_RSS_EVENTS_THRESH the page fault code does sync the
+> > counters. So it does not indefinitely lurk.
+> 
+> If a thread incurs TASK_RSS_EVENTS_THRESH - 1 page faults and then
+> sleeps for a week, all memory counters observable from userspace will
+> be wrong for a week. Multiply this potential error by the number of
+> threads on a typical system and you have to conclude that split RSS
+> accounting produces a lot of potential uncertainty. What are we
+> getting in exchange for this uncertainty?
+> 
+> > The tracepoint's main intended
+> > use is to detect spikes which provides ample opportunity to sync the cache.
+> 
+> The intended use is measuring memory levels of various processes over
+> time, not just detecting "spikes". In order to make sense of the
+> resulting data series, we need to be able to place error bars on it.
+> The presence of split RSS accounting makes those error bars much
+> larger than they have to be.
+> 
+> > You could reduce TASK_RSS_EVENTS_THRESH in your kernel, or even just disable
+> > split RSS accounting if that suits you better. That would solve all the
+> > issues you raised, not just any potential ones that you raised here for this
+> > tracepoint.
+> 
+> I think we should just delete the split RSS accounting code unless
+> someone can demonstrate that it's a measurable win on a typical
+> system. The first priority of any system should be correctness.
+> Consistency is a kind of correctness. Departures from correctness
+> coming only from quantitatively-justifiable need.
+
+I think you make some good points for correctness, but I still don't see
+how all that relates to _this_ change. We currently do want an ability to get
+these rss spikes in the traces (as the patch description shows).
+
+You seem to be arguing about the correctness of split RSS accounting. I would
+suggest to send a patch to delete the split RSS accounting code and take
+these *very valid* arguments there? I am struggling to see the point of
+derailing this _specific_ change for that.
+
+- ssp
+
+> 
+> -- 
+> To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
+> 
 
