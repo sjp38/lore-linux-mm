@@ -2,139 +2,122 @@ Return-Path: <SRS0=zrK/=W7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24EEAC3A5A9
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:14:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92F71C3A5A7
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:19:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF0D62339E
-	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:14:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="QnuouqMm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF0D62339E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 6063622CED
+	for <linux-mm@archiver.kernel.org>; Wed,  4 Sep 2019 12:19:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6063622CED
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F8F86B0003; Wed,  4 Sep 2019 08:14:27 -0400 (EDT)
+	id EFA0A6B0006; Wed,  4 Sep 2019 08:19:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A82E6B0006; Wed,  4 Sep 2019 08:14:27 -0400 (EDT)
+	id EAA726B0007; Wed,  4 Sep 2019 08:19:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 670A96B0007; Wed,  4 Sep 2019 08:14:27 -0400 (EDT)
+	id DC0096B0008; Wed,  4 Sep 2019 08:19:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0148.hostedemail.com [216.40.44.148])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ECC06B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 08:14:27 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 9BA07181AC9B6
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:14:26 +0000 (UTC)
-X-FDA: 75897130932.08.door90_26bb1ec03781d
-X-HE-Tag: door90_26bb1ec03781d
-X-Filterd-Recvd-Size: 5104
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:14:26 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id l22so11811469qtp.10
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 05:14:25 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=bl6KGDbxyH9xibYLFzb2mGM47IhCp8dCBtbeKfHElvA=;
-        b=QnuouqMmL8Ruk+R6jgbyEXsFKtEUI5jAhWEUccMzoIFT3hIMpBl5QgvXmfPajbeZgi
-         d2iMXBHvzXkhD7THAH6LnGOC8s/EcsqTzcVeAI3UnGtcjpKZGJt9NPTdmm5cTcnuw2XO
-         N7Hi3qrBbJdk3+mwG9Milp6EEDXrhwxY1Uvt0wOyxopI4PH9pLEML/64jmM/Ls+0o47e
-         ktXGLGHcIC5QGyLUWDJb1dIU4+DiP5SK1Z8QCMsBF1GWBujQzoXO1C5jS6EoUMD6kApL
-         qjrI+wfMsyPkw9IUz1frp0Vpe+I20t/JM75jAVRP8cFXMe71o4zxTvut7gNWwNvoMf5a
-         NXkw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=bl6KGDbxyH9xibYLFzb2mGM47IhCp8dCBtbeKfHElvA=;
-        b=SJGZVUE5XaJSOX1hgGFJZCRfWUXkM+AR+SbxLVa56HT7FHcTANmOP7gFTZLgO3qZGX
-         ZH5RtnLqBBXtYSL6s+IS/y4AV4fpp7oA89mnYPUTMN7vyBbtRU5l5riyAdYX1odjNkS0
-         RjGN/Qb0C98IaAt1MIZ4S5zh9Fb7qilBvZuVVAE5+K0fsro3Fbtwk3WJw9yfC8lDXXjQ
-         Vh+JwtZZ51BnRjMFOdHMjSqWy1oJ5q9JffUKpX6ccAb4FOJqFi00WSN/L1JyO5CvZz6f
-         EfzqNVboo8ul6zqX6PvkIvjCybku9fm8K3fRFH2tdwr1eRPc535Jdco7ahrZuIAXu0hP
-         NOHA==
-X-Gm-Message-State: APjAAAUJ+cUL5yuGnIWzan7KWvd6slM4ZIUQI9Cy5X2JFfqJzRykwiQO
-	fssZeFXv0BhkakB8scDvx6Qb2A6j3uY=
-X-Google-Smtp-Source: APXvYqwVMedOXPfbW97QL3Tml18XfuCAjaFmLYqEjgyl13jtOyVoXSys9SE3TEG9CouaQn2bE7sZGw==
-X-Received: by 2002:a0c:8ad0:: with SMTP id 16mr14055557qvw.237.1567599265215;
-        Wed, 04 Sep 2019 05:14:25 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id 29sm7794713qkp.86.2019.09.04.05.14.23
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Sep 2019 05:14:24 -0700 (PDT)
-Message-ID: <1567599263.5576.72.camel@lca.pw>
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-From: Qian Cai <cai@lca.pw>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko
-	 <mhocko@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, davem@davemloft.net, 
- netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky
- <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
-Date: Wed, 04 Sep 2019 08:14:23 -0400
-In-Reply-To: <20190904074312.GA25744@jagdpanzerIV>
-References: <1567178728.5576.32.camel@lca.pw>
-	 <229ebc3b-1c7e-474f-36f9-0fa603b889fb@gmail.com>
-	 <20190903132231.GC18939@dhcp22.suse.cz> <1567525342.5576.60.camel@lca.pw>
-	 <20190903185305.GA14028@dhcp22.suse.cz> <1567546948.5576.68.camel@lca.pw>
-	 <20190904061501.GB3838@dhcp22.suse.cz> <20190904064144.GA5487@jagdpanzerIV>
-	 <20190904065455.GE3838@dhcp22.suse.cz>
-	 <20190904071911.GB11968@jagdpanzerIV> <20190904074312.GA25744@jagdpanzerIV>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
+Received: from forelay.hostedemail.com (smtprelay0161.hostedemail.com [216.40.44.161])
+	by kanga.kvack.org (Postfix) with ESMTP id B9F046B0006
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 08:19:22 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 4CB90181AC9B6
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:19:22 +0000 (UTC)
+X-FDA: 75897143364.30.home81_51b0684c53726
+X-HE-Tag: home81_51b0684c53726
+X-Filterd-Recvd-Size: 3473
+Received: from huawei.com (szxga08-in.huawei.com [45.249.212.255])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 12:19:21 +0000 (UTC)
+Received: from DGGEML401-HUB.china.huawei.com (unknown [172.30.72.53])
+	by Forcepoint Email with ESMTP id 409C5B175537DB1266F5;
+	Wed,  4 Sep 2019 20:19:16 +0800 (CST)
+Received: from DGGEML512-MBX.china.huawei.com ([169.254.2.60]) by
+ DGGEML401-HUB.china.huawei.com ([fe80::89ed:853e:30a9:2a79%31]) with mapi id
+ 14.03.0439.000; Wed, 4 Sep 2019 20:19:11 +0800
+From: sunqiuyang <sunqiuyang@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: RE: [PATCH 1/1] mm/migrate: fix list corruption in migration of
+ non-LRU movable pages
+Thread-Topic: [PATCH 1/1] mm/migrate: fix list corruption in migration of
+ non-LRU movable pages
+Thread-Index: AQHVYi7CKRiSaGuZ20KJAhdeZXNZ4qcZaW+AgAFf/lT//8LbAIAAjGWd//+OTACAAMgqDg==
+Date: Wed, 4 Sep 2019 12:19:11 +0000
+Message-ID: <157FC541501A9C4C862B2F16FFE316DC190C3402@dggeml512-mbx.china.huawei.com>
+References: <20190903082746.20736-1-sunqiuyang@huawei.com>
+ <20190903131737.GB18939@dhcp22.suse.cz>
+ <157FC541501A9C4C862B2F16FFE316DC190C1B09@dggeml512-mbx.china.huawei.com>
+ <20190904063836.GD3838@dhcp22.suse.cz>
+ <157FC541501A9C4C862B2F16FFE316DC190C2EBD@dggeml512-mbx.china.huawei.com>,<20190904081408.GF3838@dhcp22.suse.cz>
+In-Reply-To: <20190904081408.GF3838@dhcp22.suse.cz>
+Accept-Language: en-US, zh-CN
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.177.249.127]
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+MIME-Version: 1.0
+X-CFilter-Loop: Reflected
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-09-04 at 16:43 +0900, Sergey Senozhatsky wrote:
-> On (09/04/19 16:19), Sergey Senozhatsky wrote:
-> > Hmm. I need to look at this more... wake_up_klogd() queues work only =
-once
-> > on particular CPU: irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
-> >=20
-> > bool irq_work_queue()
-> > {
-> > 	/* Only queue if not already pending */
-> > 	if (!irq_work_claim(work))
-> > 		return false;
-> >=20
-> > 	 __irq_work_queue_local(work);
-> > }
->=20
-> Plus one more check - waitqueue_active(&log_wait). printk() adds
-> pending irq_work only if there is a user-space process sleeping on
-> log_wait and irq_work is not already scheduled. If the syslog is
-> active or there is noone to wakeup then we don't queue irq_work.
-
-Another possibility for this potential livelock is that those printk() fr=
-om
-warn_alloc(), dump_stack() and show_mem() increase the time it needs to p=
-rocess
-build_skb() allocation failures significantly under memory pressure. As t=
-he
-result, ksoftirqd() could be rescheduled during that time via a different=
- CPU
-(this is a large x86 NUMA system anyway),
-
-[83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0run_ksoftirqd+0x1f/0x40
-[83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0smpboot_thread_fn+0x255/=
-0x440
-[83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0kthread+0x1df/0x200
-[83605.577256][=C2=A0=C2=A0=C2=A0C31]=C2=A0=C2=A0ret_from_fork+0x35/0x40
-
-In addition, those printk() will deal with console drivers or even a netw=
-orking
-console, so it is probably not unusual that it could call irq_exit()-
->__do_softirq() at one point and then this livelock.
+=0A=
+________________________________________=0A=
+From: Michal Hocko [mhocko@kernel.org]=0A=
+Sent: Wednesday, September 04, 2019 16:14=0A=
+To: sunqiuyang=0A=
+Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org=0A=
+Subject: Re: [PATCH 1/1] mm/migrate: fix list corruption in migration of no=
+n-LRU movable pages=0A=
+=0A=
+Do not top post please=0A=
+=0A=
+On Wed 04-09-19 07:27:25, sunqiuyang wrote:=0A=
+> isolate_migratepages_block() from another thread may try to isolate the p=
+age again:=0A=
+>=0A=
+> for (; low_pfn < end_pfn; low_pfn++) {=0A=
+>   /* ... */=0A=
+>   page =3D pfn_to_page(low_pfn);=0A=
+>  /* ... */=0A=
+>   if (!PageLRU(page)) {=0A=
+>     if (unlikely(__PageMovable(page)) && !PageIsolated(page)) {=0A=
+>         /* ... */=0A=
+>         if (!isolate_movable_page(page, isolate_mode))=0A=
+>           goto isolate_success;=0A=
+>       /*... */=0A=
+> isolate_success:=0A=
+>      list_add(&page->lru, &cc->migratepages);=0A=
+>=0A=
+> And this page will be added to another list.=0A=
+> Or, do you see any reason that the page cannot go through this path?=0A=
+=0A=
+The page shouldn't be __PageMovable after the migration is done. All the=0A=
+state should have been transfered to the new page IIUC.=0A=
+=0A=
+----=0A=
+I don't see where page->mapping is modified after the migration is done. =
+=0A=
+=0A=
+Actually, the last comment in move_to_new_page() says,=0A=
+"Anonymous and movable page->mapping will be cleard by=0A=
+free_pages_prepare so don't reset it here for keeping=0A=
+the type to work PageAnon, for example. "=0A=
+=0A=
+Or did I miss something? Thanks,=0A=
+=0A=
+--=0A=
+Michal Hocko=0A=
+SUSE Labs=0A=
 
