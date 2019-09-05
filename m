@@ -2,121 +2,148 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F26E3C43331
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 21:06:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CF100C43140
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 21:06:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3E30206DF
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 21:06:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D8B2120820
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 21:06:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="d4fpCjgq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3E30206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uWscbpyE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8B2120820
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F01A6B0003; Thu,  5 Sep 2019 17:06:26 -0400 (EDT)
+	id 47AC96B0005; Thu,  5 Sep 2019 17:06:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 479006B0005; Thu,  5 Sep 2019 17:06:26 -0400 (EDT)
+	id 42AC46B0007; Thu,  5 Sep 2019 17:06:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F1EB6B0007; Thu,  5 Sep 2019 17:06:26 -0400 (EDT)
+	id 319576B0008; Thu,  5 Sep 2019 17:06:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
-	by kanga.kvack.org (Postfix) with ESMTP id 0639F6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 17:06:25 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 8915255FAE
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 21:06:25 +0000 (UTC)
-X-FDA: 75902100330.30.rub50_551a6e9cd5d2e
-X-HE-Tag: rub50_551a6e9cd5d2e
-X-Filterd-Recvd-Size: 4740
-Received: from mail-lj1-f194.google.com (mail-lj1-f194.google.com [209.85.208.194])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 21:06:24 +0000 (UTC)
-Received: by mail-lj1-f194.google.com with SMTP id a22so3992218ljd.0
-        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 14:06:24 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0015.hostedemail.com [216.40.44.15])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E0D96B0005
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 17:06:32 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 6F9AF3D13
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 21:06:31 +0000 (UTC)
+X-FDA: 75902100582.20.scarf44_55f912a9b3c62
+X-HE-Tag: scarf44_55f912a9b3c62
+X-Filterd-Recvd-Size: 5861
+Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 21:06:30 +0000 (UTC)
+Received: by mail-pl1-f193.google.com with SMTP id t1so1939703plq.13
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 14:06:30 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=dJ1viyEd746u1MzO5bkdAZU+71ZT2HJWhvIS6MWOLz4=;
-        b=d4fpCjgqvFKqBijwNopM5Tjl0Abua4COwRNrVEApjvF/wjmS5dLW3m+kZhLhJeWnNu
-         iSfejJzg0trBi/IHb6f2jl/1tb3uJHRcCRTEU7aIX6HTXwYewwZvmYkWtTpA7+5upHD6
-         uWJrxHL1ER3GQibDLiYN4aNmhG5i7+LEzMMxY=
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=7yHi0EM1wuHkGMUXZfyVx9tlNjiQXCUzsYhxBeDzV1M=;
+        b=uWscbpyE9dkQ9Ap1if0mlmhhmk+R0k97L94OzwSIXUqJELkO2/2TXzdywhKxRhbVlM
+         9nwWPY2AnphlO1rv6bfaXnbTsHQoDyVbXGQkoyPgHItxjjrbsxyVWoxa6PWitoOp1dRQ
+         mcru8jMKrYMsWTsxlkeThn8Vt0wCPRJtXu4Pj3pCU7kQvweSrePlGfJYKYP1XlDxdwGU
+         Z9jYHkXY7bmjqSEBTwdCT8DkDU/P+7lO6GWUMv9NyV+FzO1a5L63v5OLaLzmut9ies48
+         PPkZ7WhKCD1a4BMC8aJ3SlOFbGfeKBztSD+oD+KW7Cqx1c1OgaRKyq7oj1dxxRTM1IhT
+         eRLA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=dJ1viyEd746u1MzO5bkdAZU+71ZT2HJWhvIS6MWOLz4=;
-        b=dXOaofluBfd+CNRI9F3Xmd0EFe8C8lFIqGANVHdf5viLa8jvcu/jI65eWOpv0e+Hmp
-         CSCimvlofie0LZ6zXDRxGLCzZbXETTucyFjDMIQWt1rowRqhTW00T5rs8j+TEvvqMJEx
-         EpTU2zNxfEo+rYtq9LjIe6FsdQAbE1xLm44c3HoLEfhRXcYPrvS5cuRv9dfpLO9wXbFT
-         dMBccHC5Yj/Rjo/DUlZsyogViZheFbPYJtvnxTpcM6ZjbXc+fdk7kwMDMMCbFd8nyvMF
-         Ce0IsgTSumW4Uk8DBgWO2Cy1t0n41UzG9twDPYnoJjU9W2AodMZWH9SmuUYygXQWQjEJ
-         JVxA==
-X-Gm-Message-State: APjAAAVNjY6peOn10Dn+2S6ZeFPh9SOXYNoTQPNcyKskAW6m0pry2NZe
-	nYOitCAhDbHacrL4/E/StisizL9BFt8=
-X-Google-Smtp-Source: APXvYqwIXcqCT71Uu6/nDNZgOvSQMgEjGlStgsNT/8RvpgzdMUaU768tp4mH+7EWrK8jmA/XaTqwOA==
-X-Received: by 2002:a05:651c:1ba:: with SMTP id c26mr3456584ljn.154.1567717582298;
-        Thu, 05 Sep 2019 14:06:22 -0700 (PDT)
-Received: from mail-lj1-f169.google.com (mail-lj1-f169.google.com. [209.85.208.169])
-        by smtp.gmail.com with ESMTPSA id t82sm652529lff.58.2019.09.05.14.06.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-        Thu, 05 Sep 2019 14:06:21 -0700 (PDT)
-Received: by mail-lj1-f169.google.com with SMTP id d5so3942196lja.10
-        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 14:06:20 -0700 (PDT)
-X-Received: by 2002:a2e:814d:: with SMTP id t13mr3621962ljg.72.1567717580519;
- Thu, 05 Sep 2019 14:06:20 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+         :references:user-agent:mime-version;
+        bh=7yHi0EM1wuHkGMUXZfyVx9tlNjiQXCUzsYhxBeDzV1M=;
+        b=M/KLPXzejXV7k5G6qsICx99APFYPz25xGg8sSYQQ+/1FgZq8kS09IQW+KCkVqcnkUO
+         eNLsE9tSDpXUAxI0kAETLgD7ovei7yF5jx5Te4IjBl5IB8jE2Wl1fNcd51SRxRFkA7Qx
+         obxRLpif1sY2jvKMyff6usLcBGW4VuNP9C6hC59o4SO/Fjb8GP0toIxSjdvsznwQoQmX
+         reJytbGG0wT/m9V2fJ+YS0RMfI0Mp4w8REraigfKzZIgDJnMZU7T3kkDsQ0O7bz532wY
+         piORyq8JOlPbKJu1Yc1BjyiJyFZuyQI/aTS+nxTXEvFwtfviADLhWowfYyBDEzkD4t27
+         91Mg==
+X-Gm-Message-State: APjAAAX1HVCojuCA4JBb0GYs3jnDhoRdlQy9VQqLl9ilHM2/u59+THqn
+	SvrkHeCLl1pz+x+5UmDNgU5QBA==
+X-Google-Smtp-Source: APXvYqxa3O1y+UYUcg/sw8NEN3sLIDwiUwCYusviqLqWksc3bVLb0LBFDZQNKLHASvtiUEQWkO6DDw==
+X-Received: by 2002:a17:902:8f95:: with SMTP id z21mr5759919plo.42.1567717589379;
+        Thu, 05 Sep 2019 14:06:29 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id c14sm3832157pfo.64.2019.09.05.14.06.28
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 05 Sep 2019 14:06:28 -0700 (PDT)
+Date: Thu, 5 Sep 2019 14:06:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+cc: Linus Torvalds <torvalds@linux-foundation.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+    Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, 
+    linux-mm@kvack.org
+Subject: Re: [patch for-5.3 0/4] revert immediate fallback to remote
+ hugepages
+In-Reply-To: <20190904205522.GA9871@redhat.com>
+Message-ID: <alpine.DEB.2.21.1909051400380.217933@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com> <20190904205522.GA9871@redhat.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <20190905101534.9637-1-peterx@redhat.com>
-In-Reply-To: <20190905101534.9637-1-peterx@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 5 Sep 2019 14:06:04 -0700
-X-Gmail-Original-Message-ID: <CAHk-=wgSwiRsT4=q71jnF_5JrUn5qg76VBw+oMJ-e7SQ17Q1QA@mail.gmail.com>
-Message-ID: <CAHk-=wgSwiRsT4=q71jnF_5JrUn5qg76VBw+oMJ-e7SQ17Q1QA@mail.gmail.com>
-Subject: Re: [PATCH v2 0/7] mm: Page fault enhancements
-To: Peter Xu <peterx@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>, 
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, 
-	Pavel Emelyanov <xemul@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Martin Cracauer <cracauer@cons.org>, Marty McFadden <mcfadden8@llnl.gov>, Shaohua Li <shli@fb.com>, 
-	Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
-	Denis Plotnikov <dplotnikov@virtuozzo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, 
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 5, 2019 at 3:15 AM Peter Xu <peterx@redhat.com> wrote:
->
-> This series is split out of userfaultfd-wp series to only cover the
-> general page fault changes, since it seems to make sense itself.
+On Wed, 4 Sep 2019, Andrea Arcangeli wrote:
 
-The series continues to look sane to me, but I'd like VM people to
-take a look. I see a few reviewed-by's, it would be nice to see more
-comments from people. I'd like to see Andrea in particular say "yeah,
-this looks all good to me".
+> > This is an admittedly hacky solution that shouldn't cause anybody to 
+> > regress based on NUMA and the semantics of MADV_HUGEPAGE for the past 
+> > 4 1/2 years for users whose workload does fit within a socket.
+> 
+> How can you live with the below if you can't live with 5.3-rc6? Here
+> you allocate remote THP if the local THP allocation fails.
+> 
+> >  			page = __alloc_pages_node(hpage_node,
+> >  						gfp | __GFP_THISNODE, order);
+> > +
+> > +			/*
+> > +			 * If hugepage allocations are configured to always
+> > +			 * synchronous compact or the vma has been madvised
+> > +			 * to prefer hugepage backing, retry allowing remote
+> > +			 * memory as well.
+> > +			 */
+> > +			if (!page && (gfp & __GFP_DIRECT_RECLAIM))
+> > +				page = __alloc_pages_node(hpage_node,
+> > +						gfp | __GFP_NORETRY, order);
+> > +
+> 
+> You're still going to get THP allocate remote _before_ you have a
+> chance to allocate 4k local this way. __GFP_NORETRY won't make any
+> difference when there's THP immediately available in the remote nodes.
+> 
 
-Also a question on how this will get to me - it smells like Andrew's
--mm tree to me, both from a VM and a userfaultfd angle (and looking
-around, at least a couple of previous patches by Peter have gone that
-way).
+This is incorrect: the fallback allocation here is only if the initial 
+allocation with __GFP_THISNODE fails.  In that case, we were able to 
+compact memory to make a local hugepage available without incurring 
+excessive swap based on the RFC patch that appears as patch 3 in this 
+series.  I very much believe your usecase would benefit from this as well 
+(or at least not cause others to regress).  We *want* remote thp if they 
+are immediately available but only after we have tried to allocate locally 
+from the initial allocation and allowed memory compaction fail first.
 
-And it would be lovely to have actual _numbers_ for the alleged
-latency improvements. I 100% believe them, but still, numbers rule.
+Likely there can be discussion around the fourth patch of this series to 
+get exactly the right policy.  We can construct it as necessary for 
+hugetlbfs to not have any change in behavior, that's simple.  We could 
+also check per-zone watermarks in mm/huge_memory.c to determine if local 
+memory is low-on-memory and, if so, allow remote allocation.  In that case 
+it's certainly better to allocate remotely when we'd be reclaiming locally 
+even for fallback native pages.
 
-Talking about latency, what about that retry loop in gup()? That's the
-one I'm not at all convinced about. It doesn't check for signals, so
-if there is some retry logic, it loops forever. Hmm?
+> I said one good thing about this patch series, that it fixes the swap
+> storms. But upstream 5.3 fixes the swap storms too and what you sent
+> is not nearly equivalent to the mempolicy that Michal was willing
+> to provide you and that we thought you needed to get bigger guarantees
+> of getting only local 2m or local 4k pages.
+> 
 
-             Linus
+I haven't seen such a patch series, is there a link?
 
