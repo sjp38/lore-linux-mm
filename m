@@ -2,187 +2,227 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,SUBJ_ALL_CAPS,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EB2BFC43331
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 17:51:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 771A9C43140
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 18:10:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF1222067B
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 17:51:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="p0LQqRPk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF1222067B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 6B60D206BA
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 18:10:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B60D206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5837C6B0008; Thu,  5 Sep 2019 13:51:12 -0400 (EDT)
+	id C02C66B0003; Thu,  5 Sep 2019 14:10:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55A866B000A; Thu,  5 Sep 2019 13:51:12 -0400 (EDT)
+	id BB3E06B0005; Thu,  5 Sep 2019 14:10:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 46E746B000D; Thu,  5 Sep 2019 13:51:12 -0400 (EDT)
+	id AA5AB6B0007; Thu,  5 Sep 2019 14:10:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0110.hostedemail.com [216.40.44.110])
-	by kanga.kvack.org (Postfix) with ESMTP id 240A56B0008
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 13:51:12 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id A01042C6D
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 17:51:11 +0000 (UTC)
-X-FDA: 75901608342.24.hot41_7ebdf50960820
-X-HE-Tag: hot41_7ebdf50960820
-X-Filterd-Recvd-Size: 7235
-Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 17:51:10 +0000 (UTC)
-Received: by mail-pg1-f196.google.com with SMTP id u17so1809369pgi.6
-        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 10:51:10 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=P5n5bs8SI52J5LlQpVwDbgDPxQsgUcewkC0J/JmCtuM=;
-        b=p0LQqRPk+syQEYPmEik8s9anX9KtdGXOPNbz8uc3tn9PQs0q6ECcQZrq4P2XTdeUbX
-         bTmGTz6Eur+1Rne7p/RWiVML6AY342jbOka5xCy+wuPK6QTL7HB8xFTNpMjInVqhE2kX
-         rU4pd2mHkWqYwOLDd1sAHzLieLXn1ibhf8sKI=
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=P5n5bs8SI52J5LlQpVwDbgDPxQsgUcewkC0J/JmCtuM=;
-        b=DNwBLB0ILDGGkRZNEjeXyhEmziTsTAYxnoYSoXOqchxFJlrfQ7PkpRh+WmaoRqrP0e
-         9umlE0iZiEvIViPVKcPGYH/yURq8HkZHC1EU1UieDrsinpvQMqbooXo/XTC8UG2Na1pu
-         45RNH9j5F/+r9hagd3/cshe954l8DQUA8aa68NZMvR3mGjVukQE4gyAQpnTusmu9XFjg
-         JF1kbunCM9uHr0/pAeX8cKDR92Iv8tK7sb4enEWrB6I0zml/joclrRKxgrxYSxJwsSZA
-         zCG6ofwc+N8j0pFz6P9QTu7kNx9v8eL66XXARa/l6cMutFOhNe4GG1uKFY+tEckXJuZT
-         1meg==
-X-Gm-Message-State: APjAAAXHHYlxCWR3363a6NLBHKbbOWh0Ng5l6Crl32hatn2WuOrNiphZ
-	VpCFThB93sdoIo0KtWIbkYcOLg==
-X-Google-Smtp-Source: APXvYqwD66TY8J7gU37j2YC0tRNQHoy4mdsqAc0PGGUncq1nwgcj9+YoSQUtf7A44mSZFVEbBtAo2g==
-X-Received: by 2002:a63:f13:: with SMTP id e19mr4333234pgl.132.1567705869647;
-        Thu, 05 Sep 2019 10:51:09 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id r23sm3146316pjo.22.2019.09.05.10.51.08
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Thu, 05 Sep 2019 10:51:09 -0700 (PDT)
-Date: Thu, 5 Sep 2019 13:51:08 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Suren Baghdasaryan <surenb@google.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Tim Murray <timmurray@google.com>,
-	Carmen Jackson <carmenjackson@google.com>,
-	Mayank Gupta <mayankgupta@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	kernel-team <kernel-team@android.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jerome Glisse <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>,
+Received: from forelay.hostedemail.com (smtprelay0252.hostedemail.com [216.40.44.252])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1C46B0003
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 14:10:04 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 220C2181AC9B4
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 18:10:04 +0000 (UTC)
+X-FDA: 75901655928.28.heat00_7e5c2ce7a59
+X-HE-Tag: heat00_7e5c2ce7a59
+X-Filterd-Recvd-Size: 8190
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 18:10:03 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B0961315C009;
+	Thu,  5 Sep 2019 18:10:01 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 925325D6A3;
+	Thu,  5 Sep 2019 18:09:57 +0000 (UTC)
+Date: Thu, 5 Sep 2019 14:09:55 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Mircea CIRJALIU - MELIU <mcirjaliu@bitdefender.com>
+Cc: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>,
 	Matthew Wilcox <willy@infradead.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Tom Zanussi <zanussi@kernel.org>
-Subject: Re: [PATCH v2] mm: emit tracepoint when RSS changes by threshold
-Message-ID: <20190905175108.GB106117@google.com>
-References: <20190903200905.198642-1-joel@joelfernandes.org>
- <20190904084508.GL3838@dhcp22.suse.cz>
- <20190904153258.GH240514@google.com>
- <20190904153759.GC3838@dhcp22.suse.cz>
- <20190904162808.GO240514@google.com>
- <20190905144310.GA14491@dhcp22.suse.cz>
- <CAJuCfpFve2v7d0LX20btk4kAjEpgJ4zeYQQSpqYsSo__CY68xw@mail.gmail.com>
- <20190905133507.783c6c61@oasis.local.home>
- <20190905174705.GA106117@google.com>
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Tamas K Lengyel <tamas@tklengyel.com>,
+	Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	Samuel =?iso-8859-1?Q?Laur=E9n?= <samuel.lauren@iki.fi>,
+	Patrick Colp <patrick.colp@oracle.com>,
+	Jan Kiszka <jan.kiszka@siemens.com>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
+	Weijiang Yang <weijiang.yang@intel.com>,
+	Yu C <yu.c.zhang@intel.com>,
+	Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>
+Subject: Re: DANGER WILL ROBINSON, DANGER
+Message-ID: <20190905180955.GA3251@redhat.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-72-alazar@bitdefender.com>
+ <20190809162444.GP5482@bombadil.infradead.org>
+ <1565694095.D172a51.28640.@15f23d3a749365d981e968181cce585d2dcb3ffa>
+ <20190815191929.GA9253@redhat.com>
+ <20190815201630.GA25517@redhat.com>
+ <VI1PR02MB398411CA9A56081FF4D1248EBBA40@VI1PR02MB3984.eurprd02.prod.outlook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190905174705.GA106117@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <VI1PR02MB398411CA9A56081FF4D1248EBBA40@VI1PR02MB3984.eurprd02.prod.outlook.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 05 Sep 2019 18:10:02 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 05, 2019 at 01:47:05PM -0400, Joel Fernandes wrote:
-> On Thu, Sep 05, 2019 at 01:35:07PM -0400, Steven Rostedt wrote:
-> > 
-> > 
-> > [ Added Tom ]
-> > 
-> > On Thu, 5 Sep 2019 09:03:01 -0700
-> > Suren Baghdasaryan <surenb@google.com> wrote:
-> > 
-> > > On Thu, Sep 5, 2019 at 7:43 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > [Add Steven]
-> > > >
-> > > > On Wed 04-09-19 12:28:08, Joel Fernandes wrote:  
-> > > > > On Wed, Sep 4, 2019 at 11:38 AM Michal Hocko <mhocko@kernel.org> wrote:  
-> > > > > >
-> > > > > > On Wed 04-09-19 11:32:58, Joel Fernandes wrote:  
-> > > > [...]  
-> > > > > > > but also for reducing
-> > > > > > > tracing noise. Flooding the traces makes it less useful for long traces and
-> > > > > > > post-processing of traces. IOW, the overhead reduction is a bonus.  
-> > > > > >
-> > > > > > This is not really anything special for this tracepoint though.
-> > > > > > Basically any tracepoint in a hot path is in the same situation and I do
-> > > > > > not see a point why each of them should really invent its own way to
-> > > > > > throttle. Maybe there is some way to do that in the tracing subsystem
-> > > > > > directly.  
+On Fri, Aug 23, 2019 at 12:39:21PM +0000, Mircea CIRJALIU - MELIU wrote:
+> > On Thu, Aug 15, 2019 at 03:19:29PM -0400, Jerome Glisse wrote:
+> > > On Tue, Aug 13, 2019 at 02:01:35PM +0300, Adalbert Laz=C4=83r wrote=
+:
+> > > > On Fri, 9 Aug 2019 09:24:44 -0700, Matthew Wilcox <willy@infradea=
+d.org>
+> > wrote:
+> > > > > On Fri, Aug 09, 2019 at 07:00:26PM +0300, Adalbert Laz=C4=83r w=
+rote:
+> > > > > > +++ b/include/linux/page-flags.h
+> > > > > > @@ -417,8 +417,10 @@ PAGEFLAG(Idle, idle, PF_ANY)
+> > > > > >   */
+> > > > > >  #define PAGE_MAPPING_ANON	0x1
+> > > > > >  #define PAGE_MAPPING_MOVABLE	0x2
+> > > > > > +#define PAGE_MAPPING_REMOTE	0x4
 > > > > >
-> > > > > I am not sure if there is a way to do this easily. Add to that, the fact that
-> > > > > you still have to call into trace events. Why call into it at all, if you can
-> > > > > filter in advance and have a sane filtering default?
+> > > > > Uh.  How do you know page->mapping would otherwise have bit 2
+> > clear?
+> > > > > Who's guaranteeing that?
 > > > > >
-> > > > > The bigger improvement with the threshold is the number of trace records are
-> > > > > almost halved by using a threshold. The number of records went from 4.6K to
-> > > > > 2.6K.  
+> > > > > This is an awfully big patch to the memory management code, bur=
+ied
+> > > > > in the middle of a gigantic series which almost guarantees nobo=
+dy
+> > > > > would look at it.  I call shenanigans.
+> > > > >
+> > > > > > @@ -1021,7 +1022,7 @@ void page_move_anon_rmap(struct page
+> > *page, struct vm_area_struct *vma)
+> > > > > >   * __page_set_anon_rmap - set up new anonymous rmap
+> > > > > >   * @page:	Page or Hugepage to add to rmap
+> > > > > >   * @vma:	VM area to add page to.
+> > > > > > - * @address:	User virtual address of the mapping
+> > > > > > + * @address:	User virtual address of the mapping
+> > > > >
+> > > > > And mixing in fluff changes like this is a real no-no.  Try aga=
+in.
+> > > > >
 > > > >
-> > > > Steven, would it be feasible to add a generic tracepoint throttling?  
-> > > 
-> > > I might misunderstand this but is the issue here actually throttling
-> > > of the sheer number of trace records or tracing large enough changes
-> > > to RSS that user might care about? Small changes happen all the time
-> > > but we are likely not interested in those. Surely we could postprocess
-> > > the traces to extract changes large enough to be interesting but why
-> > > capture uninteresting information in the first place? IOW the
-> > > throttling here should be based not on the time between traces but on
-> > > the amount of change of the traced signal. Maybe a generic facility
-> > > like that would be a good idea?
-> > 
-> > You mean like add a trigger (or filter) that only traces if a field has
-> > changed since the last time the trace was hit? Hmm, I think we could
-> > possibly do that. Perhaps even now with histogram triggers?
-> 
-> 
-> Hey Steve,
-> 
-> Something like an analog to digitial coversion function where you lose the
-> granularity of the signal depending on how much trace data:
-> https://www.globalspec.com/ImageRepository/LearnMore/20142/9ee38d1a85d37fa23f86a14d3a9776ff67b0ec0f3b.gif
+> > > > No bad intentions, just overzealous.
+> > > > I didn't want to hide anything from our patches.
+> > > > Once we advance with the introspection patches related to KVM we'=
+ll
+> > > > be back with the remote mapping patch, split and cleaned.
+> > >
+> > > They are not bit left in struct page ! Looking at the patch it seem=
+s
+> > > you want to have your own pin count just for KVM. This is bad, we a=
+re
+> > > already trying to solve the GUP thing (see all various patchset abo=
+ut
+> > > GUP posted recently).
+> > >
+> > > You need to rethink how you want to achieve this. Why not simply a
+> > > remote read()/write() into the process memory ie KVMI would call an
+> > > ioctl that allow to read or write into a remote process memory like
+> > > ptrace() but on steroid ...
+> > >
+> > > Adding this whole big complex infrastructure without justification =
+of
+> > > why we need to avoid round trip is just too much really.
+> >=20
+> > Thinking a bit more about this, you can achieve the same thing withou=
+t
+> > adding a single line to any mm code. Instead of having mmap with
+> > PROT_NONE | MAP_LOCKED you have userspace mmap some kvm device
+> > file (i am assuming this is something you already have and can contro=
+l the
+> > mmap callback).
+> >=20
+> > So now kernel side you have a vma with a vm_operations_struct under y=
+our
+> > control this means that everything you want to block mm wise from wit=
+hin
+> > the inspector process can be block through those call- backs
+> > (find_special_page() specificaly for which you have to return NULL al=
+l the
+> > time).
+> >=20
+> > To mirror target process memory you can use hmm_mirror, when you
+> > populate the inspector process page table you use insert_pfn() (mmap =
+of
+> > the kvm device file must mark this vma as PFNMAP).
+> >=20
+> > By following the hmm_mirror API, anytime the target process has a cha=
+nge in
+> > its page table (ie virtual address -> page) you will get a callback a=
+nd all you
+> > have to do is clear the page table within the inspector process and f=
+lush tlb
+> > (use zap_page_range).
+> >=20
+> > On page fault within the inspector process the fault callback of vm_o=
+ps will
+> > get call and from there you call hmm_mirror following its API.
+> >=20
+> > Oh also mark the vma with VM_WIPEONFORK to avoid any issue if the
+> > inspector process use fork() (you could support fork but then you wou=
+ld
+> > need to mark the vma as SHARED and use unmap_mapping_pages instead of
+> > zap_page_range).
+> >=20
+> >=20
+> > There everything you want to do with already upstream mm code.
+>=20
+> I'm the author of remote mapping, so I owe everybody some explanations.
+> My requirement was to map pages from one QEMU process to another QEMU=20
+> process (our inspector process works in a virtual machine of its own). =
+So I had=20
+> to implement a KSM-like page sharing between processes, where an anon p=
+age
+> from the target QEMU's working memory is promoted to a remote page and=20
+> mapped in the inspector QEMU's working memory (both anon VMAs).=20
+> The extra page flag is for differentiating the page for rmap walking.
+>=20
+> The mapping requests come at PAGE_SIZE granularity for random addresses=
+=20
+> within the target/inspector QEMUs, so I couldn't do any linear mapping =
+that
+> would keep things simpler.=20
+>=20
+> I have an extra patch that does remote mapping by mirroring an entire V=
+MA
+> from the target process by way of a device file. This thing creates a s=
+eparate=20
+> mirror VMA in my inspector process (at the moment a QEMU), but then I=20
+> bumped into the KVM hva->gpa mapping, which makes it hard to override=20
+> mappings with addresses outside memslot associated VMAs.
 
-s/how much trace data/what the resolution is/
+Not sure i understand, you are saying that the solution i outline above
+does not work ? If so then i think you are wrong, in the above solution
+the importing process mmap a device file and the resulting vma is then
+populated using insert_pfn() and constantly keep synchronize with the
+target process through mirroring which means that you never have to look
+at the struct page ... you can mirror any kind of memory from the remote
+process.
 
-> so like, if you had a counter incrementing with values after the increments
-> as:  1,3,4,8,12,14,30 and say 5 is the threshold at which to emit a trace,
-> then you would get 1,8,12,30.
-> 
-> So I guess what is need is a way to reduce the quantiy of trace data this
-> way. For this usecase, the user mostly cares about spikes in the counter
-> changing that accurate values of the different points.
+Am i miss-understanding something here ?
 
-s/that accurate/than accurate/
-
-I think Tim, Suren, Dan and Michal are all saying the same thing as well.
-
-thanks,
-
- - Joel
-
+Cheers,
+J=C3=A9r=C3=B4me
 
