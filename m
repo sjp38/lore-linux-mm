@@ -6,44 +6,44 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1671DC3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 12:15:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDF74C3A5A5
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 12:25:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D22FD21883
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 12:15:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D22FD21883
+	by mail.kernel.org (Postfix) with ESMTP id 6C6462080C
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 12:25:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C6462080C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BAE86B0297; Thu,  5 Sep 2019 08:15:22 -0400 (EDT)
+	id CDEAC6B0299; Thu,  5 Sep 2019 08:25:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56A6D6B0298; Thu,  5 Sep 2019 08:15:22 -0400 (EDT)
+	id C8FA36B029A; Thu,  5 Sep 2019 08:25:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 431A46B0299; Thu,  5 Sep 2019 08:15:22 -0400 (EDT)
+	id B2EA96B029B; Thu,  5 Sep 2019 08:25:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C8AF6B0297
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:15:22 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id B7E47824CA30
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 12:15:21 +0000 (UTC)
-X-FDA: 75900762042.05.net74_68df02633d043
-X-HE-Tag: net74_68df02633d043
-X-Filterd-Recvd-Size: 6591
+Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB896B0299
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:25:23 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2D6652DFF
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 12:25:22 +0000 (UTC)
+X-FDA: 75900787284.07.jeans10_2ec1535690105
+X-HE-Tag: jeans10_2ec1535690105
+X-Filterd-Recvd-Size: 7254
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 12:15:20 +0000 (UTC)
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 12:25:21 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6EAFEB752;
-	Thu,  5 Sep 2019 12:15:18 +0000 (UTC)
-Subject: Re: lot of MemAvailable but falling cache and raising PSI
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: l.roehrs@profihost.ag, cgroups@vger.kernel.org,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
-References: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+	by mx1.suse.de (Postfix) with ESMTP id C94FCAD07;
+	Thu,  5 Sep 2019 12:25:19 +0000 (UTC)
+Subject: Re: [PATCH 0/5] mm, slab: Make kmalloc_info[] contain all types of
+ names
+To: Pengfei Li <lpf.vector@gmail.com>, akpm@linux-foundation.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
+ iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190903160430.1368-1-lpf.vector@gmail.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -106,12 +106,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <5c1d6fca-4bbe-1c09-e0c5-523bca8fbb6a@suse.cz>
-Date: Thu, 5 Sep 2019 14:15:12 +0200
+Message-ID: <8641aeba-ab8c-f5a1-a6ad-cf8c0f86baa7@suse.cz>
+Date: Thu, 5 Sep 2019 14:25:18 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+In-Reply-To: <20190903160430.1368-1-lpf.vector@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -121,33 +121,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/5/19 1:27 PM, Stefan Priebe - Profihost AG wrote:
-> Hello all,
+On 9/3/19 6:04 PM, Pengfei Li wrote:
+> There are three types of kmalloc, KMALLOC_NORMAL, KMALLOC_RECLAIM
+> and KMALLOC_DMA.
 > 
-> i hope you can help me again to understand the current MemAvailable
-> value in the linux kernel. I'm running a 4.19.52 kernel + psi patches in
-> this case.
+> The name of KMALLOC_NORMAL is contained in kmalloc_info[].name,
+> but the names of KMALLOC_RECLAIM and KMALLOC_DMA are dynamically
+> generated by kmalloc_cache_name().
 > 
-> I'm seeing the following behaviour i don't understand and ask for help.
+> Patch1 predefines the names of all types of kmalloc to save
+> the time spent dynamically generating names.
 > 
-> While MemAvailable shows 5G the kernel starts to drop cache from 4G down
-> to 1G while the apache spawns some PHP processes. After that the PSI
-> mem.some value rises and the kernel tries to reclaim memory but
-> MemAvailable stays at 5G.
+> The other 4 patches did some cleanup work.
 > 
-> Any ideas?
+> These changes make sense, and the time spent by new_kmalloc_cache()
+> has been reduced by approximately 36.3%.
+> 
+>                          Time spent by
+>                          new_kmalloc_cache()
+> 5.3-rc7                       66264
+> 5.3-rc7+patch                 42188
 
-PHP seems to use madvise(MADV_HUGEPAGE), so if it's a NUMA machine it
-might be worth trying to cherry-pick these two commits:
-92717d429b38 ("Revert "Revert "mm, thp: consolidate THP gfp handling
-into alloc_hugepage_direct_gfpmask""")
-a8282608c88e ("Revert "mm, thp: restore node-local hugepage allocations"")
+Note that the caches are created only once upon boot, so I doubt that
+these time savings (is it in CPU cycles?) will be noticeable at all. But
+diffstat looks ok, and it avoids using kmalloc() (via kasprintf()) to
+allocate names for kmalloc(), so in that sense I think it's worthwhile
+to consider. Thanks.
 
-> Thanks!
+> Pengfei Li (5):
+>   mm, slab: Make kmalloc_info[] contain all types of names
+>   mm, slab_common: Remove unused kmalloc_cache_name()
+>   mm, slab: Remove unused kmalloc_size()
+>   mm, slab_common: Make 'type' is enum kmalloc_cache_type
+>   mm, slab_common: Make initializing KMALLOC_DMA start from 1
 > 
-> Greets,
-> Stefan
-> 
+>  include/linux/slab.h |  20 ---------
+>  mm/slab.c            |   7 +--
+>  mm/slab.h            |   2 +-
+>  mm/slab_common.c     | 101 +++++++++++++++++++++++--------------------
+>  4 files changed, 59 insertions(+), 71 deletions(-)
 > 
 
 
