@@ -2,144 +2,274 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DDD70C3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:00:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61D76C3A5A5
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:16:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A3EAD21743
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:00:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3EAD21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1E03B2173B
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:16:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E03B2173B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A4EC6B0273; Thu,  5 Sep 2019 05:00:12 -0400 (EDT)
+	id AD79C6B0275; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27C956B0274; Thu,  5 Sep 2019 05:00:12 -0400 (EDT)
+	id A888A6B0276; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 192676B0276; Thu,  5 Sep 2019 05:00:12 -0400 (EDT)
+	id 99E0C6B0277; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0229.hostedemail.com [216.40.44.229])
-	by kanga.kvack.org (Postfix) with ESMTP id EBF606B0273
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 05:00:11 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7A447824CA39
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:00:11 +0000 (UTC)
-X-FDA: 75900270222.13.day96_198eea45113a
-X-HE-Tag: day96_198eea45113a
-X-Filterd-Recvd-Size: 4669
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:00:10 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9EA39AE39;
-	Thu,  5 Sep 2019 09:00:09 +0000 (UTC)
-Date: Thu, 5 Sep 2019 11:00:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Mike Kravetz <mike.kravetz@oracle.com>
-Subject: Re: [rfc 3/4] mm, page_alloc: avoid expensive reclaim when
- compaction may not succeed
-Message-ID: <20190905090009.GF3838@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1909041253390.94813@chino.kir.corp.google.com>
+Received: from forelay.hostedemail.com (smtprelay0171.hostedemail.com [216.40.44.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 78F2B6B0275
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 206D862F4
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:16:38 +0000 (UTC)
+X-FDA: 75900311676.09.day66_9114518370406
+X-HE-Tag: day66_9114518370406
+X-Filterd-Recvd-Size: 9851
+Received: from huawei.com (szxga06-in.huawei.com [45.249.212.32])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:16:36 +0000 (UTC)
+Received: from DGGEMS412-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 0F65B44412C63457D230;
+	Thu,  5 Sep 2019 17:16:32 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS412-HUB.china.huawei.com
+ (10.3.19.212) with Microsoft SMTP Server id 14.3.439.0; Thu, 5 Sep 2019
+ 17:16:25 +0800
+Date: Thu, 5 Sep 2019 10:16:14 +0100
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+CC: Dan Williams <dan.j.williams@intel.com>, Keith Busch
+	<keith.busch@intel.com>, Linux Memory Management List <linux-mm@kvack.org>,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Linux Kernel Mailing
+ List" <linux-kernel@vger.kernel.org>, Linux ARM
+	<linux-arm-kernel@lists.infradead.org>, Jerome Glisse <jglisse@redhat.com>,
+	"Rafael J . Wysocki" <rjw@rjwysocki.net>, Linuxarm <linuxarm@huawei.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] ACPI: Support Generic Initiator only domains
+Message-ID: <20190905101614.00002323@huawei.com>
+In-Reply-To: <CAJZ5v0ie8s-Ye7PD=xj0nXL228WDqhjJPCs+eV3n6_SAeaQowg@mail.gmail.com>
+References: <20190821145242.2330-1-Jonathan.Cameron@huawei.com>
+	<20190821145242.2330-2-Jonathan.Cameron@huawei.com>
+	<CAJZ5v0ie8s-Ye7PD=xj0nXL228WDqhjJPCs+eV3n6_SAeaQowg@mail.gmail.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1909041253390.94813@chino.kir.corp.google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Ccing Mike for checking on the hugetlb side of this change]
+On Mon, 2 Sep 2019 23:26:16 +0200
+"Rafael J. Wysocki" <rafael@kernel.org> wrote:
 
-On Wed 04-09-19 12:54:22, David Rientjes wrote:
-> Memory compaction has a couple significant drawbacks as the allocation
-> order increases, specifically:
+> On Wed, Aug 21, 2019 at 4:53 PM Jonathan Cameron
+> <Jonathan.Cameron@huawei.com> wrote:
+> >
+> > Generic Initiators are a new ACPI concept that allows for the
+> > description of proximity domains that contain a device which
+> > performs memory access (such as a network card) but neither
+> > host CPU nor Memory.
+> >
+> > This patch has the parsing code and provides the infrastructure
+> > for an architecture to associate these new domains with their
+> > nearest memory processing node.
+> >
+> > Signed-off-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>  
 > 
->  - isolate_freepages() is responsible for finding free pages to use as
->    migration targets and is implemented as a linear scan of memory
->    starting at the end of a zone,
+> Dan, Keith, any comments?
 > 
->  - failing order-0 watermark checks in memory compaction does not account
->    for how far below the watermarks the zone actually is: to enable
->    migration, there must be *some* free memory available.  Per the above,
->    watermarks are not always suffficient if isolate_freepages() cannot
->    find the free memory but it could require hundreds of MBs of reclaim to
->    even reach this threshold (read: potentially very expensive reclaim with
->    no indication compaction can be successful), and
-> 
->  - if compaction at this order has failed recently so that it does not even
->    run as a result of deferred compaction, looping through reclaim can often
->    be pointless.
-> 
-> For hugepage allocations, these are quite substantial drawbacks because
-> these are very high order allocations (order-9 on x86) and falling back to
-> doing reclaim can potentially be *very* expensive without any indication
-> that compaction would even be successful.
-> 
-> Reclaim itself is unlikely to free entire pageblocks and certainly no
-> reliance should be put on it to do so in isolation (recall lumpy reclaim).
-> This means we should avoid reclaim and simply fail hugepage allocation if
-> compaction is deferred.
-> 
-> It is also not helpful to thrash a zone by doing excessive reclaim if
-> compaction may not be able to access that memory.  If order-0 watermarks
-> fail and the allocation order is sufficiently large, it is likely better
-> to fail the allocation rather than thrashing the zone.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c | 22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4458,6 +4458,28 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		if (page)
->  			goto got_pg;
->  
-> +		 if (order >= pageblock_order && (gfp_mask & __GFP_IO)) {
-> +			/*
-> +			 * If allocating entire pageblock(s) and compaction
-> +			 * failed because all zones are below low watermarks
-> +			 * or is prohibited because it recently failed at this
-> +			 * order, fail immediately.
-> +			 *
-> +			 * Reclaim is
-> +			 *  - potentially very expensive because zones are far
-> +			 *    below their low watermarks or this is part of very
-> +			 *    bursty high order allocations,
-> +			 *  - not guaranteed to help because isolate_freepages()
-> +			 *    may not iterate over freed pages as part of its
-> +			 *    linear scan, and
-> +			 *  - unlikely to make entire pageblocks free on its
-> +			 *    own.
-> +			 */
-> +			if (compact_result == COMPACT_SKIPPED ||
-> +			    compact_result == COMPACT_DEFERRED)
-> +				goto nopage;
-> +		}
-> +
->  		/*
->  		 * Checks for costly allocations with __GFP_NORETRY, which
->  		 * includes THP page fault allocations
+> AFAICS this clashes with the series from Dan that rearranges the ACPI
+> NUMA related code.
 
--- 
-Michal Hocko
-SUSE Labs
+Seems that one is going forwards now which is great. I'll rebase this on
+top of Dan's series and send a v5 sometime soon.
+
+Thanks,
+
+Jonathan
+
+> 
+> > ---
+> >  drivers/acpi/numa.c            | 62 +++++++++++++++++++++++++++++++++-
+> >  drivers/base/node.c            |  3 ++
+> >  include/asm-generic/topology.h |  3 ++
+> >  include/linux/nodemask.h       |  1 +
+> >  include/linux/topology.h       |  7 ++++
+> >  5 files changed, 75 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+> > index eadbf90e65d1..fe34315a9234 100644
+> > --- a/drivers/acpi/numa.c
+> > +++ b/drivers/acpi/numa.c
+> > @@ -170,6 +170,38 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
+> >                 }
+> >                 break;
+> >
+> > +       case ACPI_SRAT_TYPE_GENERIC_AFFINITY:
+> > +       {
+> > +               struct acpi_srat_generic_affinity *p =
+> > +                       (struct acpi_srat_generic_affinity *)header;
+> > +               char name[9] = {};
+> > +
+> > +               if (p->device_handle_type == 0) {
+> > +                       /*
+> > +                        * For pci devices this may be the only place they
+> > +                        * are assigned a proximity domain
+> > +                        */
+> > +                       pr_debug("SRAT Generic Initiator(Seg:%u BDF:%u) in proximity domain %d %s\n",
+> > +                                *(u16 *)(&p->device_handle[0]),
+> > +                                *(u16 *)(&p->device_handle[2]),
+> > +                                p->proximity_domain,
+> > +                                (p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
+> > +                               "enabled" : "disabled");
+> > +               } else {
+> > +                       /*
+> > +                        * In this case we can rely on the device having a
+> > +                        * proximity domain reference
+> > +                        */
+> > +                       memcpy(name, p->device_handle, 8);
+> > +                       pr_info("SRAT Generic Initiator(HID=%.8s UID=%.4s) in proximity domain %d %s\n",
+> > +                               (char *)(&p->device_handle[0]),
+> > +                               (char *)(&p->device_handle[8]),
+> > +                               p->proximity_domain,
+> > +                               (p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
+> > +                               "enabled" : "disabled");
+> > +               }
+> > +       }
+> > +       break;
+> >         default:
+> >                 pr_warn("Found unsupported SRAT entry (type = 0x%x)\n",
+> >                         header->type);
+> > @@ -378,6 +410,32 @@ acpi_parse_gicc_affinity(union acpi_subtable_headers *header,
+> >         return 0;
+> >  }
+> >
+> > +static int __init
+> > +acpi_parse_gi_affinity(union acpi_subtable_headers *header,
+> > +                      const unsigned long end)
+> > +{
+> > +       struct acpi_srat_generic_affinity *gi_affinity;
+> > +       int node;
+> > +
+> > +       gi_affinity = (struct acpi_srat_generic_affinity *)header;
+> > +       if (!gi_affinity)
+> > +               return -EINVAL;
+> > +       acpi_table_print_srat_entry(&header->common);
+> > +
+> > +       if (!(gi_affinity->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED))
+> > +               return -EINVAL;
+> > +
+> > +       node = acpi_map_pxm_to_node(gi_affinity->proximity_domain);
+> > +       if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+> > +               pr_err("SRAT: Too many proximity domains.\n");
+> > +               return -EINVAL;
+> > +       }
+> > +       node_set(node, numa_nodes_parsed);
+> > +       node_set_state(node, N_GENERIC_INITIATOR);
+> > +
+> > +       return 0;
+> > +}
+> > +
+> >  static int __initdata parsed_numa_memblks;
+> >
+> >  static int __init
+> > @@ -433,7 +491,7 @@ int __init acpi_numa_init(void)
+> >
+> >         /* SRAT: System Resource Affinity Table */
+> >         if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
+> > -               struct acpi_subtable_proc srat_proc[3];
+> > +               struct acpi_subtable_proc srat_proc[4];
+> >
+> >                 memset(srat_proc, 0, sizeof(srat_proc));
+> >                 srat_proc[0].id = ACPI_SRAT_TYPE_CPU_AFFINITY;
+> > @@ -442,6 +500,8 @@ int __init acpi_numa_init(void)
+> >                 srat_proc[1].handler = acpi_parse_x2apic_affinity;
+> >                 srat_proc[2].id = ACPI_SRAT_TYPE_GICC_AFFINITY;
+> >                 srat_proc[2].handler = acpi_parse_gicc_affinity;
+> > +               srat_proc[3].id = ACPI_SRAT_TYPE_GENERIC_AFFINITY;
+> > +               srat_proc[3].handler = acpi_parse_gi_affinity;
+> >
+> >                 acpi_table_parse_entries_array(ACPI_SIG_SRAT,
+> >                                         sizeof(struct acpi_table_srat),
+> > diff --git a/drivers/base/node.c b/drivers/base/node.c
+> > index 75b7e6f6535b..6f60689af5f8 100644
+> > --- a/drivers/base/node.c
+> > +++ b/drivers/base/node.c
+> > @@ -980,6 +980,8 @@ static struct node_attr node_state_attr[] = {
+> >  #endif
+> >         [N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
+> >         [N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
+> > +       [N_GENERIC_INITIATOR] = _NODE_ATTR(has_generic_initiator,
+> > +                                          N_GENERIC_INITIATOR),
+> >  };
+> >
+> >  static struct attribute *node_state_attrs[] = {
+> > @@ -991,6 +993,7 @@ static struct attribute *node_state_attrs[] = {
+> >  #endif
+> >         &node_state_attr[N_MEMORY].attr.attr,
+> >         &node_state_attr[N_CPU].attr.attr,
+> > +       &node_state_attr[N_GENERIC_INITIATOR].attr.attr,
+> >         NULL
+> >  };
+> >
+> > diff --git a/include/asm-generic/topology.h b/include/asm-generic/topology.h
+> > index 238873739550..54d0b4176a45 100644
+> > --- a/include/asm-generic/topology.h
+> > +++ b/include/asm-generic/topology.h
+> > @@ -71,6 +71,9 @@
+> >  #ifndef set_cpu_numa_mem
+> >  #define set_cpu_numa_mem(cpu, node)
+> >  #endif
+> > +#ifndef set_gi_numa_mem
+> > +#define set_gi_numa_mem(gi, node)
+> > +#endif
+> >
+> >  #endif /* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */
+> >
+> > diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+> > index 27e7fa36f707..1aebf766fb52 100644
+> > --- a/include/linux/nodemask.h
+> > +++ b/include/linux/nodemask.h
+> > @@ -399,6 +399,7 @@ enum node_states {
+> >  #endif
+> >         N_MEMORY,               /* The node has memory(regular, high, movable) */
+> >         N_CPU,          /* The node has one or more cpus */
+> > +       N_GENERIC_INITIATOR,    /* The node is a GI only node */
+> >         NR_NODE_STATES
+> >  };
+> >
+> > diff --git a/include/linux/topology.h b/include/linux/topology.h
+> > index 47a3e3c08036..2f97754e0508 100644
+> > --- a/include/linux/topology.h
+> > +++ b/include/linux/topology.h
+> > @@ -125,6 +125,13 @@ static inline void set_numa_mem(int node)
+> >  }
+> >  #endif
+> >
+> > +#ifndef set_gi_numa_mem
+> > +static inline void set_gi_numa_mem(int gi, int node)
+> > +{
+> > +       _node_numa_mem_[gi] = node;
+> > +}
+> > +#endif
+> > +
+> >  #ifndef node_to_mem_node
+> >  static inline int node_to_mem_node(int node)
+> >  {
+> > --
+> > 2.20.1
+> >  
+> 
+
+
 
