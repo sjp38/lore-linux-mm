@@ -2,274 +2,212 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61D76C3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:16:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C570C3A5A5
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:18:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E03B2173B
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:16:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E03B2173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id CF4E121848
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:18:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF4E121848
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD79C6B0275; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
+	id 6DEBD6B0277; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A888A6B0276; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
+	id 6B4F76B0278; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 99E0C6B0277; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
+	id 5CAAD6B0279; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0171.hostedemail.com [216.40.44.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F2B6B0275
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 05:16:38 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 206D862F4
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:16:38 +0000 (UTC)
-X-FDA: 75900311676.09.day66_9114518370406
-X-HE-Tag: day66_9114518370406
-X-Filterd-Recvd-Size: 9851
-Received: from huawei.com (szxga06-in.huawei.com [45.249.212.32])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:16:36 +0000 (UTC)
-Received: from DGGEMS412-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 0F65B44412C63457D230;
-	Thu,  5 Sep 2019 17:16:32 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS412-HUB.china.huawei.com
- (10.3.19.212) with Microsoft SMTP Server id 14.3.439.0; Thu, 5 Sep 2019
- 17:16:25 +0800
-Date: Thu, 5 Sep 2019 10:16:14 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-CC: Dan Williams <dan.j.williams@intel.com>, Keith Busch
-	<keith.busch@intel.com>, Linux Memory Management List <linux-mm@kvack.org>,
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Linux Kernel Mailing
- List" <linux-kernel@vger.kernel.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, Jerome Glisse <jglisse@redhat.com>,
-	"Rafael J . Wysocki" <rjw@rjwysocki.net>, Linuxarm <linuxarm@huawei.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] ACPI: Support Generic Initiator only domains
-Message-ID: <20190905101614.00002323@huawei.com>
-In-Reply-To: <CAJZ5v0ie8s-Ye7PD=xj0nXL228WDqhjJPCs+eV3n6_SAeaQowg@mail.gmail.com>
-References: <20190821145242.2330-1-Jonathan.Cameron@huawei.com>
-	<20190821145242.2330-2-Jonathan.Cameron@huawei.com>
-	<CAJZ5v0ie8s-Ye7PD=xj0nXL228WDqhjJPCs+eV3n6_SAeaQowg@mail.gmail.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
+Received: from forelay.hostedemail.com (smtprelay0056.hostedemail.com [216.40.44.56])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C43D6B0277
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id BD667180AD7C3
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:18:23 +0000 (UTC)
+X-FDA: 75900316086.15.month90_ec08ea383b14
+X-HE-Tag: month90_ec08ea383b14
+X-Filterd-Recvd-Size: 7624
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:18:21 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 32DB51576;
+	Thu,  5 Sep 2019 02:18:20 -0700 (PDT)
+Received: from [10.162.41.136] (p8cg001049571a15.blr.arm.com [10.162.41.136])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 00B6A3F67D;
+	Thu,  5 Sep 2019 02:18:07 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Matthew Wilcox <willy@infradead.org>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+ <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+ <20190904221618.1b624a98@thinkpad>
+Message-ID: <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
+Date: Thu, 5 Sep 2019 14:48:14 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <20190904221618.1b624a98@thinkpad>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Sep 2019 23:26:16 +0200
-"Rafael J. Wysocki" <rafael@kernel.org> wrote:
 
-> On Wed, Aug 21, 2019 at 4:53 PM Jonathan Cameron
-> <Jonathan.Cameron@huawei.com> wrote:
-> >
-> > Generic Initiators are a new ACPI concept that allows for the
-> > description of proximity domains that contain a device which
-> > performs memory access (such as a network card) but neither
-> > host CPU nor Memory.
-> >
-> > This patch has the parsing code and provides the infrastructure
-> > for an architecture to associate these new domains with their
-> > nearest memory processing node.
-> >
-> > Signed-off-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>  
+On 09/05/2019 01:46 AM, Gerald Schaefer wrote:
+> On Tue,  3 Sep 2019 13:31:46 +0530
+> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
 > 
-> Dan, Keith, any comments?
+>> This adds a test module which will validate architecture page table helpers
+>> and accessors regarding compliance with generic MM semantics expectations.
+>> This will help various architectures in validating changes to the existing
+>> page table helpers or addition of new ones.
+>>
+>> Test page table and memory pages creating it's entries at various level are
+>> all allocated from system memory with required alignments. If memory pages
+>> with required size and alignment could not be allocated, then all depending
+>> individual tests are skipped.
 > 
-> AFAICS this clashes with the series from Dan that rearranges the ACPI
-> NUMA related code.
+> This looks very useful, thanks. Of course, s390 is quite special and does
+> not work nicely with this patch (yet), mostly because of our dynamic page
+> table levels/folding. Still need to figure out what can be fixed in the arch
 
-Seems that one is going forwards now which is great. I'll rebase this on
-top of Dan's series and send a v5 sometime soon.
+Hmm.
 
-Thanks,
+> code and what would need to be changed in the test module. See below for some
+> generic comments/questions.
 
-Jonathan
+Sure.
 
 > 
-> > ---
-> >  drivers/acpi/numa.c            | 62 +++++++++++++++++++++++++++++++++-
-> >  drivers/base/node.c            |  3 ++
-> >  include/asm-generic/topology.h |  3 ++
-> >  include/linux/nodemask.h       |  1 +
-> >  include/linux/topology.h       |  7 ++++
-> >  5 files changed, 75 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-> > index eadbf90e65d1..fe34315a9234 100644
-> > --- a/drivers/acpi/numa.c
-> > +++ b/drivers/acpi/numa.c
-> > @@ -170,6 +170,38 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
-> >                 }
-> >                 break;
-> >
-> > +       case ACPI_SRAT_TYPE_GENERIC_AFFINITY:
-> > +       {
-> > +               struct acpi_srat_generic_affinity *p =
-> > +                       (struct acpi_srat_generic_affinity *)header;
-> > +               char name[9] = {};
-> > +
-> > +               if (p->device_handle_type == 0) {
-> > +                       /*
-> > +                        * For pci devices this may be the only place they
-> > +                        * are assigned a proximity domain
-> > +                        */
-> > +                       pr_debug("SRAT Generic Initiator(Seg:%u BDF:%u) in proximity domain %d %s\n",
-> > +                                *(u16 *)(&p->device_handle[0]),
-> > +                                *(u16 *)(&p->device_handle[2]),
-> > +                                p->proximity_domain,
-> > +                                (p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
-> > +                               "enabled" : "disabled");
-> > +               } else {
-> > +                       /*
-> > +                        * In this case we can rely on the device having a
-> > +                        * proximity domain reference
-> > +                        */
-> > +                       memcpy(name, p->device_handle, 8);
-> > +                       pr_info("SRAT Generic Initiator(HID=%.8s UID=%.4s) in proximity domain %d %s\n",
-> > +                               (char *)(&p->device_handle[0]),
-> > +                               (char *)(&p->device_handle[8]),
-> > +                               p->proximity_domain,
-> > +                               (p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
-> > +                               "enabled" : "disabled");
-> > +               }
-> > +       }
-> > +       break;
-> >         default:
-> >                 pr_warn("Found unsupported SRAT entry (type = 0x%x)\n",
-> >                         header->type);
-> > @@ -378,6 +410,32 @@ acpi_parse_gicc_affinity(union acpi_subtable_headers *header,
-> >         return 0;
-> >  }
-> >
-> > +static int __init
-> > +acpi_parse_gi_affinity(union acpi_subtable_headers *header,
-> > +                      const unsigned long end)
-> > +{
-> > +       struct acpi_srat_generic_affinity *gi_affinity;
-> > +       int node;
-> > +
-> > +       gi_affinity = (struct acpi_srat_generic_affinity *)header;
-> > +       if (!gi_affinity)
-> > +               return -EINVAL;
-> > +       acpi_table_print_srat_entry(&header->common);
-> > +
-> > +       if (!(gi_affinity->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED))
-> > +               return -EINVAL;
-> > +
-> > +       node = acpi_map_pxm_to_node(gi_affinity->proximity_domain);
-> > +       if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
-> > +               pr_err("SRAT: Too many proximity domains.\n");
-> > +               return -EINVAL;
-> > +       }
-> > +       node_set(node, numa_nodes_parsed);
-> > +       node_set_state(node, N_GENERIC_INITIATOR);
-> > +
-> > +       return 0;
-> > +}
-> > +
-> >  static int __initdata parsed_numa_memblks;
-> >
-> >  static int __init
-> > @@ -433,7 +491,7 @@ int __init acpi_numa_init(void)
-> >
-> >         /* SRAT: System Resource Affinity Table */
-> >         if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
-> > -               struct acpi_subtable_proc srat_proc[3];
-> > +               struct acpi_subtable_proc srat_proc[4];
-> >
-> >                 memset(srat_proc, 0, sizeof(srat_proc));
-> >                 srat_proc[0].id = ACPI_SRAT_TYPE_CPU_AFFINITY;
-> > @@ -442,6 +500,8 @@ int __init acpi_numa_init(void)
-> >                 srat_proc[1].handler = acpi_parse_x2apic_affinity;
-> >                 srat_proc[2].id = ACPI_SRAT_TYPE_GICC_AFFINITY;
-> >                 srat_proc[2].handler = acpi_parse_gicc_affinity;
-> > +               srat_proc[3].id = ACPI_SRAT_TYPE_GENERIC_AFFINITY;
-> > +               srat_proc[3].handler = acpi_parse_gi_affinity;
-> >
-> >                 acpi_table_parse_entries_array(ACPI_SIG_SRAT,
-> >                                         sizeof(struct acpi_table_srat),
-> > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > index 75b7e6f6535b..6f60689af5f8 100644
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -980,6 +980,8 @@ static struct node_attr node_state_attr[] = {
-> >  #endif
-> >         [N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
-> >         [N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
-> > +       [N_GENERIC_INITIATOR] = _NODE_ATTR(has_generic_initiator,
-> > +                                          N_GENERIC_INITIATOR),
-> >  };
-> >
-> >  static struct attribute *node_state_attrs[] = {
-> > @@ -991,6 +993,7 @@ static struct attribute *node_state_attrs[] = {
-> >  #endif
-> >         &node_state_attr[N_MEMORY].attr.attr,
-> >         &node_state_attr[N_CPU].attr.attr,
-> > +       &node_state_attr[N_GENERIC_INITIATOR].attr.attr,
-> >         NULL
-> >  };
-> >
-> > diff --git a/include/asm-generic/topology.h b/include/asm-generic/topology.h
-> > index 238873739550..54d0b4176a45 100644
-> > --- a/include/asm-generic/topology.h
-> > +++ b/include/asm-generic/topology.h
-> > @@ -71,6 +71,9 @@
-> >  #ifndef set_cpu_numa_mem
-> >  #define set_cpu_numa_mem(cpu, node)
-> >  #endif
-> > +#ifndef set_gi_numa_mem
-> > +#define set_gi_numa_mem(gi, node)
-> > +#endif
-> >
-> >  #endif /* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */
-> >
-> > diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-> > index 27e7fa36f707..1aebf766fb52 100644
-> > --- a/include/linux/nodemask.h
-> > +++ b/include/linux/nodemask.h
-> > @@ -399,6 +399,7 @@ enum node_states {
-> >  #endif
-> >         N_MEMORY,               /* The node has memory(regular, high, movable) */
-> >         N_CPU,          /* The node has one or more cpus */
-> > +       N_GENERIC_INITIATOR,    /* The node is a GI only node */
-> >         NR_NODE_STATES
-> >  };
-> >
-> > diff --git a/include/linux/topology.h b/include/linux/topology.h
-> > index 47a3e3c08036..2f97754e0508 100644
-> > --- a/include/linux/topology.h
-> > +++ b/include/linux/topology.h
-> > @@ -125,6 +125,13 @@ static inline void set_numa_mem(int node)
-> >  }
-> >  #endif
-> >
-> > +#ifndef set_gi_numa_mem
-> > +static inline void set_gi_numa_mem(int gi, int node)
-> > +{
-> > +       _node_numa_mem_[gi] = node;
-> > +}
-> > +#endif
-> > +
-> >  #ifndef node_to_mem_node
-> >  static inline int node_to_mem_node(int node)
-> >  {
-> > --
-> > 2.20.1
-> >  
+> At least one real bug in the s390 code was already revealed by this, which
+> is very nice. In pmd/pud_bad(), we also check large pmds/puds for sanity,
+> instead of reporting them as bad, which is apparently not how it is expected.
+
+Hmm, so it has already started being useful :)
+
 > 
+> [...]
+>> +/*
+>> + * Basic operations
+>> + *
+>> + * mkold(entry)			= An old and not a young entry
+>> + * mkyoung(entry)		= A young and not an old entry
+>> + * mkdirty(entry)		= A dirty and not a clean entry
+>> + * mkclean(entry)		= A clean and not a dirty entry
+>> + * mkwrite(entry)		= A write and not a write protected entry
+>> + * wrprotect(entry)		= A write protected and not a write entry
+>> + * pxx_bad(entry)		= A mapped and non-table entry
+>> + * pxx_same(entry1, entry2)	= Both entries hold the exact same value
+>> + */
+>> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
+> 
+> Why is P4D_SIZE missing in the VADDR_TEST calculation?
 
+This was a random possible virtual address to generate a representative
+page table structure for the test. As there is a default (PGDIR_SIZE) for
+P4D_SIZE on platforms which really do not have P4D level, it should be okay
+to add P4D_SIZE in the above calculation.
 
+> 
+> [...]
+>> +
+>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
+>> +static void pud_clear_tests(pud_t *pudp)
+>> +{
+>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+>> +	pud_clear(pudp);
+>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+>> +}
+> 
+> For pgd/p4d/pud_clear(), we only clear if the page table level is present
+> and not folded. The memset() here overwrites the table type bits, so
+> pud_clear() will not clear anything on s390 and the pud_none() check will
+> fail.
+> Would it be possible to OR a (larger) random value into the table, so that
+> the lower 12 bits would be preserved?
+
+So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
+it should OR a large random value preserving lower 12 bits. Hmm, this should
+still do the trick for other platforms, they just need non zero value. So on
+s390, the lower 12 bits on the page table entry already has valid value while
+entering this function which would make sure that pud_clear() really does
+clear the entry ?
+
+> 
+>> +
+>> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
+>> +{
+>> +	/*
+>> +	 * This entry points to next level page table page.
+>> +	 * Hence this must not qualify as pud_bad().
+>> +	 */
+>> +	pmd_clear(pmdp);
+>> +	pud_clear(pudp);
+>> +	pud_populate(mm, pudp, pmdp);
+>> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
+>> +}
+> 
+> This will populate the pud with a pmd pointer that does not point to the
+> beginning of the pmd table, but to the second entry (because of how
+> VADDR_TEST is constructed). This will result in failing pud_bad() check
+> on s390. Not sure why/how it works on other archs, but would it be possible
+> to align pmdp down to the beginning of the pmd table (and similar for the
+> other pxd_populate_tests)?
+
+Right, that was a problem. Will fix it by using the saved entries used for
+freeing the page table pages at the end, which always point to the beginning
+of a page table page.
+
+> 
+> [...]
+>> +
+>> +	p4d_free(mm, saved_p4dp);
+>> +	pud_free(mm, saved_pudp);
+>> +	pmd_free(mm, saved_pmdp);
+>> +	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
+> 
+> pgtable_t is arch-specific, and on s390 it is not a struct page pointer,
+> but a pte pointer. So this will go wrong, also on all other archs (if any)
+> where pgtable_t is not struct page.
+> Would it be possible to use pte_free_kernel() instead, and just pass
+> saved_ptep directly?
+
+It makes sense, will change.
 
