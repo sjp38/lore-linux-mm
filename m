@@ -2,173 +2,90 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B44F5C3A5A9
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 02:59:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4511C3A5AA
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 03:13:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4CDCF20882
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 02:59:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 99C202053B
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 03:13:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="VqOYx8x1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CDCF20882
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="cHAm9zd5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99C202053B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC5086B0003; Wed,  4 Sep 2019 22:59:57 -0400 (EDT)
+	id 1FA026B0003; Wed,  4 Sep 2019 23:13:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D74B66B0005; Wed,  4 Sep 2019 22:59:57 -0400 (EDT)
+	id 183DB6B0005; Wed,  4 Sep 2019 23:13:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C627E6B0006; Wed,  4 Sep 2019 22:59:57 -0400 (EDT)
+	id 023BE6B0006; Wed,  4 Sep 2019 23:13:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0078.hostedemail.com [216.40.44.78])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E1D6B0003
-	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 22:59:57 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 409062C96
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 02:59:57 +0000 (UTC)
-X-FDA: 75899362434.30.group14_39b7367aed930
-X-HE-Tag: group14_39b7367aed930
-X-Filterd-Recvd-Size: 5782
-Received: from mail-oi1-f193.google.com (mail-oi1-f193.google.com [209.85.167.193])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 02:59:56 +0000 (UTC)
-Received: by mail-oi1-f193.google.com with SMTP id g128so586975oib.1
-        for <linux-mm@kvack.org>; Wed, 04 Sep 2019 19:59:56 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=uuS19FigxfakDYnvbAFxrtuUuHeM+v/iuERCHWfI3vo=;
-        b=VqOYx8x1bDNUzmv9Rw4i2vA/owzg0BIpRGl9KWN5ZYTQ27gaRH2CxrCzmKRr3NVWov
-         XYbG3g9POX2CAkk4HAmEOmBN9Hzd6CuhdrYYitVBZ39DB9vDRPmoREMcmNR8aDKrHqXA
-         OAlDFtTq5tyRApJRImhGhc7a8emPQqeTZJke00cVRZ2qgq96qJKSvIcJpuSELk/Q/AiR
-         NW3hk5ytezFM+9nDWo0gxTCAA5p3PFpIVqVE4MAjXPPzp82Kitr/+w/0nVOeaH0LDAC/
-         i6BBj+81jkeKNqObQIR5qou/n0lSoovua+2VT+Pzgvu05EIw79XEXXUXyWYXcTPWarTB
-         tImQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=uuS19FigxfakDYnvbAFxrtuUuHeM+v/iuERCHWfI3vo=;
-        b=l6TKoq7/Do1XE1olyUJmlsuagHusccoxbcxSIoMfX0PHlQECk/Pmhdgo64uHs7JUYf
-         DtWqGh7bOOOjLcgwNJyp/MIrgcUMaN/fpHybdronYDgwref2lBbjdJjre1JVj1T3c+uR
-         X5XCltIgLImseoJHdJM2nWdRgEB780Jw6yR86Qq4T3uL8f0EgIqjVsQEECbsegnIhH+r
-         2wAQMgh/qiUdsIChtywlzURoOBMdU+JUMv1u4w+UIvZvskDAEE22WqVLQDwgq9SKptxp
-         mMxpkeTxk7FYnGkLMc/DtkpvnHpmo88YiR5dUcybQn/duR1LaEm2N7Xco7Ad5FQZqd40
-         vUsg==
-X-Gm-Message-State: APjAAAXvLnhlltulVAukvHyxi/yo67lSvCbj2FaG35VNvHvHWmG7HHgD
-	Kev+NQSQ8vMGxaqmmLUQ95xj6rFSbvB/4HQ9oEvOXQ==
-X-Google-Smtp-Source: APXvYqyxamQwBtVbn3EMfEbVBXSL/c/+KSoAeh7HrSM0V3HubzqEYm/MZVDIH+yfZMW+BWDzv8S8C51R2d+6E2Dq2sw=
-X-Received: by 2002:aca:62d7:: with SMTP id w206mr940739oib.0.1567652395683;
- Wed, 04 Sep 2019 19:59:55 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0110.hostedemail.com [216.40.44.110])
+	by kanga.kvack.org (Postfix) with ESMTP id CFBD46B0003
+	for <linux-mm@kvack.org>; Wed,  4 Sep 2019 23:13:06 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 4F0282C22
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 03:13:06 +0000 (UTC)
+X-FDA: 75899395572.22.blow21_1a9b53c9c8e08
+X-HE-Tag: blow21_1a9b53c9c8e08
+X-Filterd-Recvd-Size: 2716
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 03:13:02 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=WEjrnZDEQ7TEULc6lJk+4RAyKQtPI4nwd9rxNIbJ2jo=; b=cHAm9zd5r9eSCAYO8QFECjnW4
+	0Dk5zbKC31VWKl/JUYWtv00YeI7QfLQiGXbxIlOorWOUanHJ2hMa99ADeWrROCZg9JNGf4ksACh6z
+	zRF696B1RJbXdL8oQ4SrmxJLHvYh7hr5eMXUrNrBCErM17z5ixySKuhuBYvLvKP4OesVV8HxaURg/
+	39Asm8TljlGNtzOvKofXbjApxD89NCGNtbNSOXb/H0XiE1KXes2DaxJu7DqLVaUYIIJGFNGXomtE4
+	7iVN3beLW0y90LSzkhJPK9u4wuiEZ4d5jo6DycTHi6fvygzFTpvnXz+k0OwKvkt6Zozn17mu/LxUM
+	F18Z+LMjA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i5iCa-0004wA-Mu; Thu, 05 Sep 2019 03:12:52 +0000
+Date: Wed, 4 Sep 2019 20:12:52 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2] mm: Unsigned 'nr_pages' always larger than zero
+Message-ID: <20190905031252.GN29434@bombadil.infradead.org>
+References: <1567649871-60594-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-References: <20190904065320.6005-1-aneesh.kumar@linux.ibm.com>
- <CAPcyv4hD8SAFNNAWBP9q55wdPf-HYTEjpS4m+rT0VPoGodZULw@mail.gmail.com> <33b377ac-86ea-b195-fd83-90c01df604cc@linux.ibm.com>
-In-Reply-To: <33b377ac-86ea-b195-fd83-90c01df604cc@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 4 Sep 2019 19:59:43 -0700
-Message-ID: <CAPcyv4hBHjrTSHRkwU8CQcXF4EHoz0rzu6L-U-QxRpWkPSAhUQ@mail.gmail.com>
-Subject: Re: [PATCH v8] libnvdimm/dax: Pick the right alignment default when
- creating dax devices
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: "Kirill A . Shutemov" <kirill@shutemov.name>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1567649871-60594-1-git-send-email-zhongjiang@huawei.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Keep this 'static' there's no usage of this routine outside of pfn_devs.c
-> >
-> >>   {
-> >> -       /*
-> >> -        * This needs to be a non-static variable because the *_SIZE
-> >> -        * macros aren't always constants.
-> >> -        */
-> >> -       const unsigned long supported_alignments[] = {
-> >> -               PAGE_SIZE,
-> >> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >> -               HPAGE_PMD_SIZE,
-> >> +       static unsigned long supported_alignments[3];
-> >
-> > Why is marked static? It's being dynamically populated each invocation
-> > so static is just wasting space in the .data section.
-> >
->
-> The return of that function is address and that would require me to use
-> a global variable. I could add a check
->
-> /* Check if initialized */
->   if (supported_alignment[1])
->         return supported_alignment;
->
-> in the function to updating that array every time called.
+On Thu, Sep 05, 2019 at 10:17:51AM +0800, zhong jiang wrote:
+> With the help of unsigned_lesser_than_zero.cocci. Unsigned 'nr_pages'
+> compare with zero. And __gup_longterm_locked pass an long local variant
+> 'rc' to check_and_migrate_cma_pages. Hence it is nicer to change the
+> parameter to long to fix the issue.
 
-Oh true, my mistake. I was thrown off by the constant
-re-initialization. Another option is to pass in the storage since the
-array needs to be populated at run time. Otherwise I would consider it
-a layering violation for libnvdimm to assume that
-has_transparent_hugepage() gives a constant result. I.e. put this
+I think this patch is right, but I have concerns about this cocci grep.
 
-        unsigned long aligns[4] = { [0] = 0, };
+The code says:
 
-...in align_store() and supported_alignments_show() then
-nd_pfn_supported_alignments() does not need to worry about
-zero-initializing the fields it does not set.
+                if ((nr_pages > 0) && migrate_allow) {
 
-> >> +       supported_alignments[0] = PAGE_SIZE;
-> >> +
-> >> +       if (has_transparent_hugepage()) {
-> >> +
-> >> +               supported_alignments[1] = HPAGE_PMD_SIZE;
-> >> +
-> >>   #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-> >> -               HPAGE_PUD_SIZE,
-> >> -#endif
-> >> +               supported_alignments[2] = HPAGE_PUD_SIZE;
-> >>   #endif
-> >
-> > This ifdef could be hidden in by:
-> >
-> > if IS_ENABLED(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
-> >
-> > ...or otherwise moving this to header file with something like
-> > NVDIMM_PUD_SIZE that is optionally 0 or HPAGE_PUD_SIZE depending on
-> > the config
->
->
-> I can switch to if IS_ENABLED but i am not sure that make it any
-> different in the current code. So I will keep it same?
+There's nothing wrong with this (... other than the fact that nr_pages might
+happen to be a negative errno).  nr_pages might be 0, and this would be
+exactly the right test for that situation.  I suppose some might argue
+that this should be != 0 instead of > 0, but it depends on the situation
+which one would read better.
 
-It at least follows the general guidance to keep #ifdef out of .c files.
-
->
-> NVDIMM_PUD_SIZE is an indirection I find confusing.
->
-
-Ok.
-
-> >
-> > Ok, this is better, but I think it can be clarified further.
-> >
-> > "For dax vmas, try to always use hugepage mappings. If the kernel does
-> > not support hugepages, fsdax mappings will fallback to PAGE_SIZE
-> > mappings, and device-dax namespaces, that try to guarantee a given
-> > mapping size, will fail to enable."
-> >
-> > The last sentence about PAGE_SIZE namespaces is not relevant to
-> > __transparent_hugepage_enabled(), it's an internal implementation
-> > detail of the device-dax driver.
-> >
->
-> I will use the above update.
->
-
-Thanks.
+So please don't blindly make these changes; you're right this time.
 
