@@ -2,163 +2,773 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B35DC3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 08:03:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 679C5C41514
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 08:18:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CBDB217D7
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 08:03:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CBDB217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 0AE2220870
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 08:18:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AE2220870
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3FEF6B026B; Thu,  5 Sep 2019 04:03:32 -0400 (EDT)
+	id 8DF1B6B0007; Thu,  5 Sep 2019 04:18:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF1C46B026C; Thu,  5 Sep 2019 04:03:32 -0400 (EDT)
+	id 890006B000A; Thu,  5 Sep 2019 04:18:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CBC096B026D; Thu,  5 Sep 2019 04:03:32 -0400 (EDT)
+	id 72E146B000E; Thu,  5 Sep 2019 04:18:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0247.hostedemail.com [216.40.44.247])
-	by kanga.kvack.org (Postfix) with ESMTP id A62E46B026B
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 04:03:32 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 347A8180AD802
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:03:32 +0000 (UTC)
-X-FDA: 75900127464.13.bike99_58fd318f12220
-X-HE-Tag: bike99_58fd318f12220
-X-Filterd-Recvd-Size: 7201
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:03:31 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CBEA8AD6B;
-	Thu,  5 Sep 2019 08:03:28 +0000 (UTC)
-Subject: Re: [PATCH 1/2] mm/kasan: dump alloc/free stack for page allocator
-To: Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
- kasan-dev@googlegroups.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
-References: <20190904065133.20268-1-walter-zh.wu@mediatek.com>
- <401064ae-279d-bef3-a8d5-0fe155d0886d@suse.cz>
- <1567605965.32522.14.camel@mtksdccf07>
- <7998e8f1-e5e2-da84-ea1f-33e696015dce@suse.cz>
- <1567607063.32522.24.camel@mtksdccf07>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <99913463-0e2c-7dab-c1eb-8b9e149b3ee3@suse.cz>
-Date: Thu, 5 Sep 2019 10:03:28 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0254.hostedemail.com [216.40.44.254])
+	by kanga.kvack.org (Postfix) with ESMTP id 431376B0007
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 04:18:38 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CBAFC441E
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:18:37 +0000 (UTC)
+X-FDA: 75900165474.28.wind10_4af7092625b1e
+X-HE-Tag: wind10_4af7092625b1e
+X-Filterd-Recvd-Size: 25147
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 08:18:35 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0B372337;
+	Thu,  5 Sep 2019 01:18:34 -0700 (PDT)
+Received: from [10.162.41.136] (p8cg001049571a15.blr.arm.com [10.162.41.136])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 04B713F67D;
+	Thu,  5 Sep 2019 01:18:20 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Matthew Wilcox <willy@infradead.org>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+ <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+ <20190904141950.ykoe3h7b4hcvnysu@box>
+Message-ID: <6d4b989d-8eaa-d26e-6068-4b0e4d7a52f9@arm.com>
+Date: Thu, 5 Sep 2019 13:48:27 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <1567607063.32522.24.camel@mtksdccf07>
+In-Reply-To: <20190904141950.ykoe3h7b4hcvnysu@box>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/4/19 4:24 PM, Walter Wu wrote:
-> On Wed, 2019-09-04 at 16:13 +0200, Vlastimil Babka wrote:
->> On 9/4/19 4:06 PM, Walter Wu wrote:
+On 09/04/2019 07:49 PM, Kirill A. Shutemov wrote:
+> On Tue, Sep 03, 2019 at 01:31:46PM +0530, Anshuman Khandual wrote:
+>> This adds a test module which will validate architecture page table he=
+lpers
+>> and accessors regarding compliance with generic MM semantics expectati=
+ons.
+>> This will help various architectures in validating changes to the exis=
+ting
+>> page table helpers or addition of new ones.
 >>
->> The THP fix is not required for the rest of the series, it was even merged to
->> mainline separately.
+>> Test page table and memory pages creating it's entries at various leve=
+l are
+>> all allocated from system memory with required alignments. If memory p=
+ages
+>> with required size and alignment could not be allocated, then all depe=
+nding
+>> individual tests are skipped.
+>=20
+> See my comments below.
+>=20
 >>
->>> And It looks like something is different, because we only need last
->>> stack of page, so it can decrease memory overhead.
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+>> Cc: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Peter Zijlstra <peterz@infradead.org>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> Cc: Mark Rutland <mark.rutland@arm.com>
+>> Cc: Mark Brown <broonie@kernel.org>
+>> Cc: Steven Price <Steven.Price@arm.com>
+>> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+>> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+>> Cc: Kees Cook <keescook@chromium.org>
+>> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+>> Cc: Matthew Wilcox <willy@infradead.org>
+>> Cc: Sri Krishna chowdary <schowdary@nvidia.com>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> Cc: Russell King - ARM Linux <linux@armlinux.org.uk>
+>> Cc: Michael Ellerman <mpe@ellerman.id.au>
+>> Cc: Paul Mackerras <paulus@samba.org>
+>> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+>> Cc: "David S. Miller" <davem@davemloft.net>
+>> Cc: Vineet Gupta <vgupta@synopsys.com>
+>> Cc: James Hogan <jhogan@kernel.org>
+>> Cc: Paul Burton <paul.burton@mips.com>
+>> Cc: Ralf Baechle <ralf@linux-mips.org>
+>> Cc: linux-snps-arc@lists.infradead.org
+>> Cc: linux-mips@vger.kernel.org
+>> Cc: linux-arm-kernel@lists.infradead.org
+>> Cc: linux-ia64@vger.kernel.org
+>> Cc: linuxppc-dev@lists.ozlabs.org
+>> Cc: linux-s390@vger.kernel.org
+>> Cc: linux-sh@vger.kernel.org
+>> Cc: sparclinux@vger.kernel.org
+>> Cc: x86@kernel.org
+>> Cc: linux-kernel@vger.kernel.org
 >>
->> That would save you depot_stack_handle_t (which is u32) per page. I guess that's
->> nothing compared to KASAN overhead?
+>> Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>> ---
+>>  mm/Kconfig.debug       |  14 ++
+>>  mm/Makefile            |   1 +
+>>  mm/arch_pgtable_test.c | 425 ++++++++++++++++++++++++++++++++++++++++=
++
+>>  3 files changed, 440 insertions(+)
+>>  create mode 100644 mm/arch_pgtable_test.c
 >>
-> If we can use less memory, we can achieve what we want. Why not?
+>> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+>> index 327b3ebf23bf..ce9c397f7b07 100644
+>> --- a/mm/Kconfig.debug
+>> +++ b/mm/Kconfig.debug
+>> @@ -117,3 +117,17 @@ config DEBUG_RODATA_TEST
+>>      depends on STRICT_KERNEL_RWX
+>>      ---help---
+>>        This option enables a testcase for the setting rodata read-only=
+.
+>> +
+>> +config DEBUG_ARCH_PGTABLE_TEST
+>> +	bool "Test arch page table helpers for semantics compliance"
+>> +	depends on MMU
+>> +	depends on DEBUG_KERNEL
+>> +	help
+>> +	  This options provides a kernel module which can be used to test
+>> +	  architecture page table helper functions on various platform in
+>> +	  verifying if they comply with expected generic MM semantics. This
+>> +	  will help architectures code in making sure that any changes or
+>> +	  new additions of these helpers will still conform to generic MM
+>> +	  expected semantics.
+>> +
+>> +	  If unsure, say N.
+>> diff --git a/mm/Makefile b/mm/Makefile
+>> index d996846697ef..bb572c5aa8c5 100644
+>> --- a/mm/Makefile
+>> +++ b/mm/Makefile
+>> @@ -86,6 +86,7 @@ obj-$(CONFIG_HWPOISON_INJECT) +=3D hwpoison-inject.o
+>>  obj-$(CONFIG_DEBUG_KMEMLEAK) +=3D kmemleak.o
+>>  obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) +=3D kmemleak-test.o
+>>  obj-$(CONFIG_DEBUG_RODATA_TEST) +=3D rodata_test.o
+>> +obj-$(CONFIG_DEBUG_ARCH_PGTABLE_TEST) +=3D arch_pgtable_test.o
+>>  obj-$(CONFIG_PAGE_OWNER) +=3D page_owner.o
+>>  obj-$(CONFIG_CLEANCACHE) +=3D cleancache.o
+>>  obj-$(CONFIG_MEMORY_ISOLATION) +=3D page_isolation.o
+>> diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
+>> new file mode 100644
+>> index 000000000000..f15be8a73723
+>> --- /dev/null
+>> +++ b/mm/arch_pgtable_test.c
+>> @@ -0,0 +1,425 @@
+>> +// SPDX-License-Identifier: GPL-2.0-only
+>> +/*
+>> + * This kernel module validates architecture page table helpers &
+>> + * accessors and helps in verifying their continued compliance with
+>> + * generic MM semantics.
+>> + *
+>> + * Copyright (C) 2019 ARM Ltd.
+>> + *
+>> + * Author: Anshuman Khandual <anshuman.khandual@arm.com>
+>> + */
+>> +#define pr_fmt(fmt) "arch_pgtable_test: %s " fmt, __func__
+>> +
+>> +#include <linux/kernel.h>
+>> +#include <linux/hugetlb.h>
+>> +#include <linux/mm.h>
+>> +#include <linux/mman.h>
+>> +#include <linux/mm_types.h>
+>> +#include <linux/module.h>
+>> +#include <linux/printk.h>
+>> +#include <linux/swap.h>
+>> +#include <linux/swapops.h>
+>> +#include <linux/pfn_t.h>
+>> +#include <linux/gfp.h>
+>> +#include <linux/spinlock.h>
+>> +#include <linux/sched/mm.h>
+>> +#include <asm/pgalloc.h>
+>> +#include <asm/pgtable.h>
+>> +
+>> +/*
+>> + * Basic operations
+>> + *
+>> + * mkold(entry)			=3D An old and not a young entry
+>> + * mkyoung(entry)		=3D A young and not an old entry
+>> + * mkdirty(entry)		=3D A dirty and not a clean entry
+>> + * mkclean(entry)		=3D A clean and not a dirty entry
+>> + * mkwrite(entry)		=3D A write and not a write protected entry
+>> + * wrprotect(entry)		=3D A write protected and not a write entry
+>> + * pxx_bad(entry)		=3D A mapped and non-table entry
+>> + * pxx_same(entry1, entry2)	=3D Both entries hold the exact same valu=
+e
+>> + */
+>> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
+>=20
+> What is special about this address? How do you know if it is not occupi=
+ed
+> yet?
 
-In my experience to solve some UAFs, it's important to know not only the
-freeing stack, but also the allocating stack. Do they make sense together,
-or not? In some cases, even longer history of alloc/free would be nice :)
+We are creating the page table from scratch after allocating an mm_struct
+for a given random virtual address 'VADDR_TEST'. Hence nothing is occupie=
+d
+just yet. There is nothing special about this address, just that it tries
+to ensure the page table entries are being created with some offset from
+beginning of respective page table page at all levels ? The idea is to
+have a more representative form of page table structure for test.
 
-Also by simply recording the free stack in the existing depot handle,
-you might confuse existing page_owner file consumers, who won't know
-that this is a freeing stack.
+>=20
+>> +#define VMA_TEST_FLAGS	(VM_READ|VM_WRITE|VM_EXEC)
+>> +#define RANDOM_NZVALUE	(0xbe)
+>> +
+>> +static bool pud_aligned;
+>> +static bool pmd_aligned;
+>> +
+>> +extern struct mm_struct *mm_alloc(void);
+>> +
+>> +static void pte_basic_tests(struct page *page, pgprot_t prot)
+>> +{
+>> +	pte_t pte =3D mk_pte(page, prot);
+>> +
+>> +	WARN_ON(!pte_same(pte, pte));
+>> +	WARN_ON(!pte_young(pte_mkyoung(pte)));
+>> +	WARN_ON(!pte_dirty(pte_mkdirty(pte)));
+>> +	WARN_ON(!pte_write(pte_mkwrite(pte)));
+>> +	WARN_ON(pte_young(pte_mkold(pte)));
+>> +	WARN_ON(pte_dirty(pte_mkclean(pte)));
+>> +	WARN_ON(pte_write(pte_wrprotect(pte)));
+>> +}
+>> +
+>> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE
+>> +static void pmd_basic_tests(struct page *page, pgprot_t prot)
+>> +{
+>> +	pmd_t pmd;
+>> +
+>> +	/*
+>> +	 * Memory block here must be PMD_SIZE aligned. Abort this
+>> +	 * test in case we could not allocate such a memory block.
+>> +	 */
+>> +	if (!pmd_aligned) {
+>> +		pr_warn("Could not proceed with PMD tests\n");
+>> +		return;
+>> +	}
+>> +
+>> +	pmd =3D mk_pmd(page, prot);
+>> +	WARN_ON(!pmd_same(pmd, pmd));
+>> +	WARN_ON(!pmd_young(pmd_mkyoung(pmd)));
+>> +	WARN_ON(!pmd_dirty(pmd_mkdirty(pmd)));
+>> +	WARN_ON(!pmd_write(pmd_mkwrite(pmd)));
+>> +	WARN_ON(pmd_young(pmd_mkold(pmd)));
+>> +	WARN_ON(pmd_dirty(pmd_mkclean(pmd)));
+>> +	WARN_ON(pmd_write(pmd_wrprotect(pmd)));
+>> +	/*
+>> +	 * A huge page does not point to next level page table
+>> +	 * entry. Hence this must qualify as pmd_bad().
+>> +	 */
+>> +	WARN_ON(!pmd_bad(pmd_mkhuge(pmd)));
+>> +}
+>> +#else
+>> +static void pmd_basic_tests(struct page *page, pgprot_t prot) { }
+>> +#endif
+>> +
+>> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+>> +static void pud_basic_tests(struct page *page, pgprot_t prot)
+>> +{
+>> +	pud_t pud;
+>> +
+>> +	/*
+>> +	 * Memory block here must be PUD_SIZE aligned. Abort this
+>> +	 * test in case we could not allocate such a memory block.
+>> +	 */
+>> +	if (!pud_aligned) {
+>> +		pr_warn("Could not proceed with PUD tests\n");
+>> +		return;
+>> +	}
+>> +
+>> +	pud =3D pfn_pud(page_to_pfn(page), prot);
+>> +	WARN_ON(!pud_same(pud, pud));
+>> +	WARN_ON(!pud_young(pud_mkyoung(pud)));
+>> +	WARN_ON(!pud_write(pud_mkwrite(pud)));
+>> +	WARN_ON(pud_write(pud_wrprotect(pud)));
+>> +	WARN_ON(pud_young(pud_mkold(pud)));
+>> +
+>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HA=
+CK)
+>> +	/*
+>> +	 * A huge page does not point to next level page table
+>> +	 * entry. Hence this must qualify as pud_bad().
+>> +	 */
+>> +	WARN_ON(!pud_bad(pud_mkhuge(pud)));
+>> +#endif
+>> +}
+>> +#else
+>> +static void pud_basic_tests(struct page *page, pgprot_t prot) { }
+>> +#endif
+>> +
+>> +static void p4d_basic_tests(struct page *page, pgprot_t prot)
+>> +{
+>> +	p4d_t p4d;
+>> +
+>> +	memset(&p4d, RANDOM_NZVALUE, sizeof(p4d_t));
+>> +	WARN_ON(!p4d_same(p4d, p4d));
+>> +}
+>> +
+>> +static void pgd_basic_tests(struct page *page, pgprot_t prot)
+>> +{
+>> +	pgd_t pgd;
+>> +
+>> +	memset(&pgd, RANDOM_NZVALUE, sizeof(pgd_t));
+>> +	WARN_ON(!pgd_same(pgd, pgd));
+>> +}
+>> +
+>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HA=
+CK)
+>> +static void pud_clear_tests(pud_t *pudp)
+>> +{
+>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+>> +	pud_clear(pudp);
+>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+>> +}
+>> +
+>> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd=
+_t *pmdp)
+>> +{
+>> +	/*
+>> +	 * This entry points to next level page table page.
+>> +	 * Hence this must not qualify as pud_bad().
+>> +	 */
+>> +	pmd_clear(pmdp);
+>> +	pud_clear(pudp);
+>> +	pud_populate(mm, pudp, pmdp);
+>> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
+>> +}
+>> +#else
+>> +static void pud_clear_tests(pud_t *pudp) { }
+>> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd=
+_t *pmdp)
+>> +{
+>> +}
+>> +#endif
+>> +
+>> +#if !defined(__PAGETABLE_PUD_FOLDED) && !defined(__ARCH_HAS_5LEVEL_HA=
+CK)
+>> +static void p4d_clear_tests(p4d_t *p4dp)
+>> +{
+>> +	memset(p4dp, RANDOM_NZVALUE, sizeof(p4d_t));
+>> +	p4d_clear(p4dp);
+>> +	WARN_ON(!p4d_none(READ_ONCE(*p4dp)));
+>> +}
+>> +
+>> +static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud=
+_t *pudp)
+>> +{
+>> +	/*
+>> +	 * This entry points to next level page table page.
+>> +	 * Hence this must not qualify as p4d_bad().
+>> +	 */
+>> +	pud_clear(pudp);
+>> +	p4d_clear(p4dp);
+>> +	p4d_populate(mm, p4dp, pudp);
+>> +	WARN_ON(p4d_bad(READ_ONCE(*p4dp)));
+>> +}
+>> +#else
+>> +static void p4d_clear_tests(p4d_t *p4dp) { }
+>> +static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud=
+_t *pudp)
+>> +{
+>> +}
+>> +#endif
+>> +
+>> +#ifndef __PAGETABLE_P4D_FOLDED
+>> +static void pgd_clear_tests(pgd_t *pgdp)
+>> +{
+>> +	memset(pgdp, RANDOM_NZVALUE, sizeof(pgd_t));
+>> +	pgd_clear(pgdp);
+>> +	WARN_ON(!pgd_none(READ_ONCE(*pgdp)));
+>> +}
+>> +
+>> +static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d=
+_t *p4dp)
+>> +{
+>> +	/*
+>> +	 * This entry points to next level page table page.
+>> +	 * Hence this must not qualify as pgd_bad().
+>> +	 */
+>> +	p4d_clear(p4dp);
+>> +	pgd_clear(pgdp);
+>> +	pgd_populate(mm, pgdp, p4dp);
+>> +	WARN_ON(pgd_bad(READ_ONCE(*pgdp)));
+>> +}
+>> +#else
+>> +static void pgd_clear_tests(pgd_t *pgdp) { }
+>> +static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d=
+_t *p4dp)
+>> +{
+>> +}
+>> +#endif
+>=20
+> This will not work if p4d is folded at runtime. Like for x86-64 and s39=
+0.
+>=20
+> Here's the fixup. It should work for both x86-64 and s390, but I only
+> tested on x86-64:
+>=20
+> diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include=
+/asm/pgtable_64_types.h
+> index 52e5f5f2240d..b882792a3999 100644
+> --- a/arch/x86/include/asm/pgtable_64_types.h
+> +++ b/arch/x86/include/asm/pgtable_64_types.h
+> @@ -40,6 +40,8 @@ static inline bool pgtable_l5_enabled(void)
+>  #define pgtable_l5_enabled() 0
+>  #endif /* CONFIG_X86_5LEVEL */
+> =20
+> +#define mm_p4d_folded(mm) (!pgtable_l5_enabled())
+> +
+>  extern unsigned int pgdir_shift;
+>  extern unsigned int ptrs_per_p4d;
+> =20
+> diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
+> index f15be8a73723..206fe3334a28 100644
+> --- a/mm/arch_pgtable_test.c
+> +++ b/mm/arch_pgtable_test.c
+> @@ -193,9 +193,11 @@ static void p4d_populate_tests(struct mm_struct *m=
+m, p4d_t *p4dp, pud_t *pudp)
+>  }
+>  #endif
+> =20
+> -#ifndef __PAGETABLE_P4D_FOLDED
+>  static void pgd_clear_tests(pgd_t *pgdp)
+>  {
+> +	if (mm_p4d_folded(mm))
+> +		return;
+> +
+>  	memset(pgdp, RANDOM_NZVALUE, sizeof(pgd_t));
+>  	pgd_clear(pgdp);
+>  	WARN_ON(!pgd_none(READ_ONCE(*pgdp)));
+> @@ -203,6 +205,9 @@ static void pgd_clear_tests(pgd_t *pgdp)
+> =20
+>  static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_=
+t *p4dp)
+>  {
+> +	if (mm_p4d_folded(mm))
+> +		return;
+> +
+>  	/*
+>  	 * This entry points to next level page table page.
+>  	 * Hence this must not qualify as pgd_bad().
+> @@ -212,12 +217,6 @@ static void pgd_populate_tests(struct mm_struct *m=
+m, pgd_t *pgdp, p4d_t *p4dp)
+>  	pgd_populate(mm, pgdp, p4dp);
+>  	WARN_ON(pgd_bad(READ_ONCE(*pgdp)));
+>  }
+> -#else
+> -static void pgd_clear_tests(pgd_t *pgdp) { }
+> -static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_=
+t *p4dp)
+> -{
+> -}
+> -#endif
 
-All that just doesn't seem to justify saving an u32 per page.
+This makes sense for runtime cases but there is a problem here.
 
-> Thanks.
-> Walter
-> 
-> 
-> 
+On arm64, pgd_populate() which takes (pud_t *) as last argument instead o=
+f
+(p4d_t *) will fail to build when not wrapped in !__PAGETABLE_P4D_FOLDED
+on certain configurations.
 
+./arch/arm64/include/asm/pgalloc.h:81:75: note:
+expected =E2=80=98pud_t *=E2=80=99 {aka =E2=80=98struct <anonymous> *=E2=80=
+=99}
+but argument is of type =E2=80=98pgd_t *=E2=80=99 {aka =E2=80=98struct <a=
+nonymous> *=E2=80=99}
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t =
+*pudp)
+                                                                   ~~~~~~=
+~^~~~
+Wondering if this is something to be fixed on arm64 or its more general
+problem. Will look into this further.
+
+> =20
+>  static void pte_clear_tests(pte_t *ptep)
+>  {
+>=20
+>> +
+>> +static void pte_clear_tests(pte_t *ptep)
+>> +{
+>> +	memset(ptep, RANDOM_NZVALUE, sizeof(pte_t));
+>> +	pte_clear(NULL, 0, ptep);
+>> +	WARN_ON(!pte_none(READ_ONCE(*ptep)));
+>> +}
+>> +
+>> +static void pmd_clear_tests(pmd_t *pmdp)
+>> +{
+>> +	memset(pmdp, RANDOM_NZVALUE, sizeof(pmd_t));
+>> +	pmd_clear(pmdp);
+>> +	WARN_ON(!pmd_none(READ_ONCE(*pmdp)));
+>> +}
+>> +
+>> +static void pmd_populate_tests(struct mm_struct *mm, pmd_t *pmdp,
+>> +			       pgtable_t pgtable)
+>> +{
+>> +	/*
+>> +	 * This entry points to next level page table page.
+>> +	 * Hence this must not qualify as pmd_bad().
+>> +	 */
+>> +	pmd_clear(pmdp);
+>> +	pmd_populate(mm, pmdp, pgtable);
+>> +	WARN_ON(pmd_bad(READ_ONCE(*pmdp)));
+>> +}
+>> +
+>> +static bool pfn_range_valid(struct zone *z, unsigned long start_pfn,
+>> +			    unsigned long nr_pages)
+>> +{
+>> +	unsigned long i, end_pfn =3D start_pfn + nr_pages;
+>> +	struct page *page;
+>> +
+>> +	for (i =3D start_pfn; i < end_pfn; i++) {
+>> +		if (!pfn_valid(i))
+>> +			return false;
+>> +
+>> +		page =3D pfn_to_page(i);
+>> +
+>> +		if (page_zone(page) !=3D z)
+>> +			return false;
+>> +
+>> +		if (PageReserved(page))
+>> +			return false;
+>> +
+>> +		if (page_count(page) > 0)
+>> +			return false;
+>> +
+>> +		if (PageHuge(page))
+>> +			return false;
+>> +	}
+>> +	return true;
+>> +}
+>> +
+>> +static struct page *alloc_gigantic_page(nodemask_t *nodemask,
+>> +					int nid, gfp_t gfp_mask, int order)
+>> +{
+>> +	struct zonelist *zonelist;
+>> +	struct zone *zone;
+>> +	struct zoneref *z;
+>> +	enum zone_type zonesel;
+>> +	unsigned long ret, pfn, flags, nr_pages;
+>> +
+>> +	nr_pages =3D 1UL << order;
+>> +	zonesel =3D gfp_zone(gfp_mask);
+>> +	zonelist =3D node_zonelist(nid, gfp_mask);
+>> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, zonesel, nodemask=
+) {
+>> +		spin_lock_irqsave(&zone->lock, flags);
+>> +		pfn =3D ALIGN(zone->zone_start_pfn, nr_pages);
+>> +		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
+>> +			if (pfn_range_valid(zone, pfn, nr_pages)) {
+>> +				spin_unlock_irqrestore(&zone->lock, flags);
+>> +				ret =3D alloc_contig_range(pfn, pfn + nr_pages,
+>> +							 MIGRATE_MOVABLE,
+>> +							 gfp_mask);
+>> +				if (!ret)
+>> +					return pfn_to_page(pfn);
+>> +				spin_lock_irqsave(&zone->lock, flags);
+>> +			}
+>> +			pfn +=3D nr_pages;
+>> +		}
+>> +		spin_unlock_irqrestore(&zone->lock, flags);
+>> +	}
+>> +	return NULL;
+>> +}
+>> +
+>> +static struct page *alloc_mapped_page(void)
+>> +{
+>> +	gfp_t gfp_mask =3D GFP_KERNEL | __GFP_ZERO;
+>> +	struct page *page =3D NULL;
+>> +
+>> +	page =3D alloc_gigantic_page(&node_states[N_MEMORY], first_memory_no=
+de,
+>> +				   gfp_mask, get_order(PUD_SIZE));
+>> +	if (page) {
+>> +		pud_aligned =3D true;
+>> +		pmd_aligned =3D true;
+>> +		return page;
+>> +	}
+>> +
+>> +	page =3D alloc_pages(gfp_mask, get_order(PMD_SIZE));
+>> +	if (page) {
+>> +		pmd_aligned =3D true;
+>> +		return page;
+>> +	}
+>> +	return alloc_page(gfp_mask);
+>> +}
+>> +
+>> +static void free_mapped_page(struct page *page)
+>> +{
+>> +	if (pud_aligned) {
+>> +		unsigned long pfn =3D page_to_pfn(page);
+>> +
+>> +		free_contig_range(pfn, 1ULL << get_order(PUD_SIZE));
+>> +		return;
+>> +	}
+>> +
+>> +	if (pmd_aligned) {
+>> +		int order =3D get_order(PMD_SIZE);
+>> +
+>> +		free_pages((unsigned long)page_address(page), order);
+>> +		return;
+>> +	}
+>> +	free_page((unsigned long)page_address(page));
+>> +}
+>> +
+>> +static int __init arch_pgtable_tests_init(void)
+>> +{
+>> +	struct mm_struct *mm;
+>> +	struct page *page;
+>> +	pgd_t *pgdp;
+>> +	p4d_t *p4dp, *saved_p4dp;
+>> +	pud_t *pudp, *saved_pudp;
+>> +	pmd_t *pmdp, *saved_pmdp;
+>> +	pte_t *ptep, *saved_ptep;
+>> +	pgprot_t prot =3D vm_get_page_prot(VMA_TEST_FLAGS);
+>> +	unsigned long vaddr =3D VADDR_TEST;
+>> +
+>> +	mm =3D mm_alloc();
+>> +	if (!mm) {
+>> +		pr_err("mm_struct allocation failed\n");
+>> +		return 1;
+>> +	}
+>> +
+>> +	page =3D alloc_mapped_page();
+>> +	if (!page) {
+>> +		pr_err("memory allocation failed\n");
+>> +		return 1;
+>> +	}
+>> +
+>> +	pgdp =3D pgd_offset(mm, vaddr);
+>> +	p4dp =3D p4d_alloc(mm, pgdp, vaddr);
+>> +	pudp =3D pud_alloc(mm, p4dp, vaddr);
+>> +	pmdp =3D pmd_alloc(mm, pudp, vaddr);
+>> +	ptep =3D pte_alloc_map(mm, pmdp, vaddr);
+>> +
+>> +	/*
+>> +	 * Save all the page table page addresses as the page table
+>> +	 * entries will be used for testing with random or garbage
+>> +	 * values. These saved addresses will be used for freeing
+>> +	 * page table pages.
+>> +	 */
+>> +	saved_p4dp =3D p4d_offset(pgdp, 0UL);
+>> +	saved_pudp =3D pud_offset(p4dp, 0UL);
+>> +	saved_pmdp =3D pmd_offset(pudp, 0UL);
+>> +	saved_ptep =3D pte_offset_map(pmdp, 0UL);
+>> +
+>> +	pte_basic_tests(page, prot);
+>> +	pmd_basic_tests(page, prot);
+>> +	pud_basic_tests(page, prot);
+>> +	p4d_basic_tests(page, prot);
+>> +	pgd_basic_tests(page, prot);
+>> +
+>> +	pte_clear_tests(ptep);
+>> +	pmd_clear_tests(pmdp);
+>> +	pud_clear_tests(pudp);
+>> +	p4d_clear_tests(p4dp);
+>> +	pgd_clear_tests(pgdp);
+>> +
+>> +	pmd_populate_tests(mm, pmdp, (pgtable_t) page);
+>=20
+> This is not correct for architectures that defines pgtable_t as pte_t
+> pointer, not struct page pointer.
+
+Right, a grep on the source confirms that.
+
+These platforms define pgtable_t as struct page *
+
+arch/alpha/include/asm/page.h:typedef struct page *pgtable_t;
+arch/arm/include/asm/page.h:typedef struct page *pgtable_t;
+arch/arm64/include/asm/page.h:typedef struct page *pgtable_t;
+arch/csky/include/asm/page.h:typedef struct page *pgtable_t;
+arch/hexagon/include/asm/page.h:typedef struct page *pgtable_t;
+arch/ia64/include/asm/page.h:  typedef struct page *pgtable_t;
+arch/ia64/include/asm/page.h:    typedef struct page *pgtable_t;
+arch/m68k/include/asm/page.h:typedef struct page *pgtable_t;
+arch/microblaze/include/asm/page.h:typedef struct page *pgtable_t;
+arch/mips/include/asm/page.h:typedef struct page *pgtable_t;
+arch/nds32/include/asm/page.h:typedef struct page *pgtable_t;
+arch/nios2/include/asm/page.h:typedef struct page *pgtable_t;
+arch/openrisc/include/asm/page.h:typedef struct page *pgtable_t;
+arch/parisc/include/asm/page.h:typedef struct page *pgtable_t;
+arch/riscv/include/asm/page.h:typedef struct page *pgtable_t;
+arch/sh/include/asm/page.h:typedef struct page *pgtable_t;
+arch/sparc/include/asm/page_32.h:typedef struct page *pgtable_t;
+arch/um/include/asm/page.h:typedef struct page *pgtable_t;
+arch/unicore32/include/asm/page.h:typedef struct page *pgtable_t;
+arch/x86/include/asm/pgtable_types.h:typedef struct page *pgtable_t;
+arch/xtensa/include/asm/page.h:typedef struct page *pgtable_t;
+
+These platforms define pgtable_t as pte_t *
+
+arch/arc/include/asm/page.h:typedef pte_t * pgtable_t;
+arch/powerpc/include/asm/mmu.h:typedef pte_t *pgtable_t;
+arch/s390/include/asm/page.h:typedef pte_t *pgtable_t;
+arch/sparc/include/asm/page_64.h:typedef pte_t *pgtable_t;
+
+Should we need have two pmd_populate_tests() definitions with
+different arguments (struct page pointer or pte_t pointer) and then
+call either one after detecting the given platform ?
+
+>=20
+>> +	pud_populate_tests(mm, pudp, pmdp);
+>> +	p4d_populate_tests(mm, p4dp, pudp);
+>> +	pgd_populate_tests(mm, pgdp, p4dp);
+>=20
+> This is wrong. All p?dp points to the second entry in page table entry.
+> This is not valid pointer for page table and triggers p?d_bad() on x86.
+
+Yeah these are second entries because of the way we create the page table=
+.
+But I guess its applicable only to the second argument in all these above
+cases because the first argument can be any valid entry on previous page
+table level.
+
+>=20
+> Use saved_p?dp instead.
+
+It works on x86. Will test on arm64 and update.
 
