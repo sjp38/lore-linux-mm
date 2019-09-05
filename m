@@ -2,248 +2,139 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6131FC43331
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68916C43331
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D08420674
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D89D20674
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="F8/80u1s";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="ewhH9JB/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D08420674
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KWATY8V7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D89D20674
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 862B86B0003; Thu,  5 Sep 2019 19:11:45 -0400 (EDT)
+	id CF64B6B0006; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 813086B0006; Thu,  5 Sep 2019 19:11:45 -0400 (EDT)
+	id CA7106B0007; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6DA7C6B0007; Thu,  5 Sep 2019 19:11:45 -0400 (EDT)
+	id B97DD6B0008; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
-	by kanga.kvack.org (Postfix) with ESMTP id 4582E6B0003
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:11:45 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C3864181AC9B4
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:44 +0000 (UTC)
-X-FDA: 75902416128.10.honey12_f2d4ad1eca06
-X-HE-Tag: honey12_f2d4ad1eca06
-X-Filterd-Recvd-Size: 12219
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:44 +0000 (UTC)
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x85N3b42011765;
-	Thu, 5 Sep 2019 16:11:42 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=tenXssdW4E1XDma9BTQJomHLmn+Qu+z0mCqwlEqDzYs=;
- b=F8/80u1slN9HC/YtGJK/rShXYA2o4026fN+fSphKy8YOUvBL0lDmcDDIkFDqnwYrp9Xs
- fUmZNNU4P2xbD27FwXnLaP7aii0n/Q/W+VfTPIaDrbw4qKXY7pgKwjGdxw/AETAczk2p
- XM7H7q6E6USAbjdKjtts8gMeBX14HIbqTPE= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2uu4yja0jx-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Thu, 05 Sep 2019 16:11:41 -0700
-Received: from ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) by
- ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Thu, 5 Sep 2019 16:11:41 -0700
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.103) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Thu, 5 Sep 2019 16:11:41 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=j5rpXQkk3RrxAyJyBVFp2MYtwnNsTMTxIt4XvwqxV6Lq4uzH5gk7quAxQsYfyJMGL5a/5qEOLWAu3F4EIkdE3SjCcGTPYMsEdlVUebHvMORb0/g+6hhBHFscC39ydyRcMCNoVEK4HthMr5wndNpYuIvTFadO+a9LSNI5D1VKir6gNeBf2bAHQdkb7kgx6grU7lzU/oj+VaIV8dOTl78f2D8ZdrA/QgUff8HLgB3FJ2ia/3hPXOf/qOFOrqJPMyQ20QD6+vjfEkHu7eEZKs0h3zzE5rPmFe5ANaxASsq4PmpXEo+blKZgj/q6era+r3UonqmNIXqe5dnhMbN0qOsdJA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=tenXssdW4E1XDma9BTQJomHLmn+Qu+z0mCqwlEqDzYs=;
- b=VgFgZPxNmAK6+IXtLCBd7sT5VYyvVq61XD1PTcDdbm2VZuCXb9Ju4GvJiTPA3YWqPx1a1JslYCxn/Db7v35pFyVIP1VoviQ3etsY+9NwL/1pjxhoObrk7JZa9+uAxHi5YDtK7kMrAALd2fB8VgAgMm9uWH4oQScUcLfXj94P/+8xFECYxLaKrHglYViDRLFD9H5itOY+Ukz0VkMIhIhyrabifaqezG0tfnfoHMlu6ZVpUl21DjvD48YYsDQ9Ri+D5GtrQJimIjk6MUqpRFCgGrB8LC/PDhG9pRLVUClp86cDOQ8O7aP5hDCP+Uo9bER9x73wK9CGcCKTE4GIj/Wk6Q==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=tenXssdW4E1XDma9BTQJomHLmn+Qu+z0mCqwlEqDzYs=;
- b=ewhH9JB/UPMc5I0NbM1EMkDIrXce2AzNEhasy7O5betKiOrRkrvFAg+jw0ao5yx2bm0UIroit+/pGSKrB7RnpeNd6Xfxfhj31LOi7mv/QJUb2i+LfXA9cc/eS4AWqS5950ZB1PV3XOBy9jEvjkAZqtJFDGyQkEJoTIEmy3bSfW8=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB3484.namprd15.prod.outlook.com (20.179.48.157) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2241.15; Thu, 5 Sep 2019 23:11:39 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e%3]) with mapi id 15.20.2220.022; Thu, 5 Sep 2019
- 23:11:39 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-CC: Michal Hocko <mhocko@kernel.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        "cgroups@vger.kernel.org"
-	<cgroups@vger.kernel.org>,
-        Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v1 0/7] mm/memcontrol: recharge mlocked pages
-Thread-Topic: [PATCH v1 0/7] mm/memcontrol: recharge mlocked pages
-Thread-Index: AQHVYygb4ML2nlRWy0qljqLE4Dgc06cbllOAgAEdHwCAAQTEgA==
-Date: Thu, 5 Sep 2019 23:11:39 +0000
-Message-ID: <20190905231135.GA9822@tower.dhcp.thefacebook.com>
-References: <156760509382.6560.17364256340940314860.stgit@buzz>
- <20190904143747.GA3838@dhcp22.suse.cz>
- <6171edb1-4598-5709-bb62-07bed89175b1@yandex-team.ru>
-In-Reply-To: <6171edb1-4598-5709-bb62-07bed89175b1@yandex-team.ru>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR21CA0056.namprd21.prod.outlook.com
- (2603:10b6:300:db::18) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::e156]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b9326fdf-cf28-444b-260c-08d73256681b
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600166)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:DM6PR15MB3484;
-x-ms-traffictypediagnostic: DM6PR15MB3484:
-x-microsoft-antispam-prvs: <DM6PR15MB34842CF52BF304FD6192BE4EBEBB0@DM6PR15MB3484.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 015114592F
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(396003)(136003)(39860400002)(366004)(346002)(52314003)(199004)(189003)(33656002)(1076003)(99286004)(46003)(6436002)(14454004)(2906002)(6116002)(6246003)(5660300002)(486006)(476003)(11346002)(478600001)(6512007)(54906003)(9686003)(66946007)(64756008)(66556008)(66476007)(66446008)(446003)(6486002)(14444005)(52116002)(53936002)(386003)(6506007)(76176011)(25786009)(102836004)(256004)(186003)(86362001)(71190400001)(71200400001)(81166006)(81156014)(316002)(6916009)(8676002)(4326008)(8936002)(7736002)(305945005)(229853002);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB3484;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: o2mXAOeqtYU5+pcZjhiinEWqJ+4NoklqfafelH553/DPKiJqgqJ9YAVzrrK4NT9jIldrbKgoig3oO0QoyVK2dnrOtjPBi7hI04wU1PTjLC/3SGxLev+0ZPoNJXXllGb4oztiiyzEYGOsEUWLaAqaIWdSGwBYenycFi8nfR24w6TcLpMUkh/j5WFVfxUWlIIARfxxfOdKu9X6ktZTGfZmrlOtW0EN2qcc7pyWzw5USKkBbcnr7xU9VtPhI0FDhvEmUuwNNINyrkN5IrhwdZua/NEwjIOnJ33AGpKKRXsTPEHeAcMkxy+0T216eWXY3J9sDiY9v462/mhatHlCP4oxWphXQfOVVx9tfuaR4cexPdQ60KLIRQ2IKzngVmUgqKoRemh0sFixjOZbzo1VQ/VbmjvqAA4OzC2hR3KF+jamh7c=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <015F4A3CFBCB944290F5F79213C6A233@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0254.hostedemail.com [216.40.44.254])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1706B0006
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 39001181AC9AE
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:58 +0000 (UTC)
+X-FDA: 75902416716.14.fire00_1120b19099026
+X-HE-Tag: fire00_1120b19099026
+X-Filterd-Recvd-Size: 5036
+Received: from mail-lf1-f65.google.com (mail-lf1-f65.google.com [209.85.167.65])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:57 +0000 (UTC)
+Received: by mail-lf1-f65.google.com with SMTP id l11so3416753lfk.6
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 16:11:57 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=rsv0Voxxp+ItU2AmdJliC6lRiDyJh5oUWnyootcl/es=;
+        b=KWATY8V78X6WT4GPUKQJmVfGTCnU5vhDE/oaXa6aC1GLF2h5PoYpxaD4OLLdxTk1wb
+         NRbBqJ+uBWEjMXtoulBYmFShow+CO7RWdA682IgebS0PjNMEt1MRtryBK8N9fscdt06B
+         xBhyfc+9E8HXYbk9FJZ7CjwMY0BLIwCNByrsdn/9MCUsd3hQ4EkpfTpbz8deZMiF409a
+         2EkQ2s0Jdg62I6PuiGOhfDm8O4BNqWZEyXu/rD4+BHpB8I0bipPUwnfZA6tz4izZ2S4F
+         OgGxKeLePQc9Ei5o0/7ubCk3WSaTcEQb5s88aMjCTS6pBY4g9w48ztMf1dPdlohuukMM
+         jb2Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=rsv0Voxxp+ItU2AmdJliC6lRiDyJh5oUWnyootcl/es=;
+        b=cGw82XLyO/wsBXjRi6sWUTRM+C4t/NYKKSDy6ofAg61Wb+AT8ojg7TK11peK9r9nkn
+         sxLfi13h3jF3w4fJ/65ifXsOxDNgooi8inyYTQuTzSdS9GhgGXFh3CwcLV59b2X1qcLm
+         NswUKe2w61LysN3P+cbwAf3NGP1vh/PMCDtAvx8lY4hfpxUeXYRtCR/plptorIDKShLG
+         YbRCk5ThqUB65Kpqx5u5gEKK9UCdkLIyeg/j2POPd/r7AhrRl6/ZL/NBBpdBohqQcoPG
+         Xeo3veOMjreGt3sLfQDYRkv8yjYNC9IE7BSzO1I4Qgx2hcLDQzyDx/8YZNhc5+2t6rdg
+         Ioig==
+X-Gm-Message-State: APjAAAXP5ZYU5dypAVStZTOiVg4pMxh4p8N/63TDGeUJ6uip1lmSJlvi
+	YX/d9OXpszxOmWwfj4thvYNO/ix8SFU=
+X-Google-Smtp-Source: APXvYqz6gFjjmfdcqN7f+AGnrw3zq8eQftPhMdIM9dJmaaEC3Q68LUa3et1MQfvpIV4wVuupkJfkhw==
+X-Received: by 2002:ac2:5090:: with SMTP id f16mr4297861lfm.66.1567725115794;
+        Thu, 05 Sep 2019 16:11:55 -0700 (PDT)
+Received: from [84.217.164.5] (c-8caed954.51034-0-757473696b74.bbcust.telenor.se. [84.217.164.5])
+        by smtp.gmail.com with ESMTPSA id p26sm705000lfc.25.2019.09.05.16.11.54
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Thu, 05 Sep 2019 16:11:55 -0700 (PDT)
+Subject: Re: [BUG] kmemcg limit defeats __GFP_NOFAIL allocation
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Michal Hocko <mhocko@kernel.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org
+References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
+ <666dbcde-1b8a-9e2d-7d1f-48a117c78ae1@I-love.SAKURA.ne.jp>
+ <ccf79dd9-b2e5-0d78-f520-164d198f9ca4@gmail.com>
+ <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
+ <20190904112500.GO3838@dhcp22.suse.cz>
+ <0056063b-46ff-0ebd-ff0d-c96a1f9ae6b1@i-love.sakura.ne.jp>
+ <20190904142902.GZ3838@dhcp22.suse.cz>
+ <405ce28b-c0b4-780c-c883-42d741ec60e0@i-love.sakura.ne.jp>
+From: Thomas Lindroth <thomas.lindroth@gmail.com>
+Message-ID: <16fdbf78-3cf4-81cf-2a73-d38cb66afc17@gmail.com>
+Date: Fri, 6 Sep 2019 01:11:53 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: b9326fdf-cf28-444b-260c-08d73256681b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Sep 2019 23:11:39.6117
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: nZDtTlbSbNArjLrperXB9uF13fB42a+NAvVu1/a/ihY2uqhm2ZOAur67hUJr5+kh
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB3484
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:6.0.70,1.0.8
- definitions=2019-09-05_10:2019-09-04,2019-09-05 signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 lowpriorityscore=0
- mlxscore=0 impostorscore=0 adultscore=0 malwarescore=0 suspectscore=1
- clxscore=1015 phishscore=0 priorityscore=1501 spamscore=0 mlxlogscore=999
- bulkscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.12.0-1906280000 definitions=main-1909050215
-X-FB-Internal: deliver
+In-Reply-To: <405ce28b-c0b4-780c-c883-42d741ec60e0@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 05, 2019 at 10:38:16AM +0300, Konstantin Khlebnikov wrote:
-> On 04/09/2019 17.37, Michal Hocko wrote:
-> > On Wed 04-09-19 16:53:08, Konstantin Khlebnikov wrote:
-> > > Currently mlock keeps pages in cgroups where they were accounted.
-> > > This way one container could affect another if they share file cache.
-> > > Typical case is writing (downloading) file in one container and then
-> > > locking in another. After that first container cannot get rid of cach=
-e.
-> > > Also removed cgroup stays pinned by these mlocked pages.
-> > >=20
-> > > This patchset implements recharging pages to cgroup of mlock user.
-> > >=20
-> > > There are three cases:
-> > > * recharging at first mlock
-> > > * recharging at munlock to any remaining mlock
-> > > * recharging at 'culling' in reclaimer to any existing mlock
-> > >=20
-> > > To keep things simple recharging ignores memory limit. After that mem=
-ory
-> > > usage temporary could be higher than limit but cgroup will reclaim me=
-mory
-> > > later or trigger oom, which is valid outcome when somebody mlock too =
-much.
-> >=20
-> > I assume that this is mlock specific because the pagecache which has th=
-e
-> > same problem is reclaimable and the problem tends to resolve itself
-> > after some time.
-> >=20
-> > Anyway, how big of a problem this really is? A lingering memcg is
-> > certainly not nice but pages are usually not mlocked for ever. Or is
-> > this a way to protect from an hostile actor?
->=20
-> We're using mlock mostly to avoid non-deterministic behaviour in cache.
-> For example some of our applications mlock index structures in databases
-> to limit count of major faults in worst case.
->=20
-> Surprisingly mlock fixates unwanted effects of non-predictable cache shar=
-ing.
->=20
-> So, it seems makes sense to make mlock behaviour simple and completely
-> deterministic because this isn't cheap operation and needs careful
-> resource planning.
->
+On 9/4/19 6:39 PM, Tetsuo Handa wrote:
+> On 2019/09/04 23:29, Michal Hocko wrote:
+>> Ohh, right. We are trying to uncharge something that hasn't been charged
+>> because page_counter_try_charge has failed. So the fix needs to be more
+>> involved. Sorry, I should have realized that.
+> 
+> OK. Survived the test. Thomas, please try.
+> 
+>> ---
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 9ec5e12486a7..e18108b2b786 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -2821,6 +2821,16 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+>>   
+>>   	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+>>   	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+>> +
+>> +		/*
+>> +		 * Enforce __GFP_NOFAIL allocation because callers are not
+>> +		 * prepared to see failures and likely do not have any failure
+>> +		 * handling code.
+>> +		 */
+>> +		if (gfp & __GFP_NOFAIL) {
+>> +			page_counter_charge(&memcg->kmem, nr_pages);
+>> +			return 0;
+>> +		}
+>>   		cancel_charge(memcg, nr_pages);
+>>   		return -ENOMEM;
+>>   	}
+>>
 
-Totally agree.
+I tried the patch with 5.2.11 and wasn't able to trigger any null pointer
+deref crashes with it. Testing is tricky because the OOM killer will still
+run and eventually kill bash and whatever runs in the cgroup.
 
->=20
->=20
-> On 05/09/2019 02.13, Roman Gushchin wrote:> On Wed, Sep 04, 2019 at 04:53=
-:08PM +0300, Konstantin Khlebnikov wrote:
-> >> Currently mlock keeps pages in cgroups where they were accounted.
-> >> This way one container could affect another if they share file cache.
-> >> Typical case is writing (downloading) file in one container and then
-> >> locking in another. After that first container cannot get rid of cache=
-.
-> >
-> > Yeah, it's a valid problem, and it's not about mlocked pages only,
-> > the same thing is true for generic pagecache. The only difference is th=
-at
-> > in theory memory pressure should fix everything. But in reality
-> > pagecache used by the second container can be very hot, so the first
-> > once can't really get rid of it.
-> > In other words, there is no way to pass a pagecache page between cgroup=
-s
-> > without evicting it and re-reading from a storage, which is sub-optimal
-> > in many cases.
-> >
-> > We thought about new madvise(), which will uncharge pagecache but set
-> > a new page flag, which will mean something like "whoever first starts u=
-sing
-> > the page, should be charged for it". But it never materialized in a pat=
-chset.
->=20
-> I've implemented something similar in OpenVZ kernel - "shadow" LRU sets f=
-or
-> abandoned cache which automatically changes ownership at first activation=
-.
->=20
-> I'm thinking about fadvise() or fcntl() for moving cache into current mem=
-ory cgroup.
-> This should give enough control to solve all our problems.
-
-Idk, it feels a bit fragile: because only one cgroup can own a page, there
-should be a strong coordination, otherwise cgroups may just spend non-trivi=
-al
-amount of cpu time stealing pages back and forth.
-
-I'm not strictly against such fadvise() though, it can be useful in certain
-cases. But in general the abandoning semantics makes more sense to me.
-If a cgroup doesn't plan to use the page anymore, it marks it in a special =
-way,
-so that the next one who want to use it pays the whole price. So it works
-exactly as if the page had been evicted, but more efficiently.
-
-Thanks!
+I backported the patch to 4.19.69 and ran the chromium build like before
+but this time I couldn't trigger any system crashes.
 
