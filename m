@@ -2,233 +2,614 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B3B8C43331
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 19:06:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88428C43331
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 19:31:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11DA5206BA
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 19:06:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="edrCqLJs";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="Xowk5ezh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11DA5206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id BF9252082E
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 19:31:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF9252082E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A51B86B0003; Thu,  5 Sep 2019 15:06:56 -0400 (EDT)
+	id 5D3386B0003; Thu,  5 Sep 2019 15:31:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A03A16B0005; Thu,  5 Sep 2019 15:06:56 -0400 (EDT)
+	id 55DC76B0005; Thu,  5 Sep 2019 15:31:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C9336B0007; Thu,  5 Sep 2019 15:06:56 -0400 (EDT)
+	id 3FCBA6B0007; Thu,  5 Sep 2019 15:31:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0134.hostedemail.com [216.40.44.134])
-	by kanga.kvack.org (Postfix) with ESMTP id 665236B0003
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 15:06:56 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 0EF8A2C32
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:06:56 +0000 (UTC)
-X-FDA: 75901799232.06.eye10_3c65a0b089351
-X-HE-Tag: eye10_3c65a0b089351
-X-Filterd-Recvd-Size: 10672
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:06:54 +0000 (UTC)
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.42/8.16.0.42) with SMTP id x85J2cvl030568;
-	Thu, 5 Sep 2019 12:06:48 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=B8+xV9GzHKsrV9kOKYUegi7LiriYRm5wIzn2M1BAhKQ=;
- b=edrCqLJsJynRJrQFCsCfODi8+lcLp0DDxMXFzOihpSAU5P1omQOb1Q0UsJtjVlrTJKPs
- C3b3Ct6qNryaQxnYQzIORGzZORtQ7xPviz3e3j8Pm8aodnlcxqG7ahop68dES2EOqk15
- fCcfpPL6XBYtKaT7d+s/wziWRzCDdr4c+KE= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by m0001303.ppops.net with ESMTP id 2utxy62nnh-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Thu, 05 Sep 2019 12:06:48 -0700
-Received: from ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) by
- ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Thu, 5 Sep 2019 12:06:47 -0700
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.174) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Thu, 5 Sep 2019 12:06:47 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=BaA2wORSwuWoqonwI5s+jUA+OlUZfHo4yUdQognIs4eLHQnF6HCBks+n5lVfaItrNWg/458jxkekEfQdZUQDY1A32vs48zy8/nWumC/CJ5qSNxAWLz6iX0q8fAuXDFzbemNh7PdbbtWCJoG1HpO6QLchJpLOY9o0mcm9+Gl2REFYwO6Q1ynS5PW7WGcvbVhP0Ip/GIoJRipFFtosd42pu5FEKNJofpgC7v53FFsyJqvchDHwQ8N/6Xmdj0P2yEnM83ok9Hzje2GTMPgt2Aqzjd/AmnSaTBH/h5q+AVolty3DY7M9xT0zSXL2pyN8c2oNYhhGRcJUQU1aXIM15l4iEg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=B8+xV9GzHKsrV9kOKYUegi7LiriYRm5wIzn2M1BAhKQ=;
- b=dlJUEpoDw3typYlJEfLhqq7zf2j61ClPgGajE4OBNo1rlPReYo6+v1JunOf36n9D7V+JVeC0HouTG52FbXu4MjHvMHNsLs73rmkRacL+zWE2KDNqw9nxyS070pvJCiYcVvUssFDY8XRwufjh3G93NfwBXEOt/PtE0O39AjMomVMt5mupOAU3z6PejLB7s2yzm4fi4X0VCBNhtkfyHYqY5L07THj3zMWFb9ZEQKA3AN+5/Tx9NwkSaHaqDx45xbBHr2gozNYANnzKT/3y9dVchpIQmoOHWDsKM46CAjbbn3S5O+r2/Fqw/TgbrsofxSjFpXQ03Msxydz1MXEbXx1gmw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=B8+xV9GzHKsrV9kOKYUegi7LiriYRm5wIzn2M1BAhKQ=;
- b=Xowk5ezhAkgiGsKaXsfRYZbKUVZ6LSWN1ceYVdqpxrjUiTR+p+e36yFO/X3n6ns/ZYM/oogP0lu9Dy+Am0OoBj62NGOn1MCKyyn1gCYfheaFyCyyi0yxdt6qXV96l1is6Imm4VY+oSubg9TJNtnOa2jmDCmMrNIKlsRAw6Ft3Bg=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1216.namprd15.prod.outlook.com (10.175.2.17) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2220.21; Thu, 5 Sep 2019 19:06:46 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::a828:5750:379d:b9a1]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::a828:5750:379d:b9a1%8]) with mapi id 15.20.2220.022; Thu, 5 Sep 2019
- 19:06:46 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Matthew Wilcox <willy@infradead.org>
-CC: Linux MM <linux-mm@kvack.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>,
-        Kirill Shutemov <kirill@shutemov.name>,
-        William Kucharski <william.kucharski@oracle.com>,
-        Johannes Weiner
-	<jweiner@fb.com>
-Subject: Re: [PATCH 1/3] mm: Add __page_cache_alloc_order
-Thread-Topic: [PATCH 1/3] mm: Add __page_cache_alloc_order
-Thread-Index: AQHVZBcl1bq58oOe60i78AS/zsbkIKcdb7wAgAABDQCAAAEngA==
-Date: Thu, 5 Sep 2019 19:06:45 +0000
-Message-ID: <F4053DAE-8857-467E-9BF3-3A5CC2E195D6@fb.com>
-References: <20190905182348.5319-1-willy@infradead.org>
- <20190905182348.5319-2-willy@infradead.org>
- <75104154-A1A4-4FE3-920C-0069E1B5848D@fb.com>
- <20190905190238.GT29434@bombadil.infradead.org>
-In-Reply-To: <20190905190238.GT29434@bombadil.infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::2:b3a5]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: eec6a8b2-0fcc-4d11-59c1-08d73234325c
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1216;
-x-ms-traffictypediagnostic: MWHPR15MB1216:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <MWHPR15MB12168926B60E9FD1368BD53FB3BB0@MWHPR15MB1216.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7219;
-x-forefront-prvs: 015114592F
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(396003)(39860400002)(136003)(346002)(376002)(51914003)(189003)(199004)(446003)(2616005)(81166006)(81156014)(8676002)(66946007)(66476007)(66556008)(64756008)(66446008)(76116006)(14454004)(11346002)(6506007)(53546011)(102836004)(86362001)(8936002)(476003)(486006)(186003)(6512007)(57306001)(6916009)(6486002)(6116002)(229853002)(6436002)(50226002)(76176011)(53936002)(2906002)(25786009)(478600001)(4326008)(5660300002)(33656002)(36756003)(305945005)(46003)(99286004)(71190400001)(7736002)(14444005)(256004)(6246003)(54906003)(71200400001)(316002);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1216;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: Qqpg4ZMQbDQhGHwSK+AN4DEbKjLwiReeoOX+DnpDIfXOfRq21AvEKl/zAcWw2Kt1CpMoyK5xU+3h//CepWDe4fgNwtO3tnNWelz1mkPWgRvNFF6BzpJbw30v84RcHqHxy4J988+XksbFf0ZnSx2TSYL4WE/y38/zqCt+DhNy17Ehounu0HS+6Y4cfEEGB55Llj4JdeJn3ftji+YoVzYCs/4sFKg6wx5hhE0jxsIuvUagN8/vxY85TSWCjdO+Iw0triK1HR+3OOVcEj1paI6xQsTpLLVKZUCeAr+y1W3K0+SujFChv9RenN8/4OB2HeWoSvZe1Gnym2C6VXpkVTlJDiR8Bhy2EUNCg50cYuK8it3n/Hlc+P+5aDx/1xMQY12ZdUyQTXuHAHnpjRwaty9NkUWuukNRmZqb3CHwRL49dPQ=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <55B714F3AB3C2F43BB92EB20CFB2A4D9@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E4C6B0003
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 15:31:32 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id A66B8824CA08
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:31:31 +0000 (UTC)
+X-FDA: 75901861182.01.watch41_819de09f68d41
+X-HE-Tag: watch41_819de09f68d41
+X-Filterd-Recvd-Size: 16906
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:31:30 +0000 (UTC)
+Received: (qmail 17681 invoked from network); 5 Sep 2019 21:31:28 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.242.2.5]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Thu, 05 Sep 2019 21:31:28 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+To: Yang Shi <shy828301@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, l.roehrs@profihost.ag, cgroups@vger.kernel.org,
+ Johannes Weiner <hannes@cmpxchg.org>
+References: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+ <20190905114022.GH3838@dhcp22.suse.cz>
+ <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
+ <CAHbLzkqb1W+8Bzc1L6+5vuaREZ6e2SWZpzM59PNYm6qRQPmm2Q@mail.gmail.com>
+ <08b3d576-4574-918f-ef45-734752ddcec6@profihost.ag>
+ <CAHbLzkp05vndxk0yRW2SD83bFJG_HQ=yHWt0vDbR6LmP02AR8Q@mail.gmail.com>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <346a4982-f3b2-0a40-f45f-3aca99e09de0@profihost.ag>
+Date: Thu, 5 Sep 2019 21:31:27 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: eec6a8b2-0fcc-4d11-59c1-08d73234325c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Sep 2019 19:06:46.0036
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: pGmjDKQc+ATDnyl/cu+vFr6RcCM+ILTWUR3wxqoIuwZBBevb7vdeZ0sTSeCFDFnlGd7Q1kvv+G7glDEPWTRLEw==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1216
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:6.0.70,1.0.8
- definitions=2019-09-05_06:2019-09-04,2019-09-05 signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 mlxscore=0 clxscore=1015
- priorityscore=1501 spamscore=0 lowpriorityscore=0 adultscore=0
- malwarescore=0 suspectscore=0 bulkscore=0 phishscore=0 mlxlogscore=999
- impostorscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.12.0-1906280000 definitions=main-1909050177
-X-FB-Internal: deliver
+In-Reply-To: <CAHbLzkp05vndxk0yRW2SD83bFJG_HQ=yHWt0vDbR6LmP02AR8Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Am 05.09.19 um 20:46 schrieb Yang Shi:
+> On Thu, Sep 5, 2019 at 10:26 AM Stefan Priebe - Profihost AG
+> <s.priebe@profihost.ag> wrote:
+>>
+>> Hi,
+>> Am 05.09.19 um 18:28 schrieb Yang Shi:
+>>> On Thu, Sep 5, 2019 at 4:56 AM Stefan Priebe - Profihost AG
+>>> <s.priebe@profihost.ag> wrote:
+>>>>
+>>>>
+>>>> Am 05.09.19 um 13:40 schrieb Michal Hocko:
+>>>>> On Thu 05-09-19 13:27:10, Stefan Priebe - Profihost AG wrote:
+>>>>>> Hello all,
+>>>>>>
+>>>>>> i hope you can help me again to understand the current MemAvailable
+>>>>>> value in the linux kernel. I'm running a 4.19.52 kernel + psi patches in
+>>>>>> this case.
+>>>>>>
+>>>>>> I'm seeing the following behaviour i don't understand and ask for help.
+>>>>>>
+>>>>>> While MemAvailable shows 5G the kernel starts to drop cache from 4G down
+>>>>>> to 1G while the apache spawns some PHP processes. After that the PSI
+>>>>>> mem.some value rises and the kernel tries to reclaim memory but
+>>>>>> MemAvailable stays at 5G.
+>>>>>>
+>>>>>> Any ideas?
+>>>>>
+>>>>> Can you collect /proc/vmstat (every second or so) and post it while this
+>>>>> is the case please?
+>>>>
+>>>> Yes sure.
+>>>>
+>>>> But i don't know which event you mean exactly. Current situation is PSI
+>>>> / memory pressure is > 20 but:
+>>>>
+>>>> This is the current status where MemAvailable show 5G but Cached is
+>>>> already dropped to 1G coming from 4G:
+>>>
+>>> I don't get what problem you are running into. MemAvailable is *not*
+>>> the indication for triggering memory reclaim.
+>>
+>> Yes it's not sure. But i don't get why:
+>> * PSI is raising and Caches are dropped when MemAvail and MemFree show 5GB
+> 
+> You need check your water mark (/proc/min_free_kbytes,
+> /proc/watermark_scale_factor and /proc/zoneinfo) setting why kswapd is
+> launched when there is 5 GB free memory.
+
+sure i did but can't find anything:
+# cat /proc/sys/vm/min_free_kbytes
+164231
+
+# cat /proc/sys/vm/watermark_scale_factor
+10
 
 
-> On Sep 5, 2019, at 12:02 PM, Matthew Wilcox <willy@infradead.org> wrote:
->=20
-> On Thu, Sep 05, 2019 at 06:58:53PM +0000, Song Liu wrote:
->>> On Sep 5, 2019, at 11:23 AM, Matthew Wilcox <willy@infradead.org> wrote=
-:
->>> This new function allows page cache pages to be allocated that are
->>> larger than an order-0 page.
->>>=20
->>> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
->>> ---
->>> include/linux/pagemap.h | 14 +++++++++++---
->>> mm/filemap.c            | 11 +++++++----
->>> 2 files changed, 18 insertions(+), 7 deletions(-)
->>>=20
->>> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
->>> index 103205494ea0..d2147215d415 100644
->>> --- a/include/linux/pagemap.h
->>> +++ b/include/linux/pagemap.h
->>> @@ -208,14 +208,22 @@ static inline int page_cache_add_speculative(stru=
-ct page *page, int count)
->>> }
->>>=20
->>> #ifdef CONFIG_NUMA
->>> -extern struct page *__page_cache_alloc(gfp_t gfp);
->>> +extern struct page *__page_cache_alloc_order(gfp_t gfp, unsigned int o=
-rder);
->>=20
->> I guess we need __page_cache_alloc(gfp_t gfp) here for CONFIG_NUMA.=20
->=20
-> ... no?  The __page_cache_alloc() below is outside the ifdef/else/endif, =
-so
-> it's the same for both NUMA and non-NUMA.
+# cat /proc/zoneinfo
+Node 0, zone      DMA
+  per-node stats
+      nr_inactive_anon 177046
+      nr_active_anon 1718836
+      nr_inactive_file 288146
+      nr_active_file 121497
+      nr_unevictable 5510
+      nr_slab_reclaimable 301721
+      nr_slab_unreclaimable 119276
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      workingset_refault 72376392
+      workingset_activate 20641006
+      workingset_restore 9149962
+      workingset_nodereclaim 326469
+      nr_anon_pages 1647524
+      nr_mapped    211704
+      nr_file_pages 587984
+      nr_dirty     212
+      nr_writeback 0
+      nr_writeback_temp 0
+      nr_shmem     177458
+      nr_shmem_hugepages 0
+      nr_shmem_pmdmapped 0
+      nr_anon_transparent_hugepages 2480
+      nr_unstable  0
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 1843759
+      nr_dirtied   388618149
+      nr_written   260643754
+  pages free     3977
+        min      39
+        low      48
+        high     57
+        spanned  4095
+        present  3998
+        managed  3977
+        protection: (0, 2968, 16022, 16022, 16022)
+      nr_free_pages 3977
+      nr_zone_inactive_anon 0
+      nr_zone_active_anon 0
+      nr_zone_inactive_file 0
+      nr_zone_active_file 0
+      nr_zone_unevictable 0
+      nr_zone_write_pending 0
+      nr_mlock     0
+      nr_page_table_pages 0
+      nr_kernel_stack 0
+      nr_bounce    0
+      nr_zspages   0
+      nr_free_cma  0
+      numa_hit     0
+      numa_miss    0
+      numa_foreign 0
+      numa_interleave 0
+      numa_local   0
+      numa_other   0
+  pagesets
+    cpu: 0
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 1
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 2
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 3
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 4
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 5
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 6
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 7
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+  node_unreclaimable:  0
+  start_pfn:           1
+Node 0, zone    DMA32
+  pages free     439019
+        min      7600
+        low      9500
+        high     11400
+        spanned  1044480
+        present  782300
+        managed  760023
+        protection: (0, 0, 13053, 13053, 13053)
+      nr_free_pages 439019
+      nr_zone_inactive_anon 0
+      nr_zone_active_anon 309777
+      nr_zone_inactive_file 809
+      nr_zone_active_file 645
+      nr_zone_unevictable 2048
+      nr_zone_write_pending 1
+      nr_mlock     2048
+      nr_page_table_pages 8
+      nr_kernel_stack 32
+      nr_bounce    0
+      nr_zspages   0
+      nr_free_cma  0
+      numa_hit     213697054
+      numa_miss    0
+      numa_foreign 0
+      numa_interleave 0
+      numa_local   213697054
+      numa_other   0
+  pagesets
+    cpu: 0
+              count: 0
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 1
+              count: 1
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 2
+              count: 338
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 3
+              count: 10
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 4
+              count: 0
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 5
+              count: 324
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 6
+              count: 136
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+    cpu: 7
+              count: 1
+              high:  378
+              batch: 63
+  vm stats threshold: 48
+  node_unreclaimable:  0
+  start_pfn:           4096
+Node 0, zone   Normal
+  pages free     734519
+        min      33417
+        low      41771
+        high     50125
+        spanned  3407872
+        present  3407872
+        managed  3341779
+        protection: (0, 0, 0, 0, 0)
+      nr_free_pages 734519
+      nr_zone_inactive_anon 177046
+      nr_zone_active_anon 1409059
+      nr_zone_inactive_file 287337
+      nr_zone_active_file 120852
+      nr_zone_unevictable 3462
+      nr_zone_write_pending 211
+      nr_mlock     3462
+      nr_page_table_pages 10551
+      nr_kernel_stack 22464
+      nr_bounce    0
+      nr_zspages   0
+      nr_free_cma  0
+      numa_hit     13801352577
+      numa_miss    0
+      numa_foreign 0
+      numa_interleave 15629
+      numa_local   13801352577
+      numa_other   0
+  pagesets
+    cpu: 0
+              count: 12
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 1
+              count: 40
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 2
+              count: 41
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 3
+              count: 41
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 4
+              count: 37
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 5
+              count: 39
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 6
+              count: 19
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+    cpu: 7
+              count: 9
+              high:  42
+              batch: 7
+  vm stats threshold: 64
+  node_unreclaimable:  0
+  start_pfn:           1048576
+Node 0, zone  Movable
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 0, 0, 0, 0)
+Node 0, zone   Device
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 0, 0, 0, 0)
 
-You are right. I misread this one.=20
-
->=20
->>> #else
->>> -static inline struct page *__page_cache_alloc(gfp_t gfp)
->>> +static inline
->>> +struct page *__page_cache_alloc_order(gfp_t gfp, unsigned int order)
->>> {
->>> -	return alloc_pages(gfp, 0);
->>> +	if (order > 0)
->>> +		gfp |=3D __GFP_COMP;
->>> +	return alloc_pages(gfp, order);
->>> }
->>> #endif
->>>=20
->>> +static inline struct page *__page_cache_alloc(gfp_t gfp)
->>> +{
->>> +	return __page_cache_alloc_order(gfp, 0);
->>=20
->> Maybe "return alloc_pages(gfp, 0);" here to avoid checking "order > 0"?
->=20
-> For non-NUMA cases, the __page_cache_alloc_order() will be inlined into
-> __page_cache_alloc() and the copiler will eliminate the test.  Or you
-> need a better compiler ;-)
->=20
->>> -struct page *__page_cache_alloc(gfp_t gfp)
->>> +struct page *__page_cache_alloc_order(gfp_t gfp, unsigned int order)
->>> {
->>> 	int n;
->>> 	struct page *page;
->>>=20
->>> +	if (order > 0)
->>> +		gfp |=3D __GFP_COMP;
->>> +
->>=20
->> I think it will be good to have separate __page_cache_alloc() for order =
-0,=20
->> so that we avoid checking "order > 0", but that may require too much=20
->> duplication. So I am on the fence for this one.=20
->=20
-> We're about to dive into the page allocator ... two extra instructions
-> here aren't going to be noticable.
-
-True. Thanks for the explanation.=20
-
-Acked-by: Song Liu <songliubraving@fb.com>
-
-
+>>> Basically MemAvailable = MemFree + page cache (active file + inactive
+>>> file) / 2 + SReclaimable / 2, which means that much memory could be
+>>> reclaimed if memory pressure is hit.
+>>
+>> Yes but MemFree also shows 5G in this case see below and still file
+>> cache gets dropped and PSI is rising.
+>>
+>>> But, memory pressure (tracked by PSI) is triggered by how much memory
+>>> (aka watermark) is consumed.
+>> What does this exactly mean?
+> 
+> cat /proc/zoneinfo, it would show something like:
+> 
+> pages free     4118641
+>         min      12470
+>         low      16598
+>         high     20726
+> 
+> Here min/low/high are the so-called "water mark". When free memory is
+> lower than low, kswapd would be launched.
+> 
+>>
+>>> So, it looks page reclaim logic just reclaimed file cache (it looks
+>>> sane since your VM doesn't have swap partition), so I'm supposed you
+>>> would see MemFree increased along with dropping "Cached",
+>>
+>> No it does not. MemFree and MemAvail stay constant at 5G.
+>>
+>>> but
+>>> MemAvailable basically is not changed. It looks sane to me. Am I
+>>> missing something else?
+>>
+>> I ever thought the kerne would not free the cache nor PSI gets rising
+>> when there are 5GB in MemFree and in MemAvail. This makes still no sense
+>> to me. Why drop the cache when you have 5G free. This results currently
+>> in I/O waits as the page was dropped.
+>>
+>> Greets,
+>> Stefan
+>>
+>>>>
+>>>> meminfo:
+>>>> MemTotal:       16423116 kB
+>>>> MemFree:         5280736 kB
+>>>> MemAvailable:    5332752 kB
+>>>> Buffers:            2572 kB
+>>>> Cached:          1225112 kB
+>>>> SwapCached:            0 kB
+>>>> Active:          8934976 kB
+>>>> Inactive:        1026900 kB
+>>>> Active(anon):    8740396 kB
+>>>> Inactive(anon):   873448 kB
+>>>> Active(file):     194580 kB
+>>>> Inactive(file):   153452 kB
+>>>> Unevictable:       19900 kB
+>>>> Mlocked:           19900 kB
+>>>> SwapTotal:             0 kB
+>>>> SwapFree:              0 kB
+>>>> Dirty:              1980 kB
+>>>> Writeback:             0 kB
+>>>> AnonPages:       8423480 kB
+>>>> Mapped:           978212 kB
+>>>> Shmem:            875680 kB
+>>>> Slab:             839868 kB
+>>>> SReclaimable:     383396 kB
+>>>> SUnreclaim:       456472 kB
+>>>> KernelStack:       22576 kB
+>>>> PageTables:        49824 kB
+>>>> NFS_Unstable:          0 kB
+>>>> Bounce:                0 kB
+>>>> WritebackTmp:          0 kB
+>>>> CommitLimit:     8211556 kB
+>>>> Committed_AS:   32060624 kB
+>>>> VmallocTotal:   34359738367 kB
+>>>> VmallocUsed:           0 kB
+>>>> VmallocChunk:          0 kB
+>>>> Percpu:           118048 kB
+>>>> HardwareCorrupted:     0 kB
+>>>> AnonHugePages:   6406144 kB
+>>>> ShmemHugePages:        0 kB
+>>>> ShmemPmdMapped:        0 kB
+>>>> HugePages_Total:       0
+>>>> HugePages_Free:        0
+>>>> HugePages_Rsvd:        0
+>>>> HugePages_Surp:        0
+>>>> Hugepagesize:       2048 kB
+>>>> Hugetlb:               0 kB
+>>>> DirectMap4k:     2580336 kB
+>>>> DirectMap2M:    14196736 kB
+>>>> DirectMap1G:     2097152 kB
+>>>>
+>>>>
+>>>> vmstat shows:
+>>>> nr_free_pages 1320053
+>>>> nr_zone_inactive_anon 218362
+>>>> nr_zone_active_anon 2185108
+>>>> nr_zone_inactive_file 38363
+>>>> nr_zone_active_file 48645
+>>>> nr_zone_unevictable 4975
+>>>> nr_zone_write_pending 495
+>>>> nr_mlock 4975
+>>>> nr_page_table_pages 12553
+>>>> nr_kernel_stack 22576
+>>>> nr_bounce 0
+>>>> nr_zspages 0
+>>>> nr_free_cma 0
+>>>> numa_hit 13916119899
+>>>> numa_miss 0
+>>>> numa_foreign 0
+>>>> numa_interleave 15629
+>>>> numa_local 13916119899
+>>>> numa_other 0
+>>>> nr_inactive_anon 218362
+>>>> nr_active_anon 2185164
+>>>> nr_inactive_file 38363
+>>>> nr_active_file 48645
+>>>> nr_unevictable 4975
+>>>> nr_slab_reclaimable 95849
+>>>> nr_slab_unreclaimable 114118
+>>>> nr_isolated_anon 0
+>>>> nr_isolated_file 0
+>>>> workingset_refault 71365357
+>>>> workingset_activate 20281670
+>>>> workingset_restore 8995665
+>>>> workingset_nodereclaim 326085
+>>>> nr_anon_pages 2105903
+>>>> nr_mapped 244553
+>>>> nr_file_pages 306921
+>>>> nr_dirty 495
+>>>> nr_writeback 0
+>>>> nr_writeback_temp 0
+>>>> nr_shmem 218920
+>>>> nr_shmem_hugepages 0
+>>>> nr_shmem_pmdmapped 0
+>>>> nr_anon_transparent_hugepages 3128
+>>>> nr_unstable 0
+>>>> nr_vmscan_write 0
+>>>> nr_vmscan_immediate_reclaim 1833104
+>>>> nr_dirtied 386544087
+>>>> nr_written 259220036
+>>>> nr_dirty_threshold 265636
+>>>> nr_dirty_background_threshold 132656
+>>>> pgpgin 1817628997
+>>>> pgpgout 3730818029
+>>>> pswpin 0
+>>>> pswpout 0
+>>>> pgalloc_dma 0
+>>>> pgalloc_dma32 5790777997
+>>>> pgalloc_normal 20003662520
+>>>> pgalloc_movable 0
+>>>> allocstall_dma 0
+>>>> allocstall_dma32 0
+>>>> allocstall_normal 39
+>>>> allocstall_movable 1980089
+>>>> pgskip_dma 0
+>>>> pgskip_dma32 0
+>>>> pgskip_normal 0
+>>>> pgskip_movable 0
+>>>> pgfree 26637215947
+>>>> pgactivate 316722654
+>>>> pgdeactivate 261039211
+>>>> pglazyfree 0
+>>>> pgfault 17719356599
+>>>> pgmajfault 30985544
+>>>> pglazyfreed 0
+>>>> pgrefill 286826568
+>>>> pgsteal_kswapd 36740923
+>>>> pgsteal_direct 349291470
+>>>> pgscan_kswapd 36878966
+>>>> pgscan_direct 395327492
+>>>> pgscan_direct_throttle 0
+>>>> zone_reclaim_failed 0
+>>>> pginodesteal 49817087
+>>>> slabs_scanned 597956834
+>>>> kswapd_inodesteal 1412447
+>>>> kswapd_low_wmark_hit_quickly 39
+>>>> kswapd_high_wmark_hit_quickly 319
+>>>> pageoutrun 3585
+>>>> pgrotated 2873743
+>>>> drop_pagecache 0
+>>>> drop_slab 0
+>>>> oom_kill 0
+>>>> pgmigrate_success 839062285
+>>>> pgmigrate_fail 507313
+>>>> compact_migrate_scanned 9619077010
+>>>> compact_free_scanned 67985619651
+>>>> compact_isolated 1684537704
+>>>> compact_stall 205761
+>>>> compact_fail 182420
+>>>> compact_success 23341
+>>>> compact_daemon_wake 2
+>>>> compact_daemon_migrate_scanned 811
+>>>> compact_daemon_free_scanned 490241
+>>>> htlb_buddy_alloc_success 0
+>>>> htlb_buddy_alloc_fail 0
+>>>> unevictable_pgs_culled 1006521
+>>>> unevictable_pgs_scanned 0
+>>>> unevictable_pgs_rescued 997077
+>>>> unevictable_pgs_mlocked 1319203
+>>>> unevictable_pgs_munlocked 842471
+>>>> unevictable_pgs_cleared 470531
+>>>> unevictable_pgs_stranded 459613
+>>>> thp_fault_alloc 20263113
+>>>> thp_fault_fallback 3368635
+>>>> thp_collapse_alloc 226476
+>>>> thp_collapse_alloc_failed 17594
+>>>> thp_file_alloc 0
+>>>> thp_file_mapped 0
+>>>> thp_split_page 1159
+>>>> thp_split_page_failed 3927
+>>>> thp_deferred_split_page 20348941
+>>>> thp_split_pmd 53361
+>>>> thp_split_pud 0
+>>>> thp_zero_page_alloc 1
+>>>> thp_zero_page_alloc_failed 0
+>>>> thp_swpout 0
+>>>> thp_swpout_fallback 0
+>>>> balloon_inflate 0
+>>>> balloon_deflate 0
+>>>> balloon_migrate 0
+>>>> swap_ra 0
+>>>> swap_ra_hit 0
+>>>>
+>>>> Greets,
+>>>> Stefan
+>>>>
+>>>>
 
