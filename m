@@ -2,212 +2,182 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C570C3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:18:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46F30C3A5AB
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 10:15:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF4E121848
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 09:18:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF4E121848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E1FE32184B
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 10:15:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1FE32184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6DEBD6B0277; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
+	id 5049C6B0279; Thu,  5 Sep 2019 06:15:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B4F76B0278; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
+	id 4B4026B027A; Thu,  5 Sep 2019 06:15:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5CAAD6B0279; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
+	id 3A2C36B027B; Thu,  5 Sep 2019 06:15:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0056.hostedemail.com [216.40.44.56])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C43D6B0277
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 05:18:24 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id BD667180AD7C3
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:18:23 +0000 (UTC)
-X-FDA: 75900316086.15.month90_ec08ea383b14
-X-HE-Tag: month90_ec08ea383b14
-X-Filterd-Recvd-Size: 7624
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 09:18:21 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 32DB51576;
-	Thu,  5 Sep 2019 02:18:20 -0700 (PDT)
-Received: from [10.162.41.136] (p8cg001049571a15.blr.arm.com [10.162.41.136])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 00B6A3F67D;
-	Thu,  5 Sep 2019 02:18:07 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Matthew Wilcox <willy@infradead.org>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
- <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
- <20190904221618.1b624a98@thinkpad>
-Message-ID: <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
-Date: Thu, 5 Sep 2019 14:48:14 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Received: from forelay.hostedemail.com (smtprelay0207.hostedemail.com [216.40.44.207])
+	by kanga.kvack.org (Postfix) with ESMTP id 1317E6B0279
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 06:15:52 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id A413D185D
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 10:15:51 +0000 (UTC)
+X-FDA: 75900460902.17.glove14_5034fc06b1618
+X-HE-Tag: glove14_5034fc06b1618
+X-Filterd-Recvd-Size: 6448
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 10:15:51 +0000 (UTC)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DD496C0578F8
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 10:15:49 +0000 (UTC)
+Received: by mail-pf1-f199.google.com with SMTP id z23so1492615pfn.0
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 03:15:49 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=sGQuWQQe8fDlEhpLmREf75/mh3j/W3ajLyehA5owUl8=;
+        b=HE1DuLhcHEJlK9atjWPInOsnT0WPh1T1k4Eo2CF0tWhgdoouPzE/mU+WXCYSkN+8yP
+         eSYE4bHzR8qmotruLh00V1J1fXLnDrtWpVgr/JmZgFXR9h5ZkdxshrwFmXK5cCqNf8ud
+         vA/7+oDbE7emH7oKqxAwG+ffq4UnlzJou3+CEkzfvzudo1Y0XJnj199Fp6O2J6mfcCCJ
+         RaGzHy0fK3cv3xeMUAM4bu49FuWX5Q7ZOzPNgeHx6gmnTOBQJ4jRRkwvTJzNxxh1SNUQ
+         9q6poPIO6fVRlraCNBRY722UUtqiTtrVred+utmN2hp77YB3LJchyrl0hbucExZ193CZ
+         lTig==
+X-Gm-Message-State: APjAAAVXQtfKUWiSTlOeQUXiu4yIi2ZpeCSBGkfC+aiJfr7AvRdmvKcd
+	LwgDTQ3bbz1ta5Kb2ci2odYybHre/PqLZ4hU7KyAY5bPCjACoYUFX6qHOeJdbx4pM6CVZ/OTjgw
+	6XV19xzIUd/k=
+X-Received: by 2002:a17:902:8a81:: with SMTP id p1mr2465950plo.71.1567678549046;
+        Thu, 05 Sep 2019 03:15:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgSRo4NDJ7ab9oov6zo1BxyCr5I28O4Qdk/qqHUJDnK0Sb3P39/6OhZUQ34zMdEKMPdKxa2A==
+X-Received: by 2002:a17:902:8a81:: with SMTP id p1mr2465913plo.71.1567678548782;
+        Thu, 05 Sep 2019 03:15:48 -0700 (PDT)
+Received: from xz-x1.redhat.com ([209.132.188.80])
+        by smtp.gmail.com with ESMTPSA id a20sm413852pfo.33.2019.09.05.03.15.42
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 05 Sep 2019 03:15:48 -0700 (PDT)
+From: Peter Xu <peterx@redhat.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	peterx@redhat.com,
+	Martin Cracauer <cracauer@cons.org>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: [PATCH v2 0/7] mm: Page fault enhancements
+Date: Thu,  5 Sep 2019 18:15:27 +0800
+Message-Id: <20190905101534.9637-1-peterx@redhat.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <20190904221618.1b624a98@thinkpad>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+v2:
+- resent previous version, rebase only
 
-On 09/05/2019 01:46 AM, Gerald Schaefer wrote:
-> On Tue,  3 Sep 2019 13:31:46 +0530
-> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
-> 
->> This adds a test module which will validate architecture page table helpers
->> and accessors regarding compliance with generic MM semantics expectations.
->> This will help various architectures in validating changes to the existing
->> page table helpers or addition of new ones.
->>
->> Test page table and memory pages creating it's entries at various level are
->> all allocated from system memory with required alignments. If memory pages
->> with required size and alignment could not be allocated, then all depending
->> individual tests are skipped.
-> 
-> This looks very useful, thanks. Of course, s390 is quite special and does
-> not work nicely with this patch (yet), mostly because of our dynamic page
-> table levels/folding. Still need to figure out what can be fixed in the arch
+This series is split out of userfaultfd-wp series to only cover the
+general page fault changes, since it seems to make sense itself.
 
-Hmm.
+Basically it does two things:
 
-> code and what would need to be changed in the test module. See below for some
-> generic comments/questions.
+  (a) Allows the page fault handlers to be more interactive on not
+      only SIGKILL, but also the rest of userspace signals (especially
+      for user-mode faults), and,
 
-Sure.
+  (b) Allows the page fault retry (VM_FAULT_RETRY) to happen for more
+      than once.
 
-> 
-> At least one real bug in the s390 code was already revealed by this, which
-> is very nice. In pmd/pud_bad(), we also check large pmds/puds for sanity,
-> instead of reporting them as bad, which is apparently not how it is expected.
+I'm keeping the CC list as in uffd-wp v5, hopefully I'm not sending
+too much spams...
 
-Hmm, so it has already started being useful :)
+And, instead of writting again the cover letter, I'm just copy-pasting
+my previous link here which has more details on why we do this:
 
-> 
-> [...]
->> +/*
->> + * Basic operations
->> + *
->> + * mkold(entry)			= An old and not a young entry
->> + * mkyoung(entry)		= A young and not an old entry
->> + * mkdirty(entry)		= A dirty and not a clean entry
->> + * mkclean(entry)		= A clean and not a dirty entry
->> + * mkwrite(entry)		= A write and not a write protected entry
->> + * wrprotect(entry)		= A write protected and not a write entry
->> + * pxx_bad(entry)		= A mapped and non-table entry
->> + * pxx_same(entry1, entry2)	= Both entries hold the exact same value
->> + */
->> +#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
-> 
-> Why is P4D_SIZE missing in the VADDR_TEST calculation?
+  https://patchwork.kernel.org/cover/10691991/
 
-This was a random possible virtual address to generate a representative
-page table structure for the test. As there is a default (PGDIR_SIZE) for
-P4D_SIZE on platforms which really do not have P4D level, it should be okay
-to add P4D_SIZE in the above calculation.
+The major change from that latest version should be that we introduced
+a new page fault flag FAULT_FLAG_INTERRUPTIBLE as suggested by Linus
+[1] to represents that we would like the fault handler to respond to
+non-fatal signals.  Also, we're more careful now on when to do the
+immediate return of the page fault for such signals.  For example, now
+we'll only check against signal_pending() for user-mode page faults
+and we keep the kernel-mode page fault patch untouched for it.  More
+information can be found in separate patches.
 
-> 
-> [...]
->> +
->> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
->> +static void pud_clear_tests(pud_t *pudp)
->> +{
->> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
->> +	pud_clear(pudp);
->> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
->> +}
-> 
-> For pgd/p4d/pud_clear(), we only clear if the page table level is present
-> and not folded. The memset() here overwrites the table type bits, so
-> pud_clear() will not clear anything on s390 and the pud_none() check will
-> fail.
-> Would it be possible to OR a (larger) random value into the table, so that
-> the lower 12 bits would be preserved?
+The patchset is only lightly tested on x86.
 
-So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
-it should OR a large random value preserving lower 12 bits. Hmm, this should
-still do the trick for other platforms, they just need non zero value. So on
-s390, the lower 12 bits on the page table entry already has valid value while
-entering this function which would make sure that pud_clear() really does
-clear the entry ?
+All comments are greatly welcomed.  Thanks,
 
-> 
->> +
->> +static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
->> +{
->> +	/*
->> +	 * This entry points to next level page table page.
->> +	 * Hence this must not qualify as pud_bad().
->> +	 */
->> +	pmd_clear(pmdp);
->> +	pud_clear(pudp);
->> +	pud_populate(mm, pudp, pmdp);
->> +	WARN_ON(pud_bad(READ_ONCE(*pudp)));
->> +}
-> 
-> This will populate the pud with a pmd pointer that does not point to the
-> beginning of the pmd table, but to the second entry (because of how
-> VADDR_TEST is constructed). This will result in failing pud_bad() check
-> on s390. Not sure why/how it works on other archs, but would it be possible
-> to align pmdp down to the beginning of the pmd table (and similar for the
-> other pxd_populate_tests)?
+[1] https://lkml.org/lkml/2019/6/25/1382
 
-Right, that was a problem. Will fix it by using the saved entries used for
-freeing the page table pages at the end, which always point to the beginning
-of a page table page.
+Peter Xu (7):
+  mm/gup: Rename "nonblocking" to "locked" where proper
+  mm: Introduce FAULT_FLAG_DEFAULT
+  mm: Introduce FAULT_FLAG_INTERRUPTIBLE
+  mm: Return faster for non-fatal signals in user mode faults
+  userfaultfd: Don't retake mmap_sem to emulate NOPAGE
+  mm: Allow VM_FAULT_RETRY for multiple times
+  mm/gup: Allow VM_FAULT_RETRY for multiple times
 
-> 
-> [...]
->> +
->> +	p4d_free(mm, saved_p4dp);
->> +	pud_free(mm, saved_pudp);
->> +	pmd_free(mm, saved_pmdp);
->> +	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
-> 
-> pgtable_t is arch-specific, and on s390 it is not a struct page pointer,
-> but a pte pointer. So this will go wrong, also on all other archs (if any)
-> where pgtable_t is not struct page.
-> Would it be possible to use pte_free_kernel() instead, and just pass
-> saved_ptep directly?
+ arch/alpha/mm/fault.c           |  7 +--
+ arch/arc/mm/fault.c             |  8 +++-
+ arch/arm/mm/fault.c             | 14 +++---
+ arch/arm64/mm/fault.c           | 16 +++----
+ arch/hexagon/mm/vm_fault.c      |  6 +--
+ arch/ia64/mm/fault.c            |  6 +--
+ arch/m68k/mm/fault.c            | 10 ++--
+ arch/microblaze/mm/fault.c      |  6 +--
+ arch/mips/mm/fault.c            |  6 +--
+ arch/nds32/mm/fault.c           | 12 ++---
+ arch/nios2/mm/fault.c           |  8 ++--
+ arch/openrisc/mm/fault.c        |  6 +--
+ arch/parisc/mm/fault.c          |  9 ++--
+ arch/powerpc/mm/fault.c         | 10 ++--
+ arch/riscv/mm/fault.c           | 12 ++---
+ arch/s390/mm/fault.c            | 11 ++---
+ arch/sh/mm/fault.c              |  7 ++-
+ arch/sparc/mm/fault_32.c        |  5 +-
+ arch/sparc/mm/fault_64.c        |  6 +--
+ arch/um/kernel/trap.c           |  7 +--
+ arch/unicore32/mm/fault.c       | 11 ++---
+ arch/x86/mm/fault.c             |  6 +--
+ arch/xtensa/mm/fault.c          |  6 +--
+ drivers/gpu/drm/ttm/ttm_bo_vm.c | 12 +++--
+ fs/userfaultfd.c                | 28 +-----------
+ include/linux/mm.h              | 81 +++++++++++++++++++++++++++++----
+ include/linux/sched/signal.h    | 12 +++++
+ mm/filemap.c                    |  2 +-
+ mm/gup.c                        | 61 ++++++++++++++-----------
+ mm/hugetlb.c                    | 14 +++---
+ mm/shmem.c                      |  2 +-
+ 31 files changed, 227 insertions(+), 180 deletions(-)
 
-It makes sense, will change.
+--=20
+2.21.0
+
 
