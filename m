@@ -2,144 +2,140 @@ Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73149C3A5A5
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 07:10:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0736C3A5A5
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 07:19:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 338A42168B
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 07:10:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="VTCkE6uk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 338A42168B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 92ED42341C
+	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 07:19:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92ED42341C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B80D56B000C; Thu,  5 Sep 2019 03:10:55 -0400 (EDT)
+	id 00A856B0010; Thu,  5 Sep 2019 03:19:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B32336B000E; Thu,  5 Sep 2019 03:10:55 -0400 (EDT)
+	id EFCAE6B0266; Thu,  5 Sep 2019 03:19:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A205C6B0010; Thu,  5 Sep 2019 03:10:55 -0400 (EDT)
+	id DEA986B0269; Thu,  5 Sep 2019 03:19:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0198.hostedemail.com [216.40.44.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1576B000C
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 03:10:55 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 08B7E3CF9
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 07:10:55 +0000 (UTC)
-X-FDA: 75899994870.24.cover83_421e61ca58726
-X-HE-Tag: cover83_421e61ca58726
-X-Filterd-Recvd-Size: 5128
-Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
-	by imf03.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 07:10:54 +0000 (UTC)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8579bpw037447;
-	Thu, 5 Sep 2019 07:10:49 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : subject :
- date : message-id; s=corp-2019-08-05;
- bh=XiyjKYQy8+uJ+2ctmAZIojaWdlJs1GDac0V7FFhEAZk=;
- b=VTCkE6ukZqxP0idgbwWPMOirWqBfxyuxrhGnXxNaXS0dK+sgcs/nShj7T86CSVqZuKIy
- vOAMvlJ6WgZrOi6B6fBDXAFm2Rt7x7eRoB6DdBwl7Z0dwOdjQBd2wS27mr4YkTWZuM/8
- i5NyS2eTOKU1b93oz9+sZdcvwt2ZQSFxVEdgStT0kQdbDDrWEj2ogEJsnLJBzC7yBLCF
- TfXE6SlFQOWHAmbOgvMgtrMfrQH8RSI+WhcYY2IL3qGRoylpmyUFEHlTQqu5LEjRuC2y
- ij+VtWssz/mvcD9MVFx18BPn4lJHw/1xTKcykWI8wQsXco9l0spT8YPfjRfQUUDyWo6W Wg== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2120.oracle.com with ESMTP id 2utwcf048r-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 05 Sep 2019 07:10:49 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8578bnE030485;
-	Thu, 5 Sep 2019 07:10:46 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2utvr32vb7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 05 Sep 2019 07:10:45 +0000
-Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x857Aebo012585;
-	Thu, 5 Sep 2019 07:10:41 GMT
-Received: from oracle.com (/10.182.69.197)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 05 Sep 2019 00:10:40 -0700
-From: Honglei Wang <honglei.wang@oracle.com>
-To: linux-mm@kvack.org, vdavydov.dev@gmail.com, hannes@cmpxchg.org,
-        mhocko@kernel.org
-Subject: [PATCH v2] mm/vmscan: get number of pages on the LRU list in memcgroup base on lru_zone_size
-Date: Thu,  5 Sep 2019 15:10:34 +0800
-Message-Id: <20190905071034.16822-1-honglei.wang@oracle.com>
-X-Mailer: git-send-email 2.17.0
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9370 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1909050074
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9370 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1909050074
+Received: from forelay.hostedemail.com (smtprelay0067.hostedemail.com [216.40.44.67])
+	by kanga.kvack.org (Postfix) with ESMTP id B82226B0010
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 03:19:41 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 53D7034A1
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 07:19:41 +0000 (UTC)
+X-FDA: 75900016962.23.horn06_8eafd056ad100
+X-HE-Tag: horn06_8eafd056ad100
+X-Filterd-Recvd-Size: 6296
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 07:19:40 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 95F13AF0B;
+	Thu,  5 Sep 2019 07:19:37 +0000 (UTC)
+Subject: Re: [PATCH] mm: Unsigned 'nr_pages' always larger than zero
+To: zhong jiang <zhongjiang@huawei.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: mhocko@kernel.org, anshuman.khandual@arm.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Ira Weiny <ira.weiny@intel.com>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+References: <1567592763-25282-1-git-send-email-zhongjiang@huawei.com>
+ <5505fa16-117e-8890-0f48-38555a61a036@suse.cz>
+ <20190904114820.42d9c4daf445ded3d0da52ab@linux-foundation.org>
+ <5D70A8A2.3040701@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <03511a98-9e60-9426-e472-4ef6cb0d4695@suse.cz>
+Date: Thu, 5 Sep 2019 09:19:35 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <5D70A8A2.3040701@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-lruvec_lru_size() is involving lruvec_page_state_local() to get the
-lru_size in the current code. It's base on lruvec_stat_local.count[]
-of mem_cgroup_per_node. This counter is updated in batch. It won't
-do charge if the number of coming pages doesn't meet the needs of
-MEMCG_CHARGE_BATCH who's defined as 32 now.
+On 9/5/19 8:18 AM, zhong jiang wrote:
+> On 2019/9/5 2:48, Andrew Morton wrote:
+> Firstly,  I consider the some modified method as you has writen down above.  It seems to work well.
+> According to Vlastimil's feedback,   I repost the patch in v2,   changing the parameter to long to fix
+> the issue.  which one do you prefer?
 
-The testcase in LTP madvise09[1] fails due to small block memory is
-not charged. It creates a new memcgroup and sets up 32 MADV_FREE
-pages. Then it forks child who will introduce memory pressure in the
-memcgroup. The MADV_FREE pages are expected to be released under the
-pressure, but 32 is not more than MEMCG_CHARGE_BATCH and these pages
-won't be charged in lruvec_stat_local.count[] until some more pages
-come in to satisfy the needs of batch charging. So these MADV_FREE
-pages can't be freed in memory pressure which is a bit conflicted
-with the definition of MADV_FREE.
+Please forget about my suggestion to change parameter to long, it was
+wrong. New variable is better.
 
-Getting lru_size base on lru_zone_size of mem_cgroup_per_node which
-is not updated in batch can make it a bit more accurate in similar
-scenario.
-
-[1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/madvise/madvise09.c
-
-Signed-off-by: Honglei Wang <honglei.wang@oracle.com>
----
- mm/vmscan.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c77d1e3761a7..c28672460868 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -354,12 +354,13 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
-  */
- unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone_idx)
- {
--	unsigned long lru_size;
-+	unsigned long lru_size = 0;
- 	int zid;
- 
--	if (!mem_cgroup_disabled())
--		lru_size = lruvec_page_state_local(lruvec, NR_LRU_BASE + lru);
--	else
-+	if (!mem_cgroup_disabled()) {
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++)
-+			lru_size += mem_cgroup_get_zone_lru_size(lruvec, lru, zid);
-+	} else
- 		lru_size = node_page_state(lruvec_pgdat(lruvec), NR_LRU_BASE + lru);
- 
- 	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
--- 
-2.17.0
+> Thanks,
+> zhong jiang
+> 
 
 
