@@ -2,347 +2,305 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51C07C00307
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7C6CC43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1546D2082C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1546D2082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 978FF2082C
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 978FF2082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 898666B0003; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
+	id 453726B0007; Fri,  6 Sep 2019 06:08:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 849046B0007; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
+	id 402DF6B0008; Fri,  6 Sep 2019 06:08:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7601E6B0008; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
+	id 319DC6B000A; Fri,  6 Sep 2019 06:08:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0182.hostedemail.com [216.40.44.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D826B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id DF92133CD
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:27 +0000 (UTC)
-X-FDA: 75904071054.06.base02_49d38846cb95a
-X-HE-Tag: base02_49d38846cb95a
-X-Filterd-Recvd-Size: 11583
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:27 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 339673082137;
-	Fri,  6 Sep 2019 10:08:26 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1ACD1600C4;
-	Fri,  6 Sep 2019 10:08:26 +0000 (UTC)
-Received: from zmail21.collab.prod.int.phx2.redhat.com (zmail21.collab.prod.int.phx2.redhat.com [10.5.83.24])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id D4D10180085A;
-	Fri,  6 Sep 2019 10:08:25 +0000 (UTC)
-Date: Fri, 6 Sep 2019 06:08:25 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: nitesh@redhat.com, kvm@vger.kernel.org, mst@redhat.com, david@redhat.com, 
-	dave hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, 
-	willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org, 
-	akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, 
-	osalvador@suse.de, yang zhang wz <yang.zhang.wz@gmail.com>, 
-	riel@surriel.com, konrad wilk <konrad.wilk@oracle.com>, 
-	lcapitulino@redhat.com, wei w wang <wei.w.wang@intel.com>, 
-	aarcange@redhat.com, pbonzini@redhat.com, 
-	dan j williams <dan.j.williams@intel.com>, 
-	alexander h duyck <alexander.h.duyck@linux.intel.com>
-Message-ID: <176802096.13025056.1567764505728.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20190904151043.13848.23471.stgit@localhost.localdomain>
-References: <20190904150920.13848.32271.stgit@localhost.localdomain> <20190904151043.13848.23471.stgit@localhost.localdomain>
-Subject: Re: [PATCH v7 3/6] mm: Use zone and order instead of free area in
- free_list manipulators
+Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
+	by kanga.kvack.org (Postfix) with ESMTP id 134646B0007
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:08:36 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id A6AC5824CA3A
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:35 +0000 (UTC)
+X-FDA: 75904071390.17.dolls38_4aef796450c22
+X-HE-Tag: dolls38_4aef796450c22
+X-Filterd-Recvd-Size: 7890
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:34 +0000 (UTC)
+Received: (qmail 17846 invoked from network); 6 Sep 2019 12:08:32 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.242.2.9]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Fri, 06 Sep 2019 12:08:32 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+ cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+References: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+ <20190905114022.GH3838@dhcp22.suse.cz>
+ <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
+Message-ID: <e866c481-04f2-fdb4-4d99-e7be2414591e@profihost.ag>
+Date: Fri, 6 Sep 2019 12:08:31 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
+In-Reply-To: <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
 Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
 Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.67.116.154, 10.4.195.26]
-Thread-Topic: Use zone and order instead of free area in free_list manipulators
-Thread-Index: Ifoqo6WER9W4vKJ4aodTxvDJIDrFow==
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Fri, 06 Sep 2019 10:08:26 +0000 (UTC)
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+These are the biggest differences in meminfo before and after cached
+starts to drop. I didn't expect cached end up in MemFree.
 
-> 
-> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> 
-> In order to enable the use of the zone from the list manipulator functions
-> I will need access to the zone pointer. As it turns out most of the
-> accessors were always just being directly passed &zone->free_area[order]
-> anyway so it would make sense to just fold that into the function itself
-> and pass the zone and order as arguments instead of the free area.
-> 
-> In order to be able to reference the zone we need to move the declaration
-> of the functions down so that we have the zone defined before we define the
-> list manipulation functions.
-> 
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> ---
->  include/linux/mmzone.h |   70
->  ++++++++++++++++++++++++++----------------------
->  mm/page_alloc.c        |   30 ++++++++-------------
->  2 files changed, 49 insertions(+), 51 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 125f300981c6..2ddf1f1971c0 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -100,29 +100,6 @@ struct free_area {
->  	unsigned long		nr_free;
->  };
->  
-> -/* Used for pages not on another list */
-> -static inline void add_to_free_area(struct page *page, struct free_area
-> *area,
-> -			     int migratetype)
-> -{
-> -	list_add(&page->lru, &area->free_list[migratetype]);
-> -	area->nr_free++;
-> -}
-> -
-> -/* Used for pages not on another list */
-> -static inline void add_to_free_area_tail(struct page *page, struct free_area
-> *area,
-> -				  int migratetype)
-> -{
-> -	list_add_tail(&page->lru, &area->free_list[migratetype]);
-> -	area->nr_free++;
-> -}
-> -
-> -/* Used for pages which are on another list */
-> -static inline void move_to_free_area(struct page *page, struct free_area
-> *area,
-> -			     int migratetype)
-> -{
-> -	list_move(&page->lru, &area->free_list[migratetype]);
-> -}
-> -
->  static inline struct page *get_page_from_free_area(struct free_area *area,
->  					    int migratetype)
->  {
-> @@ -130,15 +107,6 @@ static inline struct page
-> *get_page_from_free_area(struct free_area *area,
->  					struct page, lru);
->  }
->  
-> -static inline void del_page_from_free_area(struct page *page,
-> -		struct free_area *area)
-> -{
-> -	list_del(&page->lru);
-> -	__ClearPageBuddy(page);
-> -	set_page_private(page, 0);
-> -	area->nr_free--;
-> -}
-> -
->  static inline bool free_area_empty(struct free_area *area, int migratetype)
->  {
->  	return list_empty(&area->free_list[migratetype]);
-> @@ -796,6 +764,44 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
->  	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
->  }
->  
-> +/* Used for pages not on another list */
-> +static inline void add_to_free_list(struct page *page, struct zone *zone,
-> +				    unsigned int order, int migratetype)
-> +{
-> +	struct free_area *area = &zone->free_area[order];
-> +
-> +	list_add(&page->lru, &area->free_list[migratetype]);
-> +	area->nr_free++;
-> +}
-> +
-> +/* Used for pages not on another list */
-> +static inline void add_to_free_list_tail(struct page *page, struct zone
-> *zone,
-> +					 unsigned int order, int migratetype)
-> +{
-> +	struct free_area *area = &zone->free_area[order];
-> +
-> +	list_add_tail(&page->lru, &area->free_list[migratetype]);
-> +	area->nr_free++;
-> +}
-> +
-> +/* Used for pages which are on another list */
-> +static inline void move_to_free_list(struct page *page, struct zone *zone,
-> +				     unsigned int order, int migratetype)
-> +{
-> +	struct free_area *area = &zone->free_area[order];
-> +
-> +	list_move(&page->lru, &area->free_list[migratetype]);
-> +}
-> +
-> +static inline void del_page_from_free_list(struct page *page, struct zone
-> *zone,
-> +					   unsigned int order)
-> +{
-> +	list_del(&page->lru);
-> +	__ClearPageBuddy(page);
-> +	set_page_private(page, 0);
-> +	zone->free_area[order].nr_free--;
-> +}
-> +
->  #include <linux/memory_hotplug.h>
->  
->  void build_all_zonelists(pg_data_t *pgdat);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a791f2baeeeb..f85dc1561b85 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -921,7 +921,6 @@ static inline void __free_one_page(struct page *page,
->  	struct capture_control *capc = task_capc(zone);
->  	unsigned long uninitialized_var(buddy_pfn);
->  	unsigned long combined_pfn;
-> -	struct free_area *area;
->  	unsigned int max_order;
->  	struct page *buddy;
->  
-> @@ -958,7 +957,7 @@ static inline void __free_one_page(struct page *page,
->  		if (page_is_guard(buddy))
->  			clear_page_guard(zone, buddy, order, migratetype);
->  		else
-> -			del_page_from_free_area(buddy, &zone->free_area[order]);
-> +			del_page_from_free_list(buddy, zone, order);
->  		combined_pfn = buddy_pfn & pfn;
->  		page = page + (combined_pfn - pfn);
->  		pfn = combined_pfn;
-> @@ -992,12 +991,11 @@ static inline void __free_one_page(struct page *page,
->  done_merging:
->  	set_page_order(page, order);
->  
-> -	area = &zone->free_area[order];
->  	if (is_shuffle_order(order) ? shuffle_pick_tail() :
->  	    buddy_merge_likely(pfn, buddy_pfn, page, order))
-> -		add_to_free_area_tail(page, area, migratetype);
-> +		add_to_free_list_tail(page, zone, order, migratetype);
->  	else
-> -		add_to_free_area(page, area, migratetype);
-> +		add_to_free_list(page, zone, order, migratetype);
->  }
->  
->  /*
-> @@ -2001,13 +1999,11 @@ void __init init_cma_reserved_pageblock(struct page
-> *page)
->   * -- nyc
->   */
->  static inline void expand(struct zone *zone, struct page *page,
-> -	int low, int high, struct free_area *area,
-> -	int migratetype)
-> +	int low, int high, int migratetype)
->  {
->  	unsigned long size = 1 << high;
->  
->  	while (high > low) {
-> -		area--;
->  		high--;
->  		size >>= 1;
->  		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
-> @@ -2021,7 +2017,7 @@ static inline void expand(struct zone *zone, struct
-> page *page,
->  		if (set_page_guard(zone, &page[size], high, migratetype))
->  			continue;
->  
-> -		add_to_free_area(&page[size], area, migratetype);
-> +		add_to_free_list(&page[size], zone, high, migratetype);
->  		set_page_order(&page[size], high);
->  	}
->  }
-> @@ -2179,8 +2175,8 @@ struct page *__rmqueue_smallest(struct zone *zone,
-> unsigned int order,
->  		page = get_page_from_free_area(area, migratetype);
->  		if (!page)
->  			continue;
-> -		del_page_from_free_area(page, area);
-> -		expand(zone, page, order, current_order, area, migratetype);
-> +		del_page_from_free_list(page, zone, current_order);
-> +		expand(zone, page, order, current_order, migratetype);
->  		set_pcppage_migratetype(page, migratetype);
->  		return page;
->  	}
-> @@ -2188,7 +2184,6 @@ struct page *__rmqueue_smallest(struct zone *zone,
-> unsigned int order,
->  	return NULL;
->  }
->  
-> -
->  /*
->   * This array describes the order lists are fallen back to when
->   * the free lists for the desirable migrate type are depleted
-> @@ -2254,7 +2249,7 @@ static int move_freepages(struct zone *zone,
->  		VM_BUG_ON_PAGE(page_zone(page) != zone, page);
->  
->  		order = page_order(page);
-> -		move_to_free_area(page, &zone->free_area[order], migratetype);
-> +		move_to_free_list(page, zone, order, migratetype);
->  		page += 1 << order;
->  		pages_moved += 1 << order;
->  	}
-> @@ -2370,7 +2365,6 @@ static void steal_suitable_fallback(struct zone *zone,
-> struct page *page,
->  		unsigned int alloc_flags, int start_type, bool whole_block)
->  {
->  	unsigned int current_order = page_order(page);
-> -	struct free_area *area;
->  	int free_pages, movable_pages, alike_pages;
->  	int old_block_type;
->  
-> @@ -2441,8 +2435,7 @@ static void steal_suitable_fallback(struct zone *zone,
-> struct page *page,
->  	return;
->  
->  single_page:
-> -	area = &zone->free_area[current_order];
-> -	move_to_free_area(page, area, start_type);
-> +	move_to_free_list(page, zone, current_order, start_type);
->  }
->  
->  /*
-> @@ -3113,7 +3106,6 @@ void split_page(struct page *page, unsigned int order)
->  
->  int __isolate_free_page(struct page *page, unsigned int order)
->  {
-> -	struct free_area *area = &page_zone(page)->free_area[order];
->  	unsigned long watermark;
->  	struct zone *zone;
->  	int mt;
-> @@ -3139,7 +3131,7 @@ int __isolate_free_page(struct page *page, unsigned int
-> order)
->  
->  	/* Remove page from free list */
->  
-> -	del_page_from_free_area(page, area);
-> +	del_page_from_free_list(page, zone, order);
->  
->  	/*
->  	 * Set the pageblock if the isolated page is at least half of a
-> @@ -8560,7 +8552,7 @@ void zone_pcp_reset(struct zone *zone)
->  		pr_info("remove from free list %lx %d %lx\n",
->  			pfn, 1 << order, end_pfn);
->  #endif
-> -		del_page_from_free_area(page, &zone->free_area[order]);
-> +		del_page_from_free_list(page, zone, order);
->  		for (i = 0; i < (1 << order); i++)
->  			SetPageReserved((page+i));
->  		pfn += (1 << order);
-> 
-> 
+Before:
+MemTotal:       16423116 kB
+MemFree:          374572 kB
+MemAvailable:    5633816 kB
+Cached:          5550972 kB
+Inactive:        4696580 kB
+Inactive(file):  3624776 kB
 
-Reviewed-by: Pankaj Gupta <pagupta@redhat.com>
 
+After:
+MemTotal:       16423116 kB
+MemFree:         3477168 kB
+MemAvailable:    6066916 kB
+Cached:          2724504 kB
+Inactive:        1854740 kB
+Inactive(file):   950680 kB
+
+Any explanation?
+
+Greets,
+Stefan
+Am 05.09.19 um 13:56 schrieb Stefan Priebe - Profihost AG:
+> 
+> Am 05.09.19 um 13:40 schrieb Michal Hocko:
+>> On Thu 05-09-19 13:27:10, Stefan Priebe - Profihost AG wrote:
+>>> Hello all,
+>>>
+>>> i hope you can help me again to understand the current MemAvailable
+>>> value in the linux kernel. I'm running a 4.19.52 kernel + psi patches in
+>>> this case.
+>>>
+>>> I'm seeing the following behaviour i don't understand and ask for help.
+>>>
+>>> While MemAvailable shows 5G the kernel starts to drop cache from 4G down
+>>> to 1G while the apache spawns some PHP processes. After that the PSI
+>>> mem.some value rises and the kernel tries to reclaim memory but
+>>> MemAvailable stays at 5G.
+>>>
+>>> Any ideas?
+>>
+>> Can you collect /proc/vmstat (every second or so) and post it while this
+>> is the case please?
+> 
+> Yes sure.
+> 
+> But i don't know which event you mean exactly. Current situation is PSI
+> / memory pressure is > 20 but:
+> 
+> This is the current status where MemAvailable show 5G but Cached is
+> already dropped to 1G coming from 4G:
+> 
+> 
+> meminfo:
+> MemTotal:       16423116 kB
+> MemFree:         5280736 kB
+> MemAvailable:    5332752 kB
+> Buffers:            2572 kB
+> Cached:          1225112 kB
+> SwapCached:            0 kB
+> Active:          8934976 kB
+> Inactive:        1026900 kB
+> Active(anon):    8740396 kB
+> Inactive(anon):   873448 kB
+> Active(file):     194580 kB
+> Inactive(file):   153452 kB
+> Unevictable:       19900 kB
+> Mlocked:           19900 kB
+> SwapTotal:             0 kB
+> SwapFree:              0 kB
+> Dirty:              1980 kB
+> Writeback:             0 kB
+> AnonPages:       8423480 kB
+> Mapped:           978212 kB
+> Shmem:            875680 kB
+> Slab:             839868 kB
+> SReclaimable:     383396 kB
+> SUnreclaim:       456472 kB
+> KernelStack:       22576 kB
+> PageTables:        49824 kB
+> NFS_Unstable:          0 kB
+> Bounce:                0 kB
+> WritebackTmp:          0 kB
+> CommitLimit:     8211556 kB
+> Committed_AS:   32060624 kB
+> VmallocTotal:   34359738367 kB
+> VmallocUsed:           0 kB
+> VmallocChunk:          0 kB
+> Percpu:           118048 kB
+> HardwareCorrupted:     0 kB
+> AnonHugePages:   6406144 kB
+> ShmemHugePages:        0 kB
+> ShmemPmdMapped:        0 kB
+> HugePages_Total:       0
+> HugePages_Free:        0
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:       2048 kB
+> Hugetlb:               0 kB
+> DirectMap4k:     2580336 kB
+> DirectMap2M:    14196736 kB
+> DirectMap1G:     2097152 kB
+> 
+> 
+> vmstat shows:
+> nr_free_pages 1320053
+> nr_zone_inactive_anon 218362
+> nr_zone_active_anon 2185108
+> nr_zone_inactive_file 38363
+> nr_zone_active_file 48645
+> nr_zone_unevictable 4975
+> nr_zone_write_pending 495
+> nr_mlock 4975
+> nr_page_table_pages 12553
+> nr_kernel_stack 22576
+> nr_bounce 0
+> nr_zspages 0
+> nr_free_cma 0
+> numa_hit 13916119899
+> numa_miss 0
+> numa_foreign 0
+> numa_interleave 15629
+> numa_local 13916119899
+> numa_other 0
+> nr_inactive_anon 218362
+> nr_active_anon 2185164
+> nr_inactive_file 38363
+> nr_active_file 48645
+> nr_unevictable 4975
+> nr_slab_reclaimable 95849
+> nr_slab_unreclaimable 114118
+> nr_isolated_anon 0
+> nr_isolated_file 0
+> workingset_refault 71365357
+> workingset_activate 20281670
+> workingset_restore 8995665
+> workingset_nodereclaim 326085
+> nr_anon_pages 2105903
+> nr_mapped 244553
+> nr_file_pages 306921
+> nr_dirty 495
+> nr_writeback 0
+> nr_writeback_temp 0
+> nr_shmem 218920
+> nr_shmem_hugepages 0
+> nr_shmem_pmdmapped 0
+> nr_anon_transparent_hugepages 3128
+> nr_unstable 0
+> nr_vmscan_write 0
+> nr_vmscan_immediate_reclaim 1833104
+> nr_dirtied 386544087
+> nr_written 259220036
+> nr_dirty_threshold 265636
+> nr_dirty_background_threshold 132656
+> pgpgin 1817628997
+> pgpgout 3730818029
+> pswpin 0
+> pswpout 0
+> pgalloc_dma 0
+> pgalloc_dma32 5790777997
+> pgalloc_normal 20003662520
+> pgalloc_movable 0
+> allocstall_dma 0
+> allocstall_dma32 0
+> allocstall_normal 39
+> allocstall_movable 1980089
+> pgskip_dma 0
+> pgskip_dma32 0
+> pgskip_normal 0
+> pgskip_movable 0
+> pgfree 26637215947
+> pgactivate 316722654
+> pgdeactivate 261039211
+> pglazyfree 0
+> pgfault 17719356599
+> pgmajfault 30985544
+> pglazyfreed 0
+> pgrefill 286826568
+> pgsteal_kswapd 36740923
+> pgsteal_direct 349291470
+> pgscan_kswapd 36878966
+> pgscan_direct 395327492
+> pgscan_direct_throttle 0
+> zone_reclaim_failed 0
+> pginodesteal 49817087
+> slabs_scanned 597956834
+> kswapd_inodesteal 1412447
+> kswapd_low_wmark_hit_quickly 39
+> kswapd_high_wmark_hit_quickly 319
+> pageoutrun 3585
+> pgrotated 2873743
+> drop_pagecache 0
+> drop_slab 0
+> oom_kill 0
+> pgmigrate_success 839062285
+> pgmigrate_fail 507313
+> compact_migrate_scanned 9619077010
+> compact_free_scanned 67985619651
+> compact_isolated 1684537704
+> compact_stall 205761
+> compact_fail 182420
+> compact_success 23341
+> compact_daemon_wake 2
+> compact_daemon_migrate_scanned 811
+> compact_daemon_free_scanned 490241
+> htlb_buddy_alloc_success 0
+> htlb_buddy_alloc_fail 0
+> unevictable_pgs_culled 1006521
+> unevictable_pgs_scanned 0
+> unevictable_pgs_rescued 997077
+> unevictable_pgs_mlocked 1319203
+> unevictable_pgs_munlocked 842471
+> unevictable_pgs_cleared 470531
+> unevictable_pgs_stranded 459613
+> thp_fault_alloc 20263113
+> thp_fault_fallback 3368635
+> thp_collapse_alloc 226476
+> thp_collapse_alloc_failed 17594
+> thp_file_alloc 0
+> thp_file_mapped 0
+> thp_split_page 1159
+> thp_split_page_failed 3927
+> thp_deferred_split_page 20348941
+> thp_split_pmd 53361
+> thp_split_pud 0
+> thp_zero_page_alloc 1
+> thp_zero_page_alloc_failed 0
+> thp_swpout 0
+> thp_swpout_fallback 0
+> balloon_inflate 0
+> balloon_deflate 0
+> balloon_migrate 0
+> swap_ra 0
+> swap_ra_hit 0
+> 
+> Greets,
+> Stefan
 > 
 
