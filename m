@@ -4,211 +4,345 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C0BDC43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:03:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51C07C00307
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 606DB2082C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:03:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 606DB2082C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=vx.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id 1546D2082C
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:08:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1546D2082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 086726B0006; Fri,  6 Sep 2019 06:03:35 -0400 (EDT)
+	id 898666B0003; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00F8E6B0007; Fri,  6 Sep 2019 06:03:34 -0400 (EDT)
+	id 849046B0007; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E18C16B0008; Fri,  6 Sep 2019 06:03:34 -0400 (EDT)
+	id 7601E6B0008; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0139.hostedemail.com [216.40.44.139])
-	by kanga.kvack.org (Postfix) with ESMTP id B89546B0006
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:03:34 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 445FB180AD7C3
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:03:34 +0000 (UTC)
-X-FDA: 75904058748.07.snow22_1ee7e575d4a20
-X-HE-Tag: snow22_1ee7e575d4a20
-X-Filterd-Recvd-Size: 8167
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp [114.179.232.161])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:03:32 +0000 (UTC)
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x86A3G8q000676
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Fri, 6 Sep 2019 19:03:16 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x86A3G6V019248;
-	Fri, 6 Sep 2019 19:03:16 +0900
-Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x86A3FRQ009995;
-	Fri, 6 Sep 2019 19:03:16 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.150] [10.38.151.150]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-813918; Fri, 6 Sep 2019 19:02:17 +0900
-Received: from BPXM20GP.gisp.nec.co.jp ([10.38.151.212]) by
- BPXC22GP.gisp.nec.co.jp ([10.38.151.150]) with mapi id 14.03.0439.000; Fri, 6
- Sep 2019 19:02:16 +0900
-From: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-To: David Hildenbrand <david@redhat.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-CC: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-        "mhocko@kernel.org" <mhocko@kernel.org>,
-        "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
-        "longman@redhat.com" <longman@redhat.com>,
-        "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
-        "mst@redhat.com" <mst@redhat.com>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Junichi Nomura <j-nomura@ce.jp.nec.com>
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-Thread-Topic: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-Thread-Index: AQHVZIp2xk1cU6nEkk+ez7kL5reVFKcdvuyAgAAVnwA=
-Date: Fri, 6 Sep 2019 10:02:15 +0000
-Message-ID: <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
- <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
-In-Reply-To: <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
-Accept-Language: ja-JP, en-US
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.135]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <1386AA92981A614395BFC086033E6288@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0182.hostedemail.com [216.40.44.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D826B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:08:28 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DF92133CD
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:27 +0000 (UTC)
+X-FDA: 75904071054.06.base02_49d38846cb95a
+X-HE-Tag: base02_49d38846cb95a
+X-Filterd-Recvd-Size: 11583
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:08:27 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 339673082137;
+	Fri,  6 Sep 2019 10:08:26 +0000 (UTC)
+Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1ACD1600C4;
+	Fri,  6 Sep 2019 10:08:26 +0000 (UTC)
+Received: from zmail21.collab.prod.int.phx2.redhat.com (zmail21.collab.prod.int.phx2.redhat.com [10.5.83.24])
+	by colo-mx.corp.redhat.com (Postfix) with ESMTP id D4D10180085A;
+	Fri,  6 Sep 2019 10:08:25 +0000 (UTC)
+Date: Fri, 6 Sep 2019 06:08:25 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: nitesh@redhat.com, kvm@vger.kernel.org, mst@redhat.com, david@redhat.com, 
+	dave hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, 
+	willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org, 
+	akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, 
+	osalvador@suse.de, yang zhang wz <yang.zhang.wz@gmail.com>, 
+	riel@surriel.com, konrad wilk <konrad.wilk@oracle.com>, 
+	lcapitulino@redhat.com, wei w wang <wei.w.wang@intel.com>, 
+	aarcange@redhat.com, pbonzini@redhat.com, 
+	dan j williams <dan.j.williams@intel.com>, 
+	alexander h duyck <alexander.h.duyck@linux.intel.com>
+Message-ID: <176802096.13025056.1567764505728.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20190904151043.13848.23471.stgit@localhost.localdomain>
+References: <20190904150920.13848.32271.stgit@localhost.localdomain> <20190904151043.13848.23471.stgit@localhost.localdomain>
+Subject: Re: [PATCH v7 3/6] mm: Use zone and order instead of free area in
+ free_list manipulators
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.67.116.154, 10.4.195.26]
+Thread-Topic: Use zone and order instead of free area in free_list manipulators
+Thread-Index: Ifoqo6WER9W4vKJ4aodTxvDJIDrFow==
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Fri, 06 Sep 2019 10:08:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you for your feedback.
 
-On 2019/09/06 17:45, David Hildenbrand wrote:
-> On 06.09.19 10:09, Toshiki Fukasawa wrote:
->> A kernel panic is observed during reading
->> /proc/kpage{cgroup,count,flags} for first few pfns allocated by
->> pmem namespace:
->>
->> BUG: unable to handle page fault for address: fffffffffffffffe
->> [  114.495280] #PF: supervisor read access in kernel mode
->> [  114.495738] #PF: error_code(0x0000) - not-present page
->> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
->> [  114.496713] Oops: 0000 [#1] SMP PTI
->> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1
->> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BI=
-OS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
->> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
->> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 =
-41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 =
-<48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
->> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
->> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 00000000=
-00000000
->> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd074=
-89000000
->> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 00000000=
-00000000
->> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 00000000=
-00240000
->> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e6=
-01a0ff08
->> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knl=
-GS:0000000000000000
->> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000=
-000006e0
->> [  114.506401] Call Trace:
->> [  114.506660]  kpageflags_read+0xb1/0x130
->> [  114.507051]  proc_reg_read+0x39/0x60
->> [  114.507387]  vfs_read+0x8a/0x140
->> [  114.507686]  ksys_pread64+0x61/0xa0
->> [  114.508021]  do_syscall_64+0x5f/0x1a0
->> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
->> [  114.508844] RIP: 0033:0x7f0266ba426b
->>
->> The first few pages of ZONE_DEVICE expressed as the range
->> (altmap->base_pfn) to (altmap->base_pfn + altmap->reserve) are
->> skipped by struct page initialization. Some pfn walkers like
->> /proc/kpage{cgroup, count, flags} can't handle these uninitialized
->> struct pages, which causes the error.
->>
->> In previous discussion, Dan seemed to have concern that the struct
->> page area of some pages indicated by vmem_altmap->reserve may not
->> be allocated. (See https://lore.kernel.org/lkml/CAPcyv4i5FjTOnPbXNcTzvt+=
-e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com/)
->> However, arch_add_memory() called by devm_memremap_pages() allocates
->> struct page area for pages containing addresses in the range
->> (res.start) to (res.start + resource_size(res)), which include the
->> pages indicated by vmem_altmap->reserve. If I read correctly, it is
->> allocated as requested at least on x86_64. Also, memmap_init_zone()
->> initializes struct pages in the same range.
->> So I think the struct pages should be initialized.>
->=20
-> For !ZONE_DEVICE memory, the memmap is valid with SECTION_IS_ONLINE -
-> for the whole section. For ZONE_DEVICE memory we have no such
-> indication. In any section that is !SECTION_IS_ONLINE and
-> SECTION_MARKED_PRESENT, we could have any subsections initialized. >
-> The only indication I am aware of is pfn_zone_device_reserved() - which
-> seems to check exactly what you are trying to skip here.
->=20
-> Can't you somehow use pfn_zone_device_reserved() ? Or if you considered
-> that already, why did you decide against it?
+> 
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> 
+> In order to enable the use of the zone from the list manipulator functions
+> I will need access to the zone pointer. As it turns out most of the
+> accessors were always just being directly passed &zone->free_area[order]
+> anyway so it would make sense to just fold that into the function itself
+> and pass the zone and order as arguments instead of the free area.
+> 
+> In order to be able to reference the zone we need to move the declaration
+> of the functions down so that we have the zone defined before we define the
+> list manipulation functions.
+> 
+> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  include/linux/mmzone.h |   70
+>  ++++++++++++++++++++++++++----------------------
+>  mm/page_alloc.c        |   30 ++++++++-------------
+>  2 files changed, 49 insertions(+), 51 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 125f300981c6..2ddf1f1971c0 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -100,29 +100,6 @@ struct free_area {
+>  	unsigned long		nr_free;
+>  };
+>  
+> -/* Used for pages not on another list */
+> -static inline void add_to_free_area(struct page *page, struct free_area
+> *area,
+> -			     int migratetype)
+> -{
+> -	list_add(&page->lru, &area->free_list[migratetype]);
+> -	area->nr_free++;
+> -}
+> -
+> -/* Used for pages not on another list */
+> -static inline void add_to_free_area_tail(struct page *page, struct free_area
+> *area,
+> -				  int migratetype)
+> -{
+> -	list_add_tail(&page->lru, &area->free_list[migratetype]);
+> -	area->nr_free++;
+> -}
+> -
+> -/* Used for pages which are on another list */
+> -static inline void move_to_free_area(struct page *page, struct free_area
+> *area,
+> -			     int migratetype)
+> -{
+> -	list_move(&page->lru, &area->free_list[migratetype]);
+> -}
+> -
+>  static inline struct page *get_page_from_free_area(struct free_area *area,
+>  					    int migratetype)
+>  {
+> @@ -130,15 +107,6 @@ static inline struct page
+> *get_page_from_free_area(struct free_area *area,
+>  					struct page, lru);
+>  }
+>  
+> -static inline void del_page_from_free_area(struct page *page,
+> -		struct free_area *area)
+> -{
+> -	list_del(&page->lru);
+> -	__ClearPageBuddy(page);
+> -	set_page_private(page, 0);
+> -	area->nr_free--;
+> -}
+> -
+>  static inline bool free_area_empty(struct free_area *area, int migratetype)
+>  {
+>  	return list_empty(&area->free_list[migratetype]);
+> @@ -796,6 +764,44 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
+>  	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
+>  }
+>  
+> +/* Used for pages not on another list */
+> +static inline void add_to_free_list(struct page *page, struct zone *zone,
+> +				    unsigned int order, int migratetype)
+> +{
+> +	struct free_area *area = &zone->free_area[order];
+> +
+> +	list_add(&page->lru, &area->free_list[migratetype]);
+> +	area->nr_free++;
+> +}
+> +
+> +/* Used for pages not on another list */
+> +static inline void add_to_free_list_tail(struct page *page, struct zone
+> *zone,
+> +					 unsigned int order, int migratetype)
+> +{
+> +	struct free_area *area = &zone->free_area[order];
+> +
+> +	list_add_tail(&page->lru, &area->free_list[migratetype]);
+> +	area->nr_free++;
+> +}
+> +
+> +/* Used for pages which are on another list */
+> +static inline void move_to_free_list(struct page *page, struct zone *zone,
+> +				     unsigned int order, int migratetype)
+> +{
+> +	struct free_area *area = &zone->free_area[order];
+> +
+> +	list_move(&page->lru, &area->free_list[migratetype]);
+> +}
+> +
+> +static inline void del_page_from_free_list(struct page *page, struct zone
+> *zone,
+> +					   unsigned int order)
+> +{
+> +	list_del(&page->lru);
+> +	__ClearPageBuddy(page);
+> +	set_page_private(page, 0);
+> +	zone->free_area[order].nr_free--;
+> +}
+> +
+>  #include <linux/memory_hotplug.h>
+>  
+>  void build_all_zonelists(pg_data_t *pgdat);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index a791f2baeeeb..f85dc1561b85 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -921,7 +921,6 @@ static inline void __free_one_page(struct page *page,
+>  	struct capture_control *capc = task_capc(zone);
+>  	unsigned long uninitialized_var(buddy_pfn);
+>  	unsigned long combined_pfn;
+> -	struct free_area *area;
+>  	unsigned int max_order;
+>  	struct page *buddy;
+>  
+> @@ -958,7 +957,7 @@ static inline void __free_one_page(struct page *page,
+>  		if (page_is_guard(buddy))
+>  			clear_page_guard(zone, buddy, order, migratetype);
+>  		else
+> -			del_page_from_free_area(buddy, &zone->free_area[order]);
+> +			del_page_from_free_list(buddy, zone, order);
+>  		combined_pfn = buddy_pfn & pfn;
+>  		page = page + (combined_pfn - pfn);
+>  		pfn = combined_pfn;
+> @@ -992,12 +991,11 @@ static inline void __free_one_page(struct page *page,
+>  done_merging:
+>  	set_page_order(page, order);
+>  
+> -	area = &zone->free_area[order];
+>  	if (is_shuffle_order(order) ? shuffle_pick_tail() :
+>  	    buddy_merge_likely(pfn, buddy_pfn, page, order))
+> -		add_to_free_area_tail(page, area, migratetype);
+> +		add_to_free_list_tail(page, zone, order, migratetype);
+>  	else
+> -		add_to_free_area(page, area, migratetype);
+> +		add_to_free_list(page, zone, order, migratetype);
+>  }
+>  
+>  /*
+> @@ -2001,13 +1999,11 @@ void __init init_cma_reserved_pageblock(struct page
+> *page)
+>   * -- nyc
+>   */
+>  static inline void expand(struct zone *zone, struct page *page,
+> -	int low, int high, struct free_area *area,
+> -	int migratetype)
+> +	int low, int high, int migratetype)
+>  {
+>  	unsigned long size = 1 << high;
+>  
+>  	while (high > low) {
+> -		area--;
+>  		high--;
+>  		size >>= 1;
+>  		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
+> @@ -2021,7 +2017,7 @@ static inline void expand(struct zone *zone, struct
+> page *page,
+>  		if (set_page_guard(zone, &page[size], high, migratetype))
+>  			continue;
+>  
+> -		add_to_free_area(&page[size], area, migratetype);
+> +		add_to_free_list(&page[size], zone, high, migratetype);
+>  		set_page_order(&page[size], high);
+>  	}
+>  }
+> @@ -2179,8 +2175,8 @@ struct page *__rmqueue_smallest(struct zone *zone,
+> unsigned int order,
+>  		page = get_page_from_free_area(area, migratetype);
+>  		if (!page)
+>  			continue;
+> -		del_page_from_free_area(page, area);
+> -		expand(zone, page, order, current_order, area, migratetype);
+> +		del_page_from_free_list(page, zone, current_order);
+> +		expand(zone, page, order, current_order, migratetype);
+>  		set_pcppage_migratetype(page, migratetype);
+>  		return page;
+>  	}
+> @@ -2188,7 +2184,6 @@ struct page *__rmqueue_smallest(struct zone *zone,
+> unsigned int order,
+>  	return NULL;
+>  }
+>  
+> -
+>  /*
+>   * This array describes the order lists are fallen back to when
+>   * the free lists for the desirable migrate type are depleted
+> @@ -2254,7 +2249,7 @@ static int move_freepages(struct zone *zone,
+>  		VM_BUG_ON_PAGE(page_zone(page) != zone, page);
+>  
+>  		order = page_order(page);
+> -		move_to_free_area(page, &zone->free_area[order], migratetype);
+> +		move_to_free_list(page, zone, order, migratetype);
+>  		page += 1 << order;
+>  		pages_moved += 1 << order;
+>  	}
+> @@ -2370,7 +2365,6 @@ static void steal_suitable_fallback(struct zone *zone,
+> struct page *page,
+>  		unsigned int alloc_flags, int start_type, bool whole_block)
+>  {
+>  	unsigned int current_order = page_order(page);
+> -	struct free_area *area;
+>  	int free_pages, movable_pages, alike_pages;
+>  	int old_block_type;
+>  
+> @@ -2441,8 +2435,7 @@ static void steal_suitable_fallback(struct zone *zone,
+> struct page *page,
+>  	return;
+>  
+>  single_page:
+> -	area = &zone->free_area[current_order];
+> -	move_to_free_area(page, area, start_type);
+> +	move_to_free_list(page, zone, current_order, start_type);
+>  }
+>  
+>  /*
+> @@ -3113,7 +3106,6 @@ void split_page(struct page *page, unsigned int order)
+>  
+>  int __isolate_free_page(struct page *page, unsigned int order)
+>  {
+> -	struct free_area *area = &page_zone(page)->free_area[order];
+>  	unsigned long watermark;
+>  	struct zone *zone;
+>  	int mt;
+> @@ -3139,7 +3131,7 @@ int __isolate_free_page(struct page *page, unsigned int
+> order)
+>  
+>  	/* Remove page from free list */
+>  
+> -	del_page_from_free_area(page, area);
+> +	del_page_from_free_list(page, zone, order);
+>  
+>  	/*
+>  	 * Set the pageblock if the isolated page is at least half of a
+> @@ -8560,7 +8552,7 @@ void zone_pcp_reset(struct zone *zone)
+>  		pr_info("remove from free list %lx %d %lx\n",
+>  			pfn, 1 << order, end_pfn);
+>  #endif
+> -		del_page_from_free_area(page, &zone->free_area[order]);
+> +		del_page_from_free_list(page, zone, order);
+>  		for (i = 0; i < (1 << order); i++)
+>  			SetPageReserved((page+i));
+>  		pfn += (1 << order);
+> 
+> 
 
-No, in current approach this function is no longer needed.
-The reason why we change the approach is that all pfn walkers
-have to be aware of the uninitialized struct pages.
+Reviewed-by: Pankaj Gupta <pagupta@redhat.com>
 
-As for SECTION_IS_ONLINE, I'm not sure now.
-I will look into it next week.
-
-Thanks,
-Toshiki Fukasawa
-
->=20
->> Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
->> Cc: stable@vger.kernel.org
->> ---
->> Changes since rev 1:
->>   Instead of avoiding uninitialized pages on the pfn walker side,
->>   we initialize struct pages.
->>
->> mm/page_alloc.c | 5 +----
->>   1 file changed, 1 insertion(+), 4 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 9c91949..6d180ae 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5846,8 +5846,7 @@ void __meminit memmap_init_zone(unsigned long size=
-, int nid, unsigned long zone,
->>  =20
->>   #ifdef CONFIG_ZONE_DEVICE
->>   	/*
->> -	 * Honor reservation requested by the driver for this ZONE_DEVICE
->> -	 * memory. We limit the total number of pages to initialize to just
->> +	 * We limit the total number of pages to initialize to just
->>   	 * those that might contain the memory mapping. We will defer the
->>   	 * ZONE_DEVICE page initialization until after we have released
->>   	 * the hotplug lock.
->> @@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long size=
-, int nid, unsigned long zone,
->>   		if (!altmap)
->>   			return;
->>  =20
->> -		if (start_pfn =3D=3D altmap->base_pfn)
->> -			start_pfn +=3D altmap->reserve;
->>   		end_pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
->>   	}
->>   #endif
->>
->=20
-> =
-
+> 
 
