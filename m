@@ -2,182 +2,236 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0B80C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:17:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED63CC43140
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:45:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B3F2207FC
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:17:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B3F2207FC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=vx.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id B4A5220842
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:45:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4A5220842
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AE7C96B0003; Fri,  6 Sep 2019 04:17:06 -0400 (EDT)
+	id 359A06B0003; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A980F6B0006; Fri,  6 Sep 2019 04:17:06 -0400 (EDT)
+	id 2E2206B0006; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 988626B0007; Fri,  6 Sep 2019 04:17:06 -0400 (EDT)
+	id 1834A6B0007; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0199.hostedemail.com [216.40.44.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A146B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:17:06 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 575DF55F90
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:17:05 +0000 (UTC)
-X-FDA: 75903790410.15.stamp75_77e90e835fe33
-X-HE-Tag: stamp75_77e90e835fe33
-X-Filterd-Recvd-Size: 6652
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp [114.179.232.161])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:17:03 +0000 (UTC)
-Received: from mailgate02.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x868GoAD017898
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Fri, 6 Sep 2019 17:16:50 +0900
-Received: from mailsv02.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x868Gn8O006386;
-	Fri, 6 Sep 2019 17:16:49 +0900
-Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
-	by mailsv02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x868F0sx023285;
-	Fri, 6 Sep 2019 17:16:49 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.152] [10.38.151.152]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-8242729; Fri, 6 Sep 2019 17:09:54 +0900
-Received: from BPXM20GP.gisp.nec.co.jp ([10.38.151.212]) by
- BPXC24GP.gisp.nec.co.jp ([10.38.151.152]) with mapi id 14.03.0439.000; Fri, 6
- Sep 2019 17:09:54 +0900
-From: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-        "mhocko@kernel.org" <mhocko@kernel.org>,
-        "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
-        "longman@redhat.com" <longman@redhat.com>,
-        "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
-        "mst@redhat.com" <mst@redhat.com>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Junichi Nomura <j-nomura@ce.jp.nec.com>,
-        Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-Subject: [RFC PATCH v2] mm: initialize struct pages reserved by ZONE_DEVICE
- driver.
-Thread-Topic: [RFC PATCH v2] mm: initialize struct pages reserved by
+Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
+	by kanga.kvack.org (Postfix) with ESMTP id E55DC6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:45:42 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 6E14D180AD7C3
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:45:42 +0000 (UTC)
+X-FDA: 75903862524.28.nest46_4ec152d3c7539
+X-HE-Tag: nest46_4ec152d3c7539
+X-Filterd-Recvd-Size: 10146
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:45:41 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C7515C04BD48;
+	Fri,  6 Sep 2019 08:45:39 +0000 (UTC)
+Received: from [10.36.117.162] (ovpn-117-162.ams2.redhat.com [10.36.117.162])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 098B25C219;
+	Fri,  6 Sep 2019 08:45:31 +0000 (UTC)
+Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
  ZONE_DEVICE driver.
-Thread-Index: AQHVZIp2xk1cU6nEkk+ez7kL5reVFA==
-Date: Fri, 6 Sep 2019 08:09:52 +0000
-Message-ID: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
-Accept-Language: ja-JP, en-US
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.135]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "dan.j.williams@intel.com" <dan.j.williams@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+ "mhocko@kernel.org" <mhocko@kernel.org>,
+ "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
+ "longman@redhat.com" <longman@redhat.com>,
+ "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
+ "mst@redhat.com" <mst@redhat.com>,
+ Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+ Junichi Nomura <j-nomura@ce.jp.nec.com>
+References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
+Date: Fri, 6 Sep 2019 10:45:31 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+In-Reply-To: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 06 Sep 2019 08:45:39 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A kernel panic is observed during reading
-/proc/kpage{cgroup,count,flags} for first few pfns allocated by
-pmem namespace:
+On 06.09.19 10:09, Toshiki Fukasawa wrote:
+> A kernel panic is observed during reading
+> /proc/kpage{cgroup,count,flags} for first few pfns allocated by
+> pmem namespace:
+>=20
+> BUG: unable to handle page fault for address: fffffffffffffffe
+> [  114.495280] #PF: supervisor read access in kernel mode
+> [  114.495738] #PF: error_code(0x0000) - not-present page
+> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
+> [  114.496713] Oops: 0000 [#1] SMP PTI
+> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1
+> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), B=
+IOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
+> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
+> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00=
+ 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 =
+c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
+> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
+> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000=
+000000000
+> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07=
+489000000
+> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000=
+000000000
+> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000=
+000240000
+> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e=
+601a0ff08
+> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) kn=
+lGS:0000000000000000
+> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 0000000=
+0000006e0
+> [  114.506401] Call Trace:
+> [  114.506660]  kpageflags_read+0xb1/0x130
+> [  114.507051]  proc_reg_read+0x39/0x60
+> [  114.507387]  vfs_read+0x8a/0x140
+> [  114.507686]  ksys_pread64+0x61/0xa0
+> [  114.508021]  do_syscall_64+0x5f/0x1a0
+> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> [  114.508844] RIP: 0033:0x7f0266ba426b
+>=20
+> The first few pages of ZONE_DEVICE expressed as the range
+> (altmap->base_pfn) to (altmap->base_pfn + altmap->reserve) are
+> skipped by struct page initialization. Some pfn walkers like
+> /proc/kpage{cgroup, count, flags} can't handle these uninitialized
+> struct pages, which causes the error.
+>=20
+> In previous discussion, Dan seemed to have concern that the struct
+> page area of some pages indicated by vmem_altmap->reserve may not
+> be allocated. (See https://lore.kernel.org/lkml/CAPcyv4i5FjTOnPbXNcTzvt=
++e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com/)
+> However, arch_add_memory() called by devm_memremap_pages() allocates
+> struct page area for pages containing addresses in the range
+> (res.start) to (res.start + resource_size(res)), which include the
+> pages indicated by vmem_altmap->reserve. If I read correctly, it is
+> allocated as requested at least on x86_64. Also, memmap_init_zone()
+> initializes struct pages in the same range.
+> So I think the struct pages should be initialized.>
 
-BUG: unable to handle page fault for address: fffffffffffffffe
-[  114.495280] #PF: supervisor read access in kernel mode
-[  114.495738] #PF: error_code(0x0000) - not-present page
-[  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
-[  114.496713] Oops: 0000 [#1] SMP PTI
-[  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1
-[  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS =
-rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
-[  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
-[  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 =
-54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48=
-> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
-[  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
-[  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 00000000000=
-00000
-[  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd074890=
-00000
-[  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 00000000000=
-00000
-[  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 00000000002=
-40000
-[  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a=
-0ff08
-[  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:=
-0000000000000000
-[  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000=
-006e0
-[  114.506401] Call Trace:
-[  114.506660]  kpageflags_read+0xb1/0x130
-[  114.507051]  proc_reg_read+0x39/0x60
-[  114.507387]  vfs_read+0x8a/0x140
-[  114.507686]  ksys_pread64+0x61/0xa0
-[  114.508021]  do_syscall_64+0x5f/0x1a0
-[  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[  114.508844] RIP: 0033:0x7f0266ba426b
+For !ZONE_DEVICE memory, the memmap is valid with SECTION_IS_ONLINE -
+for the whole section. For ZONE_DEVICE memory we have no such
+indication. In any section that is !SECTION_IS_ONLINE and
+SECTION_MARKED_PRESENT, we could have any subsections initialized.
 
-The first few pages of ZONE_DEVICE expressed as the range
-(altmap->base_pfn) to (altmap->base_pfn + altmap->reserve) are
-skipped by struct page initialization. Some pfn walkers like
-/proc/kpage{cgroup, count, flags} can't handle these uninitialized
-struct pages, which causes the error.
+The only indication I am aware of is pfn_zone_device_reserved() - which
+seems to check exactly what you are trying to skip here.
 
-In previous discussion, Dan seemed to have concern that the struct
-page area of some pages indicated by vmem_altmap->reserve may not
-be allocated. (See https://lore.kernel.org/lkml/CAPcyv4i5FjTOnPbXNcTzvt+e6R=
-QYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com/)
-However, arch_add_memory() called by devm_memremap_pages() allocates
-struct page area for pages containing addresses in the range
-(res.start) to (res.start + resource_size(res)), which include the
-pages indicated by vmem_altmap->reserve. If I read correctly, it is
-allocated as requested at least on x86_64. Also, memmap_init_zone()
-initializes struct pages in the same range.
-So I think the struct pages should be initialized.
+Can't you somehow use pfn_zone_device_reserved() ? Or if you considered
+that already, why did you decide against it?
 
-Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-Cc: stable@vger.kernel.org
----
-Changes since rev 1:
- Instead of avoiding uninitialized pages on the pfn walker side,
- we initialize struct pages.
+> Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
+> Cc: stable@vger.kernel.org
+> ---
+> Changes since rev 1:
+>  Instead of avoiding uninitialized pages on the pfn walker side,
+>  we initialize struct pages.
+>=20
+> mm/page_alloc.c | 5 +----
+>  1 file changed, 1 insertion(+), 4 deletions(-)
+>=20
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9c91949..6d180ae 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5846,8 +5846,7 @@ void __meminit memmap_init_zone(unsigned long siz=
+e, int nid, unsigned long zone,
+> =20
+>  #ifdef CONFIG_ZONE_DEVICE
+>  	/*
+> -	 * Honor reservation requested by the driver for this ZONE_DEVICE
+> -	 * memory. We limit the total number of pages to initialize to just
+> +	 * We limit the total number of pages to initialize to just
+>  	 * those that might contain the memory mapping. We will defer the
+>  	 * ZONE_DEVICE page initialization until after we have released
+>  	 * the hotplug lock.
+> @@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long siz=
+e, int nid, unsigned long zone,
+>  		if (!altmap)
+>  			return;
+> =20
+> -		if (start_pfn =3D=3D altmap->base_pfn)
+> -			start_pfn +=3D altmap->reserve;
+>  		end_pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
+>  	}
+>  #endif
+>=20
 
-mm/page_alloc.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9c91949..6d180ae 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5846,8 +5846,7 @@ void __meminit memmap_init_zone(unsigned long size, i=
-nt nid, unsigned long zone,
-=20
- #ifdef CONFIG_ZONE_DEVICE
- 	/*
--	 * Honor reservation requested by the driver for this ZONE_DEVICE
--	 * memory. We limit the total number of pages to initialize to just
-+	 * We limit the total number of pages to initialize to just
- 	 * those that might contain the memory mapping. We will defer the
- 	 * ZONE_DEVICE page initialization until after we have released
- 	 * the hotplug lock.
-@@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long size, i=
-nt nid, unsigned long zone,
- 		if (!altmap)
- 			return;
-=20
--		if (start_pfn =3D=3D altmap->base_pfn)
--			start_pfn +=3D altmap->reserve;
- 		end_pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
- 	}
- #endif
 --=20
-1.8.3.1
 
+Thanks,
+
+David / dhildenb
 
