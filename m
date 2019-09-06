@@ -2,250 +2,294 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFAB5C43140
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:36:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80989C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:54:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7472F206CD
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:36:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7472F206CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 159D42070C
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 10:54:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 159D42070C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CDC46B0003; Fri,  6 Sep 2019 06:36:09 -0400 (EDT)
+	id 9D7DD6B0003; Fri,  6 Sep 2019 06:54:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17E8D6B0008; Fri,  6 Sep 2019 06:36:09 -0400 (EDT)
+	id 9884A6B0006; Fri,  6 Sep 2019 06:54:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 06CE66B000A; Fri,  6 Sep 2019 06:36:09 -0400 (EDT)
+	id 876736B0007; Fri,  6 Sep 2019 06:54:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0002.hostedemail.com [216.40.44.2])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3E66B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:36:08 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 7F988180AD7C3
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:36:08 +0000 (UTC)
-X-FDA: 75904140816.02.stem11_185c5c613ea26
-X-HE-Tag: stem11_185c5c613ea26
-X-Filterd-Recvd-Size: 11186
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:36:07 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2C4818553B;
-	Fri,  6 Sep 2019 10:36:06 +0000 (UTC)
-Received: from [10.36.117.162] (ovpn-117-162.ams2.redhat.com [10.36.117.162])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C31B91001956;
-	Fri,  6 Sep 2019 10:35:58 +0000 (UTC)
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "mhocko@kernel.org" <mhocko@kernel.org>,
- "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
- "longman@redhat.com" <longman@redhat.com>,
- "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
- "mst@redhat.com" <mst@redhat.com>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
- Junichi Nomura <j-nomura@ce.jp.nec.com>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
- <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
- <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com>
-Date: Fri, 6 Sep 2019 12:35:57 +0200
+Received: from forelay.hostedemail.com (smtprelay0162.hostedemail.com [216.40.44.162])
+	by kanga.kvack.org (Postfix) with ESMTP id 679596B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:54:34 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id CEC724FED
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:54:33 +0000 (UTC)
+X-FDA: 75904187226.29.angle56_27bd7241cc153
+X-HE-Tag: angle56_27bd7241cc153
+X-Filterd-Recvd-Size: 9087
+Received: from relay.sw.ru (relay.sw.ru [185.231.240.75])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 10:54:32 +0000 (UTC)
+Received: from [172.16.25.5]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1i6Bsr-0003t1-4a; Fri, 06 Sep 2019 13:54:29 +0300
+Subject: Re: [BUG] kmemcg limit defeats __GFP_NOFAIL allocation
+To: Michal Hocko <mhocko@kernel.org>,
+ Thomas Lindroth <thomas.lindroth@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org
+References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
+ <666dbcde-1b8a-9e2d-7d1f-48a117c78ae1@I-love.SAKURA.ne.jp>
+ <ccf79dd9-b2e5-0d78-f520-164d198f9ca4@gmail.com>
+ <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
+ <20190904112500.GO3838@dhcp22.suse.cz>
+ <0056063b-46ff-0ebd-ff0d-c96a1f9ae6b1@i-love.sakura.ne.jp>
+ <20190904142902.GZ3838@dhcp22.suse.cz>
+ <405ce28b-c0b4-780c-c883-42d741ec60e0@i-love.sakura.ne.jp>
+ <16fdbf78-3cf4-81cf-2a73-d38cb66afc17@gmail.com>
+ <20190906072711.GD14491@dhcp22.suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <940ea5a4-b580-34f8-2e5f-0bd2534b7426@virtuozzo.com>
+Date: Fri, 6 Sep 2019 13:54:30 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
-Content-Type: text/plain; charset=iso-2022-jp
+In-Reply-To: <20190906072711.GD14491@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Fri, 06 Sep 2019 10:36:06 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.09.19 12:02, Toshiki Fukasawa wrote:
-> Thank you for your feedback.
-> 
-> On 2019/09/06 17:45, David Hildenbrand wrote:
->> On 06.09.19 10:09, Toshiki Fukasawa wrote:
->>> A kernel panic is observed during reading
->>> /proc/kpage{cgroup,count,flags} for first few pfns allocated by
->>> pmem namespace:
+
+
+On 9/6/19 10:27 AM, Michal Hocko wrote:
+> On Fri 06-09-19 01:11:53, Thomas Lindroth wrote:
+>> On 9/4/19 6:39 PM, Tetsuo Handa wrote:
+>>> On 2019/09/04 23:29, Michal Hocko wrote:
+>>>> Ohh, right. We are trying to uncharge something that hasn't been charged
+>>>> because page_counter_try_charge has failed. So the fix needs to be more
+>>>> involved. Sorry, I should have realized that.
 >>>
->>> BUG: unable to handle page fault for address: fffffffffffffffe
->>> [  114.495280] #PF: supervisor read access in kernel mode
->>> [  114.495738] #PF: error_code(0x0000) - not-present page
->>> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
->>> [  114.496713] Oops: 0000 [#1] SMP PTI
->>> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1
->>> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
->>> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
->>> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
->>> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
->>> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
->>> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
->>> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
->>> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
->>> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
->>> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
->>> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->>> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
->>> [  114.506401] Call Trace:
->>> [  114.506660]  kpageflags_read+0xb1/0x130
->>> [  114.507051]  proc_reg_read+0x39/0x60
->>> [  114.507387]  vfs_read+0x8a/0x140
->>> [  114.507686]  ksys_pread64+0x61/0xa0
->>> [  114.508021]  do_syscall_64+0x5f/0x1a0
->>> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
->>> [  114.508844] RIP: 0033:0x7f0266ba426b
+>>> OK. Survived the test. Thomas, please try.
 >>>
->>> The first few pages of ZONE_DEVICE expressed as the range
->>> (altmap->base_pfn) to (altmap->base_pfn + altmap->reserve) are
->>> skipped by struct page initialization. Some pfn walkers like
->>> /proc/kpage{cgroup, count, flags} can't handle these uninitialized
->>> struct pages, which causes the error.
->>>
->>> In previous discussion, Dan seemed to have concern that the struct
->>> page area of some pages indicated by vmem_altmap->reserve may not
->>> be allocated. (See https://lore.kernel.org/lkml/CAPcyv4i5FjTOnPbXNcTzvt+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com/)
->>> However, arch_add_memory() called by devm_memremap_pages() allocates
->>> struct page area for pages containing addresses in the range
->>> (res.start) to (res.start + resource_size(res)), which include the
->>> pages indicated by vmem_altmap->reserve. If I read correctly, it is
->>> allocated as requested at least on x86_64. Also, memmap_init_zone()
->>> initializes struct pages in the same range.
->>> So I think the struct pages should be initialized.>
+>>>> ---
+>>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>>> index 9ec5e12486a7..e18108b2b786 100644
+>>>> --- a/mm/memcontrol.c
+>>>> +++ b/mm/memcontrol.c
+>>>> @@ -2821,6 +2821,16 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+>>>>   	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+>>>>   	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+>>>> +
+>>>> +		/*
+>>>> +		 * Enforce __GFP_NOFAIL allocation because callers are not
+>>>> +		 * prepared to see failures and likely do not have any failure
+>>>> +		 * handling code.
+>>>> +		 */
+>>>> +		if (gfp & __GFP_NOFAIL) {
+>>>> +			page_counter_charge(&memcg->kmem, nr_pages);
+>>>> +			return 0;
+>>>> +		}
+>>>>   		cancel_charge(memcg, nr_pages);
+>>>>   		return -ENOMEM;
+>>>>   	}
+>>>>
 >>
->> For !ZONE_DEVICE memory, the memmap is valid with SECTION_IS_ONLINE -
->> for the whole section. For ZONE_DEVICE memory we have no such
->> indication. In any section that is !SECTION_IS_ONLINE and
->> SECTION_MARKED_PRESENT, we could have any subsections initialized. >
->> The only indication I am aware of is pfn_zone_device_reserved() - which
->> seems to check exactly what you are trying to skip here.
->>
->> Can't you somehow use pfn_zone_device_reserved() ? Or if you considered
->> that already, why did you decide against it?
+>> I tried the patch with 5.2.11 and wasn't able to trigger any null pointer
+>> deref crashes with it. Testing is tricky because the OOM killer will still
+>> run and eventually kill bash and whatever runs in the cgroup.
 > 
-> No, in current approach this function is no longer needed.
-> The reason why we change the approach is that all pfn walkers
-> have to be aware of the uninitialized struct pages.
+> Yeah, this is unfortunate but also unfixable I am afraid. 
 
-We should use the same strategy for all pfn walkers then (effectively
-get rid of pfn_zone_device_reserved() if that's what we want).
-
-> 
-> As for SECTION_IS_ONLINE, I'm not sure now.
-> I will look into it next week.
-
-SECTION_IS_ONLINE does currently not apply to ZONE_DEVICE and due to
-sub-section support for ZONE_DEVICE, it cannot easily be reused.
-
-> 
-> Thanks,
-> Toshiki Fukasawa
-> 
->>
->>> Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
->>> Cc: stable@vger.kernel.org
->>> ---
->>> Changes since rev 1:
->>>   Instead of avoiding uninitialized pages on the pfn walker side,
->>>   we initialize struct pages.
->>>
->>> mm/page_alloc.c | 5 +----
->>>   1 file changed, 1 insertion(+), 4 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 9c91949..6d180ae 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -5846,8 +5846,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>>   
->>>   #ifdef CONFIG_ZONE_DEVICE
->>>   	/*
->>> -	 * Honor reservation requested by the driver for this ZONE_DEVICE
->>> -	 * memory. We limit the total number of pages to initialize to just
->>> +	 * We limit the total number of pages to initialize to just
->>>   	 * those that might contain the memory mapping. We will defer the
->>>   	 * ZONE_DEVICE page initialization until after we have released
->>>   	 * the hotplug lock.
->>> @@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>>   		if (!altmap)
->>>   			return;
->>>   
->>> -		if (start_pfn == altmap->base_pfn)
->>> -			start_pfn += altmap->reserve;
->>>   		end_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
->>>   	}
->>>   #endif
->>>
->>
->>
+I think there are two possible ways to fix this. If we decide to keep kmem.limit_in_bytes broken,
+than we can just always bypass limit. Also we could add something like pr_warn_once("kmem limit doesn't work");
+when user changes kmem.limit_in_bytes 
 
 
+Or we can fix kmem.limit_in_bytes like this:
+
+
+---
+ mm/memcontrol.c | 76 +++++++++++++++++++++++++++++++------------------
+ 1 file changed, 48 insertions(+), 28 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2d1d598d9554..71b9065e4b31 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1314,7 +1314,7 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+  * Returns the maximum amount of memory @mem can be charged with, in
+  * pages.
+  */
+-static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
++static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg, bool kmem)
+ {
+ 	unsigned long margin = 0;
+ 	unsigned long count;
+@@ -1334,6 +1334,15 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
+ 			margin = 0;
+ 	}
+ 
++	if (kmem && margin) {
++		count = page_counter_read(&memcg->kmem);
++		limit = READ_ONCE(memcg->kmem.max);
++		if (count <= limit)
++			margin = min(margin, limit - count);
++		else
++			margin = 0;
++	}
++
+ 	return margin;
+ }
+ 
+@@ -2505,7 +2514,7 @@ void mem_cgroup_handle_over_high(void)
+ }
+ 
+ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+-		      unsigned int nr_pages)
++		      unsigned int nr_pages, bool kmem_charge)
+ {
+ 	unsigned int batch = max(MEMCG_CHARGE_BATCH, nr_pages);
+ 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+@@ -2519,21 +2528,42 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (mem_cgroup_is_root(memcg))
+ 		return 0;
+ retry:
+-	if (consume_stock(memcg, nr_pages))
++	if (consume_stock(memcg, nr_pages)) {
++		if (kmem_charge && !page_counter_try_charge(&memcg->kmem,
++							nr_pages, &counter)) {
++			refill_stock(memcg, nr_pages);
++			goto charge;
++		}
+ 		return 0;
++	}
+ 
++charge:
++	mem_over_limit = NULL;
+ 	if (!do_memsw_account() ||
+ 	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
+-		if (page_counter_try_charge(&memcg->memory, batch, &counter))
+-			goto done_restock;
+-		if (do_memsw_account())
+-			page_counter_uncharge(&memcg->memsw, batch);
+-		mem_over_limit = mem_cgroup_from_counter(counter, memory);
++		if (!page_counter_try_charge(&memcg->memory, batch, &counter)) {
++			if (do_memsw_account())
++				page_counter_uncharge(&memcg->memsw, batch);
++			mem_over_limit = mem_cgroup_from_counter(counter, memory);
++		}
+ 	} else {
+ 		mem_over_limit = mem_cgroup_from_counter(counter, memsw);
+ 		may_swap = false;
+ 	}
+ 
++	if (!mem_over_limit && kmem_charge) {
++		if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
++			may_swap = false;
++			mem_over_limit = mem_cgroup_from_counter(counter, kmem);
++			page_counter_uncharge(&memcg->memory, batch);
++			if (do_memsw_account())
++				page_counter_uncharge(&memcg->memsw, batch);
++		}
++	}
++
++	if (!mem_over_limit)
++		goto done_restock;
++
+ 	if (batch > nr_pages) {
+ 		batch = nr_pages;
+ 		goto retry;
+@@ -2568,7 +2598,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
+ 						    gfp_mask, may_swap);
+ 
+-	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
++	if (mem_cgroup_margin(mem_over_limit, kmem_charge) >= nr_pages)
+ 		goto retry;
+ 
+ 	if (!drained) {
+@@ -2637,6 +2667,8 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	page_counter_charge(&memcg->memory, nr_pages);
+ 	if (do_memsw_account())
+ 		page_counter_charge(&memcg->memsw, nr_pages);
++	if (kmem_charge)
++		page_counter_charge(&memcg->kmem, nr_pages);
+ 	css_get_many(&memcg->css, nr_pages);
+ 
+ 	return 0;
+@@ -2943,20 +2975,8 @@ void memcg_kmem_put_cache(struct kmem_cache *cachep)
+ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+ 			    struct mem_cgroup *memcg)
+ {
+-	unsigned int nr_pages = 1 << order;
+-	struct page_counter *counter;
+-	int ret;
+-
+-	ret = try_charge(memcg, gfp, nr_pages);
+-	if (ret)
+-		return ret;
+-
+-	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+-	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+-		cancel_charge(memcg, nr_pages);
+-		return -ENOMEM;
+-	}
+-	return 0;
++	return try_charge(memcg, gfp, 1 << order,
++			!cgroup_subsys_on_dfl(memory_cgrp_subsys));
+ }
+ 
+ /**
+@@ -5053,7 +5073,7 @@ static int mem_cgroup_do_precharge(unsigned long count)
+ 	int ret;
+ 
+ 	/* Try a single bulk charge without reclaim first, kswapd may wake */
+-	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_DIRECT_RECLAIM, count);
++	ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_DIRECT_RECLAIM, count, false);
+ 	if (!ret) {
+ 		mc.precharge += count;
+ 		return ret;
+@@ -5061,7 +5081,7 @@ static int mem_cgroup_do_precharge(unsigned long count)
+ 
+ 	/* Try charges one by one with reclaim, but do not retry */
+ 	while (count--) {
+-		ret = try_charge(mc.to, GFP_KERNEL | __GFP_NORETRY, 1);
++		ret = try_charge(mc.to, GFP_KERNEL | __GFP_NORETRY, 1, false);
+ 		if (ret)
+ 			return ret;
+ 		mc.precharge++;
+@@ -6255,7 +6275,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 	if (!memcg)
+ 		memcg = get_mem_cgroup_from_mm(mm);
+ 
+-	ret = try_charge(memcg, gfp_mask, nr_pages);
++	ret = try_charge(memcg, gfp_mask, nr_pages, false);
+ 
+ 	css_put(&memcg->css);
+ out:
+@@ -6634,10 +6654,10 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 
+ 	mod_memcg_state(memcg, MEMCG_SOCK, nr_pages);
+ 
+-	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
++	if (try_charge(memcg, gfp_mask, nr_pages, false) == 0)
+ 		return true;
+ 
+-	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
++	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages, false);
+ 	return false;
+ }
+ 
 -- 
-
-Thanks,
-
-David / dhildenb
+2.21.0
 
