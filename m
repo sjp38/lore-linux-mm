@@ -1,140 +1,178 @@
-Return-Path: <SRS0=ftCo=XA=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68916C43331
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C977C43140
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 00:59:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D89D20674
-	for <linux-mm@archiver.kernel.org>; Thu,  5 Sep 2019 23:11:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 189AA207E0
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 00:59:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KWATY8V7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D89D20674
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="wonuGwVV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 189AA207E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF64B6B0006; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
+	id 491FD6B0003; Thu,  5 Sep 2019 20:59:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA7106B0007; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
+	id 441F16B0006; Thu,  5 Sep 2019 20:59:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B97DD6B0008; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
+	id 359106B0007; Thu,  5 Sep 2019 20:59:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0254.hostedemail.com [216.40.44.254])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1706B0006
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 19:11:58 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 39001181AC9AE
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:58 +0000 (UTC)
-X-FDA: 75902416716.14.fire00_1120b19099026
-X-HE-Tag: fire00_1120b19099026
-X-Filterd-Recvd-Size: 5036
-Received: from mail-lf1-f65.google.com (mail-lf1-f65.google.com [209.85.167.65])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 23:11:57 +0000 (UTC)
-Received: by mail-lf1-f65.google.com with SMTP id l11so3416753lfk.6
-        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 16:11:57 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0147.hostedemail.com [216.40.44.147])
+	by kanga.kvack.org (Postfix) with ESMTP id 146A66B0003
+	for <linux-mm@kvack.org>; Thu,  5 Sep 2019 20:59:09 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id AC055180AD7C3
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 00:59:08 +0000 (UTC)
+X-FDA: 75902686776.24.jelly06_4fc0009f0470c
+X-HE-Tag: jelly06_4fc0009f0470c
+X-Filterd-Recvd-Size: 7193
+Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 00:59:07 +0000 (UTC)
+Received: by mail-pl1-f193.google.com with SMTP id gn20so2239342plb.2
+        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 17:59:07 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=rsv0Voxxp+ItU2AmdJliC6lRiDyJh5oUWnyootcl/es=;
-        b=KWATY8V78X6WT4GPUKQJmVfGTCnU5vhDE/oaXa6aC1GLF2h5PoYpxaD4OLLdxTk1wb
-         NRbBqJ+uBWEjMXtoulBYmFShow+CO7RWdA682IgebS0PjNMEt1MRtryBK8N9fscdt06B
-         xBhyfc+9E8HXYbk9FJZ7CjwMY0BLIwCNByrsdn/9MCUsd3hQ4EkpfTpbz8deZMiF409a
-         2EkQ2s0Jdg62I6PuiGOhfDm8O4BNqWZEyXu/rD4+BHpB8I0bipPUwnfZA6tz4izZ2S4F
-         OgGxKeLePQc9Ei5o0/7ubCk3WSaTcEQb5s88aMjCTS6pBY4g9w48ztMf1dPdlohuukMM
-         jb2Q==
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=TmV1LoZm0dueIxfpGTuco3s5i09fedqQ9LvJDU+DD/k=;
+        b=wonuGwVVxxQX5ovy7PsPBul4VqqNeDjDgJgFjChMt5Z98RqN2M/WGL3JOHCCmm07Kt
+         vE1Drt0ItxpPGb7Wt0GoncH4bfEtTL9oM28/hGMi23N/4+nYzKpof7lpKT4jLlQc0P7H
+         6EoPsoCrNH4Ed4031JH2ZnYARGy89wZJYDCCo=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=rsv0Voxxp+ItU2AmdJliC6lRiDyJh5oUWnyootcl/es=;
-        b=cGw82XLyO/wsBXjRi6sWUTRM+C4t/NYKKSDy6ofAg61Wb+AT8ojg7TK11peK9r9nkn
-         sxLfi13h3jF3w4fJ/65ifXsOxDNgooi8inyYTQuTzSdS9GhgGXFh3CwcLV59b2X1qcLm
-         NswUKe2w61LysN3P+cbwAf3NGP1vh/PMCDtAvx8lY4hfpxUeXYRtCR/plptorIDKShLG
-         YbRCk5ThqUB65Kpqx5u5gEKK9UCdkLIyeg/j2POPd/r7AhrRl6/ZL/NBBpdBohqQcoPG
-         Xeo3veOMjreGt3sLfQDYRkv8yjYNC9IE7BSzO1I4Qgx2hcLDQzyDx/8YZNhc5+2t6rdg
-         Ioig==
-X-Gm-Message-State: APjAAAXP5ZYU5dypAVStZTOiVg4pMxh4p8N/63TDGeUJ6uip1lmSJlvi
-	YX/d9OXpszxOmWwfj4thvYNO/ix8SFU=
-X-Google-Smtp-Source: APXvYqz6gFjjmfdcqN7f+AGnrw3zq8eQftPhMdIM9dJmaaEC3Q68LUa3et1MQfvpIV4wVuupkJfkhw==
-X-Received: by 2002:ac2:5090:: with SMTP id f16mr4297861lfm.66.1567725115794;
-        Thu, 05 Sep 2019 16:11:55 -0700 (PDT)
-Received: from [84.217.164.5] (c-8caed954.51034-0-757473696b74.bbcust.telenor.se. [84.217.164.5])
-        by smtp.gmail.com with ESMTPSA id p26sm705000lfc.25.2019.09.05.16.11.54
-        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-        Thu, 05 Sep 2019 16:11:55 -0700 (PDT)
-Subject: Re: [BUG] kmemcg limit defeats __GFP_NOFAIL allocation
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Michal Hocko <mhocko@kernel.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org
-References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
- <666dbcde-1b8a-9e2d-7d1f-48a117c78ae1@I-love.SAKURA.ne.jp>
- <ccf79dd9-b2e5-0d78-f520-164d198f9ca4@gmail.com>
- <4d0eda9a-319d-1a7d-1eed-71da90902367@i-love.sakura.ne.jp>
- <20190904112500.GO3838@dhcp22.suse.cz>
- <0056063b-46ff-0ebd-ff0d-c96a1f9ae6b1@i-love.sakura.ne.jp>
- <20190904142902.GZ3838@dhcp22.suse.cz>
- <405ce28b-c0b4-780c-c883-42d741ec60e0@i-love.sakura.ne.jp>
-From: Thomas Lindroth <thomas.lindroth@gmail.com>
-Message-ID: <16fdbf78-3cf4-81cf-2a73-d38cb66afc17@gmail.com>
-Date: Fri, 6 Sep 2019 01:11:53 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=TmV1LoZm0dueIxfpGTuco3s5i09fedqQ9LvJDU+DD/k=;
+        b=fAzrO35XqWJf4rlzah/31Ko82QKlgcoLyqaLFoRh4TdY8l/XTROUH8vdZBq8s35BrL
+         AKPw7lsdrnWtP9kWMUxyU4Rswhj2te+cDbZqerTcjlj6G7hsObaTyja5VTtRbIcah9cQ
+         3DiHezfoPa0PjLS8RqWuMq+R0sWX+RPuwepTBINkQuFYkFPdQxnoWZfU2miZujeywByM
+         xmubQYAv4J9tahp1a0HNacVlgpppQ/eNxokUrfeNXFpg6cwtGHBolA6KPiyEJixXTSu0
+         Z50BiLYVuUb/nRaDL7xjaV4lBsMZdFQMpUDaqKA4DKpJ1cL0QFIM35Zk+/irCdVbZ4G8
+         YWsg==
+X-Gm-Message-State: APjAAAWztsmR4QX6OOLmHuJgjLKTM4Y8B/aLSlBKRqLx+OhLSmcUHO+D
+	9oSjdmSvPBm3El0mXUufgQgfvw==
+X-Google-Smtp-Source: APXvYqzKnRKXTbSewo9g+sqatp0lpebbLQ+O5ZjVk6KyfUgoEx1mnZrToEnmEzWYMkrlV8PzqqfD7w==
+X-Received: by 2002:a17:902:9698:: with SMTP id n24mr6800014plp.14.1567731546601;
+        Thu, 05 Sep 2019 17:59:06 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id i14sm4188593pfo.50.2019.09.05.17.59.05
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Thu, 05 Sep 2019 17:59:05 -0700 (PDT)
+Date: Thu, 5 Sep 2019 20:59:04 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Tim Murray <timmurray@google.com>,
+	Carmen Jackson <carmenjackson@google.com>,
+	Mayank Gupta <mayankgupta@google.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	kernel-team <kernel-team@android.com>,
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Jerome Glisse <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Tom Zanussi <zanussi@kernel.org>
+Subject: Re: [PATCH v2] mm: emit tracepoint when RSS changes by threshold
+Message-ID: <20190906005904.GC224720@google.com>
+References: <20190903200905.198642-1-joel@joelfernandes.org>
+ <20190904084508.GL3838@dhcp22.suse.cz>
+ <20190904153258.GH240514@google.com>
+ <20190904153759.GC3838@dhcp22.suse.cz>
+ <20190904162808.GO240514@google.com>
+ <20190905144310.GA14491@dhcp22.suse.cz>
+ <CAJuCfpFve2v7d0LX20btk4kAjEpgJ4zeYQQSpqYsSo__CY68xw@mail.gmail.com>
+ <20190905133507.783c6c61@oasis.local.home>
+ <CAKOZueuQpHDnk-3GrLdXH_N_5Z7FRSJu+cwKhHNMUyKRqvkzjA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <405ce28b-c0b4-780c-c883-42d741ec60e0@i-love.sakura.ne.jp>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZueuQpHDnk-3GrLdXH_N_5Z7FRSJu+cwKhHNMUyKRqvkzjA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/4/19 6:39 PM, Tetsuo Handa wrote:
-> On 2019/09/04 23:29, Michal Hocko wrote:
->> Ohh, right. We are trying to uncharge something that hasn't been charged
->> because page_counter_try_charge has failed. So the fix needs to be more
->> involved. Sorry, I should have realized that.
+On Thu, Sep 05, 2019 at 10:50:27AM -0700, Daniel Colascione wrote:
+> On Thu, Sep 5, 2019 at 10:35 AM Steven Rostedt <rostedt@goodmis.org> wrote:
+> > On Thu, 5 Sep 2019 09:03:01 -0700
+> > Suren Baghdasaryan <surenb@google.com> wrote:
+> >
+> > > On Thu, Sep 5, 2019 at 7:43 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > [Add Steven]
+> > > >
+> > > > On Wed 04-09-19 12:28:08, Joel Fernandes wrote:
+> > > > > On Wed, Sep 4, 2019 at 11:38 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > >
+> > > > > > On Wed 04-09-19 11:32:58, Joel Fernandes wrote:
+> > > > [...]
+> > > > > > > but also for reducing
+> > > > > > > tracing noise. Flooding the traces makes it less useful for long traces and
+> > > > > > > post-processing of traces. IOW, the overhead reduction is a bonus.
+> > > > > >
+> > > > > > This is not really anything special for this tracepoint though.
+> > > > > > Basically any tracepoint in a hot path is in the same situation and I do
+> > > > > > not see a point why each of them should really invent its own way to
+> > > > > > throttle. Maybe there is some way to do that in the tracing subsystem
+> > > > > > directly.
+> > > > >
+> > > > > I am not sure if there is a way to do this easily. Add to that, the fact that
+> > > > > you still have to call into trace events. Why call into it at all, if you can
+> > > > > filter in advance and have a sane filtering default?
+> > > > >
+> > > > > The bigger improvement with the threshold is the number of trace records are
+> > > > > almost halved by using a threshold. The number of records went from 4.6K to
+> > > > > 2.6K.
+> > > >
+> > > > Steven, would it be feasible to add a generic tracepoint throttling?
+> > >
+> > > I might misunderstand this but is the issue here actually throttling
+> > > of the sheer number of trace records or tracing large enough changes
+> > > to RSS that user might care about? Small changes happen all the time
+> > > but we are likely not interested in those. Surely we could postprocess
+> > > the traces to extract changes large enough to be interesting but why
+> > > capture uninteresting information in the first place? IOW the
+> > > throttling here should be based not on the time between traces but on
+> > > the amount of change of the traced signal. Maybe a generic facility
+> > > like that would be a good idea?
+> >
+> > You mean like add a trigger (or filter) that only traces if a field has
+> > changed since the last time the trace was hit? Hmm, I think we could
+> > possibly do that. Perhaps even now with histogram triggers?
 > 
-> OK. Survived the test. Thomas, please try.
-> 
->> ---
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 9ec5e12486a7..e18108b2b786 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2821,6 +2821,16 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
->>   
->>   	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
->>   	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
->> +
->> +		/*
->> +		 * Enforce __GFP_NOFAIL allocation because callers are not
->> +		 * prepared to see failures and likely do not have any failure
->> +		 * handling code.
->> +		 */
->> +		if (gfp & __GFP_NOFAIL) {
->> +			page_counter_charge(&memcg->kmem, nr_pages);
->> +			return 0;
->> +		}
->>   		cancel_charge(memcg, nr_pages);
->>   		return -ENOMEM;
->>   	}
->>
+> I was thinking along the same lines. The histogram subsystem seems
+> like a very good fit here. Histogram triggers already let users talk
+> about specific fields of trace events, aggregate them in configurable
+> ways, and (importantly, IMHO) create synthetic new trace events that
+> the kernel emits under configurable conditions.
 
-I tried the patch with 5.2.11 and wasn't able to trigger any null pointer
-deref crashes with it. Testing is tricky because the OOM killer will still
-run and eventually kill bash and whatever runs in the cgroup.
+Hmm, I think this tracing feature will be a good idea. But in order not to
+gate this patch, can we agree on keeping a temporary threshold for this
+patch? Once such idea is implemented in trace subsystem, then we can remove
+the temporary filter.
 
-I backported the patch to 4.19.69 and ran the chromium build like before
-but this time I couldn't trigger any system crashes.
+As Tim said, we don't want our traces flooded and this is a very useful
+tracepoint as proven in our internal usage at Android. The threshold filter
+is just few lines of code.
+
+thanks,
+
+ - Joel
+
 
