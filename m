@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8B04C43140
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:36:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 977D3C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:40:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD76E20838
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:36:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5DCE620842
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:40:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="Ef0Hr3tJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD76E20838
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="X+TZLFq+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5DCE620842
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 57F776B026C; Fri,  6 Sep 2019 11:36:01 -0400 (EDT)
+	id E552D6B000C; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52F4E6B026D; Fri,  6 Sep 2019 11:36:01 -0400 (EDT)
+	id E2DA36B026C; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F5B76B026E; Fri,  6 Sep 2019 11:36:01 -0400 (EDT)
+	id D43416B026D; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0067.hostedemail.com [216.40.44.67])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C136B026C
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:36:01 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id BD39A181AC9AE
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:36:00 +0000 (UTC)
-X-FDA: 75904896480.18.goat10_175069f10ae50
-X-HE-Tag: goat10_175069f10ae50
-X-Filterd-Recvd-Size: 4213
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:36:00 +0000 (UTC)
-Received: by mail-ed1-f68.google.com with SMTP id v38so6679011edm.7
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 08:35:59 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0196.hostedemail.com [216.40.44.196])
+	by kanga.kvack.org (Postfix) with ESMTP id B2E276B000C
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 3066D180AD7C3
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:40:11 +0000 (UTC)
+X-FDA: 75904907022.14.salt20_3bb9440e62630
+X-HE-Tag: salt20_3bb9440e62630
+X-Filterd-Recvd-Size: 4738
+Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com [209.85.208.65])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:40:10 +0000 (UTC)
+Received: by mail-ed1-f65.google.com with SMTP id f2so335146edw.3
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 08:40:10 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=A4FYq6BYAh9kLfOqN+BJBL7FeQsVNJ/SlbY8XN9CwA8=;
-        b=Ef0Hr3tJqLTPZXz5nKn/QZlVlv/EccVcAXv+2/UUOF6Mg5R+fHj87YhuLGsxjwYppU
-         W3/rHKML8xuucTp2rSpU2M2xqVOAPB2zE2P5SzCfGRnmQUckNHc9bFtZKPELKdLRUP2f
-         JG+u003rO5+i6SD1pmAO0U6edTrVhdAnswlfGrKlbFjZaunsV/07suyfBhpVyRaKAqPz
-         kgoeUTaq1QPmlw+R60+UxKe7BthBtS34DA2HkxeU86dVp7bcstmFCe/Kk5FE9Q+vkfgM
-         O4sRgA1GIDIYLWe3+HSMgP8M/j2LiKmEcd/yTovL3oK0UfXa3QpI0BHSrg+ZS8481Rrp
-         O53Q==
+        bh=CjF3fwI23SGTIbsZbebpupUjHvggvSShXHb+f7gohRg=;
+        b=X+TZLFq+/8fiOOZaSxM4o7weyYJJYjKBVTcRCZfcxr2IxHAce/BmJfEXlo+kHisHhF
+         mlpMhUTxWtcXV/LgdZFzuY7qNCrZaKMw8ItKcgilp5WTkQNFuCtZgPd4jGMxpgeusHKy
+         +ahYXFtlTF+mSXTcvIEKTHM34JZSa4gUxMyQbY9ovXkeE1DqzeHziy0kVUOT9HDoGgh+
+         86qEcJGuBwvEp64MJNk43vufsS6oXhTwJOTInG+rMeHXceUdYHOhY8j0CA+yEADsDreV
+         fxhYTUKSD4lXhNC87Jhmdi20O2F9lotiaxFikDlzOtV2OTRHPhktK0wYcLrfjjdxvON+
+         FoEQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=A4FYq6BYAh9kLfOqN+BJBL7FeQsVNJ/SlbY8XN9CwA8=;
-        b=Jp4qHIIcRIgGrp0EGvM7aNPfZyJiLAhbaJ9k42ED67xNicd/NZWo3Wu6qOvD7cclxN
-         GgaE3vt2iLs0w/KL8uKvNpdfopbrLoF4tFyG0s0rmhqDJ/HlpLuhg05ug2Aj/pSP8mFC
-         SB5+Ji9hcKLO6ZcvxeAKSw7mLQrG6eEnySpx4mU+vV0A7Ad7MWlXIsvR4NqyE2MoFk6Z
-         WNPJe8WZ6bbeUJ+Lk00C7s3Q+QlF7g6wpBNgdNT3ZS1N9z/jYXQCARiBXQeUM3HRCVgq
-         iXlgRvHRuu3p9yxQ3EH2SsCK5yz8Yf1G23v2rlvlHotHv4BGhoepx+5ZfYLNKvz8duw6
-         vOXA==
-X-Gm-Message-State: APjAAAXYnHk+d71aPV7eyGf5Ex9Kj8620/ZgBcvSlejbVArGSN19LeYL
-	RaUcuoEX1BXwIA9sEFB5J1MVe/cjzjGc1SGCpkPw4A==
-X-Google-Smtp-Source: APXvYqwSiKKOKWP/h3a0ZsF+Oo9rceIyMqvsTBtnjeEonE2/Oyyhql11Q3k8Zm0qLFs0EuLz3YWma2Khwt65rF7/etA=
-X-Received: by 2002:a05:6402:17ae:: with SMTP id j14mr10209564edy.219.1567784158621;
- Fri, 06 Sep 2019 08:35:58 -0700 (PDT)
+        bh=CjF3fwI23SGTIbsZbebpupUjHvggvSShXHb+f7gohRg=;
+        b=N0rD+sm1fRpcEcXtVp4fWLYzSoG6V3XXup8fQ/Yo6Ueh63Qh30da+I+Erg6FzePKDU
+         SlDXlb4+ayO6HKnDJR2Nv3CXJ7EYnAG1+10NDqn+Rf/oFKdGCBjbwObJakVsJvwvbeAU
+         i//UVQzB8+Bcst6EVpAAtVchpi2sxjiHZDpQXOs/Ha7plSmYMeVR1U9VQR730Ox8dcW4
+         C0be7Up97odVE3VCghhMn0gXq+XVgBTOXLAQWf6yxs8qucYSbGgof22Z++IOSdoS1iLW
+         fG/8D9O4GWxz+bhSThPD1/6L+yjkqqM3/elOs0EQ/HVdkVfaivT0S0SzQNVydMNwY3TT
+         Ykkw==
+X-Gm-Message-State: APjAAAW6mN5S2jkxhXO7d9nfQ9y+s9rbeOKQfZoHb8znGWUYHxnh07Ay
+	hDdFRrMRbzvkM035kDvJt5B4TGyKOk3yOdwPNY5iJQ==
+X-Google-Smtp-Source: APXvYqwgWEKdsXXZDKUgZfHTTS/3PBS/mpsvU7NBgD+cDEAZM2KkwC32Gcr7KkyJWBr9wuGwTdTO2+WUmBcm/dqbcb4=
+X-Received: by 2002:aa7:dd17:: with SMTP id i23mr10239139edv.124.1567784409076;
+ Fri, 06 Sep 2019 08:40:09 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-2-pasha.tatashin@soleen.com> <0f83b70e-2f8f-aa05-84d8-41290679003b@arm.com>
-In-Reply-To: <0f83b70e-2f8f-aa05-84d8-41290679003b@arm.com>
+ <20190821183204.23576-3-pasha.tatashin@soleen.com> <dc6506a0-9b66-f633-8319-9c8a9dc93d4f@arm.com>
+In-Reply-To: <dc6506a0-9b66-f633-8319-9c8a9dc93d4f@arm.com>
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 11:35:47 -0400
-Message-ID: <CA+CK2bBzCnxk8X8R=_70ECT=kn8QRm7OioZP4LNJioTNXYDhXQ@mail.gmail.com>
-Subject: Re: [PATCH v3 01/17] kexec: quiet down kexec reboot
+Date: Fri, 6 Sep 2019 11:39:58 -0400
+Message-ID: <CA+CK2bBgUH8v_bYEyJKPsLZFDxse6xYRwGR8KN=SzgHnrR9yhA@mail.gmail.com>
+Subject: Re: [PATCH v3 02/17] arm64, hibernate: use get_safe_page directly
 To: James Morse <james.morse@arm.com>
 Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
 	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
@@ -93,31 +93,43 @@ On Fri, Sep 6, 2019 at 11:17 AM James Morse <james.morse@arm.com> wrote:
 >
 > Hi Pavel,
 >
-> On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > Here is a regular kexec command sequence and output:
-> > =====
-> > $ kexec --reuse-cmdline -i --load Image
-> > $ kexec -e
-> > [  161.342002] kexec_core: Starting new kernel
-> >
-> > Welcome to Buildroot
-> > buildroot login:
-> > =====
-> >
-> > Even when "quiet" kernel parameter is specified, "kexec_core: Starting
-> > new kernel" is printed.
-> >
-> > This message has  KERN_EMERG level, but there is no emergency, it is a
-> > normal kexec operation, so quiet it down to appropriate KERN_NOTICE.
+> Nit: The pattern for the subject prefix should be "arm64: hibernate:"..
+> Its usually possible to spot the pattern from "git log --oneline $file".
+
+Sure, I will change here and in other places to "arm64: hibernate:"
+
 >
-> As this doesn't have a dependency with the rest of the series, you may want to post it
-> independently so it can be picked up independently.
+> On 21/08/2019 19:31, Pavel Tatashin wrote:
+> > create_safe_exec_page is a local function that uses the
+> > get_safe_page() to allocate page table and pages and one pages
+> > that is getting mapped.
+>
+> I can't parse this.
+>
+> create_safe_exec_page() uses hibernate's allocator to create a set of page table to map a
+> single page that will contain the relocation code.
 
-Hi James,
+Thanks I will rephrase it with your suggestion.
 
-I have posted it previously, but it has not been picked up. So, I
-decided to include it together with this series. Is this alright with
-you, otherwise I can remove it from this series.
+>
+>
+> > Remove the allocator related arguments, and use get_safe_page
+> > directly, as it is done in other local functions in this
+> > file.
+> ... because kexec can't use this as it doesn't have a working allocator.
+> Removing this function pointer makes it easier to refactor the code later.
+
+Thanks, I will add it to the description.
+
+>
+> (this thing is only a function pointer so kexec could use it too ... It looks like you're
+> creating extra work. Patch 7 moves these new calls out to a new file... presumably so
+> another patch can remove them again)
+>
+> As stand-alone cleanup the patch looks fine, but you probably don't need to do this.
+
+Without this clean-up moving to common code becomes messier. So, I
+would like to keep this change.
 
 Thank you,
 Pasha
