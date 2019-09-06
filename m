@@ -2,133 +2,130 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45F55C00307
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:51:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4C17C00307
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 20:16:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1ACB20838
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:51:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 95415207FC
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 20:16:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dPHHuipO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1ACB20838
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="OdQ+M7bC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95415207FC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44C716B0005; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
+	id 042796B0005; Fri,  6 Sep 2019 16:16:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FCD96B0006; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
+	id F3C9B6B0006; Fri,  6 Sep 2019 16:16:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EA5E6B0007; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
+	id E4B246B0007; Fri,  6 Sep 2019 16:16:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0120.hostedemail.com [216.40.44.120])
-	by kanga.kvack.org (Postfix) with ESMTP id 0778F6B0005
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:51:41 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 8E603181AC9B4
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:51:41 +0000 (UTC)
-X-FDA: 75905540802.19.net33_48eb1e9608d32
-X-HE-Tag: net33_48eb1e9608d32
-X-Filterd-Recvd-Size: 4751
-Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:51:40 +0000 (UTC)
-Received: by mail-pf1-f193.google.com with SMTP id q5so5205174pfg.13
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 12:51:40 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
+	by kanga.kvack.org (Postfix) with ESMTP id C16E36B0005
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 16:16:52 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 666846120
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 20:16:52 +0000 (UTC)
+X-FDA: 75905604264.17.bread84_1bbf4f901f07
+X-HE-Tag: bread84_1bbf4f901f07
+X-Filterd-Recvd-Size: 5310
+Received: from mail-pf1-f194.google.com (mail-pf1-f194.google.com [209.85.210.194])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 20:16:51 +0000 (UTC)
+Received: by mail-pf1-f194.google.com with SMTP id y72so5273557pfb.12
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 13:16:51 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=eGYgkRZj0NcCUP7h3iCHHFaAC43wNkWYu1G5sWIpzZk=;
-        b=dPHHuipONUA43OXAQtslB0Nstvm9jMsRi2Xwq5hH50w+aW+QvRYutnw/fm+ZG7i0Uh
-         DN6bxh04bPtnh8H+Jckkkjt4tqsrPRncv8LEM/2gGHj3+qgg1UfQcoX+NCedbCemX2hf
-         4pPzfsgB+v74/bibFiX73cVqf4tuH5FLNbguQx/Q9kKkjKrICJwZQoTaocu/szf93MIG
-         2lt4YqC8QUHBNGVldvYf3HiwJK+S5FJD4dDZozPpjAoh3EhBHkaSGy5yErN0Yiy3xoV4
-         fL9Lae/0xrXM1b2WJpTV85MiqBJnBZVNqs+EIjH4ORfj2WDZz5fD77nv4S9gbuWKmMtq
-         4tXg==
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=XpjoT+t3VPIqNty6+N9T0d42yqs+CXC4vRtjt+q0q7o=;
+        b=OdQ+M7bCR/Hs87PAgK5bi456+I3hom4IiTzR1sNybd715+6YInSNgJiLw0rRpHZPMi
+         CjaBP3CTTZu9FeC5FWYDLiBUENvXKGWPkVYABWUL4nKCD6fZpf4BG+Iex6F9NdjHFQHj
+         8+jMcuOvrvlRn4QQ6U0J+daib7Rrvq/aPr2svANxqeK0EG1D144YDT+sCm9505bEfM1e
+         8OfKsXCnkc+BGope+zK89PVKVpHCO099vcN+1Yq+/bRfFe9g7aKQhcDXxCAMf1+TJUzN
+         3mXVBcCYm0fGT8t1RitjWRrgQqLraI6TnC3ROOVlyJ/bqS6N1CBFd1oftwe9qSTYHNRM
+         n7Jg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:date:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=eGYgkRZj0NcCUP7h3iCHHFaAC43wNkWYu1G5sWIpzZk=;
-        b=JsZWNEG3DdUUA2nxXJrXwMglDvHtT7fz8nulpgdF3lQa3IJaeIcwP23embJWPr4LJp
-         sDg0PJfA6c09mjXvQcrbHHcf73axkYvEQDDqlaA/0AZNgFuEaI39xIN1YbDeQVBQYSFd
-         v+kEJ633JG6MrBNQIlY5tGwt1bxOCCZ8cwgro1Hiypv8QF52xFJd1xfC2lpCdmGVOBNC
-         e5qeuNCEVLRqAvu5l7fYhKR0lpAxvoEORAJb6fjOL4r0RHXwfMN48vGkjpAF8c8VGk20
-         W9wZLZ4Q+ZsbOFRJen2EXmTeCAW/LpryzjMfTjqmObgyECOz5a5/wwRiDluNRu0IA0pG
-         y2uQ==
-X-Gm-Message-State: APjAAAXLaN/8QZbq1FRpDun8kuWo/1WpHakniKtB/Uj7rW2IiSZ/cgBc
-	Dq9ICn9wa6MVpv7QaY40m78=
-X-Google-Smtp-Source: APXvYqxeaSSe8RWvGTP+Hhm0gpdZ9DLJYGvzAcdEP1AdGCDSVlIYbrpuZpy0V2v4ywX7STgoWPxd+A==
-X-Received: by 2002:a63:30c6:: with SMTP id w189mr9157795pgw.398.1567799499643;
-        Fri, 06 Sep 2019 12:51:39 -0700 (PDT)
-Received: from localhost ([121.137.63.184])
-        by smtp.gmail.com with ESMTPSA id q4sm7413899pfh.115.2019.09.06.12.51.38
+        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+         :references:user-agent:mime-version;
+        bh=XpjoT+t3VPIqNty6+N9T0d42yqs+CXC4vRtjt+q0q7o=;
+        b=ESilwcN4+WfSnMT/ZIu89l7VlSove5esQ5UR6IhIUmgtI9TPy3+LeFC/q0Uakb+EHC
+         dlWeHF5y8eSmsWbbFRv/TXN1ZNu9DqUV2paU7DN2vD9HPErnVZOB1OX9ocEQh7FKGtku
+         Y8affL0jCXk/E2Daj+T8BeZGFOWFeZMX4dB4Z+wS6T6+0v4AFpla6YYG0TgG5ldLJNPO
+         CxP+Pp9yFaQJef86uw7yC4GEFr5H69Y3zQGR6g534aOEcGkhcdAZWQwVIZKm7WyPbnWo
+         Rtq1BFjLHTUgO5cABYVPhr/krT/lem4s4vsxw/r/DtK+E52Dsy1mhkShesBC9HHsES+d
+         nFGg==
+X-Gm-Message-State: APjAAAXwjtgRyixkDrR4SqYvHcmk+rTZuduFiMOYTDdQbVr6DqfFl9s9
+	GiDheXbOWkzevyIIXn9IVUepAQ==
+X-Google-Smtp-Source: APXvYqy6kmrb6Rqhp74ZrCXwb0I57IQq3ixyKOJRHtKUsywDqn/BCFjE6trl3ESF6oEToJYzNCiNjw==
+X-Received: by 2002:a63:c006:: with SMTP id h6mr9416225pgg.290.1567801010246;
+        Fri, 06 Sep 2019 13:16:50 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id 11sm5406332pgo.43.2019.09.06.13.16.49
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Fri, 06 Sep 2019 12:51:38 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-X-Google-Original-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Date: Sat, 7 Sep 2019 04:51:35 +0900
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Steven Rostedt <rostedt@goodmis.org>, Qian Cai <cai@lca.pw>,
-	davem@davemloft.net, Eric Dumazet <eric.dumazet@gmail.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-Message-ID: <20190906195135.GA69785@tigerII.localdomain>
-References: <20190904061501.GB3838@dhcp22.suse.cz>
- <20190904064144.GA5487@jagdpanzerIV>
- <20190904065455.GE3838@dhcp22.suse.cz>
- <20190904071911.GB11968@jagdpanzerIV>
- <20190904074312.GA25744@jagdpanzerIV>
- <1567599263.5576.72.camel@lca.pw>
- <20190904144850.GA8296@tigerII.localdomain>
- <1567629737.5576.87.camel@lca.pw>
- <20190905113208.GA521@jagdpanzerIV>
- <20190906145533.4uw43a5pvsawmdov@pathway.suse.cz>
+        Fri, 06 Sep 2019 13:16:49 -0700 (PDT)
+Date: Fri, 6 Sep 2019 13:16:48 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Mike Kravetz <mike.kravetz@oracle.com>
+cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, 
+    Linus Torvalds <torvalds@linux-foundation.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, 
+    linux-mm@kvack.org
+Subject: Re: [rfc 3/4] mm, page_alloc: avoid expensive reclaim when compaction
+ may not succeed
+In-Reply-To: <3468b605-a3a9-6978-9699-57c52a90bd7e@oracle.com>
+Message-ID: <alpine.DEB.2.21.1909061314270.150656@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com> <alpine.DEB.2.21.1909041253390.94813@chino.kir.corp.google.com> <20190905090009.GF3838@dhcp22.suse.cz> <fab91766-da33-d62f-59fb-c226e4790a91@suse.cz>
+ <3468b605-a3a9-6978-9699-57c52a90bd7e@oracle.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190906145533.4uw43a5pvsawmdov@pathway.suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+Content-Type: text/plain; charset=US-ASCII
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/06/19 16:55), Petr Mladek wrote:
-> > I think we can queue significantly much less irq_work-s from printk().
-> > 
-> > Petr, Steven, what do you think?
-> > 
-> > Something like this. Call wake_up_interruptible(), switch to
-> > wake_up_klogd() only when called from sched code.
+On Thu, 5 Sep 2019, Mike Kravetz wrote:
+
+> I don't have a specific test for this.  It is somewhat common for people
+> to want to allocate "as many hugetlb pages as possible".  Therefore, they
+> will try to allocate more pages than reasonable for their environment and
+> take what they can get.  I 'tested' by simply creating some background
+> activity and then seeing how many hugetlb pages could be allocated.  Of
+> course, many tries over time in a loop.
 > 
-> Replacing irq_work_queue() with wake_up_interruptible() looks
-> dangerous to me.
+> This patch did not cause premature allocation failures in my limited testing.
+> The number of pages which could be allocated with and without patch were
+> pretty much the same.
 > 
-> As a result, all "normal" printk() calls from the scheduler
-> code will deadlock. There is almost always a userspace
-> logger registered.
+> Do note that I tested on top of Andrew's tree which contains this series:
+> http://lkml.kernel.org/r/20190806014744.15446-1-mike.kravetz@oracle.com
+> Patch 3 in that series causes allocations to fail sooner in the case of
+> COMPACT_DEFERRED:
+> http://lkml.kernel.org/r/20190806014744.15446-4-mike.kravetz@oracle.com
+> 
+> hugetlb allocations have the __GFP_RETRY_MAYFAIL flag set.  They are willing
+> to retry and wait and callers are aware of this.  Even though my limited
+> testing did not show regressions caused by this patch, I would prefer if the
+> quick exit did not apply to __GFP_RETRY_MAYFAIL requests.
 
-I don't see why all printk()-s should deadlock.
+Good!  I think that is the ideal way of handling it: we can specify the 
+preference to actually loop and retry (but still eventually fail) for 
+hugetlb allocations specifically for this patch by testing for 
+__GFP_RETRY_MAYFAIL.
 
-A "normal" printk() call will deadlock only when scheduler calls
-"normal" printk() under rq or pi locks. But this is illegal anyway,
-because console_sem up() calls wake_up_process() - the same function
-wake_up_interruptible() calls. IOW "normal" printk() calls from
-scheduler end up in scheduler, via console_sem->sched chain. We
-already execute wake_up_process()->try_to_wake_up() in printk(),
-even when a non-LOGLEVEL_SCHED printk() comes from scheduler.
-
-What am I missing something?
-
-	-ss
+I can add that to the formal proposal of patches 3 and 4 in this series 
+assuming we get 5.3 settled by applying the reverts in patches 1 and 2 so 
+that we don't cause various versions of Linux to have different default 
+and madvise allocation policies wrt NUMA.
 
