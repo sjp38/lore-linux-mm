@@ -2,149 +2,184 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85BB6C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 04:32:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88403C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 06:29:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F0B22075C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 04:32:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Q3BuF2fB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F0B22075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D68920842
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 06:29:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D68920842
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80F9E6B0003; Fri,  6 Sep 2019 00:32:31 -0400 (EDT)
+	id 7DE936B0003; Fri,  6 Sep 2019 02:29:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 798676B0006; Fri,  6 Sep 2019 00:32:31 -0400 (EDT)
+	id 78F2C6B0006; Fri,  6 Sep 2019 02:29:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 686CD6B0007; Fri,  6 Sep 2019 00:32:31 -0400 (EDT)
+	id 6A6076B0007; Fri,  6 Sep 2019 02:29:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0193.hostedemail.com [216.40.44.193])
-	by kanga.kvack.org (Postfix) with ESMTP id 4090C6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 00:32:31 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B38C9181AC9AE
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:32:30 +0000 (UTC)
-X-FDA: 75903224460.24.flag20_32fa81cb97d05
-X-HE-Tag: flag20_32fa81cb97d05
-X-Filterd-Recvd-Size: 4869
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:32:30 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id r12so3489238pfh.1
-        for <linux-mm@kvack.org>; Thu, 05 Sep 2019 21:32:30 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=/FnnT+XGY6LiCYmK28My012gZf6Sb+2aTvY99K4lAnU=;
-        b=Q3BuF2fBnREwoZv5O0AULfEwU50686QrzaKhLHMbWisLQZzidLcHnWw7inOhq+X5d0
-         A7knkkQ3nLa7oS8l1UsfvfKguV8y5dLyN1LfgryRRtb3GWx6t4b8WXdkq3QbZUbh+70i
-         BxNMcc5vP4B3FudQvzW0CJLc/VZEYAvqa2DXFt89TaP8Hw1i+W3BnmPyWO0M7A3wFSvH
-         nhkXpPqf1fDndZZZQkIMX9cgFVSpB5beYnftiuo3f2HCETrBTme40co3jJXniSJmbrdG
-         s1+UqzUA1KIPC7d3657NGcX5QQTDBTnN6ABFTeuGkvx8XadIGA4C1F//o59yUrr5Rx10
-         vAzw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=/FnnT+XGY6LiCYmK28My012gZf6Sb+2aTvY99K4lAnU=;
-        b=jkTS/XhfNKjlZxSYn5baIu3PHlScWuGtT46nvVeixUUCnuneK2o8f3UetVVz1denDN
-         1/BE2m/+wzMqceNB76P1A2tVq2efsNLHFJJekIN1wLH5F6ODthz9oJP3NzN60sxrI1Qx
-         AMJG2XUfpzQzUVu5lLdWGhukQsX1BmrbQt1ZT+ZVoIf9ul/Ahdb+Md2NjvHHeafpsJfU
-         qFW7UX5UcRs0jOGAuD+FfqOZSa16sK4DeXfSRUoeBXMinI8+wQdc/Z7NS047RVNTk//u
-         nygh4E4229/yPuzFnIBqgWUfQ3OzMWP3V4OD7nfC6dHb3YUBMPOuWZUax2YFAY2CgnOq
-         XJ9A==
-X-Gm-Message-State: APjAAAXiMR78ShaA83gOkg/zPQMKSSapZ55uCw1n82YzUkYUwxPfg+CU
-	jI+hHtvUKxM7OBrSHwOw6j8=
-X-Google-Smtp-Source: APXvYqxc2uuv0Y76XwL+zuFYgZvhJZ59EpeDPE8ua3TPxZjuvmHYXMQb7gErTzcoocI8nf9EL8w66A==
-X-Received: by 2002:a63:e901:: with SMTP id i1mr6181363pgh.451.1567744349121;
-        Thu, 05 Sep 2019 21:32:29 -0700 (PDT)
-Received: from localhost ([175.223.27.235])
-        by smtp.gmail.com with ESMTPSA id w13sm4344619pfi.30.2019.09.05.21.32.26
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Thu, 05 Sep 2019 21:32:28 -0700 (PDT)
-Date: Fri, 6 Sep 2019 13:32:24 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-To: Qian Cai <cai@lca.pw>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Petr Mladek <pmladek@suse.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Eric Dumazet <eric.dumazet@gmail.com>, davem@davemloft.net,
-	netdev@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
-Message-ID: <20190906043224.GA18163@jagdpanzerIV>
-References: <20190904061501.GB3838@dhcp22.suse.cz>
- <20190904064144.GA5487@jagdpanzerIV>
- <20190904065455.GE3838@dhcp22.suse.cz>
- <20190904071911.GB11968@jagdpanzerIV>
- <20190904074312.GA25744@jagdpanzerIV>
- <1567599263.5576.72.camel@lca.pw>
- <20190904144850.GA8296@tigerII.localdomain>
- <1567629737.5576.87.camel@lca.pw>
- <20190905113208.GA521@jagdpanzerIV>
- <1567699393.5576.96.camel@lca.pw>
+Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A0E16B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 02:29:07 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id E239852A2
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:29:06 +0000 (UTC)
+X-FDA: 75903518292.23.nose37_3222a5732111b
+X-HE-Tag: nose37_3222a5732111b
+X-Filterd-Recvd-Size: 6854
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 06:29:04 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2652828;
+	Thu,  5 Sep 2019 23:29:03 -0700 (PDT)
+Received: from [10.162.42.101] (p8cg001049571a15.blr.arm.com [10.162.42.101])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EE03C3F67D;
+	Thu,  5 Sep 2019 23:31:17 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Matthew Wilcox <willy@infradead.org>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+ <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+ <20190904221618.1b624a98@thinkpad>
+ <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
+ <20190905190629.523bdb87@thinkpad>
+Message-ID: <3c609e33-afbb-ffaf-481a-6d225a06d1d0@arm.com>
+Date: Fri, 6 Sep 2019 11:58:59 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1567699393.5576.96.camel@lca.pw>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000036, version=1.2.4
+In-Reply-To: <20190905190629.523bdb87@thinkpad>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/05/19 12:03), Qian Cai wrote:
-> > ---
-> > diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> > index cd51aa7d08a9..89cb47882254 100644
-> > --- a/kernel/printk/printk.c
-> > +++ b/kernel/printk/printk.c
-> > @@ -2027,8 +2027,11 @@ asmlinkage int vprintk_emit(int facility, int =
-level,
-> > =A0	pending_output =3D (curr_log_seq !=3D log_next_seq);
-> > =A0	logbuf_unlock_irqrestore(flags);
-> > =A0
-> > +	if (!pending_output)
-> > +		return printed_len;
-> > +
-> > =A0	/* If called from the scheduler, we can not call up(). */
-> > -	if (!in_sched && pending_output) {
-> > +	if (!in_sched) {
-> > =A0		/*
-> > =A0		=A0* Disable preemption to avoid being preempted while holding
-> > =A0		=A0* console_sem which would prevent anyone from printing to
-> > @@ -2043,10 +2046,11 @@ asmlinkage int vprintk_emit(int facility, int=
- level,
-> > =A0		if (console_trylock_spinning())
-> > =A0			console_unlock();
-> > =A0		preempt_enable();
-> > -	}
-> > =A0
-> > -	if (pending_output)
-> > +		wake_up_interruptible(&log_wait);
-> > +	} else {
-> > =A0		wake_up_klogd();
-> > +	}
-> > =A0	return printed_len;
-> > =A0}
-> > =A0EXPORT_SYMBOL(vprintk_emit);
-> > ---
+On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
+> On Thu, 5 Sep 2019 14:48:14 +0530
+> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+> 
+>>> [...]  
+>>>> +
+>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
+>>>> +static void pud_clear_tests(pud_t *pudp)
+>>>> +{
+>>>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+>>>> +	pud_clear(pudp);
+>>>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+>>>> +}  
+>>>
+>>> For pgd/p4d/pud_clear(), we only clear if the page table level is present
+>>> and not folded. The memset() here overwrites the table type bits, so
+>>> pud_clear() will not clear anything on s390 and the pud_none() check will
+>>> fail.
+>>> Would it be possible to OR a (larger) random value into the table, so that
+>>> the lower 12 bits would be preserved?  
+>>
+>> So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
+>> it should OR a large random value preserving lower 12 bits. Hmm, this should
+>> still do the trick for other platforms, they just need non zero value. So on
+>> s390, the lower 12 bits on the page table entry already has valid value while
+>> entering this function which would make sure that pud_clear() really does
+>> clear the entry ?
+> 
+> Yes, in theory the table entry on s390 would have the type set in the last
+> 4 bits, so preserving those would be enough. If it does not conflict with
+> others, I would still suggest preserving all 12 bits since those would contain
+> arch-specific flags in general, just to be sure. For s390, the pte/pmd tests
+> would also work with the memset, but for consistency I think the same logic
+> should be used in all pxd_clear_tests.
 
-Qian Cai, any chance you can test that patch?
+Makes sense but..
 
-	-ss
+There is a small challenge with this. Modifying individual bits on a given
+page table entry from generic code like this test case is bit tricky. That
+is because there are not enough helpers to create entries with an absolute
+value. This would have been easier if all the platforms provided functions
+like __pxx() which is not the case now. Otherwise something like this should
+have worked.
+
+
+pud_t pud = READ_ONCE(*pudp);
+pud = __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0))
+WRITE_ONCE(*pudp, pud);
+
+But __pud() will fail to build in many platforms.
+
+The other alternative will be to make sure memset() happens on all other
+bits except the lower 12 bits which will depend on endianness. If s390
+has a fixed endianness, we can still use either of them which will hold
+good for others as well.
+
+memset(pudp, RANDOM_NZVALUE, sizeof(pud_t) - 3);
+
+OR
+
+memset(pudp + 3, RANDOM_NZVALUE, sizeof(pud_t) - 3);
+
+> 
+> However, there is another issue on s390 which will make this only work
+> for pud_clear_tests(), and not for the p4d/pgd_tests. The problem is that
+> mm_alloc() will only give you a 3-level page table initially on s390.
+> This means that pudp == p4dp == pgdp, and so the p4d/pgd_tests will
+> both see the pud level (of course this also affects other tests).
+
+Got it.
+
+> 
+> Not sure yet how to fix this, i.e. how to initialize/update the page table
+> to 5 levels. We can handle 5 level page tables, and it would be good if
+> all levels could be tested, but using mm_alloc() to establish the page
+> tables might not work on s390. One option could be to provide an arch-hook
+> or weak function to allocate/initialize the mm.
+
+Sure, got it. Though I plan to do add some arch specific tests or init sequence
+like the above later on but for now the idea is to get the smallest possible set
+of test cases which builds and runs on all platforms without requiring any arch
+specific hooks or special casing (#ifdef) to be agreed upon broadly and accepted.
+
+Do you think this is absolutely necessary on s390 for the very first set of test
+cases or we can add this later on as an improvement ?
+
+> 
+> IIUC, the (dummy) mm is really only needed to provide an mm->pgd as starting
+> point, right?
+
+Right.
 
