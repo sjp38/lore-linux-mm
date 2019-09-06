@@ -4,59 +4,61 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED63CC43140
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:45:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8834DC43140
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:50:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B4A5220842
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:45:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4A5220842
+	by mail.kernel.org (Postfix) with ESMTP id 4210B20578
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 08:50:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4210B20578
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 359A06B0003; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
+	id CA3F66B0003; Fri,  6 Sep 2019 04:50:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E2206B0006; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
+	id C540D6B0006; Fri,  6 Sep 2019 04:50:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1834A6B0007; Fri,  6 Sep 2019 04:45:43 -0400 (EDT)
+	id B1C9E6B0007; Fri,  6 Sep 2019 04:50:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id E55DC6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:45:42 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 6E14D180AD7C3
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:45:42 +0000 (UTC)
-X-FDA: 75903862524.28.nest46_4ec152d3c7539
-X-HE-Tag: nest46_4ec152d3c7539
-X-Filterd-Recvd-Size: 10146
+Received: from forelay.hostedemail.com (smtprelay0131.hostedemail.com [216.40.44.131])
+	by kanga.kvack.org (Postfix) with ESMTP id 8871F6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 04:50:51 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1E1D062DD
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:50:51 +0000 (UTC)
+X-FDA: 75903875502.17.week16_7baf8eb982823
+X-HE-Tag: week16_7baf8eb982823
+X-Filterd-Recvd-Size: 13724
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:45:41 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:50:49 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C7515C04BD48;
-	Fri,  6 Sep 2019 08:45:39 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7801F301A3E3;
+	Fri,  6 Sep 2019 08:50:48 +0000 (UTC)
 Received: from [10.36.117.162] (ovpn-117-162.ams2.redhat.com [10.36.117.162])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 098B25C219;
-	Fri,  6 Sep 2019 08:45:31 +0000 (UTC)
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "mhocko@kernel.org" <mhocko@kernel.org>,
- "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
- "longman@redhat.com" <longman@redhat.com>,
- "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
- "mst@redhat.com" <mst@redhat.com>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
- Junichi Nomura <j-nomura@ce.jp.nec.com>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 38E31100194E;
+	Fri,  6 Sep 2019 08:50:41 +0000 (UTC)
+Subject: Re: [PATCH v2 1/7] mm/gup: Rename "nonblocking" to "locked" where
+ proper
+To: Peter Xu <peterx@redhat.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+ Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>,
+ Marty McFadden <mcfadden8@llnl.gov>, Shaohua Li <shli@fb.com>,
+ Andrea Arcangeli <aarcange@redhat.com>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ Denis Plotnikov <dplotnikov@virtuozzo.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman
+ <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>,
+ "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+References: <20190905101534.9637-1-peterx@redhat.com>
+ <20190905101534.9637-2-peterx@redhat.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -103,133 +105,217 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
-Date: Fri, 6 Sep 2019 10:45:31 +0200
+Message-ID: <c25c5756-fd63-b8f6-4d67-d4506052891c@redhat.com>
+Date: Fri, 6 Sep 2019 10:50:40 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
-Content-Type: text/plain; charset=iso-2022-jp
+In-Reply-To: <20190905101534.9637-2-peterx@redhat.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 06 Sep 2019 08:45:39 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 06 Sep 2019 08:50:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.09.19 10:09, Toshiki Fukasawa wrote:
-> A kernel panic is observed during reading
-> /proc/kpage{cgroup,count,flags} for first few pfns allocated by
-> pmem namespace:
->=20
-> BUG: unable to handle page fault for address: fffffffffffffffe
-> [  114.495280] #PF: supervisor read access in kernel mode
-> [  114.495738] #PF: error_code(0x0000) - not-present page
-> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
-> [  114.496713] Oops: 0000 [#1] SMP PTI
-> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1
-> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), B=
-IOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
-> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
-> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00=
- 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 =
-c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
-> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
-> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000=
-000000000
-> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07=
-489000000
-> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000=
-000000000
-> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000=
-000240000
-> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e=
-601a0ff08
-> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) kn=
-lGS:0000000000000000
-> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 0000000=
-0000006e0
-> [  114.506401] Call Trace:
-> [  114.506660]  kpageflags_read+0xb1/0x130
-> [  114.507051]  proc_reg_read+0x39/0x60
-> [  114.507387]  vfs_read+0x8a/0x140
-> [  114.507686]  ksys_pread64+0x61/0xa0
-> [  114.508021]  do_syscall_64+0x5f/0x1a0
-> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> [  114.508844] RIP: 0033:0x7f0266ba426b
->=20
-> The first few pages of ZONE_DEVICE expressed as the range
-> (altmap->base_pfn) to (altmap->base_pfn + altmap->reserve) are
-> skipped by struct page initialization. Some pfn walkers like
-> /proc/kpage{cgroup, count, flags} can't handle these uninitialized
-> struct pages, which causes the error.
->=20
-> In previous discussion, Dan seemed to have concern that the struct
-> page area of some pages indicated by vmem_altmap->reserve may not
-> be allocated. (See https://lore.kernel.org/lkml/CAPcyv4i5FjTOnPbXNcTzvt=
-+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com/)
-> However, arch_add_memory() called by devm_memremap_pages() allocates
-> struct page area for pages containing addresses in the range
-> (res.start) to (res.start + resource_size(res)), which include the
-> pages indicated by vmem_altmap->reserve. If I read correctly, it is
-> allocated as requested at least on x86_64. Also, memmap_init_zone()
-> initializes struct pages in the same range.
-> So I think the struct pages should be initialized.>
-
-For !ZONE_DEVICE memory, the memmap is valid with SECTION_IS_ONLINE -
-for the whole section. For ZONE_DEVICE memory we have no such
-indication. In any section that is !SECTION_IS_ONLINE and
-SECTION_MARKED_PRESENT, we could have any subsections initialized.
-
-The only indication I am aware of is pfn_zone_device_reserved() - which
-seems to check exactly what you are trying to skip here.
-
-Can't you somehow use pfn_zone_device_reserved() ? Or if you considered
-that already, why did you decide against it?
-
-> Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-> Cc: stable@vger.kernel.org
+On 05.09.19 12:15, Peter Xu wrote:
+> There's plenty of places around __get_user_pages() that has a parameter
+> "nonblocking" which does not really mean that "it won't block" (because
+> it can really block) but instead it shows whether the mmap_sem is
+> released by up_read() during the page fault handling mostly when
+> VM_FAULT_RETRY is returned.
+> 
+> We have the correct naming in e.g. get_user_pages_locked() or
+> get_user_pages_remote() as "locked", however there're still many places
+> that are using the "nonblocking" as name.
+> 
+> Renaming the places to "locked" where proper to better suite the
+> functionality of the variable.  While at it, fixing up some of the
+> comments accordingly.
+> 
+> Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 > ---
-> Changes since rev 1:
->  Instead of avoiding uninitialized pages on the pfn walker side,
->  we initialize struct pages.
->=20
-> mm/page_alloc.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
->=20
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9c91949..6d180ae 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5846,8 +5846,7 @@ void __meminit memmap_init_zone(unsigned long siz=
-e, int nid, unsigned long zone,
-> =20
->  #ifdef CONFIG_ZONE_DEVICE
->  	/*
-> -	 * Honor reservation requested by the driver for this ZONE_DEVICE
-> -	 * memory. We limit the total number of pages to initialize to just
-> +	 * We limit the total number of pages to initialize to just
->  	 * those that might contain the memory mapping. We will defer the
->  	 * ZONE_DEVICE page initialization until after we have released
->  	 * the hotplug lock.
-> @@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long siz=
-e, int nid, unsigned long zone,
->  		if (!altmap)
->  			return;
-> =20
-> -		if (start_pfn =3D=3D altmap->base_pfn)
-> -			start_pfn +=3D altmap->reserve;
->  		end_pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
+>  mm/gup.c     | 44 +++++++++++++++++++++-----------------------
+>  mm/hugetlb.c |  8 ++++----
+>  2 files changed, 25 insertions(+), 27 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 98f13ab37bac..eddbb95dcb8f 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -622,12 +622,12 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
+>  }
+>  
+>  /*
+> - * mmap_sem must be held on entry.  If @nonblocking != NULL and
+> - * *@flags does not include FOLL_NOWAIT, the mmap_sem may be released.
+> - * If it is, *@nonblocking will be set to 0 and -EBUSY returned.
+> + * mmap_sem must be held on entry.  If @locked != NULL and *@flags
+> + * does not include FOLL_NOWAIT, the mmap_sem may be released.  If it
+> + * is, *@locked will be set to 0 and -EBUSY returned.
+>   */
+>  static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+> -		unsigned long address, unsigned int *flags, int *nonblocking)
+> +		unsigned long address, unsigned int *flags, int *locked)
+>  {
+>  	unsigned int fault_flags = 0;
+>  	vm_fault_t ret;
+> @@ -639,7 +639,7 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+>  		fault_flags |= FAULT_FLAG_WRITE;
+>  	if (*flags & FOLL_REMOTE)
+>  		fault_flags |= FAULT_FLAG_REMOTE;
+> -	if (nonblocking)
+> +	if (locked)
+>  		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+>  	if (*flags & FOLL_NOWAIT)
+>  		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+> @@ -665,8 +665,8 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
 >  	}
->  #endif
->=20
+>  
+>  	if (ret & VM_FAULT_RETRY) {
+> -		if (nonblocking && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+> -			*nonblocking = 0;
+> +		if (locked && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+> +			*locked = 0;
+>  		return -EBUSY;
+>  	}
+>  
+> @@ -743,7 +743,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+>   *		only intends to ensure the pages are faulted in.
+>   * @vmas:	array of pointers to vmas corresponding to each page.
+>   *		Or NULL if the caller does not require them.
+> - * @nonblocking: whether waiting for disk IO or mmap_sem contention
+> + * @locked:     whether we're still with the mmap_sem held
+>   *
+>   * Returns number of pages pinned. This may be fewer than the number
+>   * requested. If nr_pages is 0 or negative, returns 0. If no pages
+> @@ -772,13 +772,11 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+>   * appropriate) must be called after the page is finished with, and
+>   * before put_page is called.
+>   *
+> - * If @nonblocking != NULL, __get_user_pages will not wait for disk IO
+> - * or mmap_sem contention, and if waiting is needed to pin all pages,
+> - * *@nonblocking will be set to 0.  Further, if @gup_flags does not
+> - * include FOLL_NOWAIT, the mmap_sem will be released via up_read() in
+> - * this case.
+> + * If @locked != NULL, *@locked will be set to 0 when mmap_sem is
+> + * released by an up_read().  That can happen if @gup_flags does not
+> + * have FOLL_NOWAIT.
+>   *
+> - * A caller using such a combination of @nonblocking and @gup_flags
+> + * A caller using such a combination of @locked and @gup_flags
+>   * must therefore hold the mmap_sem for reading only, and recognize
+>   * when it's been released.  Otherwise, it must be held for either
+>   * reading or writing and will not be released.
+> @@ -790,7 +788,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
+>  static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		unsigned long start, unsigned long nr_pages,
+>  		unsigned int gup_flags, struct page **pages,
+> -		struct vm_area_struct **vmas, int *nonblocking)
+> +		struct vm_area_struct **vmas, int *locked)
+>  {
+>  	long ret = 0, i = 0;
+>  	struct vm_area_struct *vma = NULL;
+> @@ -834,7 +832,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  			if (is_vm_hugetlb_page(vma)) {
+>  				i = follow_hugetlb_page(mm, vma, pages, vmas,
+>  						&start, &nr_pages, i,
+> -						gup_flags, nonblocking);
+> +						gup_flags, locked);
+>  				continue;
+>  			}
+>  		}
+> @@ -852,7 +850,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		page = follow_page_mask(vma, start, foll_flags, &ctx);
+>  		if (!page) {
+>  			ret = faultin_page(tsk, vma, start, &foll_flags,
+> -					nonblocking);
+> +					   locked);
+>  			switch (ret) {
+>  			case 0:
+>  				goto retry;
+> @@ -1178,7 +1176,7 @@ EXPORT_SYMBOL(get_user_pages_remote);
+>   * @vma:   target vma
+>   * @start: start address
+>   * @end:   end address
+> - * @nonblocking:
+> + * @locked: whether the mmap_sem is still held
+>   *
+>   * This takes care of mlocking the pages too if VM_LOCKED is set.
+>   *
+> @@ -1186,14 +1184,14 @@ EXPORT_SYMBOL(get_user_pages_remote);
+>   *
+>   * vma->vm_mm->mmap_sem must be held.
+>   *
+> - * If @nonblocking is NULL, it may be held for read or write and will
+> + * If @locked is NULL, it may be held for read or write and will
+>   * be unperturbed.
+>   *
+> - * If @nonblocking is non-NULL, it must held for read only and may be
+> - * released.  If it's released, *@nonblocking will be set to 0.
+> + * If @locked is non-NULL, it must held for read only and may be
+> + * released.  If it's released, *@locked will be set to 0.
+>   */
+>  long populate_vma_page_range(struct vm_area_struct *vma,
+> -		unsigned long start, unsigned long end, int *nonblocking)
+> +		unsigned long start, unsigned long end, int *locked)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	unsigned long nr_pages = (end - start) / PAGE_SIZE;
+> @@ -1228,7 +1226,7 @@ long populate_vma_page_range(struct vm_area_struct *vma,
+>  	 * not result in a stack expansion that recurses back here.
+>  	 */
+>  	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
+> -				NULL, NULL, nonblocking);
+> +				NULL, NULL, locked);
+>  }
+>  
+>  /*
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ede7e7f5d1ab..5f816ee42206 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4251,7 +4251,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			 struct page **pages, struct vm_area_struct **vmas,
+>  			 unsigned long *position, unsigned long *nr_pages,
+> -			 long i, unsigned int flags, int *nonblocking)
+> +			 long i, unsigned int flags, int *locked)
+>  {
+>  	unsigned long pfn_offset;
+>  	unsigned long vaddr = *position;
+> @@ -4322,7 +4322,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				spin_unlock(ptl);
+>  			if (flags & FOLL_WRITE)
+>  				fault_flags |= FAULT_FLAG_WRITE;
+> -			if (nonblocking)
+> +			if (locked)
+>  				fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+>  			if (flags & FOLL_NOWAIT)
+>  				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
+> @@ -4339,9 +4339,9 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				break;
+>  			}
+>  			if (ret & VM_FAULT_RETRY) {
+> -				if (nonblocking &&
+> +				if (locked &&
+>  				    !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+> -					*nonblocking = 0;
+> +					*locked = 0;
+>  				*nr_pages = 0;
+>  				/*
+>  				 * VM_FAULT_RETRY must not return an
+> 
 
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
---=20
+-- 
 
 Thanks,
 
