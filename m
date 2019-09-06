@@ -2,62 +2,79 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 977E3C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 09:02:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A447BC43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 09:21:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5156B2082C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 09:02:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5156B2082C
+	by mail.kernel.org (Postfix) with ESMTP id 53AA52082C
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 09:21:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53AA52082C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E20DD6B0003; Fri,  6 Sep 2019 05:02:31 -0400 (EDT)
+	id 930CE6B0003; Fri,  6 Sep 2019 05:21:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DABA66B0006; Fri,  6 Sep 2019 05:02:31 -0400 (EDT)
+	id 8E1D76B0006; Fri,  6 Sep 2019 05:21:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4ADA6B0007; Fri,  6 Sep 2019 05:02:31 -0400 (EDT)
+	id 7A83C6B0007; Fri,  6 Sep 2019 05:21:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0057.hostedemail.com [216.40.44.57])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BDB36B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 05:02:31 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 4A85E6D8F
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 09:02:31 +0000 (UTC)
-X-FDA: 75903904902.19.side39_5024f0746b210
-X-HE-Tag: side39_5024f0746b210
-X-Filterd-Recvd-Size: 10605
+Received: from forelay.hostedemail.com (smtprelay0250.hostedemail.com [216.40.44.250])
+	by kanga.kvack.org (Postfix) with ESMTP id 54F226B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 05:21:36 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id D711A1B660
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 09:21:35 +0000 (UTC)
+X-FDA: 75903952950.15.pies50_653016b1e3d4b
+X-HE-Tag: pies50_653016b1e3d4b
+X-Filterd-Recvd-Size: 9696
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 09:02:30 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 09:21:35 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id ADE9C89ACA;
-	Fri,  6 Sep 2019 09:02:29 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 55BDE308FC20;
+	Fri,  6 Sep 2019 09:21:33 +0000 (UTC)
 Received: from [10.36.117.162] (ovpn-117-162.ams2.redhat.com [10.36.117.162])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B09745D784;
-	Fri,  6 Sep 2019 09:02:23 +0000 (UTC)
-Subject: Re: [PATCH v2 3/7] mm: Introduce FAULT_FLAG_INTERRUPTIBLE
-To: Peter Xu <peterx@redhat.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
- Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>,
- Marty McFadden <mcfadden8@llnl.gov>, Shaohua Li <shli@fb.com>,
- Andrea Arcangeli <aarcange@redhat.com>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- Denis Plotnikov <dplotnikov@virtuozzo.com>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman
- <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>,
- "Dr . David Alan Gilbert" <dgilbert@redhat.com>
-References: <20190905101534.9637-1-peterx@redhat.com>
- <20190905101534.9637-4-peterx@redhat.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 404525D9CA;
+	Fri,  6 Sep 2019 09:21:24 +0000 (UTC)
+Subject: Re: [PATCH v4 0/8] mm/memory_hotplug: Shrink zones before removing
+ memory
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Andy Lutomirski <luto@kernel.org>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Jun Yao <yaojun8558363@gmail.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Mark Rutland <mark.rutland@arm.com>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>,
+ Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
+ Rich Felker <dalias@libc.org>, Robin Murphy <robin.murphy@arm.com>,
+ Steve Capper <steve.capper@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Tom Lendacky <thomas.lendacky@amd.com>, Tony Luck <tony.luck@intel.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Wei Yang <richard.weiyang@gmail.com>,
+ Wei Yang <richardw.yang@linux.intel.com>, Will Deacon <will@kernel.org>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Yu Zhao <yuzhao@google.com>
+References: <20190830091428.18399-1-david@redhat.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -104,153 +121,103 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <0d45ffaf-0588-a068-d361-6a9cb6c71413@redhat.com>
-Date: Fri, 6 Sep 2019 11:02:22 +0200
+Message-ID: <d77b4ef9-2524-cfab-58aa-a2a6d42bb121@redhat.com>
+Date: Fri, 6 Sep 2019 11:21:23 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190905101534.9637-4-peterx@redhat.com>
+In-Reply-To: <20190830091428.18399-1-david@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 06 Sep 2019 09:02:29 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 06 Sep 2019 09:21:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05.09.19 12:15, Peter Xu wrote:
-> handle_userfaultfd() is currently the only one place in the kernel
-> page fault procedures that can respond to non-fatal userspace signals.
-> It was trying to detect such an allowance by checking against USER &
-> KILLABLE flags, which was "un-official".
->=20
-> In this patch, we introduced a new flag (FAULT_FLAG_INTERRUPTIBLE) to
-> show that the fault handler allows the fault procedure to respond even
-> to non-fatal signals.  Meanwhile, add this new flag to the default
-> fault flags so that all the page fault handlers can benefit from the
-> new flag.  With that, replacing the userfault check to this one.
->=20
-> Since the line is getting even longer, clean up the fault flags a bit
-> too to ease TTY users.
->=20
-> Although we've got a new flag and applied it, we shouldn't have any
-> functional change with this patch so far.
->=20
-> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-> Signed-off-by: Peter Xu <peterx@redhat.com>
-> ---
->  fs/userfaultfd.c   |  4 +---
->  include/linux/mm.h | 39 ++++++++++++++++++++++++++++-----------
->  2 files changed, 29 insertions(+), 14 deletions(-)
->=20
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index ccbdbd62f0d8..4a8ad2dc2b6f 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -462,9 +462,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, u=
-nsigned long reason)
->  	uwq.ctx =3D ctx;
->  	uwq.waken =3D false;
-> =20
-> -	return_to_userland =3D
-> -		(vmf->flags & (FAULT_FLAG_USER|FAULT_FLAG_KILLABLE)) =3D=3D
-> -		(FAULT_FLAG_USER|FAULT_FLAG_KILLABLE);
-> +	return_to_userland =3D vmf->flags & FAULT_FLAG_INTERRUPTIBLE;
->  	blocking_state =3D return_to_userland ? TASK_INTERRUPTIBLE :
->  			 TASK_KILLABLE;
-> =20
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 57fb5c535f8e..53ec7abb8472 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -383,22 +383,38 @@ extern unsigned int kobjsize(const void *objp);
->   */
->  extern pgprot_t protection_map[16];
-> =20
-> -#define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
-> -#define FAULT_FLAG_MKWRITE	0x02	/* Fault was mkwrite of existing pte *=
-/
-> -#define FAULT_FLAG_ALLOW_RETRY	0x04	/* Retry fault if blocking */
-> -#define FAULT_FLAG_RETRY_NOWAIT	0x08	/* Don't drop mmap_sem and wait w=
-hen retrying */
-> -#define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killa=
-ble region */
-> -#define FAULT_FLAG_TRIED	0x20	/* Second try */
-> -#define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
-> -#define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
-> -#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instr=
-uction fetch */
-> +/**
-> + * Fault flag definitions.
-> + *
-> + * @FAULT_FLAG_WRITE: Fault was a write fault.
-> + * @FAULT_FLAG_MKWRITE: Fault was mkwrite of existing PTE.
-> + * @FAULT_FLAG_ALLOW_RETRY: Allow to retry the fault if blocked.
-> + * @FAULT_FLAG_RETRY_NOWAIT: Don't drop mmap_sem and wait when retryin=
-g.
-> + * @FAULT_FLAG_KILLABLE: The fault task is in SIGKILL killable region.
-> + * @FAULT_FLAG_TRIED: The fault has been tried once.
-> + * @FAULT_FLAG_USER: The fault originated in userspace.
-> + * @FAULT_FLAG_REMOTE: The fault is not for current task/mm.
-> + * @FAULT_FLAG_INSTRUCTION: The fault was during an instruction fetch.
-> + * @FAULT_FLAG_INTERRUPTIBLE: The fault can be interrupted by non-fata=
-l signals.
-> + */
-> +#define FAULT_FLAG_WRITE			0x01
-> +#define FAULT_FLAG_MKWRITE			0x02
-> +#define FAULT_FLAG_ALLOW_RETRY			0x04
-> +#define FAULT_FLAG_RETRY_NOWAIT			0x08
-> +#define FAULT_FLAG_KILLABLE			0x10
-> +#define FAULT_FLAG_TRIED			0x20
-> +#define FAULT_FLAG_USER				0x40
-> +#define FAULT_FLAG_REMOTE			0x80
-> +#define FAULT_FLAG_INSTRUCTION  		0x100
-> +#define FAULT_FLAG_INTERRUPTIBLE		0x200
-> =20
+On 30.08.19 11:14, David Hildenbrand wrote:
+> This series fixes the access of uninitialized memmaps when shrinking
+> zones/nodes and when removing memory.
+> 
+> We stop trying to shrink ZONE_DEVICE, as it's buggy, fixing it would be
+> more involved (we don't have SECTION_IS_ONLINE as an indicator), and
+> shrinking is only of limited use (set_zone_contiguous() cannot detect
+> the ZONE_DEVICE as contiguous). As far as I can tell, this should be fine
+> for ZONE_DEVICE.
+> 
+> We continue shrinking zones, but I reduced the amount of code to a
+> minimum. Shrinking is especially necessary to keep zone->contiguous set
+> where possible, especially on memory unplug of DIMMs at zone boundaries.
+> 
+> --------------------------------------------------------------------------
+> 
+> Zones are now properly shrunk when offlining memory blocks or when
+> onlining failed. This allows to properly shrink zones on memory unplug
+> even if the separate memory blocks of a DIMM were onlined to different
+> zones or re-onlined to a different zone after offlining.
+> 
+> Example:
+> 
+> :/# cat /proc/zoneinfo
+> Node 1, zone  Movable
+>         spanned  0
+>         present  0
+>         managed  0
+> :/# echo "online_movable" > /sys/devices/system/memory/memory41/state
+> :/# echo "online_movable" > /sys/devices/system/memory/memory43/state
+> :/# cat /proc/zoneinfo
+> Node 1, zone  Movable
+>         spanned  98304
+>         present  65536
+>         managed  65536
+> :/# echo 0 > /sys/devices/system/memory/memory43/online
+> :/# cat /proc/zoneinfo
+> Node 1, zone  Movable
+>         spanned  32768
+>         present  32768
+>         managed  32768
+> :/# echo 0 > /sys/devices/system/memory/memory41/online
+> :/# cat /proc/zoneinfo
+> Node 1, zone  Movable
+>         spanned  0
+>         present  0
+>         managed  0
+> 
+> --------------------------------------------------------------------------
+> 
+> I tested this with DIMMs on x86, but didn't test the ZONE_DEVICE part yet.
+> 
+> 
+> v3 -> v4:
+> - Drop "mm/memremap: Get rid of memmap_init_zone_device()"
+> -- As Alexander noticed, it was messy either way :)
+> - Drop "mm/memory_hotplug: Exit early in __remove_pages() on BUGs"
+> - Drop "mm: Exit early in set_zone_contiguous() if already contiguous"
+> - Drop "mm/memory_hotplug: Optimize zone shrinking code when checking for
+>   holes"
+> - Merged "mm/memory_hotplug: Remove pages from a zone before removing
+>   memory" and "mm/memory_hotplug: Remove zone parameter from
+>   __remove_pages()" into "mm/memory_hotplug: Shrink zones when offlining
+>   memory"
+> - Added "mm/memory_hotplug: Poison memmap in remove_pfn_range_from_zone()"
+> - Stop shrinking ZONE_DEVICE
+> - Reshuffle patches, moving all fixes to the front. Add Fixes: tags.
+> - Change subject/description of various patches
+> - Minor changes (too many to mention)
+> 
+> 
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
 
-I'd probably split off the unrelated doc changes. Just a matter of taste.
+Friendly ping. Can any of the devmem folks verify that this fixes the
+devmem issues (and not breaks it :) )?
 
->  /*
->   * The default fault flags that should be used by most of the
->   * arch-specific page fault handlers.
->   */
->  #define FAULT_FLAG_DEFAULT  (FAULT_FLAG_ALLOW_RETRY | \
-> -			     FAULT_FLAG_KILLABLE)
-> +			     FAULT_FLAG_KILLABLE | \
-> +			     FAULT_FLAG_INTERRUPTIBLE)
-
-So by default, all faults are marked interruptible, also
-!FAULT_FLAG_USER. I assume the trick right now is that
-handle_userfault() will indeed only be called on user faults and the
-flag is used nowhere else ;)
-
-Would it make sense to name it FAULT_FLAG_USER_INTERRUPTIBLE, to stress
-that the flag only applies to user faults? (or am I missing something
-and this could also apply to !user faults somewhen in the future?
-
-(I am no expert on the fault paths yet, so sorry for the silly questions)
-
-> =20
->  #define FAULT_FLAG_TRACE \
->  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
-> @@ -409,7 +425,8 @@ extern pgprot_t protection_map[16];
->  	{ FAULT_FLAG_TRIED,		"TRIED" }, \
->  	{ FAULT_FLAG_USER,		"USER" }, \
->  	{ FAULT_FLAG_REMOTE,		"REMOTE" }, \
-> -	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }
-> +	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }, \
-> +	{ FAULT_FLAG_INTERRUPTIBLE,	"INTERRUPTIBLE" }
-> =20
->  /*
->   * vm_fault is filled by the the pagefault handler and passed to the v=
-ma's
->=20
-
-
---=20
+-- 
 
 Thanks,
 
