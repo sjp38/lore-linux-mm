@@ -2,283 +2,144 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59F93C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:59:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5011C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 13:09:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0EDDE2082C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:59:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6239F20578
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 13:09:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="pY7zk/w8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EDDE2082C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="juP160Fo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6239F20578
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFE456B0003; Fri,  6 Sep 2019 08:59:31 -0400 (EDT)
+	id EA1406B0003; Fri,  6 Sep 2019 09:08:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB0806B0006; Fri,  6 Sep 2019 08:59:31 -0400 (EDT)
+	id E51CF6B0006; Fri,  6 Sep 2019 09:08:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 976556B0007; Fri,  6 Sep 2019 08:59:31 -0400 (EDT)
+	id D67876B0007; Fri,  6 Sep 2019 09:08:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id 7125C6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:59:31 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 1C443D19
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:59:31 +0000 (UTC)
-X-FDA: 75904502142.23.kick79_702031ad71215
-X-HE-Tag: kick79_702031ad71215
-X-Filterd-Recvd-Size: 9650
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:59:30 +0000 (UTC)
-Received: by mail-ed1-f68.google.com with SMTP id o9so6269205edq.0
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 05:59:30 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0163.hostedemail.com [216.40.44.163])
+	by kanga.kvack.org (Postfix) with ESMTP id B3FFC6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 09:08:59 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 6050B180AD7C3
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 13:08:59 +0000 (UTC)
+X-FDA: 75904525998.20.cakes96_3143d96c31001
+X-HE-Tag: cakes96_3143d96c31001
+X-Filterd-Recvd-Size: 6223
+Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 13:08:58 +0000 (UTC)
+Received: by mail-qk1-f196.google.com with SMTP id i78so5495992qke.11
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 06:08:58 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ziEdRLsXO40ln6MLqiGodbd9Jh5bSPIFcy/rNK9Q7Ww=;
-        b=pY7zk/w8TKLJb6+4uHUls3O2RTMWA4y90jjFogFYSGbnC8kHwBqF4z6DO/QXdoW6E0
-         YsRh0jq+m4bgl1o3zsg9/NasXl8gLvgOcLQDim2rH5D7UiSG7YnE6X9GM8TB25X//kwD
-         +SSF2b4wnQxvm3Utnh9Z7HT3dwS2wSeo1b46bYUyk/y1+NUl0yV0Y+uds6NernVoc6Yn
-         8+BoWumqAbJSd3ZtzZ7D5zNvaB34HIoxAghzP85f84Xf5Wm3iTktI74MIr9DvzGcDMSH
-         TBQRLtPRGk7kBF+tPeda6CcovF0XfzVGVeuJ1LBxN6w5jHJkQVV1rTsujOlSa75rktb/
-         k+dQ==
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=vkVmH1p1DD1CPH+j4BlB7sfnBpEDKj82YtcyyFyFAco=;
+        b=juP160FoYMWe9UKbeMdUpx83d8NX59ODPCOMXc0mviKzeloHkHKH5gf2E9/0woBZPa
+         blEvgx6cfxKXnyDIcEqPFobhP7tmuFIs7Ym2RCvOjYUMIspzLrT8NNkA+RrXL8C0FIws
+         fB+SNSjar4ofF4dmZcN4gD3tDzio3cEC2sj5JF3Py3Y17bQSBNiyPxl6n10J1uxBsZ4E
+         UoCCY1tpqNMNOcFU0yltiO/gDZVA1uIapOCFIflQZ4dX3zD6jlgEG3otC8beXo/6feBy
+         0cIyZI+hniLka6B1vnpz7avp4D0mfionOflerjAjX8oTq4YGGUrXQAJZvzld1wvE8pEH
+         FbiQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=ziEdRLsXO40ln6MLqiGodbd9Jh5bSPIFcy/rNK9Q7Ww=;
-        b=QGZyT5wWht6LUsXn/E2P9QCGNLrDfhuGP0iL017t9hjwcjRRHLjEfpUgLlIEEsC3Wd
-         h1ooosTz3C0EYgrfebBrNCJ4aPIADy6+swVUdY0X/XsPC38eCQCbaAmiUjzH5n/3g9RV
-         NZE0n1ucKBtJkgbpTE1zmumLRNnOo0px4whR+VBWxoV1sip0g6Z2ZwfIqdMUD3FFueHo
-         bA2m++5Vxl+vHXDJ369l17OYtpU+wx0BOMxaSczhOgzJGwCtPX48d+rVkiUUCnSGyYws
-         U31qCa9CGY/3AWcFOBLNfYMKpZUKfF9OH+qJctA4zqqF0N7FKrnyEZ9K9oY2z0OESsoK
-         yvmw==
-X-Gm-Message-State: APjAAAXjkeypatI37R0E0UNZqzZ85mL99ba0ESFEVPDE8qo7yZSZl9eI
-	LWy/dYTT/1Bp1KdwUlc2zhs6Wg==
-X-Google-Smtp-Source: APXvYqyM60s24Ukh0h3LJMSfouaIHNvU1YMuRs0W9Y4zW6Ppmqnt6NhfeH5WdCs329ssEK+X7vonxA==
-X-Received: by 2002:a50:981b:: with SMTP id g27mr9406727edb.105.1567774769088;
-        Fri, 06 Sep 2019 05:59:29 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id p4sm815871edc.38.2019.09.06.05.59.28
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=vkVmH1p1DD1CPH+j4BlB7sfnBpEDKj82YtcyyFyFAco=;
+        b=XCq2tk0LdFIM3uFoEJCe58nQqNsYrgkcBwQiJ1UfsJ+a3ayg9hdrDLkZ3iEtqiX0+O
+         7ZorU38TopNW9gX6XqiMep+ODeMQGpbxmQqDorDBEEM4A3N5gi/gybPvnqi6wka6j7qL
+         Jinkf0acxEBn/AtNWo1telj/D1LuieqWQWMvORWS3oVz0RTjtdbTWO5QZZW2SQOCB/7+
+         HNpsLVrkegnhdKkva55aDnlggxUIuaG/8BNcWcgScsPby2zVA3hXjXHwPBT3p9boh2sQ
+         55Jv/3m9k0yoJ6Gj/X/gyVMofTbRUiC5iS2EEgpeOZ9vJrrc046EjLWQhIbEBt/gqtbf
+         tbNw==
+X-Gm-Message-State: APjAAAVesQmYkL6sBHbO+pxX9armgnyCkOllBxrLWaavM0+X38+ePXz7
+	EYVJg3Zv7buXHTVcNxS4QDLcFQ==
+X-Google-Smtp-Source: APXvYqxNb8JNjg0hVKNLAzAks/AnxBjS1tDbyiktCl5kTm/kEcm/N5/l98cq8pxFQZdpU+s8rJLjIQ==
+X-Received: by 2002:a37:410:: with SMTP id 16mr8576974qke.52.1567775337798;
+        Fri, 06 Sep 2019 06:08:57 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id c19sm2249787qtj.39.2019.09.06.06.08.56
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Sep 2019 05:59:28 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 7E46B1049F1; Fri,  6 Sep 2019 15:59:28 +0300 (+03)
-Date: Fri, 6 Sep 2019 15:59:28 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	Song Liu <songliubraving@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	Johannes Weiner <jweiner@fb.com>
-Subject: Re: [PATCH 3/3] mm: Allow find_get_page to be used for large pages
-Message-ID: <20190906125928.urwopgpd66qibbil@box>
-References: <20190905182348.5319-1-willy@infradead.org>
- <20190905182348.5319-4-willy@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190905182348.5319-4-willy@infradead.org>
-User-Agent: NeoMutt/20180716
+        Fri, 06 Sep 2019 06:08:57 -0700 (PDT)
+Message-ID: <1567775335.5576.110.camel@lca.pw>
+Subject: Re: [RFC PATCH] mm, oom: disable dump_tasks by default
+From: Qian Cai <cai@lca.pw>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+Date: Fri, 06 Sep 2019 09:08:55 -0400
+In-Reply-To: <192f2cb9-172e-06f4-d9e4-a58b5e167231@i-love.sakura.ne.jp>
+References: <20190903144512.9374-1-mhocko@kernel.org>
+	 <1567522966.5576.51.camel@lca.pw> <20190903151307.GZ14028@dhcp22.suse.cz>
+	 <1567699853.5576.98.camel@lca.pw>
+	 <8ea5da51-a1ac-4450-17d9-0ea7be346765@i-love.sakura.ne.jp>
+	 <1567718475.5576.108.camel@lca.pw>
+	 <192f2cb9-172e-06f4-d9e4-a58b5e167231@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 05, 2019 at 11:23:48AM -0700, Matthew Wilcox wrote:
-> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
+On Fri, 2019-09-06 at 19:32 +0900, Tetsuo Handa wrote:
+> On 2019/09/06 6:21, Qian Cai wrote:
+> > On Fri, 2019-09-06 at 05:59 +0900, Tetsuo Handa wrote:
+> > > On 2019/09/06 1:10, Qian Cai wrote:
+> > > > On Tue, 2019-09-03 at 17:13 +0200, Michal Hocko wrote:
+> > > > > On Tue 03-09-19 11:02:46, Qian Cai wrote:
+> > > > > > Well, I still see OOM sometimes kills wrong processes like ssh, systemd
+> > > > > > processes while LTP OOM tests with staight-forward allocation patterns.
+> > > > > 
+> > > > > Please report those. Most cases I have seen so far just turned out to
+> > > > > work as expected and memory hogs just used oom_score_adj or similar.
+> > > > 
+> > > > Here is the one where oom01 should be one to be killed.
+> > > 
+> > > I assume that there are previous OOM killer events before
+> > > 
+> > > > 
+> > > > [92598.855697][ T2588] Swap cache stats: add 105240923, delete 105250445, find
+> > > > 42196/101577
+> > > 
+> > > line. Please be sure to include.
+> > 
+> > 12:00:52 oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0-1,global_oom,task_memcg=/user.slice,task=oom01,pid=25507,uid=0
+> > 12:00:52 Out of memory: Killed process 25507(oom01) total-vm:6324780kB, anon-rss:5647168kB, file-rss:0kB, shmem-rss:0kB,UID:0 pgtables:11395072kB oom_score_adj:0
+> > 12:00:52 oom_reaper: reaped process 25507(oom01), now anon-rss:5647452kB, file-rss:0kB, shmem-rss:0kB
+> > 12:00:52 irqbalance invoked oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+> > (...snipped...)
+> > 12:00:53 [  25391]     0 25391     2184        0    65536       32             0 oom01
+> > 12:00:53 [  25392]     0 25392     2184        0    65536       39             0 oom01
+> > 12:00:53 oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0-1,global_oom,task_memcg=/system.slice/tuned.service,task=tuned,pid=2629,uid=0
+> > 12:00:54 Out of memory: Killed process 2629(tuned) total-vm:424936kB, anon-rss:328kB, file-rss:1268kB, shmem-rss:0kB, UID:0 pgtables:442368kB oom_score_adj:0
+> > 12:00:54 oom_reaper: reaped process 2629 (tuned), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 > 
-> Add FGP_PMD to indicate that we're trying to find-or-create a page that
-> is at least PMD_ORDER in size.  The internal 'conflict' entry usage
-> is modelled after that in DAX, but the implementations are different
-> due to DAX using multi-order entries and the page cache using multiple
-> order-0 entries.
+> OK. anon-rss did not decrease when oom_reaper gave up.
+> I think this is same with https://lkml.org/lkml/2017/7/28/317 case.
 > 
-> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
-> ---
->  include/linux/pagemap.h |  9 +++++
->  mm/filemap.c            | 82 +++++++++++++++++++++++++++++++++++++----
->  2 files changed, 84 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index d2147215d415..72101811524c 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -248,6 +248,15 @@ pgoff_t page_cache_prev_miss(struct address_space *mapping,
->  #define FGP_NOFS		0x00000010
->  #define FGP_NOWAIT		0x00000020
->  #define FGP_FOR_MMAP		0x00000040
-> +/*
-> + * If you add more flags, increment FGP_ORDER_SHIFT (no further than 25).
-
-Maybe some BUILD_BUG_ON()s to ensure FGP_ORDER_SHIFT is sane?
-
-> + * Do not insert flags above the FGP order bits.
-> + */
-> +#define FGP_ORDER_SHIFT		7
-> +#define FGP_PMD			((PMD_SHIFT - PAGE_SHIFT) << FGP_ORDER_SHIFT)
-> +#define FGP_PUD			((PUD_SHIFT - PAGE_SHIFT) << FGP_ORDER_SHIFT)
-> +
-> +#define fgp_order(fgp)		((fgp) >> FGP_ORDER_SHIFT)
->  
->  struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
->  		int fgp_flags, gfp_t cache_gfp_mask);
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index ae3c0a70a8e9..904dfabbea52 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1572,7 +1572,71 @@ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
->  
->  	return page;
->  }
-> -EXPORT_SYMBOL(find_get_entry);
-> +
-> +static bool pagecache_is_conflict(struct page *page)
-> +{
-> +	return page == XA_RETRY_ENTRY;
-> +}
-> +
-> +/**
-> + * __find_get_page - Find and get a page cache entry.
-> + * @mapping: The address_space to search.
-> + * @offset: The page cache index.
-> + * @order: The minimum order of the entry to return.
-> + *
-> + * Looks up the page cache entries at @mapping between @offset and
-> + * @offset + 2^@order.  If there is a page cache page, it is returned with
-
-Off by one? :P
-
-> + * an increased refcount unless it is smaller than @order.
-> + *
-> + * If the slot holds a shadow entry of a previously evicted page, or a
-> + * swap entry from shmem/tmpfs, it is returned.
-> + *
-> + * Return: the found page, a value indicating a conflicting page or %NULL if
-> + * there are no pages in this range.
-> + */
-> +static struct page *__find_get_page(struct address_space *mapping,
-> +		unsigned long offset, unsigned int order)
-> +{
-> +	XA_STATE(xas, &mapping->i_pages, offset);
-> +	struct page *page;
-> +
-> +	rcu_read_lock();
-> +repeat:
-> +	xas_reset(&xas);
-> +	page = xas_find(&xas, offset | ((1UL << order) - 1));
-
-Hm. '|' is confusing. What is expectation about offset?
-Is round_down(offset, 1UL << order) expected to be equal offset?
-If yes, please use '+' instead of '|'.
-
-> +	if (xas_retry(&xas, page))
-> +		goto repeat;
-> +	/*
-> +	 * A shadow entry of a recently evicted page, or a swap entry from
-> +	 * shmem/tmpfs.  Skip it; keep looking for pages.
-> +	 */
-> +	if (xa_is_value(page))
-> +		goto repeat;
-> +	if (!page)
-> +		goto out;
-> +	if (compound_order(page) < order) {
-> +		page = XA_RETRY_ENTRY;
-> +		goto out;
-> +	}
-
-compound_order() is not stable if you don't have pin on the page.
-Check it after page_cache_get_speculative().
-
-> +
-> +	if (!page_cache_get_speculative(page))
-> +		goto repeat;
-> +
-> +	/*
-> +	 * Has the page moved or been split?
-> +	 * This is part of the lockless pagecache protocol. See
-> +	 * include/linux/pagemap.h for details.
-> +	 */
-> +	if (unlikely(page != xas_reload(&xas))) {
-> +		put_page(page);
-> +		goto repeat;
-> +	}
-> +	page = find_subpage(page, offset);
-> +out:
-> +	rcu_read_unlock();
-> +
-> +	return page;
-> +}
->  
->  /**
->   * find_lock_entry - locate, pin and lock a page cache entry
-> @@ -1614,12 +1678,12 @@ EXPORT_SYMBOL(find_lock_entry);
->   * pagecache_get_page - find and get a page reference
->   * @mapping: the address_space to search
->   * @offset: the page index
-> - * @fgp_flags: PCG flags
-> + * @fgp_flags: FGP flags
->   * @gfp_mask: gfp mask to use for the page cache data page allocation
->   *
->   * Looks up the page cache slot at @mapping & @offset.
->   *
-> - * PCG flags modify how the page is returned.
-> + * FGP flags modify how the page is returned.
->   *
->   * @fgp_flags can be:
->   *
-> @@ -1632,6 +1696,10 @@ EXPORT_SYMBOL(find_lock_entry);
->   * - FGP_FOR_MMAP: Similar to FGP_CREAT, only we want to allow the caller to do
->   *   its own locking dance if the page is already in cache, or unlock the page
->   *   before returning if we had to add the page to pagecache.
-> + * - FGP_PMD: We're only interested in pages at PMD granularity.  If there
-> + *   is no page here (and FGP_CREATE is set), we'll create one large enough.
-> + *   If there is a smaller page in the cache that overlaps the PMD page, we
-> + *   return %NULL and do not attempt to create a page.
-
-Is it really the best inteface?
-
-Maybe allow user to ask bitmask of allowed orders? For THP order-0 is fine
-if order-9 has failed.
-
->   *
->   * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
->   * if the GFP flags specified for FGP_CREAT are atomic.
-> @@ -1646,9 +1714,9 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
->  	struct page *page;
->  
->  repeat:
-> -	page = find_get_entry(mapping, offset);
-> -	if (xa_is_value(page))
-> -		page = NULL;
-> +	page = __find_get_page(mapping, offset, fgp_order(fgp_flags));
-> +	if (pagecache_is_conflict(page))
-> +		return NULL;
->  	if (!page)
->  		goto no_page;
->  
-> @@ -1682,7 +1750,7 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
->  		if (fgp_flags & FGP_NOFS)
->  			gfp_mask &= ~__GFP_FS;
->  
-> -		page = __page_cache_alloc(gfp_mask);
-> +		page = __page_cache_alloc_order(gfp_mask, fgp_order(fgp_flags));
->  		if (!page)
->  			return NULL;
->  
-> -- 
-> 2.23.0.rc1
+> The OOM killer does not wait for OOM victims until existing OOM victims release
+> memory by calling exit_mmap(). The OOM killer selects next OOM victim as soon as
+> the OOM reaper sets MMF_OOM_SKIP. As a result, when the OOM reaper failed to
+> reclaim memory due to e.g. mlocked pages, the OOM killer immediately selects next
+> OOM victim. But since 25391 and 25392 are consuming little memory (maybe these are
+> already reaped OOM victims), neither 25391 nor 25392 was selected as next OOM victim.
 > 
 
--- 
- Kirill A. Shutemov
+Yes, mlocked is troublesome. I have other incidents where crond and systemd-
+udevd were killed by mistake, and it even tried to kill kworker/0.
+
+https://cailca.github.io/files/dmesg.txt
+
 
