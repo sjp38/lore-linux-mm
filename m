@@ -2,150 +2,169 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 029E7C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 11:36:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13729C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C27892070C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 11:36:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C27892070C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id D1DAB208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1DAB208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39BE06B0003; Fri,  6 Sep 2019 07:36:51 -0400 (EDT)
+	id 4E6D16B0003; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34DA06B0006; Fri,  6 Sep 2019 07:36:51 -0400 (EDT)
+	id 46F7F6B0006; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23C696B0007; Fri,  6 Sep 2019 07:36:51 -0400 (EDT)
+	id 35DF16B0007; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
-	by kanga.kvack.org (Postfix) with ESMTP id 02BAF6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 07:36:50 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 95985180AD7C3
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:36:50 +0000 (UTC)
-X-FDA: 75904293780.23.test78_75dd643ce563d
-X-HE-Tag: test78_75dd643ce563d
-X-Filterd-Recvd-Size: 5298
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:36:49 +0000 (UTC)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x86Bai6u128015
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2019 07:36:49 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uun8e3fdy-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Sep 2019 07:36:48 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Fri, 6 Sep 2019 12:36:46 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 6 Sep 2019 12:36:45 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x86Bahag46399692
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 6 Sep 2019 11:36:43 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7AA2652054;
-	Fri,  6 Sep 2019 11:36:43 +0000 (GMT)
-Received: from in.ibm.com (unknown [9.199.53.172])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id B556A5204E;
-	Fri,  6 Sep 2019 11:36:41 +0000 (GMT)
-Date: Fri, 6 Sep 2019 17:06:39 +0530
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
-        paulus@au1.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
-        jglisse@redhat.com, linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
-        cclaudio@linux.ibm.com
-Subject: Re: [PATCH v7 1/7] kvmppc: Driver to manage pages of secure guest
-Reply-To: bharata@linux.ibm.com
-References: <20190822102620.21897-1-bharata@linux.ibm.com>
- <20190822102620.21897-2-bharata@linux.ibm.com>
- <20190829083810.GA13039@lst.de>
- <20190830034259.GD31913@in.ibm.com>
- <20190902075356.GA28967@lst.de>
+Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5626B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 9F5CD181AC9B4
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:27 +0000 (UTC)
+X-FDA: 75904368414.16.jar32_556afc7bf0638
+X-HE-Tag: jar32_556afc7bf0638
+X-Filterd-Recvd-Size: 4858
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:26 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 462F1AC6E;
+	Fri,  6 Sep 2019 12:06:25 +0000 (UTC)
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: catalin.marinas@arm.com,
+	hch@lst.de,
+	wahrenst@gmx.net,
+	marc.zyngier@arm.com,
+	robh+dt@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux-mm@kvack.org,
+	linux-riscv@lists.infradead.org
+Cc: f.fainelli@gmail.com,
+	will@kernel.org,
+	robin.murphy@arm.com,
+	nsaenzjulienne@suse.de,
+	linux-kernel@vger.kernel.org,
+	mbrugger@suse.com,
+	linux-rpi-kernel@lists.infradead.org,
+	phill@raspberrypi.org,
+	m.szyprowski@samsung.com
+Subject: [PATCH v4 0/4] Raspberry Pi 4 DMA addressing support
+Date: Fri,  6 Sep 2019 14:06:11 +0200
+Message-Id: <20190906120617.18836-1-nsaenzjulienne@suse.de>
+X-Mailer: git-send-email 2.23.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190902075356.GA28967@lst.de>
-User-Agent: Mutt/1.12.1 (2019-06-15)
-X-TM-AS-GCONF: 00
-x-cbid: 19090611-0008-0000-0000-00000311D8FF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19090611-0009-0000-0000-00004A303630
-Message-Id: <20190906113639.GA8748@in.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-06_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=988 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1909060123
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 02, 2019 at 09:53:56AM +0200, Christoph Hellwig wrote:
-> On Fri, Aug 30, 2019 at 09:12:59AM +0530, Bharata B Rao wrote:
-> > On Thu, Aug 29, 2019 at 10:38:10AM +0200, Christoph Hellwig wrote:
-> > > On Thu, Aug 22, 2019 at 03:56:14PM +0530, Bharata B Rao wrote:
-> > > > +/*
-> > > > + * Bits 60:56 in the rmap entry will be used to identify the
-> > > > + * different uses/functions of rmap.
-> > > > + */
-> > > > +#define KVMPPC_RMAP_DEVM_PFN	(0x2ULL << 56)
-> > > 
-> > > How did you come up with this specific value?
-> > 
-> > Different usage types of RMAP array are being defined.
-> > https://patchwork.ozlabs.org/patch/1149791/
-> > 
-> > The above value is reserved for device pfn usage.
-> 
-> Shouldn't all these defintions go in together in a patch?
+Hi all,
+this series attempts to address some issues we found while bringing up
+the new Raspberry Pi 4 in arm64 and it's intended to serve as a follow
+up of these discussions:
+v3: https://lkml.org/lkml/2019/9/2/589
+v2: https://lkml.org/lkml/2019/8/20/767
+v1: https://lkml.org/lkml/2019/7/31/922
+RFC: https://lkml.org/lkml/2019/7/17/476
 
-Ideally yes, but the above patch is already in Paul's tree, I will sync
-up with him about this.
+The new Raspberry Pi 4 has up to 4GB of memory but most peripherals can
+only address the first GB: their DMA address range is
+0xc0000000-0xfc000000 which is aliased to the first GB of physical
+memory 0x00000000-0x3c000000. Note that only some peripherals have these
+limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wider
+view of the address space by virtue of being hooked up trough a second
+interconnect.
 
-> Also is bit 56+ a set of values, so is there 1 << 56 and 3 << 56 as well?  Seems
-> like even that other patch doesn't fully define these "pfn" values.
+Part of this is solved on arm32 by setting up the machine specific
+'.dma_zone_size =3D SZ_1G', which takes care of reserving the coherent
+memory area at the right spot. That said no buffer bouncing (needed for
+dma streaming) is available at the moment, but that's a story for
+another series.
 
-I realized that the bit numbers have changed, it is no longer bits 60:56,
-but instead top 8bits. 
+Unfortunately there is no such thing as 'dma_zone_size' in arm64. Only
+ZONE_DMA32 is created which is interpreted by dma-direct and the arm64
+arch code as if all peripherals where be able to address the first 4GB
+of memory.
 
-#define KVMPPC_RMAP_UVMEM_PFN   0x0200000000000000
-static inline bool kvmppc_rmap_is_uvmem_pfn(unsigned long *rmap)
-{
-        return ((*rmap & 0xff00000000000000) == KVMPPC_RMAP_UVMEM_PFN);
-}
+In the light of this, the series implements the following changes:
 
-> 
-> > > No need for !! when returning a bool.  Also the helper seems a little
-> > > pointless, just opencoding it would make the code more readable in my
-> > > opinion.
-> > 
-> > I expect similar routines for other usages of RMAP to come up.
-> 
-> Please drop them all.  Having to wade through a header to check for
-> a specific bit that also is set manually elsewhere in related code
-> just obsfucates it for the reader.
+- Create both DMA zones in arm64, ZONE_DMA will contain the first 1G
+  area and ZONE_DMA32 the rest of the 32 bit addressable memory. So far
+  the RPi4 is the only arm64 device with such DMA addressing limitations
+  so this hardcoded solution was deemed preferable.
 
-I am currently using the routine kvmppc_rmap_is_uvmem_pfn() (shown
-above) instead open coding it at multiple places, but I can drop it if
-you prefer.
+- Properly set ARCH_ZONE_DMA_BITS.
+
+- Reserve the CMA area in a place suitable for all peripherals.
+
+This series has been tested on multiple devices both by checking the
+zones setup matches the expectations and by double-checking physical
+addresses on pages allocated on the three relevant areas GFP_DMA,
+GFP_DMA32, GFP_KERNEL:
+
+- On an RPi4 with variations on the ram memory size. But also forcing
+  the situation where all three memory zones are nonempty by setting a 3G
+  ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA support.
+
+- On a Synquacer box[1] with 32G of memory.
+
+- On an ACPI based Huawei TaiShan server[2] with 256G of memory.
+
+- On a QEMU virtual machine running arm64's OpenSUSE Tumbleweed.
+
+That's all.
 
 Regards,
-Bharata.
+Nicolas
+
+[1] https://www.96boards.org/product/developerbox/
+[2] https://e.huawei.com/en/products/cloud-computing-dc/servers/taishan-s=
+erver/taishan-2280-v2
+
+---
+
+Changes in v4:
+- Rebased to linux-next
+- Fix issue when NUMA=3Dn and ZONE_DMA=3Dn
+- Merge two max_zone_dma*_phys() functions
+
+Changes in v3:
+- Fixed ZONE_DMA's size to 1G
+- Update mmzone.h's comment to match changes in arm64
+- Remove all dma-direct patches
+
+Changes in v2:
+- Update comment to reflect new zones split
+- ZONE_DMA will never be left empty
+- Try another approach merging both ZONE_DMA comments into one
+- Address Christoph's comments
+- If this approach doesn't get much traction I'll just drop the patch
+  from the series as it's not really essential
+
+Nicolas Saenz Julienne (4):
+  arm64: mm: use arm64_dma_phys_limit instead of calling
+    max_zone_dma_phys()
+  arm64: rename variables used to calculate ZONE_DMA32's size
+  arm64: use both ZONE_DMA and ZONE_DMA32
+  mm: refresh ZONE_DMA and ZONE_DMA32 comments in 'enum zone_type'
+
+ arch/arm64/Kconfig            |  4 ++
+ arch/arm64/include/asm/page.h |  2 +
+ arch/arm64/mm/init.c          | 71 +++++++++++++++++++++++++----------
+ include/linux/mmzone.h        | 45 ++++++++++++----------
+ 4 files changed, 83 insertions(+), 39 deletions(-)
+
+--=20
+2.23.0
 
 
