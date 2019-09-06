@@ -6,38 +6,38 @@ X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7548FC43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48EAAC0030B
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45E472082C
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45E472082C
+	by mail.kernel.org (Postfix) with ESMTP id 193FA2082C
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 193FA2082C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 228286B0006; Fri,  6 Sep 2019 08:06:29 -0400 (EDT)
+	id 5608A6B0007; Fri,  6 Sep 2019 08:06:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 18DE66B0007; Fri,  6 Sep 2019 08:06:29 -0400 (EDT)
+	id 4E4EC6B0008; Fri,  6 Sep 2019 08:06:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 053736B0008; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
+	id 3AF516B000A; Fri,  6 Sep 2019 08:06:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
-	by kanga.kvack.org (Postfix) with ESMTP id D028B6B0006
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:06:28 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 6F48E181AC9B4
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:28 +0000 (UTC)
-X-FDA: 75904368456.17.board73_559516bfbbd2f
-X-HE-Tag: board73_559516bfbbd2f
-X-Filterd-Recvd-Size: 2224
+Received: from forelay.hostedemail.com (smtprelay0027.hostedemail.com [216.40.44.27])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E346B0007
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:06:30 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id B2CEC442B
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:29 +0000 (UTC)
+X-FDA: 75904368498.28.twig80_55c084e4ec049
+X-HE-Tag: twig80_55c084e4ec049
+X-Filterd-Recvd-Size: 5141
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:27 +0000 (UTC)
+	by imf40.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:29 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9258DABCE;
-	Fri,  6 Sep 2019 12:06:26 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 1754FABE3;
+	Fri,  6 Sep 2019 12:06:28 +0000 (UTC)
 From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 To: catalin.marinas@arm.com,
 	hch@lst.de,
@@ -56,9 +56,9 @@ Cc: f.fainelli@gmail.com,
 	linux-rpi-kernel@lists.infradead.org,
 	phill@raspberrypi.org,
 	m.szyprowski@samsung.com
-Subject: [PATCH v4 1/4] arm64: mm: use arm64_dma_phys_limit instead of calling max_zone_dma_phys()
-Date: Fri,  6 Sep 2019 14:06:12 +0200
-Message-Id: <20190906120617.18836-2-nsaenzjulienne@suse.de>
+Subject: [PATCH v4 2/4] arm64: rename variables used to calculate ZONE_DMA32's size
+Date: Fri,  6 Sep 2019 14:06:13 +0200
+Message-Id: <20190906120617.18836-3-nsaenzjulienne@suse.de>
 X-Mailer: git-send-email 2.23.0
 In-Reply-To: <20190906120617.18836-1-nsaenzjulienne@suse.de>
 References: <20190906120617.18836-1-nsaenzjulienne@suse.de>
@@ -70,30 +70,120 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-By the time we call zones_sizes_init() arm64_dma_phys_limit already
-contains the result of max_zone_dma_phys(). We use the variable instead
-of calling the function directly to save some precious cpu time.
+Let the name indicate that they are used to calculate ZONE_DMA32's size
+as opposed to ZONE_DMA.
 
 Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- arch/arm64/mm/init.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/arm64/mm/init.c | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index f3c795278def..6112d6c90fa8 100644
+index 098c0f5bedf6..8e9bc64c5878 100644
 --- a/arch/arm64/mm/init.c
 +++ b/arch/arm64/mm/init.c
-@@ -181,7 +181,7 @@ static void __init zone_sizes_init(unsigned long min,=
+@@ -56,7 +56,7 @@ EXPORT_SYMBOL(physvirt_offset);
+ struct page *vmemmap __ro_after_init;
+ EXPORT_SYMBOL(vmemmap);
+=20
+-phys_addr_t arm64_dma_phys_limit __ro_after_init;
++phys_addr_t arm64_dma32_phys_limit __ro_after_init;
+=20
+ #ifdef CONFIG_KEXEC_CORE
+ /*
+@@ -174,7 +174,7 @@ static void __init reserve_elfcorehdr(void)
+  * currently assumes that for memory starting above 4G, 32-bit devices w=
+ill
+  * use a DMA offset.
+  */
+-static phys_addr_t __init max_zone_dma_phys(void)
++static phys_addr_t __init max_zone_dma32_phys(void)
+ {
+ 	phys_addr_t offset =3D memblock_start_of_DRAM() & GENMASK_ULL(63, 32);
+ 	return min(offset + (1ULL << 32), memblock_end_of_DRAM());
+@@ -187,7 +187,7 @@ static void __init zone_sizes_init(unsigned long min,=
  unsigned long max)
  	unsigned long max_zone_pfns[MAX_NR_ZONES]  =3D {0};
 =20
  #ifdef CONFIG_ZONE_DMA32
--	max_zone_pfns[ZONE_DMA32] =3D PFN_DOWN(max_zone_dma_phys());
-+	max_zone_pfns[ZONE_DMA32] =3D PFN_DOWN(arm64_dma_phys_limit);
+-	max_zone_pfns[ZONE_DMA32] =3D PFN_DOWN(arm64_dma_phys_limit);
++	max_zone_pfns[ZONE_DMA32] =3D PFN_DOWN(arm64_dma32_phys_limit);
  #endif
  	max_zone_pfns[ZONE_NORMAL] =3D max;
 =20
+@@ -200,16 +200,16 @@ static void __init zone_sizes_init(unsigned long mi=
+n, unsigned long max)
+ {
+ 	struct memblock_region *reg;
+ 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
+-	unsigned long max_dma =3D min;
++	unsigned long max_dma32 =3D min;
+=20
+ 	memset(zone_size, 0, sizeof(zone_size));
+=20
+ 	/* 4GB maximum for 32-bit only capable devices */
+ #ifdef CONFIG_ZONE_DMA32
+-	max_dma =3D PFN_DOWN(arm64_dma_phys_limit);
+-	zone_size[ZONE_DMA32] =3D max_dma - min;
++	max_dma32 =3D PFN_DOWN(arm64_dma32_phys_limit);
++	zone_size[ZONE_DMA32] =3D max_dma32 - min;
+ #endif
+-	zone_size[ZONE_NORMAL] =3D max - max_dma;
++	zone_size[ZONE_NORMAL] =3D max - max_dma32;
+=20
+ 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
+=20
+@@ -221,14 +221,14 @@ static void __init zone_sizes_init(unsigned long mi=
+n, unsigned long max)
+ 			continue;
+=20
+ #ifdef CONFIG_ZONE_DMA32
+-		if (start < max_dma) {
+-			unsigned long dma_end =3D min(end, max_dma);
++		if (start < max_dma32) {
++			unsigned long dma_end =3D min(end, max_dma32);
+ 			zhole_size[ZONE_DMA32] -=3D dma_end - start;
+ 		}
+ #endif
+-		if (end > max_dma) {
++		if (end > max_dma32) {
+ 			unsigned long normal_end =3D min(end, max);
+-			unsigned long normal_start =3D max(start, max_dma);
++			unsigned long normal_start =3D max(start, max_dma32);
+ 			zhole_size[ZONE_NORMAL] -=3D normal_end - normal_start;
+ 		}
+ 	}
+@@ -420,9 +420,9 @@ void __init arm64_memblock_init(void)
+=20
+ 	/* 4GB maximum for 32-bit only capable devices */
+ 	if (IS_ENABLED(CONFIG_ZONE_DMA32))
+-		arm64_dma_phys_limit =3D max_zone_dma_phys();
++		arm64_dma32_phys_limit =3D max_zone_dma32_phys();
+ 	else
+-		arm64_dma_phys_limit =3D PHYS_MASK + 1;
++		arm64_dma32_phys_limit =3D PHYS_MASK + 1;
+=20
+ 	reserve_crashkernel();
+=20
+@@ -430,7 +430,7 @@ void __init arm64_memblock_init(void)
+=20
+ 	high_memory =3D __va(memblock_end_of_DRAM() - 1) + 1;
+=20
+-	dma_contiguous_reserve(arm64_dma_phys_limit);
++	dma_contiguous_reserve(arm64_dma32_phys_limit);
+ }
+=20
+ void __init bootmem_init(void)
+@@ -534,7 +534,7 @@ static void __init free_unused_memmap(void)
+ void __init mem_init(void)
+ {
+ 	if (swiotlb_force =3D=3D SWIOTLB_FORCE ||
+-	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
++	    max_pfn > (arm64_dma32_phys_limit >> PAGE_SHIFT))
+ 		swiotlb_init(1);
+ 	else
+ 		swiotlb_force =3D SWIOTLB_NO_FORCE;
 --=20
 2.23.0
 
