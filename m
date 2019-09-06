@@ -2,112 +2,133 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C6DFC43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:06:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45F55C00307
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:51:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D75A220838
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:06:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E1ACB20838
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:51:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="FQTP/Tmg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D75A220838
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dPHHuipO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1ACB20838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 83E296B000A; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
+	id 44C716B0005; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EE456B000C; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
+	id 3FCD96B0006; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6DCE66B000D; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
+	id 2EA5E6B0007; Fri,  6 Sep 2019 15:51:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E8E6B000A
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D2960824CA11
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:06:48 +0000 (UTC)
-X-FDA: 75905427696.05.pail47_759f48100c71d
-X-HE-Tag: pail47_759f48100c71d
-X-Filterd-Recvd-Size: 3915
-Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:06:48 +0000 (UTC)
-Received: by mail-ed1-f68.google.com with SMTP id t50so7282078edd.2
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 12:06:48 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0120.hostedemail.com [216.40.44.120])
+	by kanga.kvack.org (Postfix) with ESMTP id 0778F6B0005
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:51:41 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8E603181AC9B4
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:51:41 +0000 (UTC)
+X-FDA: 75905540802.19.net33_48eb1e9608d32
+X-HE-Tag: net33_48eb1e9608d32
+X-Filterd-Recvd-Size: 4751
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:51:40 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id q5so5205174pfg.13
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 12:51:40 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Y2omJ3/dD4U+vCtoy8H75XszRI5XH+eQMkgkdDPlArY=;
-        b=FQTP/TmgHTgyC+PBU5SEyiseIy1zvJC97N+VhKG2dCvL9vAhP80LEhoKJOvzIi6bLQ
-         BgVBFgf58SS8R6ppJO3IlLnneB06um+xoINkqVeAcoexAD7EM8Pa8+VTq2HkDgPCOmt1
-         TOn3ZhGsy7GLjFuJ1Jsk7gydcJxrPs9xEq3rZGr9mprwu/oe6WREKg8EsucNQZWw2j6w
-         J7ifMbBwHA1GZOQh8cnKXT8qN31F/vuBtp4u7YqNI+J47VPkt/zp22gNmPCRdoGMqBlZ
-         nVh7RyWgx3VRI12mKbkkekJb4SMfWKAg2SUtXlgb9KFbdoDmStmdx61Q+ALcL6DiU6Eb
-         OcSw==
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=eGYgkRZj0NcCUP7h3iCHHFaAC43wNkWYu1G5sWIpzZk=;
+        b=dPHHuipONUA43OXAQtslB0Nstvm9jMsRi2Xwq5hH50w+aW+QvRYutnw/fm+ZG7i0Uh
+         DN6bxh04bPtnh8H+Jckkkjt4tqsrPRncv8LEM/2gGHj3+qgg1UfQcoX+NCedbCemX2hf
+         4pPzfsgB+v74/bibFiX73cVqf4tuH5FLNbguQx/Q9kKkjKrICJwZQoTaocu/szf93MIG
+         2lt4YqC8QUHBNGVldvYf3HiwJK+S5FJD4dDZozPpjAoh3EhBHkaSGy5yErN0Yiy3xoV4
+         fL9Lae/0xrXM1b2WJpTV85MiqBJnBZVNqs+EIjH4ORfj2WDZz5fD77nv4S9gbuWKmMtq
+         4tXg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=Y2omJ3/dD4U+vCtoy8H75XszRI5XH+eQMkgkdDPlArY=;
-        b=lChcjoOz9QZbCzrCE4dl4G60/wLQzi0xht4GQLD6vmU/7Ploa8+V3R/rmSQTKZXsHW
-         nO1j9IyigdOC7qDyOh1ue1sA/bI1Z+608xP0DMqEohmdQSoEcBLFYCeao/yDKy6A3s9/
-         MgTw/d/+LAoT7QA9T/Tci/UMAClD5oyYw6dcm5pkqCQSDhMNMKLSRlj9KrOhHm+niQ1Z
-         WqM7NcJl2Eadbmv1q4QJTFKKkwdy3Nj2fGbQEY5I4H/FOE5Nyns2hDN2+RPgf/TQpmfE
-         TR+PRC+9yyQxk/dyoJkfVtB7WX/CT4YQt8RHlGPU/lO9YwD2+Ql/l6YhDv2814y+/PtI
-         nDFw==
-X-Gm-Message-State: APjAAAWLVp7uMV5eLYqEN+tHNQSYNcH5VqTSEl0ahm5LNsjfombbN4b8
-	iWXf/UNY0NIVuOXkHRx/OZ0ejv5WxZO8op++/DcXUw==
-X-Google-Smtp-Source: APXvYqxUyzboKtZynQf94VQal3O7BvvXwmvhzJw991UoDJCeN6nT1tLn0eiUP2pwGueZpl557B6qG/MIy5a1dR+RLhA=
-X-Received: by 2002:a50:9ea1:: with SMTP id a30mr11569826edf.304.1567796807172;
- Fri, 06 Sep 2019 12:06:47 -0700 (PDT)
+        h=x-gm-message-state:from:date:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=eGYgkRZj0NcCUP7h3iCHHFaAC43wNkWYu1G5sWIpzZk=;
+        b=JsZWNEG3DdUUA2nxXJrXwMglDvHtT7fz8nulpgdF3lQa3IJaeIcwP23embJWPr4LJp
+         sDg0PJfA6c09mjXvQcrbHHcf73axkYvEQDDqlaA/0AZNgFuEaI39xIN1YbDeQVBQYSFd
+         v+kEJ633JG6MrBNQIlY5tGwt1bxOCCZ8cwgro1Hiypv8QF52xFJd1xfC2lpCdmGVOBNC
+         e5qeuNCEVLRqAvu5l7fYhKR0lpAxvoEORAJb6fjOL4r0RHXwfMN48vGkjpAF8c8VGk20
+         W9wZLZ4Q+ZsbOFRJen2EXmTeCAW/LpryzjMfTjqmObgyECOz5a5/wwRiDluNRu0IA0pG
+         y2uQ==
+X-Gm-Message-State: APjAAAXLaN/8QZbq1FRpDun8kuWo/1WpHakniKtB/Uj7rW2IiSZ/cgBc
+	Dq9ICn9wa6MVpv7QaY40m78=
+X-Google-Smtp-Source: APXvYqxeaSSe8RWvGTP+Hhm0gpdZ9DLJYGvzAcdEP1AdGCDSVlIYbrpuZpy0V2v4ywX7STgoWPxd+A==
+X-Received: by 2002:a63:30c6:: with SMTP id w189mr9157795pgw.398.1567799499643;
+        Fri, 06 Sep 2019 12:51:39 -0700 (PDT)
+Received: from localhost ([121.137.63.184])
+        by smtp.gmail.com with ESMTPSA id q4sm7413899pfh.115.2019.09.06.12.51.38
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 06 Sep 2019 12:51:38 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+X-Google-Original-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Date: Sat, 7 Sep 2019 04:51:35 +0900
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+	Steven Rostedt <rostedt@goodmis.org>, Qian Cai <cai@lca.pw>,
+	davem@davemloft.net, Eric Dumazet <eric.dumazet@gmail.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
+Message-ID: <20190906195135.GA69785@tigerII.localdomain>
+References: <20190904061501.GB3838@dhcp22.suse.cz>
+ <20190904064144.GA5487@jagdpanzerIV>
+ <20190904065455.GE3838@dhcp22.suse.cz>
+ <20190904071911.GB11968@jagdpanzerIV>
+ <20190904074312.GA25744@jagdpanzerIV>
+ <1567599263.5576.72.camel@lca.pw>
+ <20190904144850.GA8296@tigerII.localdomain>
+ <1567629737.5576.87.camel@lca.pw>
+ <20190905113208.GA521@jagdpanzerIV>
+ <20190906145533.4uw43a5pvsawmdov@pathway.suse.cz>
 MIME-Version: 1.0
-References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-13-pasha.tatashin@soleen.com> <d4a5bb7b-21c0-9f39-ad96-3fa43684c6c6@arm.com>
-In-Reply-To: <d4a5bb7b-21c0-9f39-ad96-3fa43684c6c6@arm.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 15:06:36 -0400
-Message-ID: <CA+CK2bDxK5DHARkAUxzodhMDqokqEy3Y12F-bgHPF9g9K496hA@mail.gmail.com>
-Subject: Re: [PATCH v3 12/17] arm64, trans_pgd: complete generalization of trans_pgds
-To: James Morse <james.morse@arm.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, 
-	Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
-	Vladimir Murzin <vladimir.murzin@arm.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
-	Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>, 
-	Mark Rutland <mark.rutland@arm.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190906145533.4uw43a5pvsawmdov@pathway.suse.cz>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 6, 2019 at 11:23 AM James Morse <james.morse@arm.com> wrote:
->
-> Hi Pavel,
->
-> On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > Make the last private functions in page table copy path generlized for use
-> > outside of hibernate.
-> >
-> > Switch to use the provided allocator, flags, and source page table. Also,
-> > unify all copy function implementations to reduce the possibility of bugs.
->
-> By changing it? No one has reported any problems. We're more likely to break it making
-> unnecessary changes.
->
-> Why is this necessary?
+On (09/06/19 16:55), Petr Mladek wrote:
+> > I think we can queue significantly much less irq_work-s from printk().
+> > 
+> > Petr, Steven, what do you think?
+> > 
+> > Something like this. Call wake_up_interruptible(), switch to
+> > wake_up_klogd() only when called from sched code.
+> 
+> Replacing irq_work_queue() with wake_up_interruptible() looks
+> dangerous to me.
+> 
+> As a result, all "normal" printk() calls from the scheduler
+> code will deadlock. There is almost always a userspace
+> logger registered.
 
-I tried to make it cleaner, but if you think the final version does
-not make it better, I will keep the current versions.
+I don't see why all printk()-s should deadlock.
 
-Thank you,
-Pasha
+A "normal" printk() call will deadlock only when scheduler calls
+"normal" printk() under rq or pi locks. But this is illegal anyway,
+because console_sem up() calls wake_up_process() - the same function
+wake_up_interruptible() calls. IOW "normal" printk() calls from
+scheduler end up in scheduler, via console_sem->sched chain. We
+already execute wake_up_process()->try_to_wake_up() in printk(),
+even when a non-LOGLEVEL_SCHED printk() comes from scheduler.
+
+What am I missing something?
+
+	-ss
 
