@@ -2,127 +2,177 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DCC15C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:44:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1CCFC43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 16:00:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A032420838
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:44:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 57CC2214DE
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 16:00:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="GOMgzAf/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A032420838
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="EyqSM1AB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57CC2214DE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 48F186B0006; Fri,  6 Sep 2019 11:44:24 -0400 (EDT)
+	id 7B74E6B0003; Fri,  6 Sep 2019 12:00:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 418326B000D; Fri,  6 Sep 2019 11:44:24 -0400 (EDT)
+	id 767AE6B0005; Fri,  6 Sep 2019 12:00:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DE976B000E; Fri,  6 Sep 2019 11:44:24 -0400 (EDT)
+	id 6A4786B0007; Fri,  6 Sep 2019 12:00:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0207.hostedemail.com [216.40.44.207])
-	by kanga.kvack.org (Postfix) with ESMTP id 078736B0006
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:44:23 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id A9973181AC9AE
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:44:23 +0000 (UTC)
-X-FDA: 75904917606.17.badge53_607dfa7e47520
-X-HE-Tag: badge53_607dfa7e47520
-X-Filterd-Recvd-Size: 4457
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf03.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:44:22 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id c19so6655424edy.10
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 08:44:22 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=UXzffckHlrDd2GxMkcUegpxPLxQbezYI5SKZXnOnJzk=;
-        b=GOMgzAf/lkF5c2eKwXgjCw9a3KXnWR5APRE7h0mk6NdXu79AGiO8sODfHid9N6Xl5h
-         M/C8KT/SLLU5H1Aqg4nwEKOuTu5OkbyrUQJTErU8uVcm673iUBJEH32XMXPStUacK9QI
-         xCMSuQrJe1j8CHQBTWz9PB+Jomp1+g+QD9Tkd9KMYHmJWFzG5xyCzw8xyfNgbLXZwkrs
-         5FlS9o5FS4p8okYBPzuG2ITgzJGemxFxUkm3aSbDG/x0MDmUmazIm6dOMXX9j66GMFk+
-         3cLHZkaYpm/muQI+jLdcObCu1m/ydijbn1wGNoRDjuAv/Fx5CRGdTNnFLVIVNVPLSSN2
-         qWrA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=UXzffckHlrDd2GxMkcUegpxPLxQbezYI5SKZXnOnJzk=;
-        b=SONXlruBz/oaBx/RLuDWcoQxG9+GJRDg03NUIvwShqtDO4ZOG0hxB54oIPpdrj2fHR
-         eZLzg36Bpbi5m63m8ilR2yZFnwi4Sly78zXzc6eZep34GzM226K3XQeM4wOqBlu2IScd
-         y9WtjZlJs7mZ9r/PW7rbsMXNybqQTBbPtfdZ5qRZuHiy1AXSOo6SAm0yqItDm2bo+X0P
-         D32s9E14Kz1HRS2gquSPEiEbUfISIhKCcgjzNeUkwBiwHqxBG8jUCP0Qq8rTZXL9kXXO
-         EciUBVq57Omvnpk0teHVPyFgbgtPB5CyZeO2Xi6MhCycr6t0iHHv3Qy0hXzzkAc88tmY
-         c2gg==
-X-Gm-Message-State: APjAAAWvLrlqCx3xdd7G7CjYiIzNxqdMp/UBZdui6REuD/9U6UgChwe4
-	1HvUU4ZPQiBVNNcHnLcbVBzxpN+1krjPmHoCZmahCw==
-X-Google-Smtp-Source: APXvYqwplMA0AW8lXkCWQuG9K8cCsGpwcuOwcj3r1h53xYTkZkNhYGGnMNAxboAR+e2euONipoiDRfZvyN8jJZQFWsM=
-X-Received: by 2002:a17:906:f04:: with SMTP id z4mr8127839eji.209.1567784661783;
- Fri, 06 Sep 2019 08:44:21 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4656B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:00:01 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D6A1A1EF1
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 16:00:00 +0000 (UTC)
+X-FDA: 75904956960.23.queen28_575c1f87da427
+X-HE-Tag: queen28_575c1f87da427
+X-Filterd-Recvd-Size: 5189
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 16:00:00 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=nVVfwL9jPbxbv3UU7EoQYh7TMejKlo+fUaut0VfJfrw=; b=EyqSM1ABuGTf/zoM83qIcUFVi
+	1wUQCwyFHi2EyzPSjT0zHjuZAdS8/ubNh3DpDu9PXz9B1wFy2P94iJUrycdEu7ZPC+Yhr0RR20erg
+	mU0Rrx7BFCspWQcJt/ce1e2+mofN5QnlQfiD5zvAecgwnbC18I7yt1LZSqF9UOCgnt9091qUIypBO
+	KqRLxP7Q21GIbWDVBj/VeIdjCuNuFQ8AHfrTbrFYiguBmv2xKU1wkFoDA1zBT5ZzQIy7fC7IggLdQ
+	6q27uwvAZFklafc9/rIw6nirCYmPKby2ZAWlvtMnUQTq7XT7NtDBlxOgq6S3Lg6NYoZxhUexyLgje
+	lhf7gEzrw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i6GeN-00050e-JA; Fri, 06 Sep 2019 15:59:51 +0000
+Date: Fri, 6 Sep 2019 08:59:51 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Kirill Shutemov <kirill@shutemov.name>,
+	Song Liu <songliubraving@fb.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH 4/3] Prepare transhuge pages properly
+Message-ID: <20190906155951.GZ29434@bombadil.infradead.org>
+References: <20190905182348.5319-1-willy@infradead.org>
 MIME-Version: 1.0
-References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-6-pasha.tatashin@soleen.com> <ddd81093-89fc-5146-0b33-ad3bd9a1c10c@arm.com>
-In-Reply-To: <ddd81093-89fc-5146-0b33-ad3bd9a1c10c@arm.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 11:44:10 -0400
-Message-ID: <CA+CK2bBXfa0MFspOpWAGL4Q7iYH9UMdKAwMD-PyL7Wp4s64x+Q@mail.gmail.com>
-Subject: Re: [PATCH v3 05/17] arm64, hibernate: check pgd table allocation
-To: James Morse <james.morse@arm.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, 
-	Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
-	Vladimir Murzin <vladimir.murzin@arm.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
-	Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>, 
-	Mark Rutland <mark.rutland@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190905182348.5319-1-willy@infradead.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 6, 2019 at 11:17 AM James Morse <james.morse@arm.com> wrote:
->
-> Hi Pavel,
->
-> On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > There is a bug in create_safe_exec_page(), when page table is allocated
-> > it is not checked that table is allocated successfully:
-> >
-> > But it is dereferenced in: pgd_none(READ_ONCE(*pgdp)).
->
-> If there is a bug, it shouldn't be fixed part way through a series. This makes it
-> difficult to backport the fix.
->
-> Please split this out as an independent patch with a 'Fixes:' tag for the commit that
-> introduced the bug.
->
->
-> > Another issue,
->
-> So this patch does two things? That is rarely a good idea. Again, this makes it difficult
-> to backport the fix.
->
->
-> > is that phys_to_ttbr() uses an offset in page table instead
-> > of pgd directly.
->
-> If you were going to reuse this, that would be a bug. But because the only page that is
-> being mapped, is mapped to PAGE_SIZE, all the top bits will be 0. The offset calls are
-> boiler-plate. It doesn't look intentional, but its harmless.
 
-Yes, it is harmless otherwise the code would not work. But it is
-confusing to read, and looks broken. I will separate this change as
-two patches as you suggested.
+Bill pointed out I'd forgotten to call prep_transhuge_page().  I'll
+fold this into some of the other commits, but this is what I'm thinking
+of doing in case anyone has a better idea:
 
-Thank you,
-Pasha
+Basically, I prefer being able to do this:
+
+-	return alloc_pages(gfp, order);
++	return prep_transhuge_page(alloc_pages(gfp, order));
+
+to this:
+
++	struct page *page;
+-	return alloc_pages(gfp, order);
++	page = alloc_pages(gfp, order);
++	if (page && (gfp & __GFP_COMP))
++		prep_transhuge_page(page);
++	return page;
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 45ede62aa85b..159e63438806 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -153,7 +153,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
+ 		unsigned long addr, unsigned long len, unsigned long pgoff,
+ 		unsigned long flags);
+ 
+-extern void prep_transhuge_page(struct page *page);
++extern struct page *prep_transhuge_page(struct page *page);
+ extern void free_transhuge_page(struct page *page);
+ 
+ bool can_split_huge_page(struct page *page, int *pextra_pins);
+@@ -294,7 +294,10 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
+ 	return false;
+ }
+ 
+-static inline void prep_transhuge_page(struct page *page) {}
++static inline struct page *prep_transhuge_page(struct page *page)
++{
++	return page;
++}
+ 
+ #define transparent_hugepage_flags 0UL
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 72101811524c..8b9d672d868c 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -215,7 +215,7 @@ struct page *__page_cache_alloc_order(gfp_t gfp, unsigned int order)
+ {
+ 	if (order > 0)
+ 		gfp |= __GFP_COMP;
+-	return alloc_pages(gfp, order);
++	return prep_transhuge_page(alloc_pages(gfp, order));
+ }
+ #endif
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a7fa3a50f750..c2b11799b968 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -986,11 +986,12 @@ struct page *__page_cache_alloc_order(gfp_t gfp, unsigned int order)
+ 			cpuset_mems_cookie = read_mems_allowed_begin();
+ 			n = cpuset_mem_spread_node();
+ 			page = __alloc_pages_node(n, gfp, order);
++			prep_transhuge_page(page);
+ 		} while (!page && read_mems_allowed_retry(cpuset_mems_cookie));
+ 
+ 		return page;
+ 	}
+-	return alloc_pages(gfp, order);
++	return prep_transhuge_page(alloc_pages(gfp, order));
+ }
+ EXPORT_SYMBOL(__page_cache_alloc_order);
+ #endif
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 483b07b2d6ae..3961af907dd7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -502,15 +502,20 @@ static inline struct list_head *page_deferred_list(struct page *page)
+ 	return &page[2].deferred_list;
+ }
+ 
+-void prep_transhuge_page(struct page *page)
++struct page *prep_transhuge_page(struct page *page)
+ {
++	if (!page || compound_order(page) == 0)
++		return page;
+ 	/*
+-	 * we use page->mapping and page->indexlru in second tail page
++	 * we use page->mapping and page->index in second tail page
+ 	 * as list_head: assuming THP order >= 2
+ 	 */
++	BUG_ON(compound_order(page) == 1);
+ 
+ 	INIT_LIST_HEAD(page_deferred_list(page));
+ 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
++
++	return page;
+ }
+ 
+ static unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long len,
+
 
