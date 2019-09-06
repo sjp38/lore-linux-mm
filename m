@@ -2,141 +2,151 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4901C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 17:41:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6240C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 17:47:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0020206BB
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 17:41:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4967D20640
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 17:47:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="KWbZvsNI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0020206BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="FRjTuqf9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4967D20640
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FF406B0005; Fri,  6 Sep 2019 13:41:31 -0400 (EDT)
+	id F07D66B0005; Fri,  6 Sep 2019 13:47:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AEE16B0006; Fri,  6 Sep 2019 13:41:31 -0400 (EDT)
+	id EB9096B0006; Fri,  6 Sep 2019 13:47:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C5B16B0007; Fri,  6 Sep 2019 13:41:31 -0400 (EDT)
+	id D802C6B0007; Fri,  6 Sep 2019 13:47:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0243.hostedemail.com [216.40.44.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EE30D6B0005
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 13:41:30 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 98477440B
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 17:41:30 +0000 (UTC)
-X-FDA: 75905212740.13.cat67_646d408bb2e07
-X-HE-Tag: cat67_646d408bb2e07
-X-Filterd-Recvd-Size: 5064
-Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com [209.85.208.65])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 17:41:29 +0000 (UTC)
-Received: by mail-ed1-f65.google.com with SMTP id f2so659448edw.3
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 10:41:29 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0236.hostedemail.com [216.40.44.236])
+	by kanga.kvack.org (Postfix) with ESMTP id B46AD6B0005
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 13:47:38 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 693D155F94
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 17:47:38 +0000 (UTC)
+X-FDA: 75905228196.27.brick56_868e9f437d08
+X-HE-Tag: brick56_868e9f437d08
+X-Filterd-Recvd-Size: 5017
+Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 17:47:37 +0000 (UTC)
+Received: by mail-ed1-f68.google.com with SMTP id a23so4791254edv.5
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 10:47:37 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=VBkiR/7BisGtZVmNVXhHtJrfmofi1qU8Pxcjpjv/ZgU=;
-        b=KWbZvsNIkISQq4DJ0Jn0+DC13xFv36DJ+INz1iCwsDURlinnxi/FqltluIcUdyKEH+
-         rohLlAAcGa9S/ZYLvc1vTaR6e7aQaHawkNyzLp29w4f6Au1gxqx6ccQi15xWrUysZLko
-         l0O4EcJcNb3Zxrza5Xu2Cdd0Q8c1MNJiep4Y23PuKjCm1JHlOUjUXO3rjxiUgpMuxdBZ
-         195WYeYAEX+sfEiPtjph8YRPHJ5jQAWbkYH6/UE6sgH5I3Tkdk2sSbsvvqd+Xnpv0uvu
-         1ilSBFkcIXgD0EgHuYTfM1YDM5ly+poGMtxFMSDOaOGhgSkdDDpWTmBO4MBPmbtsnmHo
-         MKVg==
+        d=ffwll.ch; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=AXnjF1eMA0qvhNi+oaAvRaU1Op/sm6+LQv/OHFTjjBs=;
+        b=FRjTuqf9guqExV42vYGxD/fiJVxgZg0XxcBoMZkO3y4QM+JRyu5YDuJcT8dY4cwVtT
+         6/DchteyEMWB7Egugye1ennPXOFn5/y55kWgyjVlAxTOzKoAeV3mZZ1vkODIu9aV6ZZ/
+         wPg7BapUpyEmLjNdij5gnkTUktJpuxzhSOXy4=
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=VBkiR/7BisGtZVmNVXhHtJrfmofi1qU8Pxcjpjv/ZgU=;
-        b=CY5nb6rd4ru2ebo4RbRGGUceJhaoHpeEwCKkIO2gtQkQ6tP57yMrN6l5xQoV1cyJ67
-         37HOHWStpoik82qbBQKk1LvbVDo5oc7FYc9kwSzsc5Qr5pYMWa++u7e6cpNk54/eNd1t
-         xQuz8/ty5dYZr2605uZblISaVFJlSMgMBqMJyg+TBe1091sGBlhrt67aY1i/U7DSEcUu
-         g0JMGBX7LXXEIo4Yh1JoL3L+F6P+brjamYdryVR0a9OT9aYQht9xWHTh+8u6Wln90/XW
-         qnU8g0rn2WysvxKba93ZDxdztOwHIZFd4DQhMZxsIsfPePc6JOnPua438lkyYKBp3DnW
-         Zoxg==
-X-Gm-Message-State: APjAAAXVWAQ+Z7/8BbNq7zUaKCe7FXUrw57h4ABNaNXHzmOfp3Z/kjlK
-	F7DPHmoHfdd9x3tdUqmwyjzN0f8FHGq8LqDqj9NQxA==
-X-Google-Smtp-Source: APXvYqzdydAQq2XsQ/paSb9m4rgwscf0/CCdiPGGGSWL+1ARUwePukKygj3cKHXfmSeUdjAS/Egx8Zb0S9m9dpj+AVQ=
-X-Received: by 2002:aa7:c40c:: with SMTP id j12mr11037477edq.80.1567791688713;
- Fri, 06 Sep 2019 10:41:28 -0700 (PDT)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=AXnjF1eMA0qvhNi+oaAvRaU1Op/sm6+LQv/OHFTjjBs=;
+        b=sea72Qupym6w5IMCziuQ7X10OFuQ0st8NSPzIsZlnKZFQI/SAaE7EeZVIFC/noNQI2
+         MF++6w9nCSPi/AkDNR5/tq77+omk1m3NpnicvFTnTeBkfuEac9crfKkKmxnQp7I2JkYh
+         wBFkhBELAEoeJyAFOlYvjDHl7DZITzRpWFAUS7C/AlDp323ugzu4R74BPVwJFigXwDa1
+         EdKcpRYUHjrBPwyQDBf6VwiuTHMFbEcTEAjsBAwb3XPwTh/I8JKV0cfZDNYczcloX2GP
+         Qj+8zL7DDD83qpvgi8bNRWWiP3lH3GDrw2LKGCzZ+EvvQHfwRviCiNrMxeBGDPvCaI2g
+         XeYA==
+X-Gm-Message-State: APjAAAUG0e+u0BJCrdpLpNV29vLkrowSbCtvC9yp5Cj0MulG6FlTx0nP
+	MPJBhXQTUOBViZXRKlsaIMZizA==
+X-Google-Smtp-Source: APXvYqyXNSoipVDK3YxyEJ0q0hqumo6vbP/ePP5SeWNLJC+mFFPaXXQumLn2z+pO051A2VuoAWL5CA==
+X-Received: by 2002:a17:906:8158:: with SMTP id z24mr8426652ejw.54.1567792056188;
+        Fri, 06 Sep 2019 10:47:36 -0700 (PDT)
+Received: from phenom.ffwll.local (212-51-149-96.fiber7.init7.net. [212.51.149.96])
+        by smtp.gmail.com with ESMTPSA id m14sm537241edc.61.2019.09.06.10.47.34
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 06 Sep 2019 10:47:35 -0700 (PDT)
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: DRI Development <dri-devel@lists.freedesktop.org>,
+	Daniel Vetter <daniel.vetter@ffwll.ch>,
+	syzbot+aaedc50d99a03250fe1f@syzkaller.appspotmail.com,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Daniel Vetter <daniel.vetter@intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Sean Christopherson <sean.j.christopherson@intel.com>,
+	Jean-Philippe Brucker <jean-philippe@linaro.org>,
+	linux-mm@kvack.org
+Subject: [PATCH] mm, notifier: Fix early return case for new lockdep annotations
+Date: Fri,  6 Sep 2019 19:47:30 +0200
+Message-Id: <20190906174730.22462-1-daniel.vetter@ffwll.ch>
+X-Mailer: git-send-email 2.23.0
 MIME-Version: 1.0
-References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-8-pasha.tatashin@soleen.com> <f1db863a-de57-2d1a-6bec-6020b2130964@arm.com>
-In-Reply-To: <f1db863a-de57-2d1a-6bec-6020b2130964@arm.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 13:41:17 -0400
-Message-ID: <CA+CK2bDTVGm6pNRGQx7eAyEP6m0xr9X1No_=qgUOTDAoL9uigw@mail.gmail.com>
-Subject: Re: [PATCH v3 07/17] arm64, hibernate: move page handling function to
- new trans_pgd.c
-To: James Morse <james.morse@arm.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, 
-	Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
-	Vladimir Murzin <vladimir.murzin@arm.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
-	Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>, 
-	Mark Rutland <mark.rutland@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 6, 2019 at 11:18 AM James Morse <james.morse@arm.com> wrote:
->
-> Hi Pavel,
->
-> On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > Now, that we abstracted the required functions move them to a new home.
-> > Later, we will generalize these function in order to be useful outside
-> > of hibernation.
->
-> > diff --git a/arch/arm64/mm/trans_pgd.c b/arch/arm64/mm/trans_pgd.c
-> > new file mode 100644
-> > index 000000000000..00b62d8640c2
-> > --- /dev/null
-> > +++ b/arch/arm64/mm/trans_pgd.c
-> > @@ -0,0 +1,211 @@
-> > +// SPDX-License-Identifier: GPL-2.0
-> > +
-> > +/*
-> > + * Copyright (c) 2019, Microsoft Corporation.
-> > + * Pavel Tatashin <patatash@linux.microsoft.com>
->
-> Hmmm, while line-count isn't a useful metric: this file contains 41% of the code that was
-> in hibernate.c, but has stripped the substantial copyright-pedigree that the hibernate
-> code had built up over the years.
-> (counting lines identified by 'cloc' as code, not comments or blank)
->
-> If you are copying or moving a non trivial quantity of code, you need to preserve the
-> copyright. Something like 'Derived from the arm64 hibernate support which has:'....
+I missed that when extending the lockdep annotations to the
+nonblocking case.
 
-I will do that.  The copyright thing was meant to appear in
-"generalization" patch that comes later, where I unified most of the
-code to be symmetric.
-So, I will add it there, and also do the derived message that you suggested.
+I missed this while testing since in the i915 mmu notifiers is hitting
+a nice lockdep splat already before the point of going into oom killer
+mode :-/
 
->
->
-> > + */
-> > +
-> > +/*
-> > + * Transitional tables are used during system transferring from one world to
-> > + * another: such as during hibernate restore, and kexec reboots. During these
-> > + * phases one cannot rely on page table not being overwritten.
->
-> I think you need to mention that hibernate and kexec are rewriting memory, and may
-> overwrite the live page tables, therefore ...
+Reported-by: syzbot+aaedc50d99a03250fe1f@syzkaller.appspotmail.com
+Fixes: d2b219ed03d4 ("mm/mmu_notifiers: add a lockdep map for invalidate_=
+range_start/end")
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Daniel Vetter <daniel.vetter@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Sean Christopherson <sean.j.christopherson@intel.com>
+Cc: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Cc: linux-mm@kvack.org
+Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+---
+ include/linux/mmu_notifier.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-Will add, thank you.
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 5a03417e5bf7..4edd98b06834 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -356,13 +356,14 @@ mmu_notifier_invalidate_range_start(struct mmu_noti=
+fier_range *range)
+ static inline int
+ mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *=
+range)
+ {
++	int ret =3D 0;
+ 	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
+ 	if (mm_has_notifiers(range->mm)) {
+ 		range->flags &=3D ~MMU_NOTIFIER_RANGE_BLOCKABLE;
+-		return __mmu_notifier_invalidate_range_start(range);
++		ret =3D __mmu_notifier_invalidate_range_start(range);
+ 	}
+ 	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+-	return 0;
++	return ret;
+ }
+=20
+ static inline void
+--=20
+2.23.0
 
-Pasha
 
