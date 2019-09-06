@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 604A2C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:04:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C6DFC43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:06:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 276DD207FC
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:04:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D75A220838
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 19:06:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="LeW70Cwz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 276DD207FC
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="FQTP/Tmg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D75A220838
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD44C6B000D; Fri,  6 Sep 2019 15:04:54 -0400 (EDT)
+	id 83E296B000A; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C839A6B000E; Fri,  6 Sep 2019 15:04:54 -0400 (EDT)
+	id 7EE456B000C; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B724A6B0010; Fri,  6 Sep 2019 15:04:54 -0400 (EDT)
+	id 6DCE66B000D; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0238.hostedemail.com [216.40.44.238])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C0C6B000D
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:04:54 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 363F1180AD801
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:04:54 +0000 (UTC)
-X-FDA: 75905422908.18.food87_64f283cda9f40
-X-HE-Tag: food87_64f283cda9f40
-X-Filterd-Recvd-Size: 3677
+Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E8E6B000A
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:06:49 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id D2960824CA11
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:06:48 +0000 (UTC)
+X-FDA: 75905427696.05.pail47_759f48100c71d
+X-HE-Tag: pail47_759f48100c71d
+X-Filterd-Recvd-Size: 3915
 Received: from mail-ed1-f68.google.com (mail-ed1-f68.google.com [209.85.208.68])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:04:53 +0000 (UTC)
-Received: by mail-ed1-f68.google.com with SMTP id y91so7234345ede.9
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 12:04:53 -0700 (PDT)
+	by imf15.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 19:06:48 +0000 (UTC)
+Received: by mail-ed1-f68.google.com with SMTP id t50so7282078edd.2
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 12:06:48 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=jojg3lt9aotJnGt5bH33wsrcyv/EEKP9KJRLMGkqesY=;
-        b=LeW70Cwz4yP0y+LnTrM6vdUtvCMHjSw1acep3zXSJpi5BYck+TcuH8lwg6BFF+angS
-         RDYMTGCVx+3iLx4bIRpfNA69sQlUdbjAfJrE1tIJt9h5xR7KlD59f1teg2zUjKLWji8U
-         HtKOfDiAs4fvtxuIYAkhN86SzJ/3DECTbwuraae7Ro4Fnmf/j7wRycV3GekLevRvA4yi
-         hN+l2NlmZ43f8LnS3649b2RQBq2URKwBrG03uECmpal6VX2gf/H7cIiJydxgVHNdAVEK
-         ZsN2k2L3TJXN4FJXJv8Ww2KRqLaR8luX0x/QO6p8DnbYTUm/7XaIdegqHhHY71r0jRUC
-         LkWg==
+        bh=Y2omJ3/dD4U+vCtoy8H75XszRI5XH+eQMkgkdDPlArY=;
+        b=FQTP/TmgHTgyC+PBU5SEyiseIy1zvJC97N+VhKG2dCvL9vAhP80LEhoKJOvzIi6bLQ
+         BgVBFgf58SS8R6ppJO3IlLnneB06um+xoINkqVeAcoexAD7EM8Pa8+VTq2HkDgPCOmt1
+         TOn3ZhGsy7GLjFuJ1Jsk7gydcJxrPs9xEq3rZGr9mprwu/oe6WREKg8EsucNQZWw2j6w
+         J7ifMbBwHA1GZOQh8cnKXT8qN31F/vuBtp4u7YqNI+J47VPkt/zp22gNmPCRdoGMqBlZ
+         nVh7RyWgx3VRI12mKbkkekJb4SMfWKAg2SUtXlgb9KFbdoDmStmdx61Q+ALcL6DiU6Eb
+         OcSw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=jojg3lt9aotJnGt5bH33wsrcyv/EEKP9KJRLMGkqesY=;
-        b=PRH5L2tfgruR++2omrWh11QLJCo93Yyj90rEg/P/Pysxo1GYbmAmNxyqGyP+V/hR4x
-         fahTbL9iEuLAhRwOlhh1npYg+K2IWHMohaKh0GvPrUpVX+XaDCa9g1iKtPt/ja/L9lVM
-         5or+9J7oEIs33rPw9e1vcCW3lQPhX0VZeJWktzWW5OLU5aAhAK05E16O713+YAUbqggx
-         fPNAfSVDYyQNw2Tj5gotkgL9iQRI3kc0czdOkvtYsz1kVEDFiak8hBUhNWfN74SGcs/V
-         EJBtPlcVrGyUsysDlB4/Nvm4vHEdDyBkxYXqT9lMmRVp6V1HWoazpJasJpj808eaMs6l
-         3G2Q==
-X-Gm-Message-State: APjAAAVSZrhJk+SbKhYbqAI3QFIwy9yjubcZNE2f0RV1z/dkYK/snuBC
-	xNHRefydiI98LSq+/LZ9kL7aGFuTkXq47Fog3A95iA==
-X-Google-Smtp-Source: APXvYqyK1SCAqBB23XwDsQMDwIBa7uh8HdAPqm1/xVvjPDxouORMX2W/oKEVAMQ70bEUmrEuPn+OtVr0upjiCbgyF4o=
-X-Received: by 2002:aa7:c40c:: with SMTP id j12mr11447072edq.80.1567796692440;
- Fri, 06 Sep 2019 12:04:52 -0700 (PDT)
+        bh=Y2omJ3/dD4U+vCtoy8H75XszRI5XH+eQMkgkdDPlArY=;
+        b=lChcjoOz9QZbCzrCE4dl4G60/wLQzi0xht4GQLD6vmU/7Ploa8+V3R/rmSQTKZXsHW
+         nO1j9IyigdOC7qDyOh1ue1sA/bI1Z+608xP0DMqEohmdQSoEcBLFYCeao/yDKy6A3s9/
+         MgTw/d/+LAoT7QA9T/Tci/UMAClD5oyYw6dcm5pkqCQSDhMNMKLSRlj9KrOhHm+niQ1Z
+         WqM7NcJl2Eadbmv1q4QJTFKKkwdy3Nj2fGbQEY5I4H/FOE5Nyns2hDN2+RPgf/TQpmfE
+         TR+PRC+9yyQxk/dyoJkfVtB7WX/CT4YQt8RHlGPU/lO9YwD2+Ql/l6YhDv2814y+/PtI
+         nDFw==
+X-Gm-Message-State: APjAAAWLVp7uMV5eLYqEN+tHNQSYNcH5VqTSEl0ahm5LNsjfombbN4b8
+	iWXf/UNY0NIVuOXkHRx/OZ0ejv5WxZO8op++/DcXUw==
+X-Google-Smtp-Source: APXvYqxUyzboKtZynQf94VQal3O7BvvXwmvhzJw991UoDJCeN6nT1tLn0eiUP2pwGueZpl557B6qG/MIy5a1dR+RLhA=
+X-Received: by 2002:a50:9ea1:: with SMTP id a30mr11569826edf.304.1567796807172;
+ Fri, 06 Sep 2019 12:06:47 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-12-pasha.tatashin@soleen.com> <d53d973c-17dc-2f4f-c052-83d6df15b002@arm.com>
-In-Reply-To: <d53d973c-17dc-2f4f-c052-83d6df15b002@arm.com>
+ <20190821183204.23576-13-pasha.tatashin@soleen.com> <d4a5bb7b-21c0-9f39-ad96-3fa43684c6c6@arm.com>
+In-Reply-To: <d4a5bb7b-21c0-9f39-ad96-3fa43684c6c6@arm.com>
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 15:04:41 -0400
-Message-ID: <CA+CK2bCSDEspfJZ9k_4nWmerQSatc9M_dVf4Jij5xUwTMbg29w@mail.gmail.com>
-Subject: Re: [PATCH v3 11/17] arm64, trans_pgd: add PUD_SECT_RDONLY
+Date: Fri, 6 Sep 2019 15:06:36 -0400
+Message-ID: <CA+CK2bDxK5DHARkAUxzodhMDqokqEy3Y12F-bgHPF9g9K496hA@mail.gmail.com>
+Subject: Re: [PATCH v3 12/17] arm64, trans_pgd: complete generalization of trans_pgds
 To: James Morse <james.morse@arm.com>
 Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
 	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
@@ -89,22 +89,24 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 6, 2019 at 11:21 AM James Morse <james.morse@arm.com> wrote:
+On Fri, Sep 6, 2019 at 11:23 AM James Morse <james.morse@arm.com> wrote:
 >
 > Hi Pavel,
 >
 > On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > Thre is PMD_SECT_RDONLY that is used in pud_* function which is confusing.
+> > Make the last private functions in page table copy path generlized for use
+> > outside of hibernate.
+> >
+> > Switch to use the provided allocator, flags, and source page table. Also,
+> > unify all copy function implementations to reduce the possibility of bugs.
 >
-> Nit: There
+> By changing it? No one has reported any problems. We're more likely to break it making
+> unnecessary changes.
 >
-> I bet it was equally confusing before before you moved it! Could you do this earlier in
-> the series with the rest of the cleanup?
->
-> With that,
-> Acked-by: James Morse <james.morse@arm.com>
+> Why is this necessary?
 
-Will move it earlier.
+I tried to make it cleaner, but if you think the final version does
+not make it better, I will keep the current versions.
 
 Thank you,
 Pasha
