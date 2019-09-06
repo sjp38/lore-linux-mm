@@ -2,165 +2,206 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FB7BC00307
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57130C00307
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:09:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2565214DE
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:06:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2565214DE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 0085A208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:09:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="1gxHiQjK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0085A208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8D226B000A; Fri,  6 Sep 2019 08:06:35 -0400 (EDT)
+	id 9EC446B0003; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1AE46B000C; Fri,  6 Sep 2019 08:06:35 -0400 (EDT)
+	id 99DE46B0006; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8BBAF6B000D; Fri,  6 Sep 2019 08:06:35 -0400 (EDT)
+	id 865636B0007; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0179.hostedemail.com [216.40.44.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 635236B000A
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:06:35 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id EFA9E440B
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:34 +0000 (UTC)
-X-FDA: 75904368708.20.point08_5682d2be87e3b
-X-HE-Tag: point08_5682d2be87e3b
-X-Filterd-Recvd-Size: 4452
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:06:34 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6CA03ABE7;
-	Fri,  6 Sep 2019 12:06:32 +0000 (UTC)
-From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-To: catalin.marinas@arm.com,
-	hch@lst.de,
-	wahrenst@gmx.net,
-	marc.zyngier@arm.com,
-	robh+dt@kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org,
-	linux-riscv@lists.infradead.org,
-	Paul Walmsley <paul.walmsley@sifive.com>,
-	Palmer Dabbelt <palmer@sifive.com>,
-	Albert Ou <aou@eecs.berkeley.edu>
-Cc: f.fainelli@gmail.com,
-	will@kernel.org,
-	robin.murphy@arm.com,
-	nsaenzjulienne@suse.de,
-	linux-kernel@vger.kernel.org,
-	mbrugger@suse.com,
-	linux-rpi-kernel@lists.infradead.org,
-	phill@raspberrypi.org,
-	m.szyprowski@samsung.com
-Subject: [PATCH v4 4/4] mm: refresh ZONE_DMA and ZONE_DMA32 comments in 'enum zone_type'
-Date: Fri,  6 Sep 2019 14:06:15 +0200
-Message-Id: <20190906120617.18836-5-nsaenzjulienne@suse.de>
-X-Mailer: git-send-email 2.23.0
-In-Reply-To: <20190906120617.18836-1-nsaenzjulienne@suse.de>
-References: <20190906120617.18836-1-nsaenzjulienne@suse.de>
+Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
+	by kanga.kvack.org (Postfix) with ESMTP id 670EB6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id DCB49181AC9AE
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:09:46 +0000 (UTC)
+X-FDA: 75904376772.08.shoes30_726b634bca54a
+X-HE-Tag: shoes30_726b634bca54a
+X-Filterd-Recvd-Size: 6468
+Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:09:46 +0000 (UTC)
+Received: by mail-ed1-f66.google.com with SMTP id o9so6137683edq.0
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 05:09:46 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=/ZpOOYR+HZWQeyP2e1hldkbWyYIuYUrXJjhNyL08Hq8=;
+        b=1gxHiQjKdOMyYiGzE5VW4GFk2+DGLsS8p512DlwXy29ptXKbSTxwpPVaBpZ1OwYzrS
+         iNS3KHSS9jXjIQ+sUHeZZ9SEREISWmfb1ze0PNii5OcBKGxRubHhsMXap2slQfeghNCE
+         E0p3aVriXPsjvaZlDj3krxH2NPEjfTGXCK5RptnMHNg2ycrRsJ+w7cFxLS6Mp2aIX6+6
+         5QXL+r/wNaFsrn0yeAzhcJVg1lDEQYaXqGN1g3QrkgQJxox+6gQ+01A5CRWd0wbb7Ie4
+         hfjVnoD4qOkIlwdZmQuoIW2hA+WZ/zAhKjctVLDpQvRmf4x2ndokxfa2L9yq5Kir9BMW
+         1jwg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=/ZpOOYR+HZWQeyP2e1hldkbWyYIuYUrXJjhNyL08Hq8=;
+        b=bmgXHWruIP9wtcCVDw8v/GpO/AXQnJnw6wBUqolvU6Xg00nEKrwgVLFEm9vgljGAcj
+         SnieTDX3cqqzjFFJBOyk59epRn/MomyxHKVdA/FG+Tgxq7ruPl3/69+bcIeCsGVYG2en
+         1Bq5x9BSsA0q5Cr5AyL5BoXCK90HFGdYhMP9z1qkj1at4iKjtR+GXh8HZyVj9WbgbtRl
+         UmlUSFLu2A8rHbTtPS1zkH+O3O7X2mmu+UEhW1j2ZtH0eEu7J0srB8lUeczP7fvzTeSZ
+         f1siaKOzoLycdas8O4+XaGsrJli9B3j9gSpAPBw7LVeeF+dSUdJ88FXEXNw/TBGPi1E7
+         RjsA==
+X-Gm-Message-State: APjAAAXpeTb51nxd/Sjs+WYvbOSa/gsEgxj457+ToYJtqs+LyO+CT+8C
+	4SrY+Lt4OUBWBVWCpoq7owinUw==
+X-Google-Smtp-Source: APXvYqzc3hH3oh715W7IxEi0aqKaryx+UF7bbnCEMkE8mzS+Qle/uOPGXcP6SUwwvaatUlZBYPeZIA==
+X-Received: by 2002:a50:d55e:: with SMTP id f30mr9274055edj.35.1567771784925;
+        Fri, 06 Sep 2019 05:09:44 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id c21sm912039ede.45.2019.09.06.05.09.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Sep 2019 05:09:44 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 251D01049F1; Fri,  6 Sep 2019 15:09:44 +0300 (+03)
+Date: Fri, 6 Sep 2019 15:09:44 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+	Song Liu <songliubraving@fb.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	Johannes Weiner <jweiner@fb.com>
+Subject: Re: [PATCH 2/3] mm: Allow large pages to be added to the page cache
+Message-ID: <20190906120944.gm6lncxmkkz6kgjx@box>
+References: <20190905182348.5319-1-willy@infradead.org>
+ <20190905182348.5319-3-willy@infradead.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190905182348.5319-3-willy@infradead.org>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-These zones usage has evolved with time and the comments were outdated.
-This joins both ZONE_DMA and ZONE_DMA32 explanation and gives up to date
-examples on how they are used on different architectures.
+On Thu, Sep 05, 2019 at 11:23:47AM -0700, Matthew Wilcox wrote:
+> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
+> 
+> We return -EEXIST if there are any non-shadow entries in the page
+> cache in the range covered by the large page.  If there are multiple
+> shadow entries in the range, we set *shadowp to one of them (currently
+> the one at the highest index).  If that turns out to be the wrong
+> answer, we can implement something more complex.  This is mostly
+> modelled after the equivalent function in the shmem code.
+> 
+> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
+> ---
+>  mm/filemap.c | 39 ++++++++++++++++++++++++++++-----------
+>  1 file changed, 28 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 041c77c4ca56..ae3c0a70a8e9 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -850,6 +850,7 @@ static int __add_to_page_cache_locked(struct page *page,
+>  	int huge = PageHuge(page);
+>  	struct mem_cgroup *memcg;
+>  	int error;
+> +	unsigned int nr = 1;
+>  	void *old;
+>  
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> @@ -861,31 +862,47 @@ static int __add_to_page_cache_locked(struct page *page,
+>  					      gfp_mask, &memcg, false);
+>  		if (error)
+>  			return error;
+> +		xas_set_order(&xas, offset, compound_order(page));
+> +		nr = compound_nr(page);
+>  	}
+>  
+> -	get_page(page);
+> +	page_ref_add(page, nr);
+>  	page->mapping = mapping;
+>  	page->index = offset;
+>  
+>  	do {
+> +		unsigned long exceptional = 0;
+> +		unsigned int i = 0;
+> +
+>  		xas_lock_irq(&xas);
+> -		old = xas_load(&xas);
+> -		if (old && !xa_is_value(old))
+> +		xas_for_each_conflict(&xas, old) {
+> +			if (!xa_is_value(old))
+> +				break;
+> +			exceptional++;
+> +			if (shadowp)
+> +				*shadowp = old;
+> +		}
+> +		if (old) {
+>  			xas_set_err(&xas, -EEXIST);
+> -		xas_store(&xas, page);
+> +			break;
+> +		}
+> +		xas_create_range(&xas);
+>  		if (xas_error(&xas))
+>  			goto unlock;
+>  
+> -		if (xa_is_value(old)) {
+> -			mapping->nrexceptional--;
+> -			if (shadowp)
+> -				*shadowp = old;
+> +next:
+> +		xas_store(&xas, page);
+> +		if (++i < nr) {
+> +			xas_next(&xas);
+> +			goto next;
+>  		}
 
-Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+Can we have a proper loop here instead of goto?
 
----
+		do {
+			xas_store(&xas, page);
+			/* Do not move xas ouside the range */
+			if (++i != nr)
+				xas_next(&xas);
+		} while (i < nr);
 
-Changes in v3:
-- Update comment to match changes in arm64
+> -		mapping->nrpages++;
+> +		mapping->nrexceptional -= exceptional;
+> +		mapping->nrpages += nr;
+>  
+>  		/* hugetlb pages do not participate in page cache accounting */
+>  		if (!huge)
+> -			__inc_node_page_state(page, NR_FILE_PAGES);
+> +			__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES,
+> +						nr);
+>  unlock:
+>  		xas_unlock_irq(&xas);
+>  	} while (xas_nomem(&xas, gfp_mask & GFP_RECLAIM_MASK));
+> @@ -902,7 +919,7 @@ static int __add_to_page_cache_locked(struct page *page,
+>  	/* Leave page->index set: truncation relies upon it */
+>  	if (!huge)
+>  		mem_cgroup_cancel_charge(page, memcg, false);
+> -	put_page(page);
+> +	page_ref_sub(page, nr);
+>  	return xas_error(&xas);
+>  }
+>  ALLOW_ERROR_INJECTION(__add_to_page_cache_locked, ERRNO);
+> -- 
+> 2.23.0.rc1
+> 
 
-Changes in v2:
-- Try another approach merging both ZONE_DMA comments into one
-- Address Christoph's comments
-- If this approach doesn't get much traction I'll just drop the patch
-  from the series as it's not really essential
-
- include/linux/mmzone.h | 45 ++++++++++++++++++++++++------------------
- 1 file changed, 26 insertions(+), 19 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3f38c30d2f13..bf1b916c9ecb 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -357,33 +357,40 @@ struct per_cpu_nodestat {
- #endif /* !__GENERATING_BOUNDS.H */
-=20
- enum zone_type {
--#ifdef CONFIG_ZONE_DMA
- 	/*
--	 * ZONE_DMA is used when there are devices that are not able
--	 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
--	 * carve out the portion of memory that is needed for these devices.
--	 * The range is arch specific.
-+	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
-+	 * to DMA to all of the addressable memory (ZONE_NORMAL).
-+	 * On architectures where this area covers the whole 32 bit address
-+	 * space ZONE_DMA32 is used. ZONE_DMA is left for the ones with smaller
-+	 * DMA addressing constraints. This distinction is important as a 32bit
-+	 * DMA mask is assumed when ZONE_DMA32 is defined. Some 64-bit
-+	 * platforms may need both zones as they support peripherals with
-+	 * different DMA addressing limitations.
-+	 *
-+	 * Some examples:
-+	 *
-+	 *  - i386 and x86_64 have a fixed 16M ZONE_DMA and ZONE_DMA32 for the
-+	 *    rest of the lower 4G.
-+	 *
-+	 *  - arm only uses ZONE_DMA, the size, up to 4G, may vary depending on
-+	 *    the specific device.
-+	 *
-+	 *  - arm64 has a fixed 1G ZONE_DMA and ZONE_DMA32 for the rest of the
-+	 *    lower 4G.
- 	 *
--	 * Some examples
-+	 *  - powerpc only uses ZONE_DMA, the size, up to 2G, may vary
-+	 *    depending on the specific device.
- 	 *
--	 * Architecture		Limit
--	 * ---------------------------
--	 * parisc, ia64, sparc	<4G
--	 * s390, powerpc	<2G
--	 * arm			Various
--	 * alpha		Unlimited or 0-16MB.
-+	 *  - s390 uses ZONE_DMA fixed to the lower 2G.
- 	 *
--	 * i386, x86_64 and multiple other arches
--	 * 			<16M.
-+	 *  - ia64 and riscv only use ZONE_DMA32.
-+	 *
-+	 *  - parisc uses neither.
- 	 */
-+#ifdef CONFIG_ZONE_DMA
- 	ZONE_DMA,
- #endif
- #ifdef CONFIG_ZONE_DMA32
--	/*
--	 * x86_64 needs two ZONE_DMAs because it supports devices that are
--	 * only able to do DMA to the lower 16M but also 32 bit devices that
--	 * can only do DMA areas below 4G.
--	 */
- 	ZONE_DMA32,
- #endif
- 	/*
---=20
-2.23.0
-
+-- 
+ Kirill A. Shutemov
 
