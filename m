@@ -2,206 +2,145 @@ Return-Path: <SRS0=SdaL=XB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 57130C00307
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:09:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B163BC43140
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:24:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0085A208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:09:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 76791218AC
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 12:24:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="1gxHiQjK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0085A208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sPVCnusf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76791218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9EC446B0003; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
+	id 044E06B0007; Fri,  6 Sep 2019 08:24:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 99DE46B0006; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
+	id F369D6B0008; Fri,  6 Sep 2019 08:24:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 865636B0007; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
+	id E24C86B000A; Fri,  6 Sep 2019 08:24:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0160.hostedemail.com [216.40.44.160])
-	by kanga.kvack.org (Postfix) with ESMTP id 670EB6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:09:47 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id DCB49181AC9AE
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:09:46 +0000 (UTC)
-X-FDA: 75904376772.08.shoes30_726b634bca54a
-X-HE-Tag: shoes30_726b634bca54a
-X-Filterd-Recvd-Size: 6468
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:09:46 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id o9so6137683edq.0
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 05:09:46 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0237.hostedemail.com [216.40.44.237])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE566B0007
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 08:24:35 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 63C02824CA32
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:24:35 +0000 (UTC)
+X-FDA: 75904414110.05.vein88_6235a046b350c
+X-HE-Tag: vein88_6235a046b350c
+X-Filterd-Recvd-Size: 5050
+Received: from mail-lj1-f196.google.com (mail-lj1-f196.google.com [209.85.208.196])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 12:24:34 +0000 (UTC)
+Received: by mail-lj1-f196.google.com with SMTP id d5so5804291lja.10
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 05:24:34 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/ZpOOYR+HZWQeyP2e1hldkbWyYIuYUrXJjhNyL08Hq8=;
-        b=1gxHiQjKdOMyYiGzE5VW4GFk2+DGLsS8p512DlwXy29ptXKbSTxwpPVaBpZ1OwYzrS
-         iNS3KHSS9jXjIQ+sUHeZZ9SEREISWmfb1ze0PNii5OcBKGxRubHhsMXap2slQfeghNCE
-         E0p3aVriXPsjvaZlDj3krxH2NPEjfTGXCK5RptnMHNg2ycrRsJ+w7cFxLS6Mp2aIX6+6
-         5QXL+r/wNaFsrn0yeAzhcJVg1lDEQYaXqGN1g3QrkgQJxox+6gQ+01A5CRWd0wbb7Ie4
-         hfjVnoD4qOkIlwdZmQuoIW2hA+WZ/zAhKjctVLDpQvRmf4x2ndokxfa2L9yq5Kir9BMW
-         1jwg==
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=uEuqyoR6pX9WcKO2lv8Qx9uofetASJrnmmBj7HQZAO0=;
+        b=sPVCnusfoWpyRZ2QVHQwTwTXqVDSLABe1kb/Mev99Hg2vqfHfoVLATzkVRi2+ZQlU/
+         jUe4bKWmFENp+T5qqbKfZENo1l8dvYqIfw+OK9uKx8yblxrFiCq65laNMqVAldjVdmmu
+         1GzOuoVP5R+l+wfB6mShSS7GmPqISpD/ueZPYKZfKCo4BCRz7iD18iYuQ9oIlLVoA3Ah
+         /NpIXrmXWC8JrXAC3FFaQ/G2EWcWlJXui2gM4J+oZH/lDDSMKALFRDkn2EyJjthC+RdX
+         ZLl3lqv9OoD5ojMhnCCfHGU7MR8CdPT6nkoAHaWC5Fw6UNvT81yS99ZKj8c7hFrkikKG
+         +JZw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=/ZpOOYR+HZWQeyP2e1hldkbWyYIuYUrXJjhNyL08Hq8=;
-        b=bmgXHWruIP9wtcCVDw8v/GpO/AXQnJnw6wBUqolvU6Xg00nEKrwgVLFEm9vgljGAcj
-         SnieTDX3cqqzjFFJBOyk59epRn/MomyxHKVdA/FG+Tgxq7ruPl3/69+bcIeCsGVYG2en
-         1Bq5x9BSsA0q5Cr5AyL5BoXCK90HFGdYhMP9z1qkj1at4iKjtR+GXh8HZyVj9WbgbtRl
-         UmlUSFLu2A8rHbTtPS1zkH+O3O7X2mmu+UEhW1j2ZtH0eEu7J0srB8lUeczP7fvzTeSZ
-         f1siaKOzoLycdas8O4+XaGsrJli9B3j9gSpAPBw7LVeeF+dSUdJ88FXEXNw/TBGPi1E7
-         RjsA==
-X-Gm-Message-State: APjAAAXpeTb51nxd/Sjs+WYvbOSa/gsEgxj457+ToYJtqs+LyO+CT+8C
-	4SrY+Lt4OUBWBVWCpoq7owinUw==
-X-Google-Smtp-Source: APXvYqzc3hH3oh715W7IxEi0aqKaryx+UF7bbnCEMkE8mzS+Qle/uOPGXcP6SUwwvaatUlZBYPeZIA==
-X-Received: by 2002:a50:d55e:: with SMTP id f30mr9274055edj.35.1567771784925;
-        Fri, 06 Sep 2019 05:09:44 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id c21sm912039ede.45.2019.09.06.05.09.44
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Sep 2019 05:09:44 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 251D01049F1; Fri,  6 Sep 2019 15:09:44 +0300 (+03)
-Date: Fri, 6 Sep 2019 15:09:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	Song Liu <songliubraving@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	Johannes Weiner <jweiner@fb.com>
-Subject: Re: [PATCH 2/3] mm: Allow large pages to be added to the page cache
-Message-ID: <20190906120944.gm6lncxmkkz6kgjx@box>
-References: <20190905182348.5319-1-willy@infradead.org>
- <20190905182348.5319-3-willy@infradead.org>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=uEuqyoR6pX9WcKO2lv8Qx9uofetASJrnmmBj7HQZAO0=;
+        b=A0ZuhwrrQ+Zz/I6YSQh+5Y2MrHROqW3eXDrbcseJFJQYirHAXZgTTjVaZKmB4ydz5G
+         vtuLE+nr52z4d3XQcvVOtwbUSS2F4J5mhrMCVCIKV+65BfGszZCQ892Nj4b1VT+6IBSz
+         BXghurblD87DRnstEYwT+OQWJMu2dcnaT7Bf/gBQitFyyLj+lFo2xRMdXbocvHJ1lwPv
+         o1nTAMMDfWUDswMtx9URKLv3ALCqEJjk+/Yy07hdrnjv6/rdeUm3dHBvxnwyyCq/LF8J
+         aBnlq+lnfQQCxAj8Hg7xv551A0edvUtCM8uaaf8dJ8bpptJjtSWVGRvrPwk+KfjWtXN9
+         c7WQ==
+X-Gm-Message-State: APjAAAWW3a63oS8l6RcPcw0zrPC2usPz/x1BL0l2Z0TPF0sKf4RS+M8M
+	2RboKGCihBQIOa8GVixEgZbNA4Pz9sxKd/s9APg=
+X-Google-Smtp-Source: APXvYqygEaAWPMGIe4tWR6VpyFc1DI2SYZ2tryPFQlAxF5bTrdZ+Bc90vgs+nITDv56N7g83GkVN1pcDuglS9Aq6kkY=
+X-Received: by 2002:a2e:9104:: with SMTP id m4mr5521513ljg.28.1567772673112;
+ Fri, 06 Sep 2019 05:24:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190905182348.5319-3-willy@infradead.org>
-User-Agent: NeoMutt/20180716
+References: <1567708980-8804-1-git-send-email-jrdr.linux@gmail.com> <20190905185910.GS29434@bombadil.infradead.org>
+In-Reply-To: <20190905185910.GS29434@bombadil.infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Fri, 6 Sep 2019 17:54:21 +0530
+Message-ID: <CAFqt6zZ_M3_Jr_08SO+OnnurWNbLJJsNZvVDZOnjh88vzaiXGg@mail.gmail.com>
+Subject: Re: [PATCH] mm/memory.c: Convert to use vmf_error()
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Michal Hocko <mhocko@suse.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, 
+	Peter Zijlstra <peterz@infradead.org>, airlied@redhat.com, 
+	Thomas Hellstrom <thellstrom@vmware.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 05, 2019 at 11:23:47AM -0700, Matthew Wilcox wrote:
-> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-> 
-> We return -EEXIST if there are any non-shadow entries in the page
-> cache in the range covered by the large page.  If there are multiple
-> shadow entries in the range, we set *shadowp to one of them (currently
-> the one at the highest index).  If that turns out to be the wrong
-> answer, we can implement something more complex.  This is mostly
-> modelled after the equivalent function in the shmem code.
-> 
-> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
-> ---
->  mm/filemap.c | 39 ++++++++++++++++++++++++++++-----------
->  1 file changed, 28 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 041c77c4ca56..ae3c0a70a8e9 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -850,6 +850,7 @@ static int __add_to_page_cache_locked(struct page *page,
->  	int huge = PageHuge(page);
->  	struct mem_cgroup *memcg;
->  	int error;
-> +	unsigned int nr = 1;
->  	void *old;
->  
->  	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> @@ -861,31 +862,47 @@ static int __add_to_page_cache_locked(struct page *page,
->  					      gfp_mask, &memcg, false);
->  		if (error)
->  			return error;
-> +		xas_set_order(&xas, offset, compound_order(page));
-> +		nr = compound_nr(page);
->  	}
->  
-> -	get_page(page);
-> +	page_ref_add(page, nr);
->  	page->mapping = mapping;
->  	page->index = offset;
->  
->  	do {
-> +		unsigned long exceptional = 0;
-> +		unsigned int i = 0;
-> +
->  		xas_lock_irq(&xas);
-> -		old = xas_load(&xas);
-> -		if (old && !xa_is_value(old))
-> +		xas_for_each_conflict(&xas, old) {
-> +			if (!xa_is_value(old))
-> +				break;
-> +			exceptional++;
-> +			if (shadowp)
-> +				*shadowp = old;
-> +		}
-> +		if (old) {
->  			xas_set_err(&xas, -EEXIST);
-> -		xas_store(&xas, page);
-> +			break;
-> +		}
-> +		xas_create_range(&xas);
->  		if (xas_error(&xas))
->  			goto unlock;
->  
-> -		if (xa_is_value(old)) {
-> -			mapping->nrexceptional--;
-> -			if (shadowp)
-> -				*shadowp = old;
-> +next:
-> +		xas_store(&xas, page);
-> +		if (++i < nr) {
-> +			xas_next(&xas);
-> +			goto next;
->  		}
+On Fri, Sep 6, 2019 at 12:29 AM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Fri, Sep 06, 2019 at 12:13:00AM +0530, Souptick Joarder wrote:
+> > +++ b/mm/memory.c
+> > @@ -1750,13 +1750,10 @@ static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
+> >       } else {
+> >               return insert_pfn(vma, addr, pfn, pgprot, mkwrite);
+> >       }
+> > -
+> > -     if (err == -ENOMEM)
+> > -             return VM_FAULT_OOM;
+> > -     if (err < 0 && err != -EBUSY)
+> > -             return VM_FAULT_SIGBUS;
+> > -
+> > -     return VM_FAULT_NOPAGE;
+> > +     if (!err || err == -EBUSY)
+> > +             return VM_FAULT_NOPAGE;
+> > +     else
+> > +             return vmf_error(err);
+> >  }
+>
+> My plan is to convert insert_page() to return a VM_FAULT error code like
+> insert_pfn() does.  Need to finish off the vm_insert_page() conversions
+> first ;-)
 
-Can we have a proper loop here instead of goto?
+Previously we have problem while converting vm_insert_page() to return
+vm_fault_t.
 
-		do {
-			xas_store(&xas, page);
-			/* Do not move xas ouside the range */
-			if (++i != nr)
-				xas_next(&xas);
-		} while (i < nr);
+vm_insert_page() is called from different drivers. Some of them are
+already converted
+to use vm_map_pages()/ vm_map_pages_zero(). But still we left with few users.
 
-> -		mapping->nrpages++;
-> +		mapping->nrexceptional -= exceptional;
-> +		mapping->nrpages += nr;
->  
->  		/* hugetlb pages do not participate in page cache accounting */
->  		if (!huge)
-> -			__inc_node_page_state(page, NR_FILE_PAGES);
-> +			__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES,
-> +						nr);
->  unlock:
->  		xas_unlock_irq(&xas);
->  	} while (xas_nomem(&xas, gfp_mask & GFP_RECLAIM_MASK));
-> @@ -902,7 +919,7 @@ static int __add_to_page_cache_locked(struct page *page,
->  	/* Leave page->index set: truncation relies upon it */
->  	if (!huge)
->  		mem_cgroup_cancel_charge(page, memcg, false);
-> -	put_page(page);
-> +	page_ref_sub(page, nr);
->  	return xas_error(&xas);
->  }
->  ALLOW_ERROR_INJECTION(__add_to_page_cache_locked, ERRNO);
-> -- 
-> 2.23.0.rc1
-> 
+drivers/media/usb/usbvision/usbvision-video.c#L1045
+mm/vmalloc.c#L2969
 
--- 
- Kirill A. Shutemov
+These 2 can be converted with something like vm_map_vmalloc_pages().
+I am working on it. Will post it in sometime.
+
+drivers/android/binder_alloc.c#L259 (have objection)
+drivers/infiniband/hw/efa/efa_verbs.c#L1701
+drivers/infiniband/hw/mlx5/main.c#L2085 (have objection as using
+vm_map_pages_zero() doesn't make sense)
+drivers/xen/gntalloc.c#L548 (have limitation)
+kernel/kcov.c#L297 (have objection)
+net/ipv4/tcp.c#L1799
+net/packet/af_packet.c#L4453
+
+But these are the places where replacing vm_insert_page() is bit
+difficult/ have objection.
+In some cases, maintainers/ reviewers will not agree to replace
+vm_insert_page().
+
+In  other scenario, if we change return type of vm_insert_page() to vm_fault_t,
+we end up with adding few lines of conversion code from vm_fault_t to errno
+in drivers which is not a correct way to go with.
+
+Any suggestion, how to solve this ?
 
