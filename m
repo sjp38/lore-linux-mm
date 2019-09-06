@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 977D3C43331
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:40:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 186B1C43331
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:41:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5DCE620842
-	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:40:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CB713206B8
+	for <linux-mm@archiver.kernel.org>; Fri,  6 Sep 2019 15:41:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="X+TZLFq+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5DCE620842
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="UHpvjhj/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB713206B8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E552D6B000C; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
+	id 79E646B0006; Fri,  6 Sep 2019 11:41:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2DA36B026C; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
+	id 775B46B000D; Fri,  6 Sep 2019 11:41:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D43416B026D; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
+	id 68BAA6B000E; Fri,  6 Sep 2019 11:41:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0196.hostedemail.com [216.40.44.196])
-	by kanga.kvack.org (Postfix) with ESMTP id B2E276B000C
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:40:11 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 3066D180AD7C3
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:40:11 +0000 (UTC)
-X-FDA: 75904907022.14.salt20_3bb9440e62630
-X-HE-Tag: salt20_3bb9440e62630
-X-Filterd-Recvd-Size: 4738
-Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com [209.85.208.65])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:40:10 +0000 (UTC)
-Received: by mail-ed1-f65.google.com with SMTP id f2so335146edw.3
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 08:40:10 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 492086B0006
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 11:41:16 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 01D5F824CA2D
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:41:16 +0000 (UTC)
+X-FDA: 75904909710.02.train66_452fccbbeb33b
+X-HE-Tag: train66_452fccbbeb33b
+X-Filterd-Recvd-Size: 4160
+Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
+	by imf40.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 15:41:15 +0000 (UTC)
+Received: by mail-ed1-f66.google.com with SMTP id v38so6693359edm.7
+        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 08:41:15 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=CjF3fwI23SGTIbsZbebpupUjHvggvSShXHb+f7gohRg=;
-        b=X+TZLFq+/8fiOOZaSxM4o7weyYJJYjKBVTcRCZfcxr2IxHAce/BmJfEXlo+kHisHhF
-         mlpMhUTxWtcXV/LgdZFzuY7qNCrZaKMw8ItKcgilp5WTkQNFuCtZgPd4jGMxpgeusHKy
-         +ahYXFtlTF+mSXTcvIEKTHM34JZSa4gUxMyQbY9ovXkeE1DqzeHziy0kVUOT9HDoGgh+
-         86qEcJGuBwvEp64MJNk43vufsS6oXhTwJOTInG+rMeHXceUdYHOhY8j0CA+yEADsDreV
-         fxhYTUKSD4lXhNC87Jhmdi20O2F9lotiaxFikDlzOtV2OTRHPhktK0wYcLrfjjdxvON+
-         FoEQ==
+        bh=E/TcN7fOifPGax1Jq40PHMF0EK7SlDS08IkccSojTBY=;
+        b=UHpvjhj/b+3iPmUiNVdPjXOFzdSR9u8eZg6v7FAfkypqULaESyzADB/3E0G1AkEkNR
+         Lp8I3t1bftgwOcuzcW2n2byutpV5BbBWkG00d6zYMuBg0Wf4juih5hnIVQ30wERZkO42
+         orJl08eujiOsHl+blX6Hkfe0UnzoOC8HeNQyn2zEw6FuD2liDmdKTiQwOCOOPWUUQUrq
+         i0UfvMU0TYqLIyuRgY978I+xXrDXcSjX7hTdo9RtugdRgTB6Ij+Esu3cAjKLJTX0AxAF
+         M0acuyTnKUC/IW05ASrd/FZQtsdbwbSCUpPxWnd4khMHCCnwBz2K2dMpQDeoOrFxf1IL
+         qPxQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=CjF3fwI23SGTIbsZbebpupUjHvggvSShXHb+f7gohRg=;
-        b=N0rD+sm1fRpcEcXtVp4fWLYzSoG6V3XXup8fQ/Yo6Ueh63Qh30da+I+Erg6FzePKDU
-         SlDXlb4+ayO6HKnDJR2Nv3CXJ7EYnAG1+10NDqn+Rf/oFKdGCBjbwObJakVsJvwvbeAU
-         i//UVQzB8+Bcst6EVpAAtVchpi2sxjiHZDpQXOs/Ha7plSmYMeVR1U9VQR730Ox8dcW4
-         C0be7Up97odVE3VCghhMn0gXq+XVgBTOXLAQWf6yxs8qucYSbGgof22Z++IOSdoS1iLW
-         fG/8D9O4GWxz+bhSThPD1/6L+yjkqqM3/elOs0EQ/HVdkVfaivT0S0SzQNVydMNwY3TT
-         Ykkw==
-X-Gm-Message-State: APjAAAW6mN5S2jkxhXO7d9nfQ9y+s9rbeOKQfZoHb8znGWUYHxnh07Ay
-	hDdFRrMRbzvkM035kDvJt5B4TGyKOk3yOdwPNY5iJQ==
-X-Google-Smtp-Source: APXvYqwgWEKdsXXZDKUgZfHTTS/3PBS/mpsvU7NBgD+cDEAZM2KkwC32Gcr7KkyJWBr9wuGwTdTO2+WUmBcm/dqbcb4=
-X-Received: by 2002:aa7:dd17:: with SMTP id i23mr10239139edv.124.1567784409076;
- Fri, 06 Sep 2019 08:40:09 -0700 (PDT)
+        bh=E/TcN7fOifPGax1Jq40PHMF0EK7SlDS08IkccSojTBY=;
+        b=O9XDdEhnHh5LUluDuDuGTzVS/nWppGJrBqBXYb2RaUPPjrtKTiYqSwXn9KaMOSpLuL
+         a6jPIRp7zn1leU4e6A87IKM3mIQD+yANnZvZsi5qRhJLQFpWvOSJvWOj+OisXk3wfhtt
+         N23fsIi3+rFcbdJsIQKqGJDP0UfbBY2bYb6+2605yhi4lXr2dnafCxtpOUt4D4r6nwnx
+         Qz7wPuQ9soU3f8WgZZm34ZKfPY8Q/Qig7pJUvTkhOCAd+aTuMxk6qr1W9u8/V5RZgkN8
+         D+5wqsWFCwzSt4tJgf5LkDoHzz4E88EN3urN0nCYMSeoa1cQqne6dD2fJifqhjdysD05
+         0HCA==
+X-Gm-Message-State: APjAAAW8ENMg104YQrRkVq1C6qEXtC5x2Xo55ifgODHzpv+61n3P9tlF
+	6wLmasN8aUogpKrLBJ2Ml67BgFRW9I6gMbhe+p01fA==
+X-Google-Smtp-Source: APXvYqxqjBbmqD7LIj2EqKBKAdltdsP4QbI+ZnJq02VDIJPVUgUjKlLGn6euHlVgtpT+xdsUOX7pyuDO609XO9GYCmk=
+X-Received: by 2002:a17:906:bb0f:: with SMTP id jz15mr7785513ejb.264.1567784474126;
+ Fri, 06 Sep 2019 08:41:14 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190821183204.23576-1-pasha.tatashin@soleen.com>
- <20190821183204.23576-3-pasha.tatashin@soleen.com> <dc6506a0-9b66-f633-8319-9c8a9dc93d4f@arm.com>
-In-Reply-To: <dc6506a0-9b66-f633-8319-9c8a9dc93d4f@arm.com>
+ <20190821183204.23576-5-pasha.tatashin@soleen.com> <2e826560-4005-fa16-8bbb-fc0e25763dcc@arm.com>
+In-Reply-To: <2e826560-4005-fa16-8bbb-fc0e25763dcc@arm.com>
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Fri, 6 Sep 2019 11:39:58 -0400
-Message-ID: <CA+CK2bBgUH8v_bYEyJKPsLZFDxse6xYRwGR8KN=SzgHnrR9yhA@mail.gmail.com>
-Subject: Re: [PATCH v3 02/17] arm64, hibernate: use get_safe_page directly
+Date: Fri, 6 Sep 2019 11:41:03 -0400
+Message-ID: <CA+CK2bDU9ZZbXsqfEzMV9JDRUq0vMRNHObpQ0q-YtwbEbq702w@mail.gmail.com>
+Subject: Re: [PATCH v3 04/17] arm64, hibernate: rename dst to page in create_safe_exec_page
 To: James Morse <james.morse@arm.com>
 Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
 	"Eric W. Biederman" <ebiederm@xmission.com>, kexec mailing list <kexec@lists.infradead.org>, 
@@ -93,44 +93,29 @@ On Fri, Sep 6, 2019 at 11:17 AM James Morse <james.morse@arm.com> wrote:
 >
 > Hi Pavel,
 >
-> Nit: The pattern for the subject prefix should be "arm64: hibernate:"..
-> Its usually possible to spot the pattern from "git log --oneline $file".
-
-Sure, I will change here and in other places to "arm64: hibernate:"
-
->
 > On 21/08/2019 19:31, Pavel Tatashin wrote:
-> > create_safe_exec_page is a local function that uses the
-> > get_safe_page() to allocate page table and pages and one pages
-> > that is getting mapped.
+> > create_safe_exec_page() allocates a safe page and maps it at a
+> > specific location, also this function returns the physical address
+> > of newly allocated page.
+> >
+> > The destination VA, and PA are specified in arguments: dst_addr,
+> > phys_dst_addr
+> >
+> > However, within the function it uses "dst" which has unsigned long
+> > type, but is actually a pointers in the current virtual space. This
+> > is confusing to read.
 >
-> I can't parse this.
->
-> create_safe_exec_page() uses hibernate's allocator to create a set of page table to map a
-> single page that will contain the relocation code.
-
-Thanks I will rephrase it with your suggestion.
-
+> The type? There are plenty of places in the kernel that an unsigned-long is actually a
+> pointer. This isn't unusual.
 >
 >
-> > Remove the allocator related arguments, and use get_safe_page
-> > directly, as it is done in other local functions in this
-> > file.
-> ... because kexec can't use this as it doesn't have a working allocator.
-> Removing this function pointer makes it easier to refactor the code later.
-
-Thanks, I will add it to the description.
-
+> > Rename dst to more appropriate page (page that is created), and also
+> > change its time to "void *"
 >
-> (this thing is only a function pointer so kexec could use it too ... It looks like you're
-> creating extra work. Patch 7 moves these new calls out to a new file... presumably so
-> another patch can remove them again)
->
-> As stand-alone cleanup the patch looks fine, but you probably don't need to do this.
+> If you think its clearer,
+> Reviewed-by: James Morse <james.morse@arm.com>
 
-Without this clean-up moving to common code becomes messier. So, I
-would like to keep this change.
+Thank you for your review.
 
-Thank you,
 Pasha
 
