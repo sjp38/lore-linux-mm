@@ -2,270 +2,164 @@ Return-Path: <SRS0=dqyo=XC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EE8BC43331
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 17:34:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E6CBC43140
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 19:51:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35D1721835
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 17:34:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E3A7C20863
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 19:51:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nX/ZnggV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35D1721835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="XNDOQKpe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3A7C20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D4B066B0266; Sat,  7 Sep 2019 13:34:17 -0400 (EDT)
+	id 3BE026B0005; Sat,  7 Sep 2019 15:51:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFAF86B026E; Sat,  7 Sep 2019 13:34:17 -0400 (EDT)
+	id 36E9A6B0006; Sat,  7 Sep 2019 15:51:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C114A6B026F; Sat,  7 Sep 2019 13:34:17 -0400 (EDT)
+	id 25C5D6B0007; Sat,  7 Sep 2019 15:51:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0090.hostedemail.com [216.40.44.90])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1766B0266
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 13:34:17 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 4C158180AD7C3
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 17:34:17 +0000 (UTC)
-X-FDA: 75908823354.04.drain32_5f9711752a026
-X-HE-Tag: drain32_5f9711752a026
-X-Filterd-Recvd-Size: 13218
-Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
-	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 17:34:16 +0000 (UTC)
-Received: by mail-io1-f66.google.com with SMTP id f4so19237797ion.2
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2019 10:34:16 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0057.hostedemail.com [216.40.44.57])
+	by kanga.kvack.org (Postfix) with ESMTP id 005576B0005
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 15:51:37 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 99ABF4FF4
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 19:51:37 +0000 (UTC)
+X-FDA: 75909169434.29.girls21_8282df8941207
+X-HE-Tag: girls21_8282df8941207
+X-Filterd-Recvd-Size: 7052
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 19:51:36 +0000 (UTC)
+Received: by mail-pf1-f195.google.com with SMTP id w22so6680783pfi.9
+        for <linux-mm@kvack.org>; Sat, 07 Sep 2019 12:51:36 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=N1wlSEAd/yNqPov8hazkmuwObylmLJ4n7bwZJ/zSVuE=;
-        b=nX/ZnggVrPn3mYrpQxjYzUSqOuhzl/Ki5d8x3fcQRyY95Cjdq1FR5XidwxJPXoE/dV
-         ZHjSR7XLoGr/iym/ChD9eSJEuFtDFm8uelqpCDpSX7XudnAFzhbf8XZ1wToB3ict3D4U
-         keROyrkJ3FgyFny6SfjibZCyAQMgxj5sllN1PcQxPFrUFRWOC39gCuT6KuyWpJubsJse
-         XP1pvczx/jTBbWkozRPfFqR/BTxq+/1RYD0e8OXBS9Wvhh/X46gVFOwitx1Ktt+sviQp
-         v/TPYnp44btB5msp/R2dN2+IYXaZNdSEfeKjTqrv4w0VoCUsnuh+OfNBMKkzCWp0N4eW
-         HPZA==
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=0fvnYJXHftqmLaDN9VxcrA75603ju7GvPjbd/GGKuAo=;
+        b=XNDOQKpe4OIdd1eHbyYBtpnClRiEPCmMDuVYOy8+Z7o5lmBY8CVZF/lYp0txyrXWa5
+         6aH/AMQ4SsWaZ+CAOqfkEaStl1ML6lff2YJ9oDgVku1Jr0TMgwHmLmtFuf+3TF/MiK+t
+         v82mVC4GnzpEf9E8HDDtaxIaUxGxuH9NLEMsZMrLSPe2Pg2cFm4KSTco4XmpjlAp/c3O
+         F1JVcF9vQbiTmlscyFApuRCIqyaGcNKniDXw4Hj5K/eNVUUkj316mH8zWXnhWpkD3P6a
+         MhVfBcnIn/TDKOrZMEX/O4g13jWqPGG1/VLc3O9T7ly92I7/4l49Dz0fqFQ1u64ZywFN
+         5ZpA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=N1wlSEAd/yNqPov8hazkmuwObylmLJ4n7bwZJ/zSVuE=;
-        b=RZOKZUJnB9394rgkgfhAJed+srCL8L2+6f0JD6aGgIPZ/jxq03wIUpA8qlegTF9Ed0
-         Cj98zwovBA3b7fro5iFs2z3kicwigHbo73ko+gH2vCb4kHxYaTWnPIBH+EfThHATjWbQ
-         rgh4C3LN0+NpqadcMPFDs8cV29qnlBcZ2ys6Bbl+gjYr1r6usHJ9cGfEgxnlH6dXdc92
-         I/acJrH5eT+EyUiQP4EnimsTgqjQ4cqm9j9nrgxwEwtnWCGhBP8qBhADI9AiGd63/tEK
-         7yPtgfEYIg0TeLWJ4toLLL9eAkOoZIWwGu8sQm3eIBoLVjPKSS/WeddEYyh4fRAXkfvn
-         OHGg==
-X-Gm-Message-State: APjAAAW49DGPGSCYhMNHCCVbWUR8+BoyfoPYgnavnNYVpuilQcn1yZAx
-	YTlp2UMoZKGjcoPgVRdSlkWo6sYeggI3g+i2eio=
-X-Google-Smtp-Source: APXvYqyL3r6EbggbESVOvEQiUNQ4L6hRKzNiJBvs6HGzqjTYf6K0GuLb4ShQNBqLt7AfI5UmxbdCaqcrjN2rBGALtkA=
-X-Received: by 2002:a5d:8f86:: with SMTP id l6mr3723909iol.270.1567877655886;
- Sat, 07 Sep 2019 10:34:15 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+         :references:user-agent:mime-version;
+        bh=0fvnYJXHftqmLaDN9VxcrA75603ju7GvPjbd/GGKuAo=;
+        b=Ceex23LzqdB1MH0ENLsG7zBYK75Tw0JZS5umsUeIXN4LgUFVZpfdG493YA6JIrYCBr
+         pWK860WtrFIUcH4mQCxLjHcAp+34HBWbuJK/xEWGADGkUy63AaLR34F31Xlk1fwu7SL/
+         cBSiQVzkxuGiDaoCm7TnbMAtVB3hwwP86+oj42LXDuexvWZCCaxCF3BvXS3YLeR96fir
+         QhaziJBlybBP28NZy0m2NijyoeMKjCN4/TtiEkKexahwyQNbiVF5Emxf31WpXL/5t54t
+         mJoC2w8NE+PBFlFT/HnWfxJSk7yVUyn06kolSJhUfh7z/PTS+8wHIXuLuAU3k0TmZYAt
+         gHjA==
+X-Gm-Message-State: APjAAAVNtA/iipaQKS3ONOnV8Bu6TQu3qSxttRQRFZ1yMcg7+1V4FQuC
+	eHCwfx3ImSzlaFKMuzBMXPLA4w==
+X-Google-Smtp-Source: APXvYqykNmt9VWsdDmgl5zJKnzYT1w4jGckkWW0eybfwDmjCJzLY73E3BInbCkb0IOA970kdGHJPpw==
+X-Received: by 2002:aa7:8005:: with SMTP id j5mr18484009pfi.50.1567885895101;
+        Sat, 07 Sep 2019 12:51:35 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id b24sm10504207pfi.75.2019.09.07.12.51.34
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 07 Sep 2019 12:51:34 -0700 (PDT)
+Date: Sat, 7 Sep 2019 12:51:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+cc: Andrew Morton <akpm@linux-foundation.org>, 
+    Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, 
+    Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, 
+    Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, 
+    Linux-MM <linux-mm@kvack.org>
+Subject: Re: [patch for-5.3 0/4] revert immediate fallback to remote
+ hugepages
+In-Reply-To: <alpine.DEB.2.21.1909051345030.217933@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.21.1909071249180.81471@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com> <CAHk-=wjmF_MGe5sBDmQB1WGpr+QFWkqboHpL37JYB5WgnG8nMA@mail.gmail.com> <alpine.DEB.2.21.1909051345030.217933@chino.kir.corp.google.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <20190907172225.10910.34302.stgit@localhost.localdomain>
-In-Reply-To: <20190907172225.10910.34302.stgit@localhost.localdomain>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Sat, 7 Sep 2019 10:34:04 -0700
-Message-ID: <CAKgT0UdeSfD9ZKLZO=wF+kdfTq+=u1bUvsih5PUtNTs66obCgA@mail.gmail.com>
-Subject: Re: [PATCH v9 0/8] mm / virtio: Provide support for unused page reporting
-To: virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>, 
-	"Michael S. Tsirkin" <mst@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org, 
-	linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>
-Cc: Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitesh Narayan Lal <nitesh@redhat.com>, 
-	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com, 
-	"Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, 
-	Paolo Bonzini <pbonzini@redhat.com>, Dan Williams <dan.j.williams@intel.com>, 
-	Fengguang Wu <fengguang.wu@intel.com>, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry about that. Looks like I fat fingered things and copied the
-command line into the cover page. I corrected the subject here, and
-pulled the command line out of the message below.
+Is there any objection from anybody to applying the first two patches, the 
+reverts of the reverts that went into 5.3-rc5, for 5.3 and pursuing 
+discussion and development using the last two patches in this series as a 
+starting point for a sane allocation policy that just works by default for 
+everybody?
 
-- Alex
+Andrea acknowledges the swap storm that he reported would be fixed with 
+the last two patches in this series and there has been discussion on how 
+they can be extended at the same time that they do not impact allocations 
+outside the scope of the discussion here (hugetlb).
 
-On Sat, Sep 7, 2019 at 10:25 AM Alexander Duyck
-<alexander.duyck@gmail.com> wrote:
-> This series provides an asynchronous means of reporting to a hypervisor
-> that a guest page is no longer in use and can have the data associated
-> with it dropped. To do this I have implemented functionality that allows
-> for what I am referring to as unused page reporting
->
-> The functionality for this is fairly simple. When enabled it will allocate
-> statistics to track the number of reported pages in a given free area.
-> When the number of free pages exceeds this value plus a high water value,
-> currently 32, it will begin performing page reporting which consists of
-> pulling pages off of free list and placing them into a scatter list. The
-> scatterlist is then given to the page reporting device and it will perform
-> the required action to make the pages "reported", in the case of
-> virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> and as such they are forced out of the guest. After this they are placed
-> back on the free list, and an additional bit is added if they are not
-> merged indicating that they are a reported buddy page instead of a
-> standard buddy page. The cycle then repeats with additional non-reported
-> pages being pulled until the free areas all consist of reported pages.
->
-> I am leaving a number of things hard-coded such as limiting the lowest
-> order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> determine what the limit is on how many pages it wants to allocate to
-> process the hints. The upper limit for this is based on the size of the
-> queue used to store the scattergather list.
->
-> My primary testing has just been to verify the memory is being freed after
-> allocation by running memhog 40g on a 40g guest and watching the total
-> free memory via /proc/meminfo on the host. With this I have verified most
-> of the memory is freed after each iteration. As far as performance I have
-> been mainly focusing on the will-it-scale/page_fault1 test running with
-> 16 vcpus. I have modified it to use Transparent Huge Pages. With this I
-> see almost no difference, -0.08%, with the patches applied and the feature
-> disabled. I see a regression of -0.86% with the feature enabled, but the
-> madvise disabled in the hypervisor due to a device being assigned. With
-> the feature fully enabled I see a regression of -3.27% versus the baseline
-> without these patches applied. In my testing I found that most of the
-> overhead was due to the page zeroing that comes as a result of the pages
-> having to be faulted back into the guest.
->
-> One side effect of these patches is that the guest becomes much more
-> resilient in terms of NUMA locality. With the pages being freed and then
-> reallocated when used it allows for the pages to be much closer to the
-> active thread, and as a result there can be situations where this patch
-> set will out-perform the stock kernel when the guest memory is not local
-> to the guest vCPUs. To avoid that in my testing I set the affinity of all
-> the vCPUs and QEMU instance to the same node.
->
-> I have not included the QEMU patches with this set as they haven't really
-> changed in the last several revisions. If needed they can be located with
-> the v8 patchset.
->
-> Changes from the RFC:
-> https://lore.kernel.org/lkml/20190530215223.13974.22445.stgit@localhost.localdomain/
-> Moved aeration requested flag out of aerator and into zone->flags.
-> Moved boundary out of free_area and into local variables for aeration.
-> Moved aeration cycle out of interrupt and into workqueue.
-> Left nr_free as total pages instead of splitting it between raw and aerated.
-> Combined size and physical address values in virtio ring into one 64b value.
->
-> Changes from v1:
-> https://lore.kernel.org/lkml/20190619222922.1231.27432.stgit@localhost.localdomain/
-> Dropped "waste page treatment" in favor of "page hinting"
-> Renamed files and functions from "aeration" to "page_hinting"
-> Moved from page->lru list to scatterlist
-> Replaced wait on refcnt in shutdown with RCU and cancel_delayed_work_sync
-> Virtio now uses scatterlist directly instead of intermediate array
-> Moved stats out of free_area, now in separate area and pointed to from zone
-> Merged patch 5 into patch 4 to improve review-ability
-> Updated various code comments throughout
->
-> Changes from v2:
-> https://lore.kernel.org/lkml/20190724165158.6685.87228.stgit@localhost.localdomain/
-> Dropped "page hinting" in favor of "page reporting"
-> Renamed files from "hinting" to "reporting"
-> Replaced "Hinted" page type with "Reported" page flag
-> Added support for page poisoning while hinting is active
-> Add QEMU patch that implements PAGE_POISON feature
->
-> Changes from v3:
-> https://lore.kernel.org/lkml/20190801222158.22190.96964.stgit@localhost.localdomain/
-> Added mutex lock around page reporting startup and shutdown
-> Fixed reference to "page aeration" in patch 2
-> Split page reporting function bit out into separate QEMU patch
-> Limited capacity of scatterlist to vq size - 1 instead of vq size
-> Added exception handling for case of virtio descriptor allocation failure
->
-> Changes from v4:
-> https://lore.kernel.org/lkml/20190807224037.6891.53512.stgit@localhost.localdomain/
-> Replaced spin_(un)lock with spin_(un)lock_irq in page_reporting_cycle()
-> Dropped if/continue for ternary operator in page_reporting_process()
-> Added checks for isolate and cma types to for_each_reporting_migratetype_order
-> Added virtio-dev, Michal Hocko, and Oscar Salvador to to:/cc:
-> Rebased on latest linux-next and QEMU git trees
->
-> Changes from v5:
-> https://lore.kernel.org/lkml/20190812213158.22097.30576.stgit@localhost.localdomain/
-> Replaced spin_(un)lock with spin_(un)lock_irq in page_reporting_startup()
-> Updated shuffle code to use "shuffle_pick_tail" and updated patch description
-> Dropped storage of order and migratettype while page is being reported
-> Used get_pfnblock_migratetype to determine migratetype of page
-> Renamed put_reported_page to free_reported_page, added order as argument
-> Dropped check for CMA type as I believe we should be reporting those
-> Added code to allow moving of reported pages into and out of isolation
-> Defined page reporting order as minimum of Huge Page size vs MAX_ORDER - 1
-> Cleaned up use of static branch usage for page_reporting_notify_enabled
->
-> Changes from v6:
-> https://lore.kernel.org/lkml/20190821145806.20926.22448.stgit@localhost.localdomain/
-> Rebased on linux-next for 20190903
-> Added jump label to __page_reporting_request so we release RCU read lock
-> Removed "- 1" from capacity limit based on virtio ring
-> Added code to verify capacity is non-zero or return error on startup
->
-> Changes from v7:
-> https://lore.kernel.org/lkml/20190904150920.13848.32271.stgit@localhost.localdomain/
-> Updated poison fixes to clear flag if "nosanity" is enabled in kernel config
-> Split shuffle per-cpu optimization into separate patch
-> Moved check for !phdev->capacity into reporting patch where it belongs
-> Added Reviewed-by tags received for v7
->
-> Changes from v8:
-> https://lore.kernel.org/lkml/20190906145213.32552.30160.stgit@localhost.localdomain/
-> Added patch that moves HPAGE_SIZE definition for ARM64 to match other archs
-> Switch back to using pageblock_order instead of HUGETLB_ORDER and MAX_ORDER - 1
-> Boundary allocation now dynamic to support HUGETLB_PAGE_SIZE_VARIABLE option
-> Made use of existing code/functions to reduce size of move_to_boundary function
-> Dropped unused zone pointer from add_to/del_from_boundary functions
-> Added additional possible mm and arm64 people as reviewers to Cc
-> Added Reviewed-by tags received for v8
-> Fixed missing parameter in kerneldoc
->
-> ---
->
-> Alexander Duyck (8):
->       mm: Add per-cpu logic to page shuffling
->       mm: Adjust shuffle code to allow for future coalescing
->       mm: Move set/get_pcppage_migratetype to mmzone.h
->       mm: Use zone and order instead of free area in free_list manipulators
->       arm64: Move hugetlb related definitions out of pgtable.h to page-defs.h
->       mm: Introduce Reported pages
->       virtio-balloon: Pull page poisoning config out of free page hinting
->       virtio-balloon: Add support for providing unused page reports to host
->
->
->  arch/arm64/include/asm/page-def.h   |    9 +
->  arch/arm64/include/asm/pgtable.h    |    9 -
->  drivers/virtio/Kconfig              |    1
->  drivers/virtio/virtio_balloon.c     |   87 ++++++++-
->  include/linux/mmzone.h              |  124 ++++++++----
->  include/linux/page-flags.h          |   11 +
->  include/linux/page_reporting.h      |  178 +++++++++++++++++
->  include/uapi/linux/virtio_balloon.h |    1
->  mm/Kconfig                          |    5
->  mm/Makefile                         |    1
->  mm/internal.h                       |   18 ++
->  mm/memory_hotplug.c                 |    1
->  mm/page_alloc.c                     |  217 +++++++++++++++------
->  mm/page_reporting.c                 |  358 +++++++++++++++++++++++++++++++++++
->  mm/shuffle.c                        |   40 ++--
->  mm/shuffle.h                        |   12 +
->  16 files changed, 931 insertions(+), 141 deletions(-)
->  create mode 100644 include/linux/page_reporting.h
->  create mode 100644 mm/page_reporting.c
->
-> --
+
+On Thu, 5 Sep 2019, David Rientjes wrote:
+
+> On Wed, 4 Sep 2019, Linus Torvalds wrote:
+> 
+> > > This series reverts those reverts and attempts to propose a more sane
+> > > default allocation strategy specifically for hugepages.  Andrea
+> > > acknowledges this is likely to fix the swap storms that he originally
+> > > reported that resulted in the patches that removed __GFP_THISNODE from
+> > > hugepage allocations.
+> > 
+> > There's no way we can try this for 5.3 even if looks ok. This is
+> > "let's try this during the 5.4 merge window" material, and see how it
+> > works.
+> > 
+> > But I'd love affected people to test this all on their loads and post
+> > numbers, so that we have actual numbers for this series when we do try
+> > to merge it.
+> > 
+> 
+> I'm certainly not proposing the last two patches in the series marked as 
+> RFC to be merged.  I'm proposing the first two patches in the series, 
+> reverts of the reverts that went into 5.3-rc5, are merged for 5.3 so that 
+> we return to the same behavior that we have had for years and semantics 
+> that MADV_HUGEPAGE has provided that entire libraries and userspaces have 
+> been based on.
+> 
+> It is very clear that there is a path forward here to address the *bug* 
+> that Andrea is reporting: it has become conflated with NUMA allocation 
+> policies which is not at all the issue.  Note that if 5.3 is released with 
+> these patches that it requires a very specialized usecase to benefit from: 
+> workloads that are larger than one socket and *requires* remote memory not 
+> being low on memory or fragmented.  If remote memory is as low on memory 
+> or fragmented as local memory (like in a datacenter), the reverts that 
+> went into 5.3 will double the impact of the very bug being reported 
+> because now it's causing swap storms for remote memory as well.  I don't 
+> anticipate we'll get numbers for that since it's not a configuration they 
+> run in.
+> 
+> The bug here is reclaim in the page allocator that does not benefit memory 
+> compaction because we are failing per-zone watermarks already.  The last 
+> two patches in these series avoid that, which is a sane default page 
+> allocation policy, and the allow fallback to remote memory only when we 
+> can't easily allocate locally.
+> 
+> We *need* the ability to allocate hugepages locally if compaction can 
+> work, anything else kills performance.  5.3-rc7 won't try that, it will 
+> simply fallback to remote memory.  We need to try compaction but we do not 
+> want to reclaim if failing watermark checks.
+> 
+> I hope that I'm not being unrealistically optimistic that we can make 
+> progress on providing a sane default allocation policy using those last 
+> two patches as a starter for 5.4, but I'm strongly suggesting that you 
+> take the first two patches to return us to the policy that has existed for 
+> years and not allow MADV_HUGEPAGE to be used for immediate remote 
+> allocation when local is possible.
+> 
 
