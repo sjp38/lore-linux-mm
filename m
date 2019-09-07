@@ -2,132 +2,335 @@ Return-Path: <SRS0=dqyo=XC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEB42C00307
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 03:15:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 230DDC43331
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 07:32:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DABF21670
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 03:15:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KEmSCTrF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DABF21670
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id B6809208C3
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 07:32:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6809208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E49CF6B0005; Fri,  6 Sep 2019 23:15:32 -0400 (EDT)
+	id 1A2966B0005; Sat,  7 Sep 2019 03:32:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF90B6B0006; Fri,  6 Sep 2019 23:15:32 -0400 (EDT)
+	id 152CA6B0006; Sat,  7 Sep 2019 03:32:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE8E96B0007; Fri,  6 Sep 2019 23:15:32 -0400 (EDT)
+	id 068A06B0007; Sat,  7 Sep 2019 03:32:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0172.hostedemail.com [216.40.44.172])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7726B0005
-	for <linux-mm@kvack.org>; Fri,  6 Sep 2019 23:15:32 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 4D2C3180AD7C3
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 03:15:32 +0000 (UTC)
-X-FDA: 75906659304.03.girls54_133450ed26e3e
-X-HE-Tag: girls54_133450ed26e3e
-X-Filterd-Recvd-Size: 5500
-Received: from mail-io1-f65.google.com (mail-io1-f65.google.com [209.85.166.65])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 03:15:31 +0000 (UTC)
-Received: by mail-io1-f65.google.com with SMTP id x4so17256654iog.13
-        for <linux-mm@kvack.org>; Fri, 06 Sep 2019 20:15:31 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0SbxJSZH3xErImLG80umcUNoBk+9xCCDmjHpdYfWSdI=;
-        b=KEmSCTrFRi5v4BfEGIMfu73TLPv6udM3bR6gfWTZy/5zzC65y2+/mWvG8YBtmoq2b2
-         ERoPBzhsKJlm5uBrYKabXRRYM2dJNsBLY3jqJukp6HFhXq2qxCM+BwiwdrXidPTNUrTY
-         BQ/M1eUI/QsJqAjkHiTdxL+62a1i4ha/Wq/gs6a2vwAiTiOJq7eec9Cv+ttD9ElMyy83
-         bW19dkXFsucLiuSSZMmL8G5CF/8GHuDYD9RYM/WI+DU5hpMth22geGxtrMPbAmP/oa1t
-         cO8vc0IR+L1V1dBgIAqvD2OMtmyjm8q8zNsy6ROkqQovCiIfc82c6P45TZp279DIIvvy
-         PN4w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=0SbxJSZH3xErImLG80umcUNoBk+9xCCDmjHpdYfWSdI=;
-        b=BUpHEM0EjJsvXgVd5ZtUQ1+PPpncZP0zgtsktfe3B7X7URFOwv4XZDQJz8AEDdEop9
-         Yfsoidg06P8skQXYaAvLS6M5NzBCJalnbOgDhEI4ehlS8rcQmvGDgXyrB55suk/7pYmM
-         8wJ54vQzqrhjb1Ho2Ynv+5e6upcUdDO6NwYzqRa01+56rGFwBR3snlJ4wa/YaV41NZR+
-         27yOZpWdeYNpKg+5oHFSeDeKtivBVILr3pxnQ4vze2wsc/wfbBBg9pXtF8JOE30Uk0mE
-         SFyIb50rG2UgHVr2FtkqUMp6SykEoVfujmsAUP20oTivd3iEvU9DFmLS7i5pzGcjLvx8
-         FF4w==
-X-Gm-Message-State: APjAAAXLFuCrQXO3/XqX5ezVhk0JEuixIsyNg9nutaPyYFOCSo0ncNyt
-	InBiqIBqWhp34Iacw1yjhEEusLmZzU2LHGJRFo8=
-X-Google-Smtp-Source: APXvYqzMKQWDegw54LhTAG2I7IbZAeamrmRENinp3sOSixubhuWe2/Lb4c7+X+JTMG4bueI+YTKM2zJypOUVeylKJ4Y=
-X-Received: by 2002:a5d:91ce:: with SMTP id k14mr2399826ior.95.1567826131164;
- Fri, 06 Sep 2019 20:15:31 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
+	by kanga.kvack.org (Postfix) with ESMTP id D87806B0005
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 03:32:17 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 7BDE8181AC9AE
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 07:32:17 +0000 (UTC)
+X-FDA: 75907306314.18.waves51_4e1dc2d9cdd2d
+X-HE-Tag: waves51_4e1dc2d9cdd2d
+X-Filterd-Recvd-Size: 9397
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 07:32:16 +0000 (UTC)
+Received: (qmail 10153 invoked from network); 7 Sep 2019 09:32:15 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.242.2.4]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Sat, 07 Sep 2019 09:32:15 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+To: Yang Shi <shy828301@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, l.roehrs@profihost.ag, cgroups@vger.kernel.org,
+ Johannes Weiner <hannes@cmpxchg.org>
+References: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+ <20190905114022.GH3838@dhcp22.suse.cz>
+ <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
+ <e866c481-04f2-fdb4-4d99-e7be2414591e@profihost.ag>
+ <CAHbLzkrfzWS+epQif4ck9dv8f9sEQyJq7vcW55Zav7m_vYY96w@mail.gmail.com>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <4cf93888-2f12-a749-cc5d-7e05782d0422@profihost.ag>
+Date: Sat, 7 Sep 2019 09:32:14 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190906145213.32552.30160.stgit@localhost.localdomain> <20190906112155-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190906112155-mutt-send-email-mst@kernel.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 6 Sep 2019 20:15:20 -0700
-Message-ID: <CAKgT0UcuZQPzcQ6cA5tKPG3+4yQP2jk+AHYcjoyrMXq0pBAiBw@mail.gmail.com>
-Subject: Re: [PATCH v8 0/7] mm / virtio: Provide support for unused page reporting
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, 
-	Oscar Salvador <osalvador@suse.de>, Yang Zhang <yang.zhang.wz@gmail.com>, 
-	Pankaj Gupta <pagupta@redhat.com>, Rik van Riel <riel@surriel.com>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
-	"Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, Dan Williams <dan.j.williams@intel.com>, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAHbLzkrfzWS+epQif4ck9dv8f9sEQyJq7vcW55Zav7m_vYY96w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 6, 2019 at 8:23 AM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> On Fri, Sep 06, 2019 at 07:53:21AM -0700, Alexander Duyck wrote:
-> > This series provides an asynchronous means of reporting to a hypervisor
-> > that a guest page is no longer in use and can have the data associated
-> > with it dropped. To do this I have implemented functionality that allows
-> > for what I am referring to as unused page reporting
-> >
-> > The functionality for this is fairly simple. When enabled it will allocate
-> > statistics to track the number of reported pages in a given free area.
-> > When the number of free pages exceeds this value plus a high water value,
-> > currently 32, it will begin performing page reporting which consists of
-> > pulling pages off of free list and placing them into a scatter list. The
-> > scatterlist is then given to the page reporting device and it will perform
-> > the required action to make the pages "reported", in the case of
-> > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> > and as such they are forced out of the guest. After this they are placed
-> > back on the free list, and an additional bit is added if they are not
-> > merged indicating that they are a reported buddy page instead of a
-> > standard buddy page. The cycle then repeats with additional non-reported
-> > pages being pulled until the free areas all consist of reported pages.
-> >
-> > I am leaving a number of things hard-coded such as limiting the lowest
-> > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> > determine what the limit is on how many pages it wants to allocate to
-> > process the hints. The upper limit for this is based on the size of the
-> > queue used to store the scattergather list.
->
-> I queued this  so this gets tested on linux-next but the mm core changes
-> need acks from appropriate people.
 
-Looks like there was a couple issues on arm64 and ia64 architectures.
-I believe I have those fixed up and will submit a v9 in the morning
-after my test runs have completed.
+Am 06.09.19 um 20:52 schrieb Yang Shi:
+> On Fri, Sep 6, 2019 at 3:08 AM Stefan Priebe - Profihost AG
+> <s.priebe@profihost.ag> wrote:
+>>
+>> These are the biggest differences in meminfo before and after cached
+>> starts to drop. I didn't expect cached end up in MemFree.
+>>
+>> Before:
+>> MemTotal:       16423116 kB
+>> MemFree:          374572 kB
+> 
+> Here MemFree is only ~300MB? It is quite low comparing with the amount
+> of total memory. It may trigger water mark to launch kswapd.
 
-Thanks.
+mhm yes that might be possible but i don't see kswapd running in the
+process list at least not using cpu.
 
-- Alex
+Also does it really free all cache? i thought it would only free up to
+vm.min_free_kbytes but this is 160MB on this machine.
+
+>> MemAvailable:    5633816 kB
+>> Cached:          5550972 kB
+>> Inactive:        4696580 kB
+>> Inactive(file):  3624776 kB
+>>
+>>
+>> After:
+>> MemTotal:       16423116 kB
+>> MemFree:         3477168 kB
+> 
+> Here MemFree is ~3GB and file cache was shrunk from ~5G down to ~2G.
+
+yes - bu i thought if file cache gets shrunk another process has
+requested tis memory and would use it. So it does not end up in free.
+
+I'm sure this all is explainable - but i really would like to know how.
+
+Greets,
+Stefan
+
+>> MemAvailable:    6066916 kB
+>> Cached:          2724504 kB
+>> Inactive:        1854740 kB
+>> Inactive(file):   950680 kB
+>>
+>> Any explanation?
+>>
+>> Greets,
+>> Stefan
+>> Am 05.09.19 um 13:56 schrieb Stefan Priebe - Profihost AG:
+>>>
+>>> Am 05.09.19 um 13:40 schrieb Michal Hocko:
+>>>> On Thu 05-09-19 13:27:10, Stefan Priebe - Profihost AG wrote:
+>>>>> Hello all,
+>>>>>
+>>>>> i hope you can help me again to understand the current MemAvailable
+>>>>> value in the linux kernel. I'm running a 4.19.52 kernel + psi patches in
+>>>>> this case.
+>>>>>
+>>>>> I'm seeing the following behaviour i don't understand and ask for help.
+>>>>>
+>>>>> While MemAvailable shows 5G the kernel starts to drop cache from 4G down
+>>>>> to 1G while the apache spawns some PHP processes. After that the PSI
+>>>>> mem.some value rises and the kernel tries to reclaim memory but
+>>>>> MemAvailable stays at 5G.
+>>>>>
+>>>>> Any ideas?
+>>>>
+>>>> Can you collect /proc/vmstat (every second or so) and post it while this
+>>>> is the case please?
+>>>
+>>> Yes sure.
+>>>
+>>> But i don't know which event you mean exactly. Current situation is PSI
+>>> / memory pressure is > 20 but:
+>>>
+>>> This is the current status where MemAvailable show 5G but Cached is
+>>> already dropped to 1G coming from 4G:
+>>>
+>>>
+>>> meminfo:
+>>> MemTotal:       16423116 kB
+>>> MemFree:         5280736 kB
+>>> MemAvailable:    5332752 kB
+>>> Buffers:            2572 kB
+>>> Cached:          1225112 kB
+>>> SwapCached:            0 kB
+>>> Active:          8934976 kB
+>>> Inactive:        1026900 kB
+>>> Active(anon):    8740396 kB
+>>> Inactive(anon):   873448 kB
+>>> Active(file):     194580 kB
+>>> Inactive(file):   153452 kB
+>>> Unevictable:       19900 kB
+>>> Mlocked:           19900 kB
+>>> SwapTotal:             0 kB
+>>> SwapFree:              0 kB
+>>> Dirty:              1980 kB
+>>> Writeback:             0 kB
+>>> AnonPages:       8423480 kB
+>>> Mapped:           978212 kB
+>>> Shmem:            875680 kB
+>>> Slab:             839868 kB
+>>> SReclaimable:     383396 kB
+>>> SUnreclaim:       456472 kB
+>>> KernelStack:       22576 kB
+>>> PageTables:        49824 kB
+>>> NFS_Unstable:          0 kB
+>>> Bounce:                0 kB
+>>> WritebackTmp:          0 kB
+>>> CommitLimit:     8211556 kB
+>>> Committed_AS:   32060624 kB
+>>> VmallocTotal:   34359738367 kB
+>>> VmallocUsed:           0 kB
+>>> VmallocChunk:          0 kB
+>>> Percpu:           118048 kB
+>>> HardwareCorrupted:     0 kB
+>>> AnonHugePages:   6406144 kB
+>>> ShmemHugePages:        0 kB
+>>> ShmemPmdMapped:        0 kB
+>>> HugePages_Total:       0
+>>> HugePages_Free:        0
+>>> HugePages_Rsvd:        0
+>>> HugePages_Surp:        0
+>>> Hugepagesize:       2048 kB
+>>> Hugetlb:               0 kB
+>>> DirectMap4k:     2580336 kB
+>>> DirectMap2M:    14196736 kB
+>>> DirectMap1G:     2097152 kB
+>>>
+>>>
+>>> vmstat shows:
+>>> nr_free_pages 1320053
+>>> nr_zone_inactive_anon 218362
+>>> nr_zone_active_anon 2185108
+>>> nr_zone_inactive_file 38363
+>>> nr_zone_active_file 48645
+>>> nr_zone_unevictable 4975
+>>> nr_zone_write_pending 495
+>>> nr_mlock 4975
+>>> nr_page_table_pages 12553
+>>> nr_kernel_stack 22576
+>>> nr_bounce 0
+>>> nr_zspages 0
+>>> nr_free_cma 0
+>>> numa_hit 13916119899
+>>> numa_miss 0
+>>> numa_foreign 0
+>>> numa_interleave 15629
+>>> numa_local 13916119899
+>>> numa_other 0
+>>> nr_inactive_anon 218362
+>>> nr_active_anon 2185164
+>>> nr_inactive_file 38363
+>>> nr_active_file 48645
+>>> nr_unevictable 4975
+>>> nr_slab_reclaimable 95849
+>>> nr_slab_unreclaimable 114118
+>>> nr_isolated_anon 0
+>>> nr_isolated_file 0
+>>> workingset_refault 71365357
+>>> workingset_activate 20281670
+>>> workingset_restore 8995665
+>>> workingset_nodereclaim 326085
+>>> nr_anon_pages 2105903
+>>> nr_mapped 244553
+>>> nr_file_pages 306921
+>>> nr_dirty 495
+>>> nr_writeback 0
+>>> nr_writeback_temp 0
+>>> nr_shmem 218920
+>>> nr_shmem_hugepages 0
+>>> nr_shmem_pmdmapped 0
+>>> nr_anon_transparent_hugepages 3128
+>>> nr_unstable 0
+>>> nr_vmscan_write 0
+>>> nr_vmscan_immediate_reclaim 1833104
+>>> nr_dirtied 386544087
+>>> nr_written 259220036
+>>> nr_dirty_threshold 265636
+>>> nr_dirty_background_threshold 132656
+>>> pgpgin 1817628997
+>>> pgpgout 3730818029
+>>> pswpin 0
+>>> pswpout 0
+>>> pgalloc_dma 0
+>>> pgalloc_dma32 5790777997
+>>> pgalloc_normal 20003662520
+>>> pgalloc_movable 0
+>>> allocstall_dma 0
+>>> allocstall_dma32 0
+>>> allocstall_normal 39
+>>> allocstall_movable 1980089
+>>> pgskip_dma 0
+>>> pgskip_dma32 0
+>>> pgskip_normal 0
+>>> pgskip_movable 0
+>>> pgfree 26637215947
+>>> pgactivate 316722654
+>>> pgdeactivate 261039211
+>>> pglazyfree 0
+>>> pgfault 17719356599
+>>> pgmajfault 30985544
+>>> pglazyfreed 0
+>>> pgrefill 286826568
+>>> pgsteal_kswapd 36740923
+>>> pgsteal_direct 349291470
+>>> pgscan_kswapd 36878966
+>>> pgscan_direct 395327492
+>>> pgscan_direct_throttle 0
+>>> zone_reclaim_failed 0
+>>> pginodesteal 49817087
+>>> slabs_scanned 597956834
+>>> kswapd_inodesteal 1412447
+>>> kswapd_low_wmark_hit_quickly 39
+>>> kswapd_high_wmark_hit_quickly 319
+>>> pageoutrun 3585
+>>> pgrotated 2873743
+>>> drop_pagecache 0
+>>> drop_slab 0
+>>> oom_kill 0
+>>> pgmigrate_success 839062285
+>>> pgmigrate_fail 507313
+>>> compact_migrate_scanned 9619077010
+>>> compact_free_scanned 67985619651
+>>> compact_isolated 1684537704
+>>> compact_stall 205761
+>>> compact_fail 182420
+>>> compact_success 23341
+>>> compact_daemon_wake 2
+>>> compact_daemon_migrate_scanned 811
+>>> compact_daemon_free_scanned 490241
+>>> htlb_buddy_alloc_success 0
+>>> htlb_buddy_alloc_fail 0
+>>> unevictable_pgs_culled 1006521
+>>> unevictable_pgs_scanned 0
+>>> unevictable_pgs_rescued 997077
+>>> unevictable_pgs_mlocked 1319203
+>>> unevictable_pgs_munlocked 842471
+>>> unevictable_pgs_cleared 470531
+>>> unevictable_pgs_stranded 459613
+>>> thp_fault_alloc 20263113
+>>> thp_fault_fallback 3368635
+>>> thp_collapse_alloc 226476
+>>> thp_collapse_alloc_failed 17594
+>>> thp_file_alloc 0
+>>> thp_file_mapped 0
+>>> thp_split_page 1159
+>>> thp_split_page_failed 3927
+>>> thp_deferred_split_page 20348941
+>>> thp_split_pmd 53361
+>>> thp_split_pud 0
+>>> thp_zero_page_alloc 1
+>>> thp_zero_page_alloc_failed 0
+>>> thp_swpout 0
+>>> thp_swpout_fallback 0
+>>> balloon_inflate 0
+>>> balloon_deflate 0
+>>> balloon_migrate 0
+>>> swap_ra 0
+>>> swap_ra_hit 0
+>>>
+>>> Greets,
+>>> Stefan
+>>>
+>>
 
