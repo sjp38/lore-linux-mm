@@ -2,116 +2,121 @@ Return-Path: <SRS0=dqyo=XC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E923EC43331
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 19:55:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E614C43331
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 21:41:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95FCE20863
-	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 19:55:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 201E42081B
+	for <linux-mm@archiver.kernel.org>; Sat,  7 Sep 2019 21:41:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="M0wgqewN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95FCE20863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EF6LYsvW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 201E42081B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F7F46B0005; Sat,  7 Sep 2019 15:55:57 -0400 (EDT)
+	id 9601B6B0005; Sat,  7 Sep 2019 17:41:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 281616B0006; Sat,  7 Sep 2019 15:55:57 -0400 (EDT)
+	id 8E94F6B0006; Sat,  7 Sep 2019 17:41:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 148636B0007; Sat,  7 Sep 2019 15:55:57 -0400 (EDT)
+	id 7B05C6B0007; Sat,  7 Sep 2019 17:41:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
-	by kanga.kvack.org (Postfix) with ESMTP id E0ED36B0005
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 15:55:56 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 897CF8243760
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 19:55:56 +0000 (UTC)
-X-FDA: 75909180312.15.men07_16b991c34ba53
-X-HE-Tag: men07_16b991c34ba53
-X-Filterd-Recvd-Size: 4399
-Received: from mail-lf1-f66.google.com (mail-lf1-f66.google.com [209.85.167.66])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 19:55:56 +0000 (UTC)
-Received: by mail-lf1-f66.google.com with SMTP id l11so7606799lfk.6
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2019 12:55:55 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
+	by kanga.kvack.org (Postfix) with ESMTP id 54DBD6B0005
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 17:41:19 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0469B180AD7C3
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 21:41:19 +0000 (UTC)
+X-FDA: 75909445878.13.fruit89_45a54c6001726
+X-HE-Tag: fruit89_45a54c6001726
+X-Filterd-Recvd-Size: 3594
+Received: from mail-pl1-f195.google.com (mail-pl1-f195.google.com [209.85.214.195])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat,  7 Sep 2019 21:41:18 +0000 (UTC)
+Received: by mail-pl1-f195.google.com with SMTP id b10so4813412plr.4
+        for <linux-mm@kvack.org>; Sat, 07 Sep 2019 14:41:18 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=663xhzIHxf1pK8txAzNcnxHkg/IWtvcnbHcDk/Hfg2g=;
-        b=M0wgqewNEoEY1SReAm1dZItv8C9F48pCqYdE249MYwIQuA6a9rDQ3vPZ1LWGw1upQB
-         kJ/9CCrSG0gNE2Gwm1qOTEKQCzc3dQB/0i1U5m6mp+uZO3efppPPZoXX7FK9dlLnOSJP
-         Hqpn9Ih4glGrGlUoRDU8T6+ayMV8VHlQJfvm8=
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=wEzd7dh/YfO3zGLSxxCdwFOAGiIma8fe0owdbCkXYmQ=;
+        b=EF6LYsvWkXNSwOEXeE/6qHUB7pHfQ83htTle+NmPGwqybQ6Pt0jKRg4Wa27sovW/ni
+         NmrFujKRHtQXBDBdP9pkAfvI/6w4T+Y436JlzgoPW7FqV4ThEqdq7dako9+HV19cPW4n
+         /uZifgpZfEjT1YGD9+BmbMXz3a54nSaZZ/2PoVfnygssJ6+GC5SuurZ99ysJED63QoPf
+         act/g/bReiNpFjOvKy+IJTpJWLw4EZQb53OaOxz4GoJb+2ZCDr1qolmeiWXw2XPvBuxu
+         XKQ/cNXPoDcQN5fBaoqD+XzWJqozOZfyfMy9465SkLtiM2n+LCifhb0iKgepQvpSwQcs
+         px7w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=663xhzIHxf1pK8txAzNcnxHkg/IWtvcnbHcDk/Hfg2g=;
-        b=CMgJhZ6zJTegpJpbOFBnbAo5OaDgC38Y+590ZcyNORsEBxWaaRFoXJZ5E7EOluA/ff
-         ehTU/x8TcKNyZaCzeZa82VoLT1uxDsX2t3PkZEW7JMwtOtFyKmKipnVEgPbQa0yw0UlS
-         zqgp/efLl4oAhNbJe1dJcu+jd7Dbn6VgUPebkyKexe4qiIPqm0OvHH3wkrBSoCF4Xnij
-         jGYHoAdk3Sx3Wioc/8WxiNyOiek9C5okE1PXZXxRSj1UqaNRBTVI1llgzeKVUdDbny/p
-         HG6zSv9oDCKd0XVOK+y0mfpubDTaCTsxb+JBILBhIK9qqohrAXinST0sPRFwEe58psvw
-         RixA==
-X-Gm-Message-State: APjAAAXxtx+tFsVy/4SzpNxy+a1Emhf5s6qDu+Q3Kq77oG+aNtYPH+nT
-	pC4IdTojHIUeLQkLqa0MNiNwXggM3zw=
-X-Google-Smtp-Source: APXvYqzUs/8qnhXqlh+1a4/e2SMxsb6lEgTaoxTPADm//DuXGSjHLmYz32JsNPJ5arajtKGV21mOdQ==
-X-Received: by 2002:a19:9145:: with SMTP id y5mr10951195lfj.88.1567886153593;
-        Sat, 07 Sep 2019 12:55:53 -0700 (PDT)
-Received: from mail-lj1-f176.google.com (mail-lj1-f176.google.com. [209.85.208.176])
-        by smtp.gmail.com with ESMTPSA id n7sm1595956ljh.38.2019.09.07.12.55.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
-        Sat, 07 Sep 2019 12:55:52 -0700 (PDT)
-Received: by mail-lj1-f176.google.com with SMTP id 7so9038158ljw.7
-        for <linux-mm@kvack.org>; Sat, 07 Sep 2019 12:55:52 -0700 (PDT)
-X-Received: by 2002:a2e:814d:: with SMTP id t13mr10346678ljg.72.1567886152153;
- Sat, 07 Sep 2019 12:55:52 -0700 (PDT)
-MIME-Version: 1.0
-References: <alpine.DEB.2.21.1909041252230.94813@chino.kir.corp.google.com>
- <CAHk-=wjmF_MGe5sBDmQB1WGpr+QFWkqboHpL37JYB5WgnG8nMA@mail.gmail.com>
- <alpine.DEB.2.21.1909051345030.217933@chino.kir.corp.google.com> <alpine.DEB.2.21.1909071249180.81471@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1909071249180.81471@chino.kir.corp.google.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 7 Sep 2019 12:55:36 -0700
-X-Gmail-Original-Message-ID: <CAHk-=wifuQ68e6Q4F2txGS48WgcoX2REE4te5_j36ypV-T2ZKw@mail.gmail.com>
-Message-ID: <CAHk-=wifuQ68e6Q4F2txGS48WgcoX2REE4te5_j36ypV-T2ZKw@mail.gmail.com>
-Subject: Re: [patch for-5.3 0/4] revert immediate fallback to remote hugepages
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, 
-	Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, 
-	"Kirill A. Shutemov" <kirill@shutemov.name>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+        h=x-gm-message-state:from:to:cc:subject:date:message-id;
+        bh=wEzd7dh/YfO3zGLSxxCdwFOAGiIma8fe0owdbCkXYmQ=;
+        b=FiuD0onxwgVNGB0RzXp+Z9K1JoW97vBVRWU/f3ZXy//NngxUvlVh6JzUKL84WE27oI
+         YfLBd1Hrhc7PcAtVJl//SK8q+wwGHCnfdLEXk9T6HWE5TyejzrO/kcKMmYxc5rURfDEw
+         lpLqcZxLRagNMNHZEpA0ln9ioLIb6sY1kCtiKSo9NVkHQeTHDXiJFyOE8e5Wyl4RyG/g
+         H4LwXN1o0v7gQJ8/iXM51xPFuQveFkuVvItu2rnMQi4lcZv+aAZwqtVd29nDLKJIPc+o
+         FoitutwgHs0rDDf8d5Wq30isukdfWCNxgvKCgenbVGSgMk6LNd4Il4ntHRY66YQCovdT
+         TliA==
+X-Gm-Message-State: APjAAAU/EJO/TevwTJi4XmBBZeepF9nYBCvGgtRmeDTDbDrFkJ7VgHes
+	77+NVhxHhZ4TPRDyacGHtwY=
+X-Google-Smtp-Source: APXvYqz+VvW5vydphQSj0ObTAVGfP2jazOrVP9sq7QamakSG2pDZ3tjxjHqAy590l89owgeU1hfKhg==
+X-Received: by 2002:a17:902:8686:: with SMTP id g6mr16403651plo.175.1567892477461;
+        Sat, 07 Sep 2019 14:41:17 -0700 (PDT)
+Received: from localhost.localdomain ([112.79.80.177])
+        by smtp.gmail.com with ESMTPSA id h11sm9078516pgv.5.2019.09.07.14.41.09
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 07 Sep 2019 14:41:15 -0700 (PDT)
+From: Souptick Joarder <jrdr.linux@gmail.com>
+To: kys@microsoft.com,
+	haiyangz@microsoft.com,
+	sthemmin@microsoft.com,
+	sashal@kernel.org,
+	boris.ostrovsky@oracle.com,
+	jgross@suse.com,
+	sstabellini@kernel.org,
+	akpm@linux-foundation.org,
+	david@redhat.com,
+	osalvador@suse.com,
+	mhocko@suse.com,
+	pasha.tatashin@soleen.com,
+	dan.j.williams@intel.com,
+	richard.weiyang@gmail.com,
+	cai@lca.pw
+Cc: linux-hyperv@vger.kernel.org,
+	xen-devel@lists.xenproject.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH 0/3] Remove __online_page_set_limits()
+Date: Sun,  8 Sep 2019 03:17:01 +0530
+Message-Id: <cover.1567889743.git.jrdr.linux@gmail.com>
+X-Mailer: git-send-email 1.9.1
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.004685, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 7, 2019 at 12:51 PM David Rientjes <rientjes@google.com> wrote:
->
-> Andrea acknowledges the swap storm that he reported would be fixed with
-> the last two patches in this series
+__online_page_set_limits() is a dummy function and an extra call
+to this can be avoided.
 
-The problem is that even you aren't arguing that those patches should
-go into 5.3.
+As both of the callers are now removed, __online_page_set_limits()
+can be removed permanently.
 
-So those fixes aren't going in, so "the swap storms would be fixed"
-argument isn't actually an argument at all as far as 5.3 is concerned.
+Souptick Joarder (3):
+  hv_ballon: Avoid calling dummy function __online_page_set_limits()
+  xen/ballon: Avoid calling dummy function __online_page_set_limits()
+  mm/memory_hotplug.c: Remove __online_page_set_limits()
 
-End result: we'd have the qemu-kvm instance performance problem in 5.3
-that apparently causes distros to apply those patches that you want to
-revert anyway.
+ drivers/hv/hv_balloon.c        | 1 -
+ drivers/xen/balloon.c          | 1 -
+ include/linux/memory_hotplug.h | 1 -
+ mm/memory_hotplug.c            | 5 -----
+ 4 files changed, 8 deletions(-)
 
-So reverting would just make distros not use 5.3 in that form.
+-- 
+1.9.1
 
-So I don't think we can revert those again without applying the two
-patches in the series. So it would be a 5.4 merge window operation.
-
-               Linus
 
