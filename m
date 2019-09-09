@@ -2,153 +2,137 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7B48C4740C
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:04:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D36F3C4740C
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:07:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97DC3218AF
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:04:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97DC3218AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 80F3C20863
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:07:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F3C20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35C986B0007; Mon,  9 Sep 2019 09:04:38 -0400 (EDT)
+	id E7D786B0008; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30CDE6B0008; Mon,  9 Sep 2019 09:04:38 -0400 (EDT)
+	id E2DA96B000A; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 249E76B000A; Mon,  9 Sep 2019 09:04:38 -0400 (EDT)
+	id D1BFE6B000C; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0033.hostedemail.com [216.40.44.33])
-	by kanga.kvack.org (Postfix) with ESMTP id 043B86B0007
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 09:04:37 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B1954181AC9AE
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:04:37 +0000 (UTC)
-X-FDA: 75915401394.28.cows06_285843a73b35d
-X-HE-Tag: cows06_285843a73b35d
-X-Filterd-Recvd-Size: 6501
+Received: from forelay.hostedemail.com (smtprelay0040.hostedemail.com [216.40.44.40])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3F36B0008
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 51C3A8243770
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:07:48 +0000 (UTC)
+X-FDA: 75915409416.01.crib43_4417778514619
+X-HE-Tag: crib43_4417778514619
+X-Filterd-Recvd-Size: 4422
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:04:37 +0000 (UTC)
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:07:47 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CA865ABCB;
-	Mon,  9 Sep 2019 13:04:35 +0000 (UTC)
-Date: Mon, 9 Sep 2019 15:04:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Petr Mladek <pmladek@suse.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH (resend)] mm,oom: Defer dump_tasks() output.
-Message-ID: <20190909130435.GO27159@dhcp22.suse.cz>
-References: <1567159493-5232-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <7de2310d-afbd-e616-e83a-d75103b986c6@i-love.sakura.ne.jp>
- <20190909113627.GJ27159@dhcp22.suse.cz>
- <579a27d2-52fb-207e-9278-fc20a2154394@i-love.sakura.ne.jp>
+	by mx1.suse.de (Postfix) with ESMTP id 737C5ADDD;
+	Mon,  9 Sep 2019 13:07:46 +0000 (UTC)
+Subject: Re: [PATCH v2 0/2] mm/kasan: dump alloc/free stack for page allocator
+To: walter-zh.wu@mediatek.com, Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>,
+ Andrey Konovalov <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>,
+ Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>,
+ Qian Cai <cai@lca.pw>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com,
+ linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+ linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+References: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d53d88df-d9a4-c126-32a8-4baeb0645a2c@suse.cz>
+Date: Mon, 9 Sep 2019 15:07:45 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <579a27d2-52fb-207e-9278-fc20a2154394@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 09-09-19 21:40:24, Tetsuo Handa wrote:
-> On 2019/09/09 20:36, Michal Hocko wrote:
-> > On Sat 07-09-19 19:54:32, Tetsuo Handa wrote:
-> >> (Resending to LKML as linux-mm ML dropped my posts.)
-> >>
-> >> If /proc/sys/vm/oom_dump_tasks != 0, dump_header() can become very slow
-> >> because dump_tasks() synchronously reports all OOM victim candidates, and
-> >> as a result ratelimit test for dump_header() cannot work as expected.
-> >>
-> >> This patch defers dump_tasks() output till oom_lock is released. As a
-> >> result of this patch, the latency between out_of_memory() is called and
-> >> SIGKILL is sent (and the OOM reaper starts reclaiming memory) will be
-> >> significantly reduced.
-> >>
-> >> Since CONFIG_PRINTK_CALLER was introduced, concurrent printk() became less
-> >> problematic. But we still need to correlate synchronously printed messages
-> >> and asynchronously printed messages if we defer dump_tasks() messages.
-> >> Thus, this patch also prefixes OOM killer messages using "OOM[$serial]:"
-> >> format. As a result, OOM killer messages would look like below.
-> >>
-> >>   [   31.935015][   T71] OOM[1]: kworker/4:1 invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=-1, oom_score_adj=0
-> >>   (...snipped....)
-> >>   [   32.052635][   T71] OOM[1]: oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),global_oom,task_memcg=/,task=firewalld,pid=737,uid=0
-> >>   [   32.056886][   T71] OOM[1]: Out of memory: Killed process 737 (firewalld) total-vm:358672kB, anon-rss:22640kB, file-rss:12328kB, shmem-rss:0kB, UID:0 pgtables:421888kB oom_score_adj:0
-> >>   [   32.064291][   T71] OOM[1]: Tasks state (memory values in pages):
-> >>   [   32.067807][   T71] OOM[1]: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> >>   [   32.070057][   T54] oom_reaper: reaped process 737 (firewalld), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> >>   [   32.072417][   T71] OOM[1]: [    548]     0   548     9772     1172   110592        0             0 systemd-journal
-> >>   (...snipped....)
-> >>   [   32.139566][   T71] OOM[1]: [    737]     0   737    89668     8742   421888        0             0 firewalld
-> >>   (...snipped....)
-> >>   [   32.221990][   T71] OOM[1]: [   1300]    48  1300    63025     1788   532480        0             0 httpd
-> >>
-> >> This patch might affect panic behavior triggered by panic_on_oom or no
-> >> OOM-killable tasks, for dump_header(oc, NULL) will not report OOM victim
-> >> candidates if there are not-yet-reported OOM victim candidates from past
-> >> rounds of OOM killer invocations. I don't know if that matters.
-> >>
-> >> For now this patch embeds "struct oom_task_info" into each
-> >> "struct task_struct". In order to avoid bloating "struct task_struct",
-> >> future patch might detach from "struct task_struct" because one
-> >> "struct oom_task_info" for one "struct signal_struct" will be enough.
-> > 
-> > This is not an improvement. It detaches the oom report and tasks_dump
-> > for an arbitrary amount of time because the worder context might be
-> > stalled for an arbitrary time. Even long after the oom is resolved.
+On 9/9/19 10:24 AM, walter-zh.wu@mediatek.com wrote:
+> From: Walter Wu <walter-zh.wu@mediatek.com>
 > 
-> A new worker thread is created if all existing worker threads are busy
-> because this patch solves OOM situation quickly when a new worker thread
-> cannot be created due to OOM situation.
+> This patch is KASAN report adds the alloc/free stacks for page allocator
+> in order to help programmer to see memory corruption caused by page.
 > 
-> Also, if a worker thread cannot run due to CPU starvation, the same thing
-> applies to dump_tasks(). In other words, dump_tasks() cannot complete due
-> to CPU starvation, which results in more costly and serious consequences.
-> Being able to send SIGKILL and reclaim memory as soon as possible is
-> an improvement.
-
-There might be zillion workers waiting to make a forward progress and
-you cannot expect any timing here. Just remember your own experiments
-with xfs and low memory conditions.
-
-> > Not to mention that 1:1 (oom to tasks) information dumping is
-> > fundamentally broken. Any task might be on an oom list of different
-> > OOM contexts in different oom scopes (think of OOM happening in disjunct
-> > NUMA sets).
+> By default, KASAN doesn't record alloc and free stack for page allocator.
+> It is difficult to fix up page use-after-free or dobule-free issue.
 > 
-> I can't understand what you are talking about. This patch just defers
-> printk() from /proc/sys/vm/oom_dump_tasks != 0. Please look at the patch
-> carefully. If you are saying that it is bad that OOM victim candidates for
-> OOM domain B, C, D ... cannot be printed if printing of OOM victim candidates
-> for OOM domain A has not finished, I can update this patch to print them.
-
-You would have to track each ongoing oom context separately. And not
-only those from different oom scopes because as a matter of fact a new
-OOM might trigger before the previous dump_tasks managed to be handled.
-
-> > This is just adding more kludges and making the code more complex
-> > without trying to address an underlying problems. So
-> > Nacked-by: Michal Hocko <mhocko@suse.com>
+> Our patchsets will record the last stack of pages.
+> It is very helpful for solving the page use-after-free or double-free.
 > 
-> Since I'm sure that you are misunderstanding, this Nacked-by is invalid.
+> KASAN report will show the last stack of page, it may be:
+> a) If page is in-use state, then it prints alloc stack.
+>     It is useful to fix up page out-of-bound issue.
 
-Thank you very much for your consideration and evaluation of my review.
-It seems that I am only burning my time responding to your emails. As
-you seem to know the best, right?
--- 
-Michal Hocko
-SUSE Labs
+I still disagree with duplicating most of page_owner functionality for 
+the sake of using a single stack handle for both alloc and free (while 
+page_owner + debug_pagealloc with patches in mmotm uses two handles). It 
+reduces the amount of potentially important debugging information, and I 
+really doubt the u32-per-page savings are significant, given the rest of 
+KASAN overhead.
+
+> BUG: KASAN: slab-out-of-bounds in kmalloc_pagealloc_oob_right+0x88/0x90
+> Write of size 1 at addr ffffffc0d64ea00a by task cat/115
+> ...
+> Allocation stack of page:
+>   set_page_stack.constprop.1+0x30/0xc8
+>   kasan_alloc_pages+0x18/0x38
+>   prep_new_page+0x5c/0x150
+>   get_page_from_freelist+0xb8c/0x17c8
+>   __alloc_pages_nodemask+0x1a0/0x11b0
+>   kmalloc_order+0x28/0x58
+>   kmalloc_order_trace+0x28/0xe0
+>   kmalloc_pagealloc_oob_right+0x2c/0x68
+> 
+> b) If page is freed state, then it prints free stack.
+>     It is useful to fix up page use-after-free or double-free issue.
+> 
+> BUG: KASAN: use-after-free in kmalloc_pagealloc_uaf+0x70/0x80
+> Write of size 1 at addr ffffffc0d651c000 by task cat/115
+> ...
+> Free stack of page:
+>   kasan_free_pages+0x68/0x70
+>   __free_pages_ok+0x3c0/0x1328
+>   __free_pages+0x50/0x78
+>   kfree+0x1c4/0x250
+>   kmalloc_pagealloc_uaf+0x38/0x80
+> 
+> This has been discussed, please refer below link.
+> https://bugzilla.kernel.org/show_bug.cgi?id=203967
+
+That's not a discussion, but a single comment from Dmitry, which btw 
+contains "provide alloc *and* free stacks for it" ("it" refers to page, 
+emphasis mine). It would be nice if he or other KASAN guys could clarify.
+
+> Changes since v1:
+> - slim page_owner and move it into kasan
+> - enable the feature by default
+> 
+> Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
+> ---
+>   include/linux/kasan.h |  1 +
+>   lib/Kconfig.kasan     |  2 ++
+>   mm/kasan/common.c     | 32 ++++++++++++++++++++++++++++++++
+>   mm/kasan/kasan.h      |  5 +++++
+>   mm/kasan/report.c     | 27 +++++++++++++++++++++++++++
+>   5 files changed, 67 insertions(+)
 
