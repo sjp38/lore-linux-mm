@@ -4,51 +4,56 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 98850C00307
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 07:52:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E387C00307
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 07:54:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67D6A218DE
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 07:52:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67D6A218DE
+	by mail.kernel.org (Postfix) with ESMTP id 4DA51218AC
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 07:54:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DA51218AC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6E026B0005; Mon,  9 Sep 2019 03:52:46 -0400 (EDT)
+	id E30CD6B0005; Mon,  9 Sep 2019 03:54:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF79C6B0006; Mon,  9 Sep 2019 03:52:46 -0400 (EDT)
+	id DE0936B0006; Mon,  9 Sep 2019 03:54:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBF476B0007; Mon,  9 Sep 2019 03:52:46 -0400 (EDT)
+	id CF6DC6B0007; Mon,  9 Sep 2019 03:54:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0162.hostedemail.com [216.40.44.162])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD556B0005
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 03:52:46 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 50F821277
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 07:52:46 +0000 (UTC)
-X-FDA: 75914615532.10.pin73_525213e01e23c
-X-HE-Tag: pin73_525213e01e23c
-X-Filterd-Recvd-Size: 6512
+Received: from forelay.hostedemail.com (smtprelay0014.hostedemail.com [216.40.44.14])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1676B0005
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 03:54:25 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 51303180AD802
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 07:54:25 +0000 (UTC)
+X-FDA: 75914619690.03.doll29_60a362c92b500
+X-HE-Tag: doll29_60a362c92b500
+X-Filterd-Recvd-Size: 6079
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 07:52:45 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 07:54:23 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 66C47772C7;
-	Mon,  9 Sep 2019 07:52:44 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 81A84300DA3A;
+	Mon,  9 Sep 2019 07:54:22 +0000 (UTC)
 Received: from [10.36.116.173] (ovpn-116-173.ams2.redhat.com [10.36.116.173])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 86D8E19C78;
-	Mon,  9 Sep 2019 07:52:41 +0000 (UTC)
-Subject: Re: [PATCH] mm: fix -Wmissing-prototypes warnings
-To: Yi Wang <wang.yi59@zte.com.cn>, akpm@linux-foundation.org
-Cc: keescook@chromium.org, dan.j.williams@intel.com, cai@lca.pw,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de,
- mhocko@suse.com, rppt@linux.ibm.com, richardw.yang@linux.intel.com,
- xue.zhihong@zte.com.cn, up2wing@gmail.com, wang.liang82@zte.com.cn
-References: <1566978161-7293-1-git-send-email-wang.yi59@zte.com.cn>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B766260A35;
+	Mon,  9 Sep 2019 07:54:18 +0000 (UTC)
+Subject: Re: [PATCH 1/3] hv_ballon: Avoid calling dummy function
+ __online_page_set_limits()
+To: Souptick Joarder <jrdr.linux@gmail.com>, kys@microsoft.com,
+ haiyangz@microsoft.com, sthemmin@microsoft.com, sashal@kernel.org,
+ boris.ostrovsky@oracle.com, jgross@suse.com, sstabellini@kernel.org,
+ akpm@linux-foundation.org, osalvador@suse.com, mhocko@suse.com,
+ pasha.tatashin@soleen.com, dan.j.williams@intel.com,
+ richard.weiyang@gmail.com, cai@lca.pw
+Cc: linux-hyperv@vger.kernel.org, xen-devel@lists.xenproject.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <cover.1567889743.git.jrdr.linux@gmail.com>
+ <8e1bc9d3b492f6bde16e95ebc1dee11d6aefabd7.1567889743.git.jrdr.linux@gmail.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -95,73 +100,49 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <89532e1d-bc41-ce70-ae3c-d6073e5c3cd4@redhat.com>
-Date: Mon, 9 Sep 2019 09:52:40 +0200
+Message-ID: <7f34d210-4b82-3c1d-7b44-0edb4adeded1@redhat.com>
+Date: Mon, 9 Sep 2019 09:54:17 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <1566978161-7293-1-git-send-email-wang.yi59@zte.com.cn>
+In-Reply-To: <8e1bc9d3b492f6bde16e95ebc1dee11d6aefabd7.1567889743.git.jrdr.linux@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 09 Sep 2019 07:52:44 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Mon, 09 Sep 2019 07:54:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28.08.19 09:42, Yi Wang wrote:
-> We get two warnings when build kernel W=3D1:
-> mm/shuffle.c:36:12: warning: no previous prototype for =E2=80=98shuffle=
-_show=E2=80=99
-> [-Wmissing-prototypes]
-> mm/sparse.c:220:6: warning: no previous prototype for
-> =E2=80=98subsection_mask_set=E2=80=99 [-Wmissing-prototypes]
->=20
-> Make the function static to fix this.
->=20
-> Signed-off-by: Yi Wang <wang.yi59@zte.com.cn>
+On 07.09.19 23:47, Souptick Joarder wrote:
+> __online_page_set_limits() is a dummy function and an extra call
+> to this function can be avoided.
+> 
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 > ---
->  mm/shuffle.c | 2 +-
->  mm/sparse.c  | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
->=20
-> diff --git a/mm/shuffle.c b/mm/shuffle.c
-> index 3ce1248..b3fe97f 100644
-> --- a/mm/shuffle.c
-> +++ b/mm/shuffle.c
-> @@ -33,7 +33,7 @@ __meminit void page_alloc_shuffle(enum mm_shuffle_ctl=
- ctl)
->  }
-> =20
->  static bool shuffle_param;
-> -extern int shuffle_show(char *buffer, const struct kernel_param *kp)
-> +static int shuffle_show(char *buffer, const struct kernel_param *kp)
->  {
->  	return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_stat=
-e)
->  			? 'Y' : 'N');
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 72f010d..49006dd 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -217,7 +217,7 @@ static inline unsigned long first_present_section_n=
-r(void)
->  	return next_present_section_nr(-1);
->  }
-> =20
-> -void subsection_mask_set(unsigned long *map, unsigned long pfn,
-> +static void subsection_mask_set(unsigned long *map, unsigned long pfn,
->  		unsigned long nr_pages)
->  {
->  	int idx =3D subsection_map_index(pfn);
->=20
+>  drivers/hv/hv_balloon.c | 1 -
+>  1 file changed, 1 deletion(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 6fb4ea5..9bab443 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -680,7 +680,6 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
+>  		__ClearPageOffline(pg);
+>  
+>  	/* This frame is currently backed; online the page. */
+> -	__online_page_set_limits(pg);
+>  	__online_page_increment_counters(pg);
+>  	__online_page_free(pg);
+>  
+> 
 
 Reviewed-by: David Hildenbrand <david@redhat.com>
 
---=20
+-- 
 
 Thanks,
 
