@@ -2,159 +2,167 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6B8FC4740A
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 19:49:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83CEAC4740A
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 19:50:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B47C21924
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 19:49:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B47C21924
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 505E2207FC
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 19:50:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 505E2207FC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C8E36B0007; Mon,  9 Sep 2019 15:49:07 -0400 (EDT)
+	id DEBA16B0007; Mon,  9 Sep 2019 15:50:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 279A36B0008; Mon,  9 Sep 2019 15:49:07 -0400 (EDT)
+	id D9BC96B0008; Mon,  9 Sep 2019 15:50:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 11A3C6B000A; Mon,  9 Sep 2019 15:49:07 -0400 (EDT)
+	id CB0826B000A; Mon,  9 Sep 2019 15:50:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
-	by kanga.kvack.org (Postfix) with ESMTP id E3AB76B0007
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:49:06 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 87A39824CA2F
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 19:49:06 +0000 (UTC)
-X-FDA: 75916420692.28.cable06_4f696ceeede48
-X-HE-Tag: cable06_4f696ceeede48
-X-Filterd-Recvd-Size: 7189
+Received: from forelay.hostedemail.com (smtprelay0186.hostedemail.com [216.40.44.186])
+	by kanga.kvack.org (Postfix) with ESMTP id A41E46B0007
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:50:54 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 50102AC1C
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 19:50:54 +0000 (UTC)
+X-FDA: 75916425228.23.cast98_5f22364996b27
+X-HE-Tag: cast98_5f22364996b27
+X-Filterd-Recvd-Size: 5339
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 19:49:05 +0000 (UTC)
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 19:50:53 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BCD49B6C7;
-	Mon,  9 Sep 2019 19:49:03 +0000 (UTC)
-Subject: Re: [PATCH 1/5] mm, slab: Make kmalloc_info[] contain all types of
- names
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>,
- Pengfei Li <lpf.vector@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Christopher Lameter <cl@linux.com>, penberg@kernel.org, rientjes@google.com,
- iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190903160430.1368-1-lpf.vector@gmail.com>
- <20190903160430.1368-2-lpf.vector@gmail.com>
- <4e9a237f-2370-0f55-34d2-1fbb9334bf88@suse.cz>
- <CAD7_sbEwwqp_ONzYxPQfBDORH4g2Du=LKt=eWf+6SsLgtysBmA@mail.gmail.com>
- <3a95d20d-ccf9-bd45-2db3-380cc3e0cd17@rasmusvillemoes.dk>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <018750ce-39c2-6331-9799-d53d0e44eaea@suse.cz>
-Date: Mon, 9 Sep 2019 21:48:59 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+	by mx1.suse.de (Postfix) with ESMTP id A1671B6D8;
+	Mon,  9 Sep 2019 19:50:51 +0000 (UTC)
+Message-ID: <cac63db8b9a7ff78fc0cd816c7dce284a06480d5.camel@suse.de>
+Subject: Re: [PATCH v5 0/4] Raspberry Pi 4 DMA addressing support
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: Stefan Wahren <wahrenst@gmx.net>, catalin.marinas@arm.com, hch@lst.de, 
+ marc.zyngier@arm.com, robh+dt@kernel.org,
+ linux-arm-kernel@lists.infradead.org,  linux-mm@kvack.org,
+ linux-riscv@lists.infradead.org
+Cc: f.fainelli@gmail.com, will@kernel.org, linux-kernel@vger.kernel.org, 
+ mbrugger@suse.com, linux-rpi-kernel@lists.infradead.org,
+ phill@raspberrypi.org,  robin.murphy@arm.com, m.szyprowski@samsung.com
+Date: Mon, 09 Sep 2019 21:50:47 +0200
+In-Reply-To: <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
+	 <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-aEBb/xch/kbKDpnAu5z0"
+User-Agent: Evolution 3.32.4 
 MIME-Version: 1.0
-In-Reply-To: <3a95d20d-ccf9-bd45-2db3-380cc3e0cd17@rasmusvillemoes.dk>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/9/19 8:30 PM, Rasmus Villemoes wrote:
-> On 09/09/2019 18.53, Pengfei Li wrote:
->> On Mon, Sep 9, 2019 at 10:59 PM Vlastimil Babka <vbabka@suse.cz> wrote:
-> 
->>>>   /*
->>>>    * kmalloc_info[] is to make slub_debug=,kmalloc-xx option work at boot time.
->>>>    * kmalloc_index() supports up to 2^26=64MB, so the final entry of the table is
->>>>    * kmalloc-67108864.
->>>>    */
->>>>   const struct kmalloc_info_struct kmalloc_info[] __initconst = {
->>>
->>> BTW should it really be an __initconst, when references to the names
->>> keep on living in kmem_cache structs? Isn't this for data that's
->>> discarded after init?
->>
->> You are right, I will remove __initconst in v2.
-> 
-> No, __initconst is correct, and should be kept. The string literals
-> which the .name pointers point to live in .rodata, and we're copying the
-> values of these .name pointers. Nothing refers to something inside
-> kmalloc_info[] after init. (It would be a whole different matter if
-> struct kmalloc_info_struct consisted of { char name[NN]; unsigned int
-> size; }).
 
-*slaps forehead* ah, of course, string literals themselves are not
-affected by the __initconst, thanks! Sorry for the wrong suggestion Pengfei.
+--=-aEBb/xch/kbKDpnAu5z0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> Rasmus
-> 
+On Mon, 2019-09-09 at 21:33 +0200, Stefan Wahren wrote:
+> Hi Nicolas,
+>=20
+> Am 09.09.19 um 11:58 schrieb Nicolas Saenz Julienne:
+> > Hi all,
+> > this series attempts to address some issues we found while bringing up
+> > the new Raspberry Pi 4 in arm64 and it's intended to serve as a follow
+> > up of these discussions:
+> > v4: https://lkml.org/lkml/2019/9/6/352
+> > v3: https://lkml.org/lkml/2019/9/2/589
+> > v2: https://lkml.org/lkml/2019/8/20/767
+> > v1: https://lkml.org/lkml/2019/7/31/922
+> > RFC: https://lkml.org/lkml/2019/7/17/476
+> >=20
+> > The new Raspberry Pi 4 has up to 4GB of memory but most peripherals can
+> > only address the first GB: their DMA address range is
+> > 0xc0000000-0xfc000000 which is aliased to the first GB of physical
+> > memory 0x00000000-0x3c000000. Note that only some peripherals have thes=
+e
+> > limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wider
+> > view of the address space by virtue of being hooked up trough a second
+> > interconnect.
+> >=20
+> > Part of this is solved on arm32 by setting up the machine specific
+> > '.dma_zone_size =3D SZ_1G', which takes care of reserving the coherent
+> > memory area at the right spot. That said no buffer bouncing (needed for
+> > dma streaming) is available at the moment, but that's a story for
+> > another series.
+> >=20
+> > Unfortunately there is no such thing as 'dma_zone_size' in arm64. Only
+> > ZONE_DMA32 is created which is interpreted by dma-direct and the arm64
+> > arch code as if all peripherals where be able to address the first 4GB
+> > of memory.
+> >=20
+> > In the light of this, the series implements the following changes:
+> >=20
+> > - Create both DMA zones in arm64, ZONE_DMA will contain the first 1G
+> >   area and ZONE_DMA32 the rest of the 32 bit addressable memory. So far
+> >   the RPi4 is the only arm64 device with such DMA addressing limitation=
+s
+> >   so this hardcoded solution was deemed preferable.
+> >=20
+> > - Properly set ARCH_ZONE_DMA_BITS.
+> >=20
+> > - Reserve the CMA area in a place suitable for all peripherals.
+> >=20
+> > This series has been tested on multiple devices both by checking the
+> > zones setup matches the expectations and by double-checking physical
+> > addresses on pages allocated on the three relevant areas GFP_DMA,
+> > GFP_DMA32, GFP_KERNEL:
+> >=20
+> > - On an RPi4 with variations on the ram memory size. But also forcing
+> >   the situation where all three memory zones are nonempty by setting a =
+3G
+> >   ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA support.
+> >=20
+> i like to test this series on Raspberry Pi 4 and i have some questions
+> to get arm64 running:
+>=20
+> Do you use U-Boot? Which tree?
+
+No, I boot directly.
+
+> Are there any config.txt tweaks necessary?
+
+I'm using the foundation's arm64 stub. Though I'm not 100% it's needed anym=
+ore
+with the latest firmware.
+
+config.txt:
+	arm_64bit=3D1
+	armstub=3Darmstub8-gic.bin
+	enable_gic=3D1
+	enable_uart=3D1
+
+Apart from that the series is based on today's linux-next plus your RPi4
+bringup patches.
+
+
+--=-aEBb/xch/kbKDpnAu5z0
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl12rRcACgkQlfZmHno8
+x/7toQf+L/Ta9MCsjv+DyfWvjt/fl9GT60+Z9cBctuHCujlRmElfGztMgn6Nu0hh
+fosUsadksYqFzrdw9GLfqJj57Lmq8RXvt/glSBSN0lQZkXjn3pVklko/Wkj2UOaH
+SvICcPMWlbk6nRjyVzX70aenvVmV5BqYa6qNxuCxPHEkYeVd9egxB//JPjtL6tqK
+4QVSoJLjfoQAlYNWDm96f77nn5doyj1ibooZxaFQe5u0+3T0ytqCZfgDsJvrIpuW
+2E4fth6VMA1AOFYH+EsvU49WyLcA1ry6xEA5NbkfmZZdh1eSyW7nCcCT60+S7Zm5
+kfIX5VMaPvFiHYUMyyPzrdRP1un7VA==
+=oHYd
+-----END PGP SIGNATURE-----
+
+--=-aEBb/xch/kbKDpnAu5z0--
 
 
