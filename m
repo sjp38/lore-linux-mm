@@ -2,206 +2,341 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93800C49ED6
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 15:13:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4C6FC4740C
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 15:22:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EF2321A4A
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 15:13:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="lqK7soM8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EF2321A4A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 65DE821924
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 15:22:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65DE821924
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EE3B26B0008; Mon,  9 Sep 2019 11:13:49 -0400 (EDT)
+	id F03AD6B0008; Mon,  9 Sep 2019 11:22:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E93F86B000D; Mon,  9 Sep 2019 11:13:49 -0400 (EDT)
+	id EB48F6B000C; Mon,  9 Sep 2019 11:22:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D5B2E6B000E; Mon,  9 Sep 2019 11:13:49 -0400 (EDT)
+	id DCA616B000D; Mon,  9 Sep 2019 11:22:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0107.hostedemail.com [216.40.44.107])
-	by kanga.kvack.org (Postfix) with ESMTP id B2AF96B0008
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 11:13:49 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 162E8A2BF
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:13:49 +0000 (UTC)
-X-FDA: 75915726978.26.rings52_41c15ecd9330
-X-HE-Tag: rings52_41c15ecd9330
-X-Filterd-Recvd-Size: 8090
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:13:48 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id u6so13296826edq.6
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 08:13:48 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ptGQKrJwsC6QNZJxPTcIFHrTBzodlhROW8EV9Cr6mks=;
-        b=lqK7soM8Ql8EG2Ftn3h3hR+olO0M3L5hi5yR7FV9iLEmOGD4dckGUM3j+cW0/Dime1
-         tcaru2ydfakL0qOGX9NW71rS5xXhlEsWXHR5tZTvN8nAdg3jRR7H91vVYT27iUT4zLQL
-         /8sd6tx6RSZch+NQKzd2gDDMnTl6lfsTiDI17WOQGfxtCfWUReS2eIOCKDQqmHkeOOb6
-         CQ29hW9JyqW2659VgWaWS03hTBmcSoCzS6kj58DkCjvhtjcgvBnAojuQ6LW0JN5ngCCR
-         oxmuahVreVZAzOjjnErCDvkrgGlDpVGWckjhAKTQyS0XAzH5VKEiZW6qr15a3nTgG9T0
-         I28w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=ptGQKrJwsC6QNZJxPTcIFHrTBzodlhROW8EV9Cr6mks=;
-        b=gL/7cOVWvLX9SmrWvoKTj3tO9811F0ZRRMZke7T887thb9KR6BlEEU+Fk3kBcbkwxU
-         jbDsyb0IkzOUF3B2Olk6EkIL3f5nt0iE9DbH8WeuVBjnSP33WLaWr8545Ve5LhWUo5tU
-         BWL4pg6XEMV+08G4eVTIjb1UWhZE3Up+WDVCxMJkINUe2dTvfvjyySNfxI4mYdh0/9jN
-         RAC3SRdDDkjvc4nHLPRT9u4G3e4WFHZxDUvFkWW4ElgUxcKRcBCU2O7U+XZjpr1+FUOw
-         D1VkBQENbAlXaepiLWLyKmOEPYuKiLKwc+zTgXNl+j4GJTfhOutck7uwCXs/CGJCwl9h
-         FiaQ==
-X-Gm-Message-State: APjAAAUS/KFrEVz+btqqIbrP6nzjvplosc2Murt4nVO/IHZNttBM7FwC
-	JsvyHm/m31Cv8SZVbqK5BeVD3A==
-X-Google-Smtp-Source: APXvYqwJokBcl6isKFmA//BZZyEEgwoj2uNW2kTs0Tg/Y35qXurjsqN7Jks2aTze1VFcwFZl9Fv8+Q==
-X-Received: by 2002:a17:906:c304:: with SMTP id s4mr20002026ejz.71.1568042026870;
-        Mon, 09 Sep 2019 08:13:46 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id bf19sm3010529edb.23.2019.09.09.08.13.45
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Sep 2019 08:13:46 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id CD9501003B5; Mon,  9 Sep 2019 18:13:44 +0300 (+03)
-Date: Mon, 9 Sep 2019 18:13:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Mark Brown <broonie@kernel.org>,
-	Steven Price <Steven.Price@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Kees Cook <keescook@chromium.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Matthew Wilcox <willy@infradead.org>,
-	Sri Krishna chowdary <schowdary@nvidia.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Russell King - ARM Linux <linux@armlinux.org.uk>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Vineet Gupta <vgupta@synopsys.com>, James Hogan <jhogan@kernel.org>,
-	Paul Burton <paul.burton@mips.com>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-	x86@kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-Message-ID: <20190909151344.ghfypjbgxyosjdk3@box>
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
- <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
- <20190904221618.1b624a98@thinkpad>
- <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
- <20190905190629.523bdb87@thinkpad>
- <3c609e33-afbb-ffaf-481a-6d225a06d1d0@arm.com>
- <20190906210346.5ecbff01@thinkpad>
- <3d5de35f-8192-1c75-50a9-03e66e3b8e5c@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0210.hostedemail.com [216.40.44.210])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5316B0008
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 11:22:15 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 5A889181AC9B6
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:22:15 +0000 (UTC)
+X-FDA: 75915748230.09.bit68_4dce2caaa2324
+X-HE-Tag: bit68_4dce2caaa2324
+X-Filterd-Recvd-Size: 11587
+Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 15:22:14 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Sep 2019 08:22:13 -0700
+X-IronPort-AV: E=Sophos;i="5.64,486,1559545200"; 
+   d="scan'208";a="178378694"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Sep 2019 08:22:11 -0700
+Message-ID: <22a896255cba877cf820f552667e1bc14268fa20.camel@linux.intel.com>
+Subject: Re: [PATCH v9 2/8] mm: Adjust shuffle code to allow for future
+ coalescing
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Alexander Duyck
+	 <alexander.duyck@gmail.com>
+Cc: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, mst@redhat.com, 
+ catalin.marinas@arm.com, david@redhat.com, dave.hansen@intel.com, 
+ linux-kernel@vger.kernel.org, willy@infradead.org, mhocko@kernel.org, 
+ linux-mm@kvack.org, akpm@linux-foundation.org, will@kernel.org, 
+ linux-arm-kernel@lists.infradead.org, osalvador@suse.de,
+ yang.zhang.wz@gmail.com,  pagupta@redhat.com, konrad.wilk@oracle.com,
+ nitesh@redhat.com, riel@surriel.com,  lcapitulino@redhat.com,
+ wei.w.wang@intel.com, aarcange@redhat.com,  ying.huang@intel.com,
+ pbonzini@redhat.com, dan.j.williams@intel.com,  fengguang.wu@intel.com,
+ kirill.shutemov@linux.intel.com
+Date: Mon, 09 Sep 2019 08:22:11 -0700
+In-Reply-To: <20190909094700.bbslsxpuwvxmodal@box>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+	 <20190907172520.10910.83100.stgit@localhost.localdomain>
+	 <20190909094700.bbslsxpuwvxmodal@box>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3d5de35f-8192-1c75-50a9-03e66e3b8e5c@arm.com>
-User-Agent: NeoMutt/20180716
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 09, 2019 at 11:56:50AM +0530, Anshuman Khandual wrote:
-> 
-> 
-> On 09/07/2019 12:33 AM, Gerald Schaefer wrote:
-> > On Fri, 6 Sep 2019 11:58:59 +0530
-> > Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+On Mon, 2019-09-09 at 12:47 +0300, Kirill A. Shutemov wrote:
+> On Sat, Sep 07, 2019 at 10:25:20AM -0700, Alexander Duyck wrote:
+> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 > > 
-> >> On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
-> >>> On Thu, 5 Sep 2019 14:48:14 +0530
-> >>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
-> >>>   
-> >>>>> [...]    
-> >>>>>> +
-> >>>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
-> >>>>>> +static void pud_clear_tests(pud_t *pudp)
-> >>>>>> +{
-> >>>>>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
-> >>>>>> +	pud_clear(pudp);
-> >>>>>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
-> >>>>>> +}    
-> >>>>>
-> >>>>> For pgd/p4d/pud_clear(), we only clear if the page table level is present
-> >>>>> and not folded. The memset() here overwrites the table type bits, so
-> >>>>> pud_clear() will not clear anything on s390 and the pud_none() check will
-> >>>>> fail.
-> >>>>> Would it be possible to OR a (larger) random value into the table, so that
-> >>>>> the lower 12 bits would be preserved?    
-> >>>>
-> >>>> So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
-> >>>> it should OR a large random value preserving lower 12 bits. Hmm, this should
-> >>>> still do the trick for other platforms, they just need non zero value. So on
-> >>>> s390, the lower 12 bits on the page table entry already has valid value while
-> >>>> entering this function which would make sure that pud_clear() really does
-> >>>> clear the entry ?  
-> >>>
-> >>> Yes, in theory the table entry on s390 would have the type set in the last
-> >>> 4 bits, so preserving those would be enough. If it does not conflict with
-> >>> others, I would still suggest preserving all 12 bits since those would contain
-> >>> arch-specific flags in general, just to be sure. For s390, the pte/pmd tests
-> >>> would also work with the memset, but for consistency I think the same logic
-> >>> should be used in all pxd_clear_tests.  
-> >>
-> >> Makes sense but..
-> >>
-> >> There is a small challenge with this. Modifying individual bits on a given
-> >> page table entry from generic code like this test case is bit tricky. That
-> >> is because there are not enough helpers to create entries with an absolute
-> >> value. This would have been easier if all the platforms provided functions
-> >> like __pxx() which is not the case now. Otherwise something like this should
-> >> have worked.
-> >>
-> >>
-> >> pud_t pud = READ_ONCE(*pudp);
-> >> pud = __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0))
-> >> WRITE_ONCE(*pudp, pud);
-> >>
-> >> But __pud() will fail to build in many platforms.
+> > Move the head/tail adding logic out of the shuffle code and into the
+> > __free_one_page function since ultimately that is where it is really
+> > needed anyway. By doing this we should be able to reduce the overhead
+> > and can consolidate all of the list addition bits in one spot.
 > > 
-> > Hmm, I simply used this on my system to make pud_clear_tests() work, not
-> > sure if it works on all archs:
+> > Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > ---
+> >  include/linux/mmzone.h |   12 --------
+> >  mm/page_alloc.c        |   70 +++++++++++++++++++++++++++---------------------
+> >  mm/shuffle.c           |    9 +-----
+> >  mm/shuffle.h           |   12 ++++++++
+> >  4 files changed, 53 insertions(+), 50 deletions(-)
 > > 
-> > pud_val(*pudp) |= RANDOM_NZVALUE;
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index bda20282746b..125f300981c6 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -116,18 +116,6 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+> >  	area->nr_free++;
+> >  }
+> >  
+> > -#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+> > -/* Used to preserve page allocation order entropy */
+> > -void add_to_free_area_random(struct page *page, struct free_area *area,
+> > -		int migratetype);
+> > -#else
+> > -static inline void add_to_free_area_random(struct page *page,
+> > -		struct free_area *area, int migratetype)
+> > -{
+> > -	add_to_free_area(page, area, migratetype);
+> > -}
+> > -#endif
+> > -
+> >  /* Used for pages which are on another list */
+> >  static inline void move_to_free_area(struct page *page, struct free_area *area,
+> >  			     int migratetype)
 > 
-> Which compiles on arm64 but then fails on x86 because of the way pmd_val()
-> has been defined there.
+> Looks like add_to_free_area() and add_to_free_area_tail() can be moved to
+> mm/page_alloc.c as all users are there now. And the same for struct
+> free_area definition (but not declaration).
+> 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index c5d62f1c2851..4e4356ba66c7 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -878,6 +878,36 @@ static inline struct capture_control *task_capc(struct zone *zone)
+> >  #endif /* CONFIG_COMPACTION */
+> >  
+> >  /*
+> > + * If this is not the largest possible page, check if the buddy
+> > + * of the next-highest order is free. If it is, it's possible
+> > + * that pages are being freed that will coalesce soon. In case,
+> > + * that is happening, add the free page to the tail of the list
+> > + * so it's less likely to be used soon and more likely to be merged
+> > + * as a higher order page
+> > + */
+> > +static inline bool
+> > +buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
+> > +		   struct page *page, unsigned int order)
+> > +{
+> > +	struct page *higher_page, *higher_buddy;
+> > +	unsigned long combined_pfn;
+> > +
+> > +	if (order >= MAX_ORDER - 2)
+> > +		return false;
+> > +
+> > +	if (!pfn_valid_within(buddy_pfn))
+> > +		return false;
+> > +
+> > +	combined_pfn = buddy_pfn & pfn;
+> > +	higher_page = page + (combined_pfn - pfn);
+> > +	buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+> > +	higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+> > +
+> > +	return pfn_valid_within(buddy_pfn) &&
+> > +	       page_is_buddy(higher_page, higher_buddy, order + 1);
+> > +}
+> 
+> Okay, that's much easier to read.
+> 
+> > +
+> > +/*
+> >   * Freeing function for a buddy system allocator.
+> >   *
+> >   * The concept of a buddy system is to maintain direct-mapped table
+> > @@ -906,11 +936,12 @@ static inline void __free_one_page(struct page *page,
+> >  		struct zone *zone, unsigned int order,
+> >  		int migratetype)
+> >  {
+> > -	unsigned long combined_pfn;
+> > +	struct capture_control *capc = task_capc(zone);
+> >  	unsigned long uninitialized_var(buddy_pfn);
+> > -	struct page *buddy;
+> > +	unsigned long combined_pfn;
+> > +	struct free_area *area;
+> >  	unsigned int max_order;
+> > -	struct capture_control *capc = task_capc(zone);
+> > +	struct page *buddy;
+> >  
+> >  	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+> >  
+> > @@ -979,35 +1010,12 @@ static inline void __free_one_page(struct page *page,
+> >  done_merging:
+> >  	set_page_order(page, order);
+> >  
+> > -	/*
+> > -	 * If this is not the largest possible page, check if the buddy
+> > -	 * of the next-highest order is free. If it is, it's possible
+> > -	 * that pages are being freed that will coalesce soon. In case,
+> > -	 * that is happening, add the free page to the tail of the list
+> > -	 * so it's less likely to be used soon and more likely to be merged
+> > -	 * as a higher order page
+> > -	 */
+> > -	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
+> > -			&& !is_shuffle_order(order)) {
+> > -		struct page *higher_page, *higher_buddy;
+> > -		combined_pfn = buddy_pfn & pfn;
+> > -		higher_page = page + (combined_pfn - pfn);
+> > -		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+> > -		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+> > -		if (pfn_valid_within(buddy_pfn) &&
+> > -		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> > -			add_to_free_area_tail(page, &zone->free_area[order],
+> > -					      migratetype);
+> > -			return;
+> > -		}
+> > -	}
+> > -
+> > -	if (is_shuffle_order(order))
+> > -		add_to_free_area_random(page, &zone->free_area[order],
+> > -				migratetype);
+> > +	area = &zone->free_area[order];
+> > +	if (is_shuffle_order(order) ? shuffle_pick_tail() :
+> > +	    buddy_merge_likely(pfn, buddy_pfn, page, order))
+> 
+> Too loaded condition to my taste. Maybe
+> 
+> 	bool to_tail;
+> 	...
+> 	if (is_shuffle_order(order))
+> 		to_tail = shuffle_pick_tail();
+> 	else if (buddy_merge_likely(pfn, buddy_pfn, page, order))
+> 		to_tail = true;
+> 	else
+> 		to_tail = false;
 
-Use instead
+I can do that, although I would tweak this slightly and do something more
+like:
+        if (is_shuffle_order(order))
+                to_tail = shuffle_pick_tail();
+        else
+                to_tail = buddy+_merge_likely(pfn, buddy_pfn, page, order);
 
-	*pudp = __pud(pud_val(*pudp) | RANDOM_NZVALUE);
+> 
+> 	if (to_tail)
+> 		add_to_free_area_tail(page, area, migratetype);
+> 	else
+> 		add_to_free_area(page, area, migratetype);
+> 
+> > +		add_to_free_area_tail(page, area, migratetype);
+> >  	else
+> > -		add_to_free_area(page, &zone->free_area[order], migratetype);
+> > -
+> > +		add_to_free_area(page, area, migratetype);
+> >  }
+> >  
+> >  /*
+> > diff --git a/mm/shuffle.c b/mm/shuffle.c
+> > index 9ba542ecf335..345cb4347455 100644
+> > --- a/mm/shuffle.c
+> > +++ b/mm/shuffle.c
+> > @@ -4,7 +4,6 @@
+> >  #include <linux/mm.h>
+> >  #include <linux/init.h>
+> >  #include <linux/mmzone.h>
+> > -#include <linux/random.h>
+> >  #include <linux/moduleparam.h>
+> >  #include "internal.h"
+> >  #include "shuffle.h"
+> 
+> Why do you move #include <linux/random.h> from .c to .h?
+> It's not obvious to me.
 
-It *should* be more portable.
+Because I had originally put the shuffle logic in an inline function. I
+can undo that now as I when back to doing the randomness in the .c
+sometime v5 I believe.
 
--- 
- Kirill A. Shutemov
+> > @@ -190,8 +189,7 @@ struct batched_bit_entropy {
+> >  
+> >  static DEFINE_PER_CPU(struct batched_bit_entropy, batched_entropy_bool);
+> >  
+> > -void add_to_free_area_random(struct page *page, struct free_area *area,
+> > -		int migratetype)
+> > +bool __shuffle_pick_tail(void)
+> >  {
+> >  	struct batched_bit_entropy *batch;
+> >  	unsigned long entropy;
+> > @@ -213,8 +211,5 @@ void add_to_free_area_random(struct page *page, struct free_area *area,
+> >  	batch->position = position;
+> >  	entropy = batch->entropy_bool;
+> >  
+> > -	if (1ul & (entropy >> position))
+> > -		add_to_free_area(page, area, migratetype);
+> > -	else
+> > -		add_to_free_area_tail(page, area, migratetype);
+> > +	return 1ul & (entropy >> position);
+> >  }
+> > diff --git a/mm/shuffle.h b/mm/shuffle.h
+> > index 777a257a0d2f..0723eb97f22f 100644
+> > --- a/mm/shuffle.h
+> > +++ b/mm/shuffle.h
+> > @@ -3,6 +3,7 @@
+> >  #ifndef _MM_SHUFFLE_H
+> >  #define _MM_SHUFFLE_H
+> >  #include <linux/jump_label.h>
+> > +#include <linux/random.h>
+> >  
+> >  /*
+> >   * SHUFFLE_ENABLE is called from the command line enabling path, or by
+> > @@ -22,6 +23,7 @@ enum mm_shuffle_ctl {
+> >  DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+> >  extern void page_alloc_shuffle(enum mm_shuffle_ctl ctl);
+> >  extern void __shuffle_free_memory(pg_data_t *pgdat);
+> > +extern bool __shuffle_pick_tail(void);
+> >  static inline void shuffle_free_memory(pg_data_t *pgdat)
+> >  {
+> >  	if (!static_branch_unlikely(&page_alloc_shuffle_key))
+> > @@ -43,6 +45,11 @@ static inline bool is_shuffle_order(int order)
+> >  		return false;
+> >  	return order >= SHUFFLE_ORDER;
+> >  }
+> > +
+> > +static inline bool shuffle_pick_tail(void)
+> > +{
+> > +	return __shuffle_pick_tail();
+> > +}
+> 
+> I don't see a reason in __shuffle_pick_tail() existing if you call it
+> unconditionally.
+
+That is for compilation purposes. The function is not used in the
+shuffle_pick_tail below that always returns false.
+
+> >  #else
+> >  static inline void shuffle_free_memory(pg_data_t *pgdat)
+> >  {
+> > @@ -60,5 +67,10 @@ static inline bool is_shuffle_order(int order)
+> >  {
+> >  	return false;
+> >  }
+> > +
+> > +static inline bool shuffle_pick_tail(void)
+> > +{
+> > +	return false;
+> > +}
+> >  #endif
+> >  #endif /* _MM_SHUFFLE_H */
+> > 
+> > 
+
+
 
