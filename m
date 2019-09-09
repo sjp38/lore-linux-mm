@@ -2,182 +2,281 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00530C00307
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 08:23:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF90AC433EF
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 08:24:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5EC6920678
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 08:23:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EC6920678
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6E6BC20678
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 08:24:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E6BC20678
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EB7AF6B000D; Mon,  9 Sep 2019 04:23:00 -0400 (EDT)
+	id 20BCD6B0010; Mon,  9 Sep 2019 04:24:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E68406B000E; Mon,  9 Sep 2019 04:23:00 -0400 (EDT)
+	id 1BD8D6B0266; Mon,  9 Sep 2019 04:24:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D57D06B0010; Mon,  9 Sep 2019 04:23:00 -0400 (EDT)
+	id 0D30C6B0269; Mon,  9 Sep 2019 04:24:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B826B000D
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 04:23:00 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 5C8663D13
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 08:23:00 +0000 (UTC)
-X-FDA: 75914691720.02.joke83_37336b6c9511b
-X-HE-Tag: joke83_37336b6c9511b
-X-Filterd-Recvd-Size: 7352
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 08:22:59 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3C6397CB80;
-	Mon,  9 Sep 2019 08:22:58 +0000 (UTC)
-Received: from [10.36.116.173] (ovpn-116-173.ams2.redhat.com [10.36.116.173])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 0E56B5C21F;
-	Mon,  9 Sep 2019 08:22:54 +0000 (UTC)
-Subject: Re: [PATCH] mm, notifier: Fix early return case for new lockdep
- annotations
-To: Daniel Vetter <daniel.vetter@ffwll.ch>,
- LKML <linux-kernel@vger.kernel.org>
-Cc: DRI Development <dri-devel@lists.freedesktop.org>,
- syzbot+aaedc50d99a03250fe1f@syzkaller.appspotmail.com,
- Jason Gunthorpe <jgg@mellanox.com>, Daniel Vetter <daniel.vetter@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Ira Weiny <ira.weiny@intel.com>,
- Michal Hocko <mhocko@suse.com>,
- Sean Christopherson <sean.j.christopherson@intel.com>,
- Jean-Philippe Brucker <jean-philippe@linaro.org>, linux-mm@kvack.org
-References: <20190906174730.22462-1-daniel.vetter@ffwll.ch>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <8fec380a-7dd1-846a-598a-90ec6f67eb43@redhat.com>
-Date: Mon, 9 Sep 2019 10:22:54 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0190.hostedemail.com [216.40.44.190])
+	by kanga.kvack.org (Postfix) with ESMTP id DFD6B6B0010
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 04:24:23 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 884F5181AC9B6
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 08:24:23 +0000 (UTC)
+X-FDA: 75914695206.21.kite15_433f3fb60091f
+X-HE-Tag: kite15_433f3fb60091f
+X-Filterd-Recvd-Size: 8324
+Received: from mailgw02.mediatek.com (unknown [210.61.82.184])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 08:24:21 +0000 (UTC)
+X-UUID: 96a3632492f04e00a7a7c7b28a279f24-20190909
+X-UUID: 96a3632492f04e00a7a7c7b28a279f24-20190909
+Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw02.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0809 with TLS)
+	with ESMTP id 150415789; Mon, 09 Sep 2019 16:24:15 +0800
+Received: from mtkcas07.mediatek.inc (172.21.101.84) by
+ mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Mon, 9 Sep 2019 16:24:13 +0800
+Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas07.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Mon, 9 Sep 2019 16:24:13 +0800
+From: <walter-zh.wu@mediatek.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
+	<glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
+	<matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Martin
+ Schwidefsky <schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>, Andrey
+ Konovalov <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>, Thomas
+ Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>, Qian Cai
+	<cai@lca.pw>
+CC: <linux-kernel@vger.kernel.org>, <kasan-dev@googlegroups.com>,
+	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>, Walter Wu
+	<walter-zh.wu@mediatek.com>
+Subject: [PATCH v2 0/2] mm/kasan: dump alloc/free stack for page allocator
+Date: Mon, 9 Sep 2019 16:24:12 +0800
+Message-ID: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
+X-Mailer: git-send-email 2.18.0
 MIME-Version: 1.0
-In-Reply-To: <20190906174730.22462-1-daniel.vetter@ffwll.ch>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 09 Sep 2019 08:22:58 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.09.19 19:47, Daniel Vetter wrote:
-> I missed that when extending the lockdep annotations to the
-> nonblocking case.
->=20
-> I missed this while testing since in the i915 mmu notifiers is hitting
-> a nice lockdep splat already before the point of going into oom killer
-> mode :-/
->=20
-> Reported-by: syzbot+aaedc50d99a03250fe1f@syzkaller.appspotmail.com
-> Fixes: d2b219ed03d4 ("mm/mmu_notifiers: add a lockdep map for invalidat=
-e_range_start/end")
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: Daniel Vetter <daniel.vetter@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-> Cc: Sean Christopherson <sean.j.christopherson@intel.com>
-> Cc: Jean-Philippe Brucker <jean-philippe@linaro.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
-> ---
->  include/linux/mmu_notifier.h | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
->=20
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.=
-h
-> index 5a03417e5bf7..4edd98b06834 100644
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -356,13 +356,14 @@ mmu_notifier_invalidate_range_start(struct mmu_no=
-tifier_range *range)
->  static inline int
->  mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range=
- *range)
->  {
-> +	int ret =3D 0;
->  	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
->  	if (mm_has_notifiers(range->mm)) {
->  		range->flags &=3D ~MMU_NOTIFIER_RANGE_BLOCKABLE;
-> -		return __mmu_notifier_invalidate_range_start(range);
-> +		ret =3D __mmu_notifier_invalidate_range_start(range);
->  	}
->  	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
-> -	return 0;
-> +	return ret;
->  }
-> =20
->  static inline void
->=20
+From: Walter Wu <walter-zh.wu@mediatek.com>
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
+This patch is KASAN report adds the alloc/free stacks for page allocator
+in order to help programmer to see memory corruption caused by page.
 
---=20
+By default, KASAN doesn't record alloc and free stack for page allocator.
+It is difficult to fix up page use-after-free or dobule-free issue.
 
-Thanks,
+Our patchsets will record the last stack of pages.
+It is very helpful for solving the page use-after-free or double-free.
 
-David / dhildenb
+KASAN report will show the last stack of page, it may be:
+a) If page is in-use state, then it prints alloc stack.
+   It is useful to fix up page out-of-bound issue.
+
+BUG: KASAN: slab-out-of-bounds in kmalloc_pagealloc_oob_right+0x88/0x90
+Write of size 1 at addr ffffffc0d64ea00a by task cat/115
+...
+Allocation stack of page:
+ set_page_stack.constprop.1+0x30/0xc8
+ kasan_alloc_pages+0x18/0x38
+ prep_new_page+0x5c/0x150
+ get_page_from_freelist+0xb8c/0x17c8
+ __alloc_pages_nodemask+0x1a0/0x11b0
+ kmalloc_order+0x28/0x58
+ kmalloc_order_trace+0x28/0xe0
+ kmalloc_pagealloc_oob_right+0x2c/0x68
+
+b) If page is freed state, then it prints free stack.
+   It is useful to fix up page use-after-free or double-free issue.
+
+BUG: KASAN: use-after-free in kmalloc_pagealloc_uaf+0x70/0x80
+Write of size 1 at addr ffffffc0d651c000 by task cat/115
+...
+Free stack of page:
+ kasan_free_pages+0x68/0x70
+ __free_pages_ok+0x3c0/0x1328
+ __free_pages+0x50/0x78
+ kfree+0x1c4/0x250
+ kmalloc_pagealloc_uaf+0x38/0x80
+
+This has been discussed, please refer below link.
+https://bugzilla.kernel.org/show_bug.cgi?id=203967
+
+Changes since v1:
+- slim page_owner and move it into kasan
+- enable the feature by default
+
+Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
+---
+ include/linux/kasan.h |  1 +
+ lib/Kconfig.kasan     |  2 ++
+ mm/kasan/common.c     | 32 ++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.h      |  5 +++++
+ mm/kasan/report.c     | 27 +++++++++++++++++++++++++++
+ 5 files changed, 67 insertions(+)
+
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index cc8a03cc9674..97e1bcb20489 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -19,6 +19,7 @@ extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE];
+ extern pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD];
+ extern pud_t kasan_early_shadow_pud[PTRS_PER_PUD];
+ extern p4d_t kasan_early_shadow_p4d[MAX_PTRS_PER_P4D];
++extern struct page_ext_operations page_stack_ops;
+ 
+ int kasan_populate_early_shadow(const void *shadow_start,
+ 				const void *shadow_end);
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index 4fafba1a923b..b5a9410ba4e8 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -41,6 +41,7 @@ config KASAN_GENERIC
+ 	select SLUB_DEBUG if SLUB
+ 	select CONSTRUCTORS
+ 	select STACKDEPOT
++	select PAGE_EXTENSION
+ 	help
+ 	  Enables generic KASAN mode.
+ 	  Supported in both GCC and Clang. With GCC it requires version 4.9.2
+@@ -63,6 +64,7 @@ config KASAN_SW_TAGS
+ 	select SLUB_DEBUG if SLUB
+ 	select CONSTRUCTORS
+ 	select STACKDEPOT
++	select PAGE_EXTENSION
+ 	help
+ 	  Enables software tag-based KASAN mode.
+ 	  This mode requires Top Byte Ignore support by the CPU and therefore
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index 2277b82902d8..c349143d2587 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -211,10 +211,38 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
+ 	kasan_unpoison_shadow(sp, size);
+ }
+ 
++static bool need_page_stack(void)
++{
++	return true;
++}
++
++struct page_ext_operations page_stack_ops = {
++	.size = sizeof(depot_stack_handle_t),
++	.need = need_page_stack,
++};
++
++static void set_page_stack(struct page *page, gfp_t gfp_mask)
++{
++	struct page_ext *page_ext = lookup_page_ext(page);
++	depot_stack_handle_t handle;
++	depot_stack_handle_t *page_stack;
++
++	if (unlikely(!page_ext))
++		return;
++
++	handle = save_stack(gfp_mask);
++
++	page_stack = get_page_stack(page_ext);
++	*page_stack = handle;
++}
++
+ void kasan_alloc_pages(struct page *page, unsigned int order)
+ {
+ 	u8 tag;
+ 	unsigned long i;
++	gfp_t gfp_flags = GFP_KERNEL;
++
++	set_page_stack(page, gfp_flags);
+ 
+ 	if (unlikely(PageHighMem(page)))
+ 		return;
+@@ -227,6 +255,10 @@ void kasan_alloc_pages(struct page *page, unsigned int order)
+ 
+ void kasan_free_pages(struct page *page, unsigned int order)
+ {
++	gfp_t gfp_flags = GFP_KERNEL;
++
++	set_page_stack(page, gfp_flags);
++
+ 	if (likely(!PageHighMem(page)))
+ 		kasan_poison_shadow(page_address(page),
+ 				PAGE_SIZE << order,
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 014f19e76247..95b3b510d04f 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -126,6 +126,11 @@ static inline bool addr_has_shadow(const void *addr)
+ 	return (addr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
+ }
+ 
++static inline depot_stack_handle_t *get_page_stack(struct page_ext *page_ext)
++{
++	return (void *)page_ext + page_stack_ops.offset;
++}
++
+ void kasan_poison_shadow(const void *address, size_t size, u8 value);
+ 
+ /**
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 0e5f965f1882..2e26bc192114 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -344,6 +344,32 @@ static void print_address_stack_frame(const void *addr)
+ 	print_decoded_frame_descr(frame_descr);
+ }
+ 
++static void dump_page_stack(struct page *page)
++{
++	struct page_ext *page_ext = lookup_page_ext(page);
++	depot_stack_handle_t handle;
++	unsigned long *entries;
++	unsigned int nr_entries;
++	depot_stack_handle_t *page_stack;
++
++	if (unlikely(!page_ext))
++		return;
++
++	page_stack = get_page_stack(page_ext);
++
++	handle = READ_ONCE(*page_stack);
++	if (!handle)
++		return;
++
++	if ((unsigned long)page->flags & PAGE_FLAGS_CHECK_AT_PREP)
++		pr_info("Allocation stack of page:\n");
++	else
++		pr_info("Free stack of page:\n");
++
++	nr_entries = stack_depot_fetch(handle, &entries);
++	stack_trace_print(entries, nr_entries, 0);
++}
++
+ static void print_address_description(void *addr)
+ {
+ 	struct page *page = addr_to_page(addr);
+@@ -366,6 +392,7 @@ static void print_address_description(void *addr)
+ 	if (page) {
+ 		pr_err("The buggy address belongs to the page:\n");
+ 		dump_page(page, "kasan: bad access detected");
++		dump_page_stack(page);
+ 	}
+ 
+ 	print_address_stack_frame(addr);
+-- 
+2.18.0
+
 
