@@ -2,161 +2,156 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44147C4740A
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 10:57:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD7DBC433EF
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 11:01:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF06A21479
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 10:57:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF06A21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8877A206A1
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 11:01:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8877A206A1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D1326B0005; Mon,  9 Sep 2019 06:57:11 -0400 (EDT)
+	id 0AB156B0005; Mon,  9 Sep 2019 07:01:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 281346B0006; Mon,  9 Sep 2019 06:57:11 -0400 (EDT)
+	id 05CB86B0006; Mon,  9 Sep 2019 07:01:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 170636B0007; Mon,  9 Sep 2019 06:57:11 -0400 (EDT)
+	id EB2FE6B0007; Mon,  9 Sep 2019 07:01:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0061.hostedemail.com [216.40.44.61])
-	by kanga.kvack.org (Postfix) with ESMTP id EA5706B0005
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 06:57:10 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 8EE60180AD801
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 10:57:10 +0000 (UTC)
-X-FDA: 75915080220.10.park76_5bb2cf55a1d16
-X-HE-Tag: park76_5bb2cf55a1d16
-X-Filterd-Recvd-Size: 6376
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 10:57:10 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 08ACB6F686;
-	Mon,  9 Sep 2019 10:57:08 +0000 (UTC)
-Received: from [10.36.116.173] (ovpn-116-173.ams2.redhat.com [10.36.116.173])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 25B1F5D6B7;
-	Mon,  9 Sep 2019 10:57:03 +0000 (UTC)
-Subject: Re: [PATCH v2 1/2] mm/page_ext: support to record the last stack of
- page
-To: Walter Wu <walter-zh.wu@mediatek.com>,
- Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>,
- Andrey Konovalov <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>,
- Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>,
- Qian Cai <cai@lca.pw>
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com,
- linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
- linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
-References: <20190909085339.25350-1-walter-zh.wu@mediatek.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <36b5a8e0-2783-4c0e-4fc7-78ea652ba475@redhat.com>
-Date: Mon, 9 Sep 2019 12:57:03 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
+	by kanga.kvack.org (Postfix) with ESMTP id CA56C6B0005
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 07:01:39 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 67F76824CA16
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 11:01:39 +0000 (UTC)
+X-FDA: 75915091518.13.jump17_82cee6e9ec508
+X-HE-Tag: jump17_82cee6e9ec508
+X-Filterd-Recvd-Size: 4189
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 11:01:38 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 618F8AD44;
+	Mon,  9 Sep 2019 11:01:37 +0000 (UTC)
+Date: Mon, 9 Sep 2019 13:01:36 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+	cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+Message-ID: <20190909110136.GG27159@dhcp22.suse.cz>
+References: <4b4ba042-3741-7b16-2292-198c569da2aa@profihost.ag>
+ <20190905114022.GH3838@dhcp22.suse.cz>
+ <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
+ <e866c481-04f2-fdb4-4d99-e7be2414591e@profihost.ag>
+ <20190909082732.GC27159@dhcp22.suse.cz>
+ <1d9ee19a-98c9-cd78-1e5b-21d9d6e36792@profihost.ag>
 MIME-Version: 1.0
-In-Reply-To: <20190909085339.25350-1-walter-zh.wu@mediatek.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 09 Sep 2019 10:57:08 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1d9ee19a-98c9-cd78-1e5b-21d9d6e36792@profihost.ag>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09.09.19 10:53, Walter Wu wrote:
-> KASAN will record last stack of page in order to help programmer
-> to see memory corruption caused by page.
-> 
-> What is difference between page_owner and our patch?
-> page_owner records alloc stack of page, but our patch is to record
-> last stack(it may be alloc or free stack of page).
-> 
-> Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
-> ---
->  mm/page_ext.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/page_ext.c b/mm/page_ext.c
-> index 5f5769c7db3b..7ca33dcd9ffa 100644
-> --- a/mm/page_ext.c
-> +++ b/mm/page_ext.c
-> @@ -65,6 +65,9 @@ static struct page_ext_operations *page_ext_ops[] = {
->  #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
->  	&page_idle_ops,
->  #endif
-> +#ifdef CONFIG_KASAN
-> +	&page_stack_ops,
-> +#endif
->  };
->  
->  static unsigned long total_usage;
-> 
+[Cc Vlastimil - logs are http://lkml.kernel.org/r/1d9ee19a-98c9-cd78-1e5b-21d9d6e36792@profihost.ag]
 
-Are you sure this patch compiles?
+On Mon 09-09-19 10:54:21, Stefan Priebe - Profihost AG wrote:
+> Hello Michal,
+> 
+> Am 09.09.19 um 10:27 schrieb Michal Hocko:
+> > On Fri 06-09-19 12:08:31, Stefan Priebe - Profihost AG wrote:
+> >> These are the biggest differences in meminfo before and after cached
+> >> starts to drop. I didn't expect cached end up in MemFree.
+> >>
+> >> Before:
+> >> MemTotal:       16423116 kB
+> >> MemFree:          374572 kB
+> >> MemAvailable:    5633816 kB
+> >> Cached:          5550972 kB
+> >> Inactive:        4696580 kB
+> >> Inactive(file):  3624776 kB
+> >>
+> >>
+> >> After:
+> >> MemTotal:       16423116 kB
+> >> MemFree:         3477168 kB
+> >> MemAvailable:    6066916 kB
+> >> Cached:          2724504 kB
+> >> Inactive:        1854740 kB
+> >> Inactive(file):   950680 kB
+> >>
+> >> Any explanation?
+> > 
+> > Do you have more snapshots of /proc/vmstat as suggested by Vlastimil and
+> > me earlier in this thread? Seeing the overall progress would tell us
+> > much more than before and after. Or have I missed this data?
+> 
+> I needed to wait until today to grab again such a situation but from
+> what i know it is very clear that MemFree is low and than the kernel
+> starts to drop the chaches.
+> 
+> Attached you'll find two log files.
 
-t460s: ~/git/linux virtio-mem $ git grep page_stack_ops
-t460s: ~/git/linux virtio-mem $
+$ grep pgsteal_kswapd vmstat | uniq -c
+   1331 pgsteal_kswapd 37142300
+$ grep pgscan_kswapd vmstat | uniq -c
+   1331 pgscan_kswapd 37285092
 
+kswapd hasn't scanned nor reclaimed any memory throughout the whole
+collected time span. On the other hand we can see direct reclaim active.
+But we can see quite some direct reclaim activity:
+$ awk '/pgsteal_direct/ {val=$2+0; ln++; if (last && val-last > 0) {printf("%d %d\n", ln, val-last)} last=val}' vmstat | head
+17 1058
+18 9773
+19 1036
+24 11413
+49 1055
+50 1050
+51 17938
+52 22665
+53 29400
+54 5997
+
+So there is a steady source of the direct reclaim which is quite
+unexpected considering the background reclaim is inactive. Or maybe it
+is blocked not able to make a forward progress.
+
+780513 pages has been reclaimed which is 3G worth of memory which
+matches the dropdown you are seeing AFAICS.
+
+$ grep allocstall_dma32 vmstat | uniq -c
+   1331 allocstall_dma32 0
+$ grep allocstall_normal vmstat | uniq -c
+   1331 allocstall_normal 39
+
+no direct reclaim invoked for DMA32 and Normal zones. But Movable zone
+seems the be the source of the direct reclaim
+awk '/allocstall_movable/ {val=$2+0; ln++; if (last && val-last > 0) {printf("%d %d\n", ln, val-last)} last=val}' vmstat | head
+17 1
+18 9
+19 1
+24 10
+49 1
+50 1
+51 17
+52 20
+53 28
+54 5
+
+and that matches moments when we reclaimed memory. There seems to be a
+steady THP allocations flow so maybe this is a source of the direct
+reclaim?
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
