@@ -2,137 +2,119 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D36F3C4740C
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:07:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D709C4740C
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:55:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80F3C20863
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:07:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F3C20863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id D00A82086D
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 13:55:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Uxim2b/q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D00A82086D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E7D786B0008; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
+	id 61DA76B0005; Mon,  9 Sep 2019 09:55:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2DA96B000A; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
+	id 5CCB66B0006; Mon,  9 Sep 2019 09:55:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D1BFE6B000C; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
+	id 4E2B26B0007; Mon,  9 Sep 2019 09:55:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0040.hostedemail.com [216.40.44.40])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3F36B0008
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 09:07:48 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 51C3A8243770
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:07:48 +0000 (UTC)
-X-FDA: 75915409416.01.crib43_4417778514619
-X-HE-Tag: crib43_4417778514619
-X-Filterd-Recvd-Size: 4422
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:07:47 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 737C5ADDD;
-	Mon,  9 Sep 2019 13:07:46 +0000 (UTC)
-Subject: Re: [PATCH v2 0/2] mm/kasan: dump alloc/free stack for page allocator
-To: walter-zh.wu@mediatek.com, Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>,
- Andrey Konovalov <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>,
- Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>,
- Qian Cai <cai@lca.pw>
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com,
- linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
- linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
-References: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d53d88df-d9a4-c126-32a8-4baeb0645a2c@suse.cz>
-Date: Mon, 9 Sep 2019 15:07:45 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC456B0005
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 09:55:35 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id D1323824376D
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:55:34 +0000 (UTC)
+X-FDA: 75915529788.18.pipe34_30a81ee134352
+X-HE-Tag: pipe34_30a81ee134352
+X-Filterd-Recvd-Size: 4125
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf35.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 13:55:34 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=UkyPHsUqAei6DhO0zB/xoh0Ya9g+WCqG9FpRgGkoXso=; b=Uxim2b/qFkMsY2cR6yo+ozIvX
+	VeiO14bsaHIOwUVUkaeAgpqC1XJOyNg5vIRNnN435YkyFCwCDzUHcgDIw/FzAIZn1O+56JTEv743M
+	6Qd4DyiweN4ivLrHZoU1EqNzTS3mG3RcTdM1uD/7nmiqGL+n3bCnJLZEGtTW7K8fnk1hnVyvb9Pof
+	wZUdRewXSz3Rj16snxGC1ma20JFW/HtSjNSliq45SVNpdtfRFqPMVJzTOoMsuqSNU2nx8n5LJvjoD
+	L8hqNE9VG3wAH3Nvss6Ib7rJRqflvu4AG7tnrdjKsIVzlek3SWK/4R33gn7C3ahRZDd3azas3TUzZ
+	MmZiNPygw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1i7K8X-0000wL-DR; Mon, 09 Sep 2019 13:55:21 +0000
+Date: Mon, 9 Sep 2019 06:55:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hillf Danton <hdanton@sina.com>,
+	syzbot <syzbot+03ee87124ee05af991bd@syzkaller.appspotmail.com>,
+	hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	syzkaller-bugs@googlegroups.com
+Subject: Re: KASAN: use-after-free Read in shmem_fault (2)
+Message-ID: <20190909135521.GD29434@bombadil.infradead.org>
+References: <20190831045826.748-1-hdanton@sina.com>
+ <20190902135254.GC2431@bombadil.infradead.org>
+ <20190902142029.fyq3dwn72pqqlzul@box>
 MIME-Version: 1.0
-In-Reply-To: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190902142029.fyq3dwn72pqqlzul@box>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/9/19 10:24 AM, walter-zh.wu@mediatek.com wrote:
-> From: Walter Wu <walter-zh.wu@mediatek.com>
+On Mon, Sep 02, 2019 at 05:20:30PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Sep 02, 2019 at 06:52:54AM -0700, Matthew Wilcox wrote:
+> > On Sat, Aug 31, 2019 at 12:58:26PM +0800, Hillf Danton wrote:
+> > > On Fri, 30 Aug 2019 12:40:06 -0700
+> > > > syzbot found the following crash on:
+> > > > 
+> > > > HEAD commit:    a55aa89a Linux 5.3-rc6
+> > > > git tree:       upstream
+> > > > console output: https://syzkaller.appspot.com/x/log.txt?x=12f4beb6600000
+> > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=2a6a2b9826fdadf9
+> > > > dashboard link: https://syzkaller.appspot.com/bug?extid=03ee87124ee05af991bd
+> > > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > > > 
+> > > > ==================================================================
+> > > > BUG: KASAN: use-after-free in perf_trace_lock_acquire+0x401/0x530  
+> > > > include/trace/events/lock.h:13
+> > > > Read of size 8 at addr ffff8880a5cf2c50 by task syz-executor.0/26173
+> > > 
+> > > --- a/mm/shmem.c
+> > > +++ b/mm/shmem.c
+> > > @@ -2021,6 +2021,12 @@ static vm_fault_t shmem_fault(struct vm_
+> > >  			shmem_falloc_waitq = shmem_falloc->waitq;
+> > >  			prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
+> > >  					TASK_UNINTERRUPTIBLE);
+> > > +			/*
+> > > +			 * it is not trivial to see what will take place after
+> > > +			 * releasing i_lock and taking a nap, so hold inode to
+> > > +			 * be on the safe side.
+> > 
+> > I think the comment could be improved.  How about:
+> > 
+> > 			 * The file could be unmapped by another thread after
+> > 			 * releasing i_lock, and the inode then freed.  Hold
+> > 			 * a reference to the inode to prevent this.
 > 
-> This patch is KASAN report adds the alloc/free stacks for page allocator
-> in order to help programmer to see memory corruption caused by page.
+> It only can happen if mmap_sem was released, so it's better to put
+> __iget() to the branch above next to up_read(). I've got confused at first
+> how it is possible from ->fault().
 > 
-> By default, KASAN doesn't record alloc and free stack for page allocator.
-> It is difficult to fix up page use-after-free or dobule-free issue.
-> 
-> Our patchsets will record the last stack of pages.
-> It is very helpful for solving the page use-after-free or double-free.
-> 
-> KASAN report will show the last stack of page, it may be:
-> a) If page is in-use state, then it prints alloc stack.
->     It is useful to fix up page out-of-bound issue.
+> This way iput() below should only be called for ret == VM_FAULT_RETRY.
 
-I still disagree with duplicating most of page_owner functionality for 
-the sake of using a single stack handle for both alloc and free (while 
-page_owner + debug_pagealloc with patches in mmotm uses two handles). It 
-reduces the amount of potentially important debugging information, and I 
-really doubt the u32-per-page savings are significant, given the rest of 
-KASAN overhead.
-
-> BUG: KASAN: slab-out-of-bounds in kmalloc_pagealloc_oob_right+0x88/0x90
-> Write of size 1 at addr ffffffc0d64ea00a by task cat/115
-> ...
-> Allocation stack of page:
->   set_page_stack.constprop.1+0x30/0xc8
->   kasan_alloc_pages+0x18/0x38
->   prep_new_page+0x5c/0x150
->   get_page_from_freelist+0xb8c/0x17c8
->   __alloc_pages_nodemask+0x1a0/0x11b0
->   kmalloc_order+0x28/0x58
->   kmalloc_order_trace+0x28/0xe0
->   kmalloc_pagealloc_oob_right+0x2c/0x68
-> 
-> b) If page is freed state, then it prints free stack.
->     It is useful to fix up page use-after-free or double-free issue.
-> 
-> BUG: KASAN: use-after-free in kmalloc_pagealloc_uaf+0x70/0x80
-> Write of size 1 at addr ffffffc0d651c000 by task cat/115
-> ...
-> Free stack of page:
->   kasan_free_pages+0x68/0x70
->   __free_pages_ok+0x3c0/0x1328
->   __free_pages+0x50/0x78
->   kfree+0x1c4/0x250
->   kmalloc_pagealloc_uaf+0x38/0x80
-> 
-> This has been discussed, please refer below link.
-> https://bugzilla.kernel.org/show_bug.cgi?id=203967
-
-That's not a discussion, but a single comment from Dmitry, which btw 
-contains "provide alloc *and* free stacks for it" ("it" refers to page, 
-emphasis mine). It would be nice if he or other KASAN guys could clarify.
-
-> Changes since v1:
-> - slim page_owner and move it into kasan
-> - enable the feature by default
-> 
-> Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
-> ---
->   include/linux/kasan.h |  1 +
->   lib/Kconfig.kasan     |  2 ++
->   mm/kasan/common.c     | 32 ++++++++++++++++++++++++++++++++
->   mm/kasan/kasan.h      |  5 +++++
->   mm/kasan/report.c     | 27 +++++++++++++++++++++++++++
->   5 files changed, 67 insertions(+)
+Looking at the rather similar construct in filemap.c, should we solve
+it the same way, where we inc the refcount on the struct file instead
+of the inode before releasing the mmap_sem?
 
