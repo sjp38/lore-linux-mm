@@ -2,115 +2,148 @@ Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39FC4C4360D
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 00:48:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07EE3C4360D
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 01:10:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8136020863
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 00:48:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8136020863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zte.com.cn
+	by mail.kernel.org (Postfix) with ESMTP id C097020854
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 01:10:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lbxLDfcL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C097020854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D4D476B0005; Sun,  8 Sep 2019 20:48:06 -0400 (EDT)
+	id 59B7C6B0005; Sun,  8 Sep 2019 21:10:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFE056B0006; Sun,  8 Sep 2019 20:48:06 -0400 (EDT)
+	id 524786B0006; Sun,  8 Sep 2019 21:10:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEBF26B0007; Sun,  8 Sep 2019 20:48:06 -0400 (EDT)
+	id 3EC7E6B0007; Sun,  8 Sep 2019 21:10:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0244.hostedemail.com [216.40.44.244])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9A46B0005
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 20:48:06 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 48C7A6D73
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 00:48:06 +0000 (UTC)
-X-FDA: 75913545372.21.park05_c76090e3f117
-X-HE-Tag: park05_c76090e3f117
-X-Filterd-Recvd-Size: 3865
-Received: from mxhk.zte.com.cn (mxhk.zte.com.cn [63.217.80.70])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 00:48:05 +0000 (UTC)
-Received: from mse-fl2.zte.com.cn (unknown [10.30.14.239])
-	by Forcepoint Email with ESMTPS id 7C091B6EFF73FAFBD049;
-	Mon,  9 Sep 2019 08:48:02 +0800 (CST)
-Received: from kjyxapp02.zte.com.cn ([10.30.12.201])
-	by mse-fl2.zte.com.cn with SMTP id x890loCS077836;
-	Mon, 9 Sep 2019 08:47:50 +0800 (GMT-8)
-	(envelope-from wang.yi59@zte.com.cn)
-Received: from mapi (kjyxapp01[null])
-	by mapi (Zmail) with MAPI id mid14;
-	Mon, 9 Sep 2019 08:47:56 +0800 (CST)
-Date: Mon, 9 Sep 2019 08:47:56 +0800 (CST)
-X-Zmail-TransId: 2b035d75a13c241f1ebb
-X-Mailer: Zmail v1.0
-Message-ID: <201909090847560209680@zte.com.cn>
-In-Reply-To: <1566978161-7293-1-git-send-email-wang.yi59@zte.com.cn>
-References: 1566978161-7293-1-git-send-email-wang.yi59@zte.com.cn
-Mime-Version: 1.0
-From: <wang.yi59@zte.com.cn>
-To: <akpm@linux-foundation.org>
-Cc: <keescook@chromium.org>, <dan.j.williams@intel.com>, <cai@lca.pw>,
-        <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-        <osalvador@suse.de>, <mhocko@suse.com>, <rppt@linux.ibm.com>,
-        <david@redhat.com>, <richardw.yang@linux.intel.com>,
-        <xue.zhihong@zte.com.cn>, <up2wing@gmail.com>,
-        <wang.liang82@zte.com.cn>, <wang.yi59@zte.com.cn>
-Subject: =?UTF-8?B?UmU6W1BBVENIXSBtbTogZml4IC1XbWlzc2luZy1wcm90b3R5cGVzIHdhcm5pbmdz?=
-Content-Type: multipart/mixed;
-	boundary="=====_001_next====="
-X-MAIL:mse-fl2.zte.com.cn x890loCS077836
+Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 154186B0005
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 21:10:25 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id B30D58243762
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 01:10:24 +0000 (UTC)
+X-FDA: 75913601568.01.elbow94_3dbd7525e3552
+X-HE-Tag: elbow94_3dbd7525e3552
+X-Filterd-Recvd-Size: 5137
+Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 01:10:24 +0000 (UTC)
+Received: by mail-pg1-f196.google.com with SMTP id x15so6799999pgg.8
+        for <linux-mm@kvack.org>; Sun, 08 Sep 2019 18:10:24 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=OIovLqZ8dndVfgy4bS5bku+Skn01UN36L7YbEWe4yhw=;
+        b=lbxLDfcLHoEKq7QwulF8CGpwNbxQWZEmLCfz/9fdnClPG6kBHrUkUA87vaBr5UNBdS
+         b+8jWVpHZ1drk30QaPgcvQNO7LtwRn5uadC72pzEBiJUIx+X1tBFQ1XlQiayEsqRe74w
+         jCTab/fObzBXTYSVNx0DlDtckQzubsesiDGy+Oa//B0aXtJpRFB0snA1tjOKNeLySXaU
+         BF70FBEwh04yA41fAXtr79jeOqocLTWCq1Z5V0wZjZxxYO6/hs0YIF95wGFS1rYroFet
+         uhz1gSTV5eIHjp/f1WeABeVgz7DPHh4Fw42QOcIfDeWzqrOeiphZrfuzwIHu1MtBJzVi
+         zRRw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=OIovLqZ8dndVfgy4bS5bku+Skn01UN36L7YbEWe4yhw=;
+        b=XsFntqubeL0cu7c02WVJJz0rA3JM2sYe4bnCQ2bpWAtY5geqF9kDtyLvqaxGWpxqUT
+         JCyjb1/93zDhUuo0BchwxdrHlki8l+jgB9khyK+j/YUDh/H0861+jqYJr7l/HqOvPSA0
+         Ai/Sf4mV9+aMgTzqeodFAN6wnw5d/wd1xdFywLuEkoZsOrxqEfziLE6Ika1obQ0MH0ZU
+         blb8N5CklKhQ83fXDr4zGcMEQblzur7u9/te5DOiYetXE8Tv8JBsA+SMe0mkVzFJKX2o
+         mTzn8AwRSs/YMZwyMgmhp93bhKH49et9weN588vW7XbWuL+soxY1azmZ8rVQ9O0ROH14
+         tW1A==
+X-Gm-Message-State: APjAAAWZRdMnjyO5Ke9wzAJx7NUw2IAu6P6FZI5LQwiogZ06lMDfsdzn
+	3ugShH/9GUx8TZgrMCpbD3Q=
+X-Google-Smtp-Source: APXvYqzYZOL2H+AO47roS6quUoNyMxcsV/gsDZ5uGmZvAcUnt1tQhmDYovzK8DvnQqwgXxNF0LA8bQ==
+X-Received: by 2002:a63:1020:: with SMTP id f32mr19739610pgl.203.1567991423070;
+        Sun, 08 Sep 2019 18:10:23 -0700 (PDT)
+Received: from localhost ([110.70.15.13])
+        by smtp.gmail.com with ESMTPSA id v43sm24235493pjb.1.2019.09.08.18.10.21
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 08 Sep 2019 18:10:22 -0700 (PDT)
+Date: Mon, 9 Sep 2019 10:10:18 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+	Steven Rostedt <rostedt@goodmis.org>, davem@davemloft.net,
+	Eric Dumazet <eric.dumazet@gmail.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+	Qian Cai <cai@lca.pw>, linux-kernel@vger.kernel.org,
+	netdev@vger.kernel.org
+Subject: Re: [PATCH] net/skbuff: silence warnings under memory pressure
+Message-ID: <20190909011018.GB816@jagdpanzerIV>
+References: <20190904065455.GE3838@dhcp22.suse.cz>
+ <20190904071911.GB11968@jagdpanzerIV>
+ <20190904074312.GA25744@jagdpanzerIV>
+ <1567599263.5576.72.camel@lca.pw>
+ <20190904144850.GA8296@tigerII.localdomain>
+ <1567629737.5576.87.camel@lca.pw>
+ <20190905113208.GA521@jagdpanzerIV>
+ <20190905132334.52b13d95@oasis.local.home>
+ <20190906033900.GB1253@jagdpanzerIV>
+ <20190906153209.ugkeuaespn2q5yix@pathway.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190906153209.ugkeuaespn2q5yix@pathway.suse.cz>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On (09/06/19 17:32), Petr Mladek wrote:
+> > [..]
+> > > I mean, really, do we need to keep calling wake up if it
+> > > probably never even executed?
+> > 
+> > I guess ratelimiting you are talking about ("if it probably never even
+> > executed") would be to check if we have already called wake up on the
+> > log_wait ->head. For that we need to, at least, take log_wait spin_lock
+> > and check that ->head is still in TASK_INTERRUPTIBLE; which is (quite,
+> > but not exactly) close to what wake_up_interruptible() does - it doesn't
+> > wake up the same task twice, it bails out on `p->state & state' check.
+> 
+> I have just realized that only sleeping tasks are in the waitqueue.
+> It is already handled by waitqueue_active() check.
 
+Yes.
 
---=====_001_next=====
-Content-Type: multipart/alternative;
-	boundary="=====_003_next====="
+> I am afraid that we could not ratelimit the wakeups. The userspace
+> loggers might then miss the last lines for a long.
 
+That's my concern as well.
 
---=====_003_next=====
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64
+> We could move wake_up_klogd() back to console_unlock(). But it might
+> end up with a back-and-forth games according to who is currently
+> complaining.
 
-R2VudGxlIHBpbmcgOikKCj4gV2UgZ2V0IHR3byB3YXJuaW5ncyB3aGVuIGJ1aWxkIGtlcm5lbCBX
-PTE6Cj4gbW0vc2h1ZmZsZS5jOjM2OjEyOiB3YXJuaW5nOiBubyBwcmV2aW91cyBwcm90b3R5cGUg
-Zm9yIOKAmHNodWZmbGVfc2hvd+KAmQo+IFstV21pc3NpbmctcHJvdG90eXBlc10KPiBtbS9zcGFy
-c2UuYzoyMjA6Njogd2FybmluZzogbm8gcHJldmlvdXMgcHJvdG90eXBlIGZvcgo+IOKAmHN1YnNl
-Y3Rpb25fbWFza19zZXTigJkgWy1XbWlzc2luZy1wcm90b3R5cGVzXQo+Cj4gTWFrZSB0aGUgZnVu
-Y3Rpb24gc3RhdGljIHRvIGZpeCB0aGlzLgo+Cj4gU2lnbmVkLW9mZi1ieTogWWkgV2FuZyA8d2Fu
-Zy55aTU5QHp0ZS5jb20uY24+Cj4gLS0tCj4gIG1tL3NodWZmbGUuYyB8IDIgKy0KPiAgbW0vc3Bh
-cnNlLmMgIHwgMiArLQo+ICAyIGZpbGVzIGNoYW5nZWQsIDIgaW5zZXJ0aW9ucygrKSwgMiBkZWxl
-dGlvbnMoLSkKPgo+IGRpZmYgLS1naXQgYS9tbS9zaHVmZmxlLmMgYi9tbS9zaHVmZmxlLmMKPiBp
-bmRleCAzY2UxMjQ4Li5iM2ZlOTdmIDEwMDY0NAo+IC0tLSBhL21tL3NodWZmbGUuYwo+ICsrKyBi
-L21tL3NodWZmbGUuYwo+IEBAIC0zMyw3ICszMyw3IEBAIF9fbWVtaW5pdCB2b2lkIHBhZ2VfYWxs
-b2Nfc2h1ZmZsZShlbnVtIG1tX3NodWZmbGVfY3RsIGN0bCkKPiAgfQo+Cj4gIHN0YXRpYyBib29s
-IHNodWZmbGVfcGFyYW07Cj4gLWV4dGVybiBpbnQgc2h1ZmZsZV9zaG93KGNoYXIgKmJ1ZmZlciwg
-Y29uc3Qgc3RydWN0IGtlcm5lbF9wYXJhbSAqa3ApCj4gK3N0YXRpYyBpbnQgc2h1ZmZsZV9zaG93
-KGNoYXIgKmJ1ZmZlciwgY29uc3Qgc3RydWN0IGtlcm5lbF9wYXJhbSAqa3ApCj4gIHsKPiAgICAg
-IHJldHVybiBzcHJpbnRmKGJ1ZmZlciwgIiVjXG4iLCB0ZXN0X2JpdChTSFVGRkxFX0VOQUJMRSwg
-JnNodWZmbGVfc3RhdGUpCj4gICAgICAgICAgICAgID8gJ1knIDogJ04nKTsKPiBkaWZmIC0tZ2l0
-IGEvbW0vc3BhcnNlLmMgYi9tbS9zcGFyc2UuYwo+IGluZGV4IDcyZjAxMGQuLjQ5MDA2ZGQgMTAw
-NjQ0Cj4gLS0tIGEvbW0vc3BhcnNlLmMKPiArKysgYi9tbS9zcGFyc2UuYwo+IEBAIC0yMTcsNyAr
-MjE3LDcgQEAgc3RhdGljIGlubGluZSB1bnNpZ25lZCBsb25nIGZpcnN0X3ByZXNlbnRfc2VjdGlv
-bl9ucih2b2lkKQo+ICAgICAgcmV0dXJuIG5leHRfcHJlc2VudF9zZWN0aW9uX25yKC0xKTsKPiAg
-fQo+Cj4gLXZvaWQgc3Vic2VjdGlvbl9tYXNrX3NldCh1bnNpZ25lZCBsb25nICptYXAsIHVuc2ln
-bmVkIGxvbmcgcGZuLAo+ICtzdGF0aWMgdm9pZCBzdWJzZWN0aW9uX21hc2tfc2V0KHVuc2lnbmVk
-IGxvbmcgKm1hcCwgdW5zaWduZWQgbG9uZyBwZm4sCj4gICAgICAgICAgdW5zaWduZWQgbG9uZyBu
-cl9wYWdlcykKPiAgewo+ICAgICAgaW50IGlkeCA9IHN1YnNlY3Rpb25fbWFwX2luZGV4KHBmbik7
-Cj4gLS0KPiAxLjguMy4xCgoKLS0tCkJlc3Qgd2lzaGVzCllpIFdhbmc=
+We still don't need irq_work, tho.
 
+If we can do
+	printk()->console_unlock()->up()->try_to_wake_up()
+then we can also do
+	printk()           ->             try_to_wake_up()
 
---=====_003_next=====--
+It's LOGLEVEL_SCHED which tells us if we can try_to_wake_up()
+or cannot.
 
---=====_001_next=====--
+> Sigh, I still suggest to ratelimit the warning about failed
+> allocation.
 
+Hard to imagine how many printk()-s we will have to ratelimit.
+To imagine NET maintainers being OK with this is even harder.
+
+	-ss
 
