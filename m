@@ -1,106 +1,127 @@
-Return-Path: <SRS0=7uET=XD=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B30FEC4360D
-	for <linux-mm@archiver.kernel.org>; Sun,  8 Sep 2019 21:27:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C478C4360D
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 00:14:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81D2A21907
-	for <linux-mm@archiver.kernel.org>; Sun,  8 Sep 2019 21:27:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81D2A21907
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 83C0C20863
+	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 00:14:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=dallalba.com.ar header.i=@dallalba.com.ar header.b="iKA5dImW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83C0C20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=dallalba.com.ar
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C3666B0003; Sun,  8 Sep 2019 17:27:21 -0400 (EDT)
+	id BDFE16B0005; Sun,  8 Sep 2019 20:14:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 074976B0006; Sun,  8 Sep 2019 17:27:21 -0400 (EDT)
+	id B901A6B0006; Sun,  8 Sep 2019 20:14:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECC0C6B0007; Sun,  8 Sep 2019 17:27:20 -0400 (EDT)
+	id AA6F86B0007; Sun,  8 Sep 2019 20:14:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0021.hostedemail.com [216.40.44.21])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDC26B0003
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 17:27:20 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 647E4824CA38
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 21:27:20 +0000 (UTC)
-X-FDA: 75913039440.08.field79_58e38e0ca412
-X-HE-Tag: field79_58e38e0ca412
-X-Filterd-Recvd-Size: 2953
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 21:27:18 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C23C2337;
-	Sun,  8 Sep 2019 14:27:16 -0700 (PDT)
-Received: from huawei_p9_lite.cambridge.arm.com (unknown [172.31.20.19])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AC4243F67D;
-	Sun,  8 Sep 2019 14:27:13 -0700 (PDT)
-Date: Sun, 8 Sep 2019 22:27:11 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: hch@lst.de, wahrenst@gmx.net, marc.zyngier@arm.com, robh+dt@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-riscv@lists.infradead.org, Will Deacon <will@kernel.org>,
-	f.fainelli@gmail.com, robin.murphy@arm.com,
-	linux-kernel@vger.kernel.org, mbrugger@suse.com,
-	linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
-	m.szyprowski@samsung.com
-Subject: Re: [PATCH v4 3/4] arm64: use both ZONE_DMA and ZONE_DMA32
-Message-ID: <20190908212711.GA84759@huawei_p9_lite.cambridge.arm.com>
-References: <20190906120617.18836-1-nsaenzjulienne@suse.de>
- <20190906120617.18836-4-nsaenzjulienne@suse.de>
+Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
+	by kanga.kvack.org (Postfix) with ESMTP id 89F356B0005
+	for <linux-mm@kvack.org>; Sun,  8 Sep 2019 20:14:36 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 32AA18243762
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 00:14:36 +0000 (UTC)
+X-FDA: 75913460952.22.sugar15_b03037abaa53
+X-HE-Tag: sugar15_b03037abaa53
+X-Filterd-Recvd-Size: 4205
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 00:14:35 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id f13so11360853qkm.9
+        for <linux-mm@kvack.org>; Sun, 08 Sep 2019 17:14:35 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=dallalba.com.ar; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=kTHqjcy/hz0NpGuwkrdn5Hh38zQ2PlegGC8UpYIqnRg=;
+        b=iKA5dImWIXbLP2YsCcgvaEZfCSCQWPlZXIrdsoi6NzBf4Eym4af5paMS3oT4nHS9TY
+         F/1P3bB4FLSMPpI1mk8uoYR6uJEeAPnjKJst/RTQ2Z3FuSDi24Xo/jd7ekVLyeBDDg+k
+         pJRCaBoVu57zORpS7LT7/uE3b5yjnPX9nMhTo=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
+         :references:user-agent:mime-version:content-transfer-encoding;
+        bh=kTHqjcy/hz0NpGuwkrdn5Hh38zQ2PlegGC8UpYIqnRg=;
+        b=RdWa1GWCqBwHRd9BJvJmLDZWba+Bv/w0NevXxvQmpmJRV87OGkxkPV4oNv+66QZryu
+         9rEx6wwZ5SRT8SShXY6ugxJ53WvLgEC2IQ0T5fBPEcZ79B4kCG4ybPmkgnjvuGHJ112V
+         Q+RJ0AFU4y+cYz8PPufVaYK6thHCm9TFlMc0UII+NKeN5deIn9rZfNBYURuyz21fzpr+
+         ipqwI+6IvMIKgh+BhXvtEaoJ5CDL0LKXZ1r1vfMdGzJ1DZiG8SJuEo46hi83DvI0rNi3
+         RgiqNbhFisJ0hhhDlyKz8OuGD7v0PR80RhhvKzBmXlp8sf5a0NiqBNKZYVIEB8mzc/CI
+         XpeQ==
+X-Gm-Message-State: APjAAAVoHrjlzU04uWg2R+BdxfuavBksr00hJNDUc52BqXvF0HJXKnKi
+	sCvitrHX7HwK1ntcf3JYUzbm
+X-Google-Smtp-Source: APXvYqwwJK3wbKY7i82Z4i8chBXHEGrz5c3JroE7oCwUTo64LTe2Xd1auUQVbFb4QPQQtDj2JSZhIA==
+X-Received: by 2002:a37:a550:: with SMTP id o77mr21299450qke.205.1567988074766;
+        Sun, 08 Sep 2019 17:14:34 -0700 (PDT)
+Received: from atomica ([186.60.161.157])
+        by smtp.gmail.com with ESMTPSA id d13sm5379034qkk.129.2019.09.08.17.14.32
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 08 Sep 2019 17:14:34 -0700 (PDT)
+Message-ID: <501f9d274cbe1bcf1056bfd06389bd9d4e00de2a.camel@dallalba.com.ar>
+Subject: Re: CRASH: General protection fault in z3fold
+From: =?UTF-8?Q?Agust=C3=ADn_Dall=CA=BCAlba?= <agustin@dallalba.com.ar>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Seth Jennings <sjenning@redhat.com>, 
+	Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>
+Date: Sun, 08 Sep 2019 21:14:31 -0300
+In-Reply-To: <CAMJBoFNvs2QNAAE=pjdV_RR2mz5Dw2PgP5mXfrwdQX8PmjKxPg@mail.gmail.com>
+References: <4a56ed8a08a3226500739f0e6961bf8cdcc6d875.camel@dallalba.com.ar>
+	 <3c906446-d2fd-706b-312f-c08dfaf8f67a@suse.cz>
+	 <CAMJBoFNvs2QNAAE=pjdV_RR2mz5Dw2PgP5mXfrwdQX8PmjKxPg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190906120617.18836-4-nsaenzjulienne@suse.de>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 06, 2019 at 02:06:14PM +0200, Nicolas Saenz Julienne wrote:
-> @@ -430,7 +454,7 @@ void __init arm64_memblock_init(void)
->  
->  	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
->  
-> -	dma_contiguous_reserve(arm64_dma32_phys_limit);
-> +	dma_contiguous_reserve(arm64_dma_phys_limit ? : arm64_dma32_phys_limit);
->  }
->  
->  void __init bootmem_init(void)
-> @@ -534,6 +558,7 @@ static void __init free_unused_memmap(void)
->  void __init mem_init(void)
->  {
->  	if (swiotlb_force == SWIOTLB_FORCE ||
-> +	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT) ||
->  	    max_pfn > (arm64_dma32_phys_limit >> PAGE_SHIFT))
->  		swiotlb_init(1);
+Hello,
 
-So here we want to initialise the swiotlb only if we need bounce
-buffers. Prior to this patch, we assumed that swiotlb is needed if
-max_pfn is beyond the reach of 32-bit devices. With ZONE_DMA, we need to
-lower this limit to arm64_dma_phys_limit.
+> Would you care to test with
+> https://bugzilla.kernel.org/attachment.cgi?id=284883 ? That one
+> should
+> fix the problem you're facing.
 
-If ZONE_DMA is enabled, just comparing max_pfn with arm64_dma_phys_limit
-is sufficient since the dma32 one limit always higher. However, if
-ZONE_DMA is disabled, arm64_dma_phys_limit is 0, so we may initialise
-swiotlb unnecessarily. I guess you need a similar check to the
-dma_contiguous_reserve() above.
+Thank you, my machine doesn't crash when stressed anymore. :)
 
-With that:
+However trace 2 (__zswap_pool_release blocked for more than xxxx
+seconds) still happens.
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > =====================================
+> > > TRACE 2: z3fold_zpool_destroy blocked
+> > > =====================================
+> > > 
+> > > INFO: task kworker/2:3:335 blocked for more than 122 seconds.
+> > >       Not tainted 5.3.0-rc7-1-ARCH #1
+> > > "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > > kworker/2:3     D    0   335      2 0x80004080
+> > > Workqueue: events __zswap_pool_release
+> > > Call Trace:
+> > >  ? __schedule+0x27f/0x6d0
+> > >  schedule+0x43/0xd0
+> > >  z3fold_zpool_destroy+0xe9/0x130
+> > >  ? wait_woken+0x70/0x70
+> > >  zpool_destroy_pool+0x5c/0x90
+> > >  __zswap_pool_release+0x6a/0xb0
+> > >  process_one_work+0x1d1/0x3a0
+> > >  worker_thread+0x4a/0x3d0
+> > >  kthread+0xfb/0x130
+> > >  ? process_one_work+0x3a0/0x3a0
+> > >  ? kthread_park+0x80/0x80
+> > >  ret_from_fork+0x35/0x40
 
-Unless there are other objections, I can queue this series for 5.5 in a
-few weeks time (too late for 5.4).
+Kind regards.
 
--- 
-Catalin
 
