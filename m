@@ -2,74 +2,100 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F335C4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:56:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67DFEC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 04:45:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53FDB2171F
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:56:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53FDB2171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id EA90C21D7B
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 04:45:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="gWwFwMGQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA90C21D7B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E54666B0003; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
+	id 4433B6B0003; Tue, 10 Sep 2019 00:45:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDCF56B0006; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
+	id 3F45D6B0006; Tue, 10 Sep 2019 00:45:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA4046B0007; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
+	id 2BBD66B0007; Tue, 10 Sep 2019 00:45:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0055.hostedemail.com [216.40.44.55])
-	by kanga.kvack.org (Postfix) with ESMTP id A2A516B0003
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 31750180AD7C3
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:56:54 +0000 (UTC)
-X-FDA: 75917649948.08.card21_764d75cd76850
-X-HE-Tag: card21_764d75cd76850
-X-Filterd-Recvd-Size: 11381
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:56:52 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8D9AB28;
-	Mon,  9 Sep 2019 20:56:51 -0700 (PDT)
-Received: from [10.162.40.137] (p8cg001049571a15.blr.arm.com [10.162.40.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 249BA3F67D;
-	Mon,  9 Sep 2019 20:56:40 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0140.hostedemail.com [216.40.44.140])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A7026B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 00:45:36 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 8EFFA8243760
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:45:35 +0000 (UTC)
+X-FDA: 75917772630.03.curve51_6ae6b6299c844
+X-HE-Tag: curve51_6ae6b6299c844
+X-Filterd-Recvd-Size: 14108
+Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:45:34 +0000 (UTC)
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 46SCBz6t8WzB09bJ;
+	Tue, 10 Sep 2019 06:45:31 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=gWwFwMGQ; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id bU4eAMlI_ySx; Tue, 10 Sep 2019 06:45:31 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 46SCBz5bQYzB09bF;
+	Tue, 10 Sep 2019 06:45:31 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1568090731; bh=3HdTywXJsBxu7f63a95rihr1tfvWFCcQDr3tUVoe8yw=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=gWwFwMGQhXbQPv4skvhBowgMpQ4CQb9YoCte6J0EYdnWndOz/QIIkIC5h0zvHR3UB
+	 Ff9SsJ29XXUzNtVXyrvW+IGqLrX8MaQ1V/dHa+poQ/qL4JRqg1blBogwropiP4BW3n
+	 ppQHiwrH0gDyFgNqtIfQfIcOubs7+hioH8IDo+8k=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 7CEF08B78A;
+	Tue, 10 Sep 2019 06:45:32 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id nnso-4tCA0Zm; Tue, 10 Sep 2019 06:45:32 +0200 (CEST)
+Received: from pc16032vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 7E34D8B754;
+	Tue, 10 Sep 2019 06:45:30 +0200 (CEST)
 Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
  page table helpers
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Matthew Wilcox <willy@infradead.org>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>,
+To: Anshuman Khandual <anshuman.khandual@arm.com>,
+ "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
+ linux-sh@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+ Dave Hansen <dave.hansen@intel.com>, Paul Mackerras <paulus@samba.org>,
+ sparclinux@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>,
+ linux-s390@vger.kernel.org, x86@kernel.org,
  Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Vlastimil Babka <vbabka@suse.cz>,
+ linux-snps-arc@lists.infradead.org, Kees Cook <keescook@chromium.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Mark Brown <broonie@kernel.org>, Dan Williams <dan.j.williams@intel.com>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ linux-arm-kernel@lists.infradead.org,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mips@vger.kernel.org,
+ Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
+ Peter Zijlstra <peterz@infradead.org>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Paul Burton <paul.burton@mips.com>,
+ Vineet Gupta <vgupta@synopsys.com>,
  Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ "David S. Miller" <davem@davemloft.net>
 References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
  <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
  <20190904221618.1b624a98@thinkpad>
@@ -79,14 +105,15 @@ References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
  <20190906210346.5ecbff01@thinkpad>
  <3d5de35f-8192-1c75-50a9-03e66e3b8e5c@arm.com>
  <20190909151344.ghfypjbgxyosjdk3@box>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <5883d41a-8299-1584-aa3d-fac89b3d9b5b@arm.com>
-Date: Tue, 10 Sep 2019 09:26:50 +0530
+ <5883d41a-8299-1584-aa3d-fac89b3d9b5b@arm.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <94029d96-47c4-3020-57a8-4e03de1b4fc8@c-s.fr>
+Date: Tue, 10 Sep 2019 04:45:30 +0000
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+ Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190909151344.ghfypjbgxyosjdk3@box>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <5883d41a-8299-1584-aa3d-fac89b3d9b5b@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -97,162 +124,202 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 09/09/2019 08:43 PM, Kirill A. Shutemov wrote:
-> On Mon, Sep 09, 2019 at 11:56:50AM +0530, Anshuman Khandual wrote:
->>
->>
->> On 09/07/2019 12:33 AM, Gerald Schaefer wrote:
->>> On Fri, 6 Sep 2019 11:58:59 +0530
->>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+On 09/10/2019 03:56 AM, Anshuman Khandual wrote:
+> 
+> 
+> On 09/09/2019 08:43 PM, Kirill A. Shutemov wrote:
+>> On Mon, Sep 09, 2019 at 11:56:50AM +0530, Anshuman Khandual wrote:
 >>>
->>>> On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
->>>>> On Thu, 5 Sep 2019 14:48:14 +0530
->>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
->>>>>   
->>>>>>> [...]    
->>>>>>>> +
->>>>>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
->>>>>>>> +static void pud_clear_tests(pud_t *pudp)
->>>>>>>> +{
->>>>>>>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
->>>>>>>> +	pud_clear(pudp);
->>>>>>>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
->>>>>>>> +}    
+>>>
+>>> On 09/07/2019 12:33 AM, Gerald Schaefer wrote:
+>>>> On Fri, 6 Sep 2019 11:58:59 +0530
+>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+>>>>
+>>>>> On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
+>>>>>> On Thu, 5 Sep 2019 14:48:14 +0530
+>>>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+>>>>>>    
+>>>>>>>> [...]
+>>>>>>>>> +
+>>>>>>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
+>>>>>>>>> +static void pud_clear_tests(pud_t *pudp)
+>>>>>>>>> +{
+>>>>>>>>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+>>>>>>>>> +	pud_clear(pudp);
+>>>>>>>>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+>>>>>>>>> +}
+>>>>>>>>
+>>>>>>>> For pgd/p4d/pud_clear(), we only clear if the page table level is present
+>>>>>>>> and not folded. The memset() here overwrites the table type bits, so
+>>>>>>>> pud_clear() will not clear anything on s390 and the pud_none() check will
+>>>>>>>> fail.
+>>>>>>>> Would it be possible to OR a (larger) random value into the table, so that
+>>>>>>>> the lower 12 bits would be preserved?
 >>>>>>>
->>>>>>> For pgd/p4d/pud_clear(), we only clear if the page table level is present
->>>>>>> and not folded. The memset() here overwrites the table type bits, so
->>>>>>> pud_clear() will not clear anything on s390 and the pud_none() check will
->>>>>>> fail.
->>>>>>> Would it be possible to OR a (larger) random value into the table, so that
->>>>>>> the lower 12 bits would be preserved?    
+>>>>>>> So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
+>>>>>>> it should OR a large random value preserving lower 12 bits. Hmm, this should
+>>>>>>> still do the trick for other platforms, they just need non zero value. So on
+>>>>>>> s390, the lower 12 bits on the page table entry already has valid value while
+>>>>>>> entering this function which would make sure that pud_clear() really does
+>>>>>>> clear the entry ?
 >>>>>>
->>>>>> So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
->>>>>> it should OR a large random value preserving lower 12 bits. Hmm, this should
->>>>>> still do the trick for other platforms, they just need non zero value. So on
->>>>>> s390, the lower 12 bits on the page table entry already has valid value while
->>>>>> entering this function which would make sure that pud_clear() really does
->>>>>> clear the entry ?  
+>>>>>> Yes, in theory the table entry on s390 would have the type set in the last
+>>>>>> 4 bits, so preserving those would be enough. If it does not conflict with
+>>>>>> others, I would still suggest preserving all 12 bits since those would contain
+>>>>>> arch-specific flags in general, just to be sure. For s390, the pte/pmd tests
+>>>>>> would also work with the memset, but for consistency I think the same logic
+>>>>>> should be used in all pxd_clear_tests.
 >>>>>
->>>>> Yes, in theory the table entry on s390 would have the type set in the last
->>>>> 4 bits, so preserving those would be enough. If it does not conflict with
->>>>> others, I would still suggest preserving all 12 bits since those would contain
->>>>> arch-specific flags in general, just to be sure. For s390, the pte/pmd tests
->>>>> would also work with the memset, but for consistency I think the same logic
->>>>> should be used in all pxd_clear_tests.  
+>>>>> Makes sense but..
+>>>>>
+>>>>> There is a small challenge with this. Modifying individual bits on a given
+>>>>> page table entry from generic code like this test case is bit tricky. That
+>>>>> is because there are not enough helpers to create entries with an absolute
+>>>>> value. This would have been easier if all the platforms provided functions
+>>>>> like __pxx() which is not the case now. Otherwise something like this should
+>>>>> have worked.
+>>>>>
+>>>>>
+>>>>> pud_t pud = READ_ONCE(*pudp);
+>>>>> pud = __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0))
+>>>>> WRITE_ONCE(*pudp, pud);
+>>>>>
+>>>>> But __pud() will fail to build in many platforms.
 >>>>
->>>> Makes sense but..
+>>>> Hmm, I simply used this on my system to make pud_clear_tests() work, not
+>>>> sure if it works on all archs:
 >>>>
->>>> There is a small challenge with this. Modifying individual bits on a given
->>>> page table entry from generic code like this test case is bit tricky. That
->>>> is because there are not enough helpers to create entries with an absolute
->>>> value. This would have been easier if all the platforms provided functions
->>>> like __pxx() which is not the case now. Otherwise something like this should
->>>> have worked.
->>>>
->>>>
->>>> pud_t pud = READ_ONCE(*pudp);
->>>> pud = __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0))
->>>> WRITE_ONCE(*pudp, pud);
->>>>
->>>> But __pud() will fail to build in many platforms.
+>>>> pud_val(*pudp) |= RANDOM_NZVALUE;
 >>>
->>> Hmm, I simply used this on my system to make pud_clear_tests() work, not
->>> sure if it works on all archs:
->>>
->>> pud_val(*pudp) |= RANDOM_NZVALUE;
+>>> Which compiles on arm64 but then fails on x86 because of the way pmd_val()
+>>> has been defined there.
 >>
->> Which compiles on arm64 but then fails on x86 because of the way pmd_val()
->> has been defined there.
+>> Use instead
+>>
+>> 	*pudp = __pud(pud_val(*pudp) | RANDOM_NZVALUE);
 > 
-> Use instead
+> Agreed.
 > 
-> 	*pudp = __pud(pud_val(*pudp) | RANDOM_NZVALUE);
+> As I had mentioned before this would have been really the cleanest approach.
+> 
+>>
+>> It *should* be more portable.
+> 
+> Not really, because not all the platforms have __pxx() definitions right now.
+> Going with these will clearly cause build failures on affected platforms. Lets
+> examine __pud() for instance. It is defined only on these platforms.
+> 
+> arch/arm64/include/asm/pgtable-types.h:		#define __pud(x) ((pud_t) { (x) } )
+> arch/mips/include/asm/pgtable-64.h:		#define __pud(x) ((pud_t) { (x) })
+> arch/powerpc/include/asm/pgtable-be-types.h:	#define __pud(x) ((pud_t) { cpu_to_be64(x) })
+> arch/powerpc/include/asm/pgtable-types.h:	#define __pud(x) ((pud_t) { (x) })
+> arch/s390/include/asm/page.h:			#define __pud(x) ((pud_t) { (x) } )
+> arch/sparc/include/asm/page_64.h:		#define __pud(x) ((pud_t) { (x) } )
+> arch/sparc/include/asm/page_64.h:		#define __pud(x) (x)
+> arch/x86/include/asm/pgtable.h:			#define __pud(x) native_make_pud(x)
 
-Agreed.
-
-As I had mentioned before this would have been really the cleanest approach.
+You missed:
+arch/x86/include/asm/paravirt.h:static inline pud_t __pud(pudval_t val)
+include/asm-generic/pgtable-nop4d-hack.h:#define __pud(x) 
+                ((pud_t) { __pgd(x) })
+include/asm-generic/pgtable-nopud.h:#define __pud(x) 
+        ((pud_t) { __p4d(x) })
 
 > 
-> It *should* be more portable.
+> Similarly for __pmd()
+> 
+> arch/alpha/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/arm/include/asm/page-nommu.h:		#define __pmd(x)  (x)
+> arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  (x)
+> arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  (x)
+> arch/arm64/include/asm/pgtable-types.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/m68k/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { { (x) }, })
+> arch/mips/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/nds32/include/asm/page.h:			#define __pmd(x)  (x)
+> arch/parisc/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/parisc/include/asm/page.h:			#define __pmd(x)  (x)
+> arch/powerpc/include/asm/pgtable-be-types.h:	#define __pmd(x)  ((pmd_t) { cpu_to_be64(x) })
+> arch/powerpc/include/asm/pgtable-types.h:	#define __pmd(x)  ((pmd_t) { (x) })
+> arch/riscv/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) })
+> arch/s390/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/sh/include/asm/pgtable-3level.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
+> arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
+> arch/sparc/include/asm/page_64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/sparc/include/asm/page_64.h:		#define __pmd(x)  (x)
+> arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+> arch/x86/include/asm/pgtable.h:			#define __pmd(x)  native_make_pmd(x)
 
-Not really, because not all the platforms have __pxx() definitions right now.
-Going with these will clearly cause build failures on affected platforms. Lets
-examine __pud() for instance. It is defined only on these platforms.
+You missed:
+arch/x86/include/asm/paravirt.h:static inline pmd_t __pmd(pmdval_t val)
+include/asm-generic/page.h:#define __pmd(x)     ((pmd_t) { (x) } )
+include/asm-generic/pgtable-nopmd.h:#define __pmd(x) 
+        ((pmd_t) { __pud(x) } )
 
-arch/arm64/include/asm/pgtable-types.h:		#define __pud(x) ((pud_t) { (x) } )
-arch/mips/include/asm/pgtable-64.h:		#define __pud(x) ((pud_t) { (x) })
-arch/powerpc/include/asm/pgtable-be-types.h:	#define __pud(x) ((pud_t) { cpu_to_be64(x) })
-arch/powerpc/include/asm/pgtable-types.h:	#define __pud(x) ((pud_t) { (x) })
-arch/s390/include/asm/page.h:			#define __pud(x) ((pud_t) { (x) } )
-arch/sparc/include/asm/page_64.h:		#define __pud(x) ((pud_t) { (x) } )
-arch/sparc/include/asm/page_64.h:		#define __pud(x) (x)
-arch/x86/include/asm/pgtable.h:			#define __pud(x) native_make_pud(x)
 
-Similarly for __pmd()
+> 
+> Similarly for __pgd()
+> 
+> arch/alpha/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/alpha/include/asm/page.h:			#define __pgd(x)  (x)
+> arch/arc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+> arch/arc/include/asm/page.h:			#define __pgd(x)  (x)
+> arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  (x)
+> arch/arm64/include/asm/pgtable-types.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/csky/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+> arch/hexagon/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+> arch/m68k/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/mips/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/nds32/include/asm/page.h:			#define __pgd(x)  (x)
+> arch/nios2/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+> arch/openrisc/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+> arch/parisc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/parisc/include/asm/page.h:			#define __pgd(x)  (x)
+> arch/powerpc/include/asm/pgtable-be-types.h:	#define __pgd(x)  ((pgd_t) { cpu_to_be64(x) })
+> arch/powerpc/include/asm/pgtable-types.h:	#define __pgd(x)  ((pgd_t) { (x) })
+> arch/riscv/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+> arch/s390/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/sh/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/sparc/include/asm/page_32.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/sparc/include/asm/page_32.h:		#define __pgd(x)  (x)
+> arch/sparc/include/asm/page_64.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/sparc/include/asm/page_64.h:		#define __pgd(x)  (x)
+> arch/um/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> arch/unicore32/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+> arch/unicore32/include/asm/page.h:		#define __pgd(x)  (x)
+> arch/x86/include/asm/pgtable.h:			#define __pgd(x)  native_make_pgd(x)
+> arch/xtensa/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
 
-arch/alpha/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
-arch/arm/include/asm/page-nommu.h:		#define __pmd(x)  (x)
-arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
-arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  (x)
-arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
-arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  (x)
-arch/arm64/include/asm/pgtable-types.h:		#define __pmd(x)  ((pmd_t) { (x) } )
-arch/m68k/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { { (x) }, })
-arch/mips/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
-arch/nds32/include/asm/page.h:			#define __pmd(x)  (x)
-arch/parisc/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
-arch/parisc/include/asm/page.h:			#define __pmd(x)  (x)
-arch/powerpc/include/asm/pgtable-be-types.h:	#define __pmd(x)  ((pmd_t) { cpu_to_be64(x) })
-arch/powerpc/include/asm/pgtable-types.h:	#define __pmd(x)  ((pmd_t) { (x) })
-arch/riscv/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) })
-arch/s390/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
-arch/sh/include/asm/pgtable-3level.h:		#define __pmd(x)  ((pmd_t) { (x) } )
-arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
-arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
-arch/sparc/include/asm/page_64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
-arch/sparc/include/asm/page_64.h:		#define __pmd(x)  (x)
-arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
-arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
-arch/x86/include/asm/pgtable.h:			#define __pmd(x)  native_make_pmd(x)
+You missed:
+arch/x86/include/asm/paravirt.h:static inline pgd_t __pgd(pgdval_t val)
+include/asm-generic/page.h:#define __pgd(x)     ((pgd_t) { (x) } )
 
-Similarly for __pgd()
 
-arch/alpha/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/alpha/include/asm/page.h:			#define __pgd(x)  (x)
-arch/arc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
-arch/arc/include/asm/page.h:			#define __pgd(x)  (x)
-arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  ((pgd_t) { (x) } )
-arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  (x)
-arch/arm64/include/asm/pgtable-types.h:		#define __pgd(x)  ((pgd_t) { (x) } )
-arch/csky/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
-arch/hexagon/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
-arch/m68k/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/mips/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/nds32/include/asm/page.h:			#define __pgd(x)  (x)
-arch/nios2/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
-arch/openrisc/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
-arch/parisc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/parisc/include/asm/page.h:			#define __pgd(x)  (x)
-arch/powerpc/include/asm/pgtable-be-types.h:	#define __pgd(x)  ((pgd_t) { cpu_to_be64(x) })
-arch/powerpc/include/asm/pgtable-types.h:	#define __pgd(x)  ((pgd_t) { (x) })
-arch/riscv/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
-arch/s390/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/sh/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/sparc/include/asm/page_32.h:		#define __pgd(x)  ((pgd_t) { (x) } )
-arch/sparc/include/asm/page_32.h:		#define __pgd(x)  (x)
-arch/sparc/include/asm/page_64.h:		#define __pgd(x)  ((pgd_t) { (x) } )
-arch/sparc/include/asm/page_64.h:		#define __pgd(x)  (x)
-arch/um/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
-arch/unicore32/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
-arch/unicore32/include/asm/page.h:		#define __pgd(x)  (x)
-arch/x86/include/asm/pgtable.h:			#define __pgd(x)  native_make_pgd(x)
-arch/xtensa/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+> 
+> Similarly for __p4d()
+> 
+> arch/s390/include/asm/page.h:			#define __p4d(x)  ((p4d_t) { (x) } )
+> arch/x86/include/asm/pgtable.h:			#define __p4d(x)  native_make_p4d(x)
 
-Similarly for __p4d()
+You missed:
+arch/x86/include/asm/paravirt.h:static inline p4d_t __p4d(p4dval_t val)
+include/asm-generic/5level-fixup.h:#define __p4d(x) 
+__pgd(x)
+include/asm-generic/pgtable-nop4d.h:#define __p4d(x) 
+        ((p4d_t) { __pgd(x) })
 
-arch/s390/include/asm/page.h:			#define __p4d(x)  ((p4d_t) { (x) } )
-arch/x86/include/asm/pgtable.h:			#define __p4d(x)  native_make_p4d(x)
 
-The search pattern here has been "#define __pxx(". Unless I am missing something,
-I dont see how we can use these without risking build failures.
+> 
+> The search pattern here has been "#define __pxx(". Unless I am missing something,
+> I dont see how we can use these without risking build failures.
+> 
+
+I guess you missed that arches not defining them fall back on the 
+definitions in include/asm-generic
+
+Christophe
 
