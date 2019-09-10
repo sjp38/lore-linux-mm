@@ -2,216 +2,160 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	SUBJ_ALL_CAPS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F324C49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:46:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75EC3C49ED6
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:49:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1F5C21479
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:46:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1F5C21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2D0E42084D
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:49:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=bitdefender.onmicrosoft.com header.i=@bitdefender.onmicrosoft.com header.b="lQQbIR4k"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D0E42084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B6156B0006; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
+	id BA9256B0006; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78C906B0008; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
+	id B817B6B0008; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67B406B000C; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
+	id A97356B000C; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E376B0006
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id DF294A2DB
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:46:00 +0000 (UTC)
-X-FDA: 75918227280.15.mass71_518bb40c96f5d
-X-HE-Tag: mass71_518bb40c96f5d
-X-Filterd-Recvd-Size: 8293
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:46:00 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1CE3D7BDAB;
-	Tue, 10 Sep 2019 07:45:59 +0000 (UTC)
-Received: from [10.36.117.199] (ovpn-117-199.ams2.redhat.com [10.36.117.199])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 559EF5D9C9;
-	Tue, 10 Sep 2019 07:45:56 +0000 (UTC)
-Subject: Re: [PATCH 1/2] memory_hotplug: Add a bounds check to
- check_hotplug_memory_range()
-To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Dan Williams
- <dan.j.williams@intel.com>, Qian Cai <cai@lca.pw>,
- Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
- Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190910025225.25904-1-alastair@au1.ibm.com>
- <20190910025225.25904-2-alastair@au1.ibm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <117e4c00-48f6-a752-60de-48f72630372c@redhat.com>
-Date: Tue, 10 Sep 2019 09:45:55 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190910025225.25904-2-alastair@au1.ibm.com>
-Content-Type: text/plain; charset=utf-8
+Received: from forelay.hostedemail.com (smtprelay0232.hostedemail.com [216.40.44.232])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E646B0006
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 33EFB824376A
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:49:57 +0000 (UTC)
+X-FDA: 75918237234.17.goat73_73e3ad7358f44
+X-HE-Tag: goat73_73e3ad7358f44
+X-Filterd-Recvd-Size: 9115
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10127.outbound.protection.outlook.com [40.107.1.127])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:49:56 +0000 (UTC)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=d3Ep0OBxahAxUixdpLP+oCXy4SkUZviz/jEElVhnrfqrrk/U2+8qyBYMmN0L/Tw+eNg4yfLeuUX3/vQj+nBARRUUotTF35NJUHAL/P+X0+/6dGBZEJIEEchc8fITWgqEXaoC3t0y6ynTlixgrv4GkssNE1Mw60n7oip733Kpb39batPGAeoGZxiZ/qwv53ck6lMsbfqeXrNYUomNYyOKSQUDIBhwz8fLWxZgxOvl/LoIX5ReNAZITsheetdmh4Mg1mSxSK/zs/LYL3LtF5PUJkcl5IBbmQBUQDJ2QpHhQNuW4XBj0N6jmVXRFjhS4fTPRTLPWTCTKmkGRW7IQQ/bAg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ASETWczpefwet6aunu87Wv9waZJEk4Wclhfh8inzY9k=;
+ b=Q8qirSqAp8q9gnCGaOxF6Q2VXk3byz6xQDP5GBtx/XRdxei+l7Ybe0y/NQ5dQ9y2ht8oZ3xH5FyGy8lHpbdMfFXDELXIe2jyAPIRFjdUOpObBayO1+OrOQxiHXhrqKV8oib7O6ki5UmXURpTZKtciCzUgVX7SHQNuUCgsnYyjIboxg1/fbPX6QbZJ7L3OuH4aR9xBcToLIe0vY5dkzOpyaW9w0T2tR+Vb84mNNEvFUQ19Fhxzx95dnz9Vdww3W6zWsXOZJJZECp7pK/o3F+iS55+xL+V0Ndq7Zb4sq8M+dSxUV2CazMvD+3jbfYcbqoBPR/+NLWf6WMtQ3SAjsM4ng==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=bitdefender.com; dmarc=pass action=none
+ header.from=bitdefender.com; dkim=pass header.d=bitdefender.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=bitdefender.onmicrosoft.com; s=selector2-bitdefender-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ASETWczpefwet6aunu87Wv9waZJEk4Wclhfh8inzY9k=;
+ b=lQQbIR4kjg/h/+TWX/KRvmbObAI6dk6HJHuypOY84odYIf+pUbo8ruXySxks++/5JoA8dZuCUMPaJwL1Ml/rAoCb8srbnUcOeF6khj/M6Cg23+6CTriPlj6MPCKIRu1UtMFwT7j62TXVmZnrg5VL6VMUgkCdj8Nr9dbQU9clA5g=
+Received: from DB7PR02MB3979.eurprd02.prod.outlook.com (20.177.121.157) by
+ DB7PR02MB4744.eurprd02.prod.outlook.com (20.177.192.206) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2241.18; Tue, 10 Sep 2019 07:49:51 +0000
+Received: from DB7PR02MB3979.eurprd02.prod.outlook.com
+ ([fe80::a9d4:6e4d:dca:97a7]) by DB7PR02MB3979.eurprd02.prod.outlook.com
+ ([fe80::a9d4:6e4d:dca:97a7%7]) with mapi id 15.20.2241.018; Tue, 10 Sep 2019
+ 07:49:51 +0000
+From: Mircea CIRJALIU - MELIU <mcirjaliu@bitdefender.com>
+To: Paolo Bonzini <pbonzini@redhat.com>, Jerome Glisse <jglisse@redhat.com>
+CC: =?utf-8?B?QWRhbGJlcnQgTGF6xINy?= <alazar@bitdefender.com>, Matthew Wilcox
+	<willy@infradead.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?=
+	<rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Tamas K
+ Lengyel <tamas@tklengyel.com>, Mathieu Tarral
+	<mathieu.tarral@protonmail.com>, =?utf-8?B?U2FtdWVsIExhdXLDqW4=?=
+	<samuel.lauren@iki.fi>, Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka
+	<jan.kiszka@siemens.com>, Stefan Hajnoczi <stefanha@redhat.com>, Weijiang
+ Yang <weijiang.yang@intel.com>, Yu C <yu.c.zhang@intel.com>,
+	=?utf-8?B?TWloYWkgRG9uyJt1?= <mdontu@bitdefender.com>
+Subject: RE: DANGER WILL ROBINSON, DANGER
+Thread-Topic: DANGER WILL ROBINSON, DANGER
+Thread-Index:
+ AQHVTs8soTQpQXiOD0KEAgMKguVJzKb471OAgAOvxoCAAA/uAIAMAODggBTcuICABjXSgIAA6j0w
+Date: Tue, 10 Sep 2019 07:49:51 +0000
+Message-ID:
+ <DB7PR02MB3979D1143909423F8767ACE2BBB60@DB7PR02MB3979.eurprd02.prod.outlook.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-72-alazar@bitdefender.com>
+ <20190809162444.GP5482@bombadil.infradead.org>
+ <1565694095.D172a51.28640.@15f23d3a749365d981e968181cce585d2dcb3ffa>
+ <20190815191929.GA9253@redhat.com> <20190815201630.GA25517@redhat.com>
+ <VI1PR02MB398411CA9A56081FF4D1248EBBA40@VI1PR02MB3984.eurprd02.prod.outlook.com>
+ <20190905180955.GA3251@redhat.com>
+ <5b0966de-b690-fb7b-5a72-bc7906459168@redhat.com>
+In-Reply-To: <5b0966de-b690-fb7b-5a72-bc7906459168@redhat.com>
+Accept-Language: en-US
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 10 Sep 2019 07:45:59 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=mcirjaliu@bitdefender.com; 
+x-originating-ip: [91.199.104.6]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 258488b6-e5ca-4f01-0064-08d735c37674
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DB7PR02MB4744;
+x-ms-traffictypediagnostic: DB7PR02MB4744:|DB7PR02MB4744:|DB7PR02MB4744:
+x-ms-exchange-transport-forked: True
+x-microsoft-antispam-prvs:
+ <DB7PR02MB4744D110DFB6D71DAC1B9FC1BBB60@DB7PR02MB4744.eurprd02.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 01565FED4C
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(346002)(376002)(136003)(366004)(39860400002)(396003)(199004)(189003)(99286004)(4326008)(53936002)(6246003)(55016002)(9686003)(7696005)(76176011)(86362001)(107886003)(66556008)(64756008)(66446008)(66946007)(6436002)(66476007)(110136005)(316002)(5660300002)(54906003)(3846002)(6116002)(478600001)(305945005)(66066001)(74316002)(14444005)(33656002)(6506007)(53546011)(2906002)(14454004)(7416002)(71200400001)(7736002)(71190400001)(81156014)(186003)(81166006)(26005)(8676002)(8936002)(102836004)(25786009)(76116006)(52536014)(229853002)(256004)(486006)(476003)(446003)(11346002);DIR:OUT;SFP:1102;SCL:1;SRVR:DB7PR02MB4744;H:DB7PR02MB3979.eurprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: bitdefender.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 4UoWRl3lVzjSa2PwmsFoUyNqAv7Cp6QUshLxr/fOkrPJW4KvLF7SKURzdcI71zBNjvrTJV/Ckl236D90HJBffp2y8aFZdG7cSE8er8NUZ1gtEkBXa7RXPhoY1XoJEeiqc7iy+pXvDYVuk46wp0N6j1LS/eZ9UYoOXhdkucZbsLMS4nfMKK9psKkWuMZaMvlcGA8TW78WnyZ/wTV+vfwqAT+IWn8s00JhvkeGQ9ZPYs8mnLxY0zvECMk1x4wev3pU6evH/ARAg/QQSu8nU3iJw6G1OdUSYO9kSA7zHkEJms+5Nc1mMYyRkrn+SNcS/b/6Nkn+ZcuC1tc2Bk00YY7F+J6hpZcYDB9JYctYdItDiBVVCCLJHJlfoYi2qU9v+otL5xtFlfo+Uw12Co8WDvN7HLrNdQc2z65woz6ggee2UCs=
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
+X-OriginatorOrg: bitdefender.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 258488b6-e5ca-4f01-0064-08d735c37674
+X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Sep 2019 07:49:51.6724
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 487baf29-f1da-469a-9221-243f830c36f3
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: t9in6MLiGE7e2+GD9/OEIkYZBTOTcsSHgEi9BQSCDi1e30PyuTFK0w/OZ5p5KmLQBWazSSF9b63c+ta3bfq3+78cTwUv+bLwwkjxZZn5KwY=
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR02MB4744
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10.09.19 04:52, Alastair D'Silva wrote:
-> From: Alastair D'Silva <alastair@d-silva.org>
->=20
-> On PowerPC, the address ranges allocated to OpenCAPI LPC memory
-> are allocated from firmware. These address ranges may be higher
-> than what older kernels permit, as we increased the maximum
-> permissable address in commit 4ffe713b7587
-> ("powerpc/mm: Increase the max addressable memory to 2PB"). It is
-> possible that the addressable range may change again in the
-> future.
->=20
-> In this scenario, we end up with a bogus section returned from
-> __section_nr (see the discussion on the thread "mm: Trigger bug on
-> if a section is not found in __section_nr").
->=20
-> Adding a check here means that we fail early and have an
-> opportunity to handle the error gracefully, rather than rumbling
-> on and potentially accessing an incorrect section.
->=20
-> Further discussion is also on the thread ("powerpc: Perform a bounds
-> check in arch_add_memory").
->=20
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> ---
->  include/linux/memory_hotplug.h |  1 +
->  mm/memory_hotplug.c            | 19 ++++++++++++++++++-
->  2 files changed, 19 insertions(+), 1 deletion(-)
->=20
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotp=
-lug.h
-> index f46ea71b4ffd..bc477e98a310 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -110,6 +110,7 @@ extern void __online_page_increment_counters(struct=
- page *page);
->  extern void __online_page_free(struct page *page);
-> =20
->  extern int try_online_node(int nid);
-> +int check_hotplug_memory_addressable(u64 start, u64 size);
-> =20
->  extern int arch_add_memory(int nid, u64 start, u64 size,
->  			struct mhp_restrictions *restrictions);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index c73f09913165..3c5428b014f9 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1030,6 +1030,23 @@ int try_online_node(int nid)
->  	return ret;
->  }
-> =20
-> +#ifndef MAX_POSSIBLE_PHYSMEM_BITS
-> +#ifdef MAX_PHYSMEM_BITS
-> +#define MAX_POSSIBLE_PHYSMEM_BITS MAX_PHYSMEM_BITS
-> +#endif
-> +#endif
-> +
-
-I think using MAX_POSSIBLE_PHYSMEM_BITS is wrong. You should use
-MAX_PHYSMEM_BITS.
-
-E.g. on x86_64, MAX_POSSIBLE_PHYSMEM_BITS is 52, while MAX_PHYSMEM_BITS
-is (pgtable_l5_enabled() ? 52 : 46) - so MAX_PHYSMEM_BITS depends on the
-actual HW.
-
-> +int check_hotplug_memory_addressable(u64 start, u64 size)
-> +{
-> +#ifdef MAX_POSSIBLE_PHYSMEM_BITS
-> +	if ((start + size - 1) >> MAX_POSSIBLE_PHYSMEM_BITS)
-> +		return -E2BIG;
-> +#endif
-> +
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(check_hotplug_memory_addressable);
-> +
->  static int check_hotplug_memory_range(u64 start, u64 size)
->  {
->  	/* memory range must be block size aligned */
-> @@ -1040,7 +1057,7 @@ static int check_hotplug_memory_range(u64 start, =
-u64 size)
->  		return -EINVAL;
->  	}
-> =20
-> -	return 0;
-> +	return check_hotplug_memory_addressable(start, size);
->  }
-> =20
->  static int online_memory_block(struct memory_block *mem, void *arg)
->=20
-
-
---=20
-
-Thanks,
-
-David / dhildenb
+PiBPbiAwNS8wOS8xOSAyMDowOSwgSmVyb21lIEdsaXNzZSB3cm90ZToNCj4gPiBOb3Qgc3VyZSBp
+IHVuZGVyc3RhbmQsIHlvdSBhcmUgc2F5aW5nIHRoYXQgdGhlIHNvbHV0aW9uIGkgb3V0bGluZQ0K
+PiA+IGFib3ZlIGRvZXMgbm90IHdvcmsgPyBJZiBzbyB0aGVuIGkgdGhpbmsgeW91IGFyZSB3cm9u
+ZywgaW4gdGhlIGFib3ZlDQo+ID4gc29sdXRpb24gdGhlIGltcG9ydGluZyBwcm9jZXNzIG1tYXAg
+YSBkZXZpY2UgZmlsZSBhbmQgdGhlIHJlc3VsdGluZw0KPiA+IHZtYSBpcyB0aGVuIHBvcHVsYXRl
+ZCB1c2luZyBpbnNlcnRfcGZuKCkgYW5kIGNvbnN0YW50bHkga2VlcA0KPiA+IHN5bmNocm9uaXpl
+IHdpdGggdGhlIHRhcmdldCBwcm9jZXNzIHRocm91Z2ggbWlycm9yaW5nIHdoaWNoIG1lYW5zIHRo
+YXQNCj4gPiB5b3UgbmV2ZXIgaGF2ZSB0byBsb29rIGF0IHRoZSBzdHJ1Y3QgcGFnZSAuLi4geW91
+IGNhbiBtaXJyb3IgYW55IGtpbmQNCj4gPiBvZiBtZW1vcnkgZnJvbSB0aGUgcmVtb3RlIHByb2Nl
+c3MuDQo+IA0KPiBJZiBpbnNlcnRfcGZuIGluIHR1cm4gY2FsbHMgTU1VIG5vdGlmaWVycyBmb3Ig
+dGhlIHRhcmdldCBWTUEgKHdoaWNoIHdvdWxkIGJlDQo+IHRoZSBLVk0gTU1VIG5vdGlmaWVyKSwg
+dGhlbiB0aGF0IHdvdWxkIHdvcmsuICBUaG91Z2ggSSBndWVzcyBpdCB3b3VsZCBiZQ0KPiBwb3Nz
+aWJsZSB0byBjYWxsIE1NVSBub3RpZmllciB1cGRhdGUgY2FsbGJhY2tzIGFyb3VuZCB0aGUgY2Fs
+bCB0byBpbnNlcnRfcGZuLg0KDQpDYW4ndCBkbyB0aGF0Lg0KRmlyc3QsIGluc2VydF9wZm4oKSB1
+c2VzIHNldF9wdGVfYXQoKSB3aGljaCB3b24ndCB0cmlnZ2VyIHRoZSBNTVUgbm90aWZpZXIgb24N
+CnRoZSB0YXJnZXQgVk1BLiBJdCdzIGFsc28gc3RhdGljLCBzbyBJJ2xsIGhhdmUgdG8gYWNjZXNz
+IGl0IHRocnUgdm1mX2luc2VydF9wZm4oKQ0Kb3Igdm1mX2luc2VydF9taXhlZCgpLg0KDQpPdXIg
+bW9kZWwgKHRoZSBpbXBvcnRpbmcgcHJvY2VzcyBpcyBlbmNhcHN1bGF0ZWQgaW4gYW5vdGhlciBW
+TSkgZm9yY2VzIHVzDQp0byBtaXJyb3IgY2VydGFpbiBwYWdlcyBmcm9tIHRoZSBhbm9uIFZNQSBi
+YWNraW5nIG9uZSBWTSdzIHN5c3RlbSBSQU0gdG8gDQp0aGUgb3RoZXIgVk0ncyBhbm9uIFZNQS4g
+DQoNClVzaW5nIHRoZSBmdW5jdGlvbnMgYWJvdmUgbWVhbnMgc2V0dGluZyBWTV9QRk5NQVB8Vk1f
+TUlYRURNQVAgb24gDQp0aGUgdGFyZ2V0IGFub24gVk1BLCBidXQgSSBndWVzcyB0aGlzIGJyZWFr
+cyB0aGUgVk1BLiBJcyB0aGlzIHJlY29tbWVuZGVkPw0KDQpUaGVuLCBtYXBwaW5nIGFub24gcGFn
+ZXMgZnJvbSBvbmUgVk1BIHRvIGFub3RoZXIgd2l0aG91dCBmaXhpbmcgdGhlIA0KcmVmY291bnQg
+YW5kIHRoZSBtYXBjb3VudCBicmVha3MgdGhlIGRhZW1vbnMgdGhhdCB0aGluayB0aGV5J3JlIHdv
+cmtpbmcgDQpvbiBhIHB1cmUgYW5vbiBWTUEgKGtjb21wYWN0ZCwga2h1Z2VwYWdlZCkuDQoNCk1p
+cmNlYQ0K
 
