@@ -7,207 +7,202 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11411C4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:17:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C4568C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:17:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEE8620872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:17:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8058D21019
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:17:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="kkcWCaCT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEE8620872
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="CJ2KtEh7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8058D21019
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 774176B026E; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
+	id ACC106B026F; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FEBF6B026F; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
+	id A56846B0270; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BDCF6B0272; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
+	id 925346B0272; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0043.hostedemail.com [216.40.44.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E7676B026F
+Received: from forelay.hostedemail.com (smtprelay0104.hostedemail.com [216.40.44.104])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB026B0271
 	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:17:21 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id D44A122025
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:17:20 +0000 (UTC)
-X-FDA: 75918457440.10.books37_5dcebfb63353
-X-HE-Tag: books37_5dcebfb63353
-X-Filterd-Recvd-Size: 6290
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 14796181AC9BF
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:17:21 +0000 (UTC)
+X-FDA: 75918457482.09.cry58_5e7910578f38
+X-HE-Tag: cry58_5e7910578f38
+X-Filterd-Recvd-Size: 6519
 Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf32.hostedemail.com (Postfix) with ESMTP
+	by imf49.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:17:20 +0000 (UTC)
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 46SKDZ0xGPz9txWF;
+	by localhost (Postfix) with ESMTP id 46SKDZ1Yk2z9txWG;
 	Tue, 10 Sep 2019 11:17:18 +0200 (CEST)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=kkcWCaCT; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=CJ2KtEh7; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id nDkcXMjkgDRt; Tue, 10 Sep 2019 11:17:18 +0200 (CEST)
+	with ESMTP id M2lRLrA9EL1H; Tue, 10 Sep 2019 11:17:18 +0200 (CEST)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 46SKDY5crhz9txW3;
-	Tue, 10 Sep 2019 11:17:17 +0200 (CEST)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 46SKDZ0Lygz9txVx;
+	Tue, 10 Sep 2019 11:17:18 +0200 (CEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1568107038; bh=NkamMLYWkTRb4MIQTbWL0E/hNXMZkvWH96BKgp+YBow=;
+	t=1568107038; bh=z7CDoj65y2axQ8EI+vOdmey1E1OSCEBxOpggEgCL0JQ=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=kkcWCaCTbkDRLSJzo4u1Zy9iGNFB2ICqDMZEaM9aMdsC1rRC+y70hBPy7dFZnq+WH
-	 tRN/pYxLaxQwrgpV3NCaBitDiBeS/CrBfq2+J8NZ++JbqnXylJRBZ0GyYPqqvWwJii
-	 X9qdC07RN5QxkTsWgfcoZ+qkHXu7Jkgi5MSZeOnU=
+	b=CJ2KtEh7PSXXYMrhNubuwhhpfcPlaltQYt3cVUhY2WSzt5JsUGMGYAKOw18qCRobQ
+	 lfNajso+r045iWz9H68ZSjKLeGKWTOhxRj/QCyEaTVbJ6wqg3IU9gOf275HWYiLKiJ
+	 xDs7fKsMBuxuDHQIK6xPNVhcYHMWqor/6a+M8CXQ=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 994E68B888;
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 88F938B886;
 	Tue, 10 Sep 2019 11:17:16 +0200 (CEST)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id pfq1G8uDpkbN; Tue, 10 Sep 2019 11:17:15 +0200 (CEST)
+	with ESMTP id CbqPmkRc50QJ; Tue, 10 Sep 2019 11:17:15 +0200 (CEST)
 Received: from pc16032vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id A34A88B89B;
-	Tue, 10 Sep 2019 11:16:32 +0200 (CEST)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 92E668B894;
+	Tue, 10 Sep 2019 11:16:28 +0200 (CEST)
 Received: by pc16032vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 532426B739; Tue, 10 Sep 2019 09:16:32 +0000 (UTC)
-Message-Id: <1e17bd51cb1db72fdfb204d9da56df939e14eaba.1568106758.git.christophe.leroy@c-s.fr>
+	id 3C7246B739; Tue, 10 Sep 2019 09:16:28 +0000 (UTC)
+Message-Id: <7d8bd54fcdd927cbe492a9178f7dc7ca136f9238.1568106758.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1568106758.git.christophe.leroy@c-s.fr>
 References: <cover.1568106758.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v3 13/15] powerpc/8xx: Enable CONFIG_VMAP_STACK
+Subject: [PATCH v3 09/15] powerpc/8xx: Use alternative scratch registers in
+ DTLB miss handler
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
     npiggin@gmail.com,
     dja@axtens.net
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
     linux-mm@kvack.org
-Date: Tue, 10 Sep 2019 09:16:32 +0000 (UTC)
+Date: Tue, 10 Sep 2019 09:16:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch enables CONFIG_VMAP_STACK. For that, a few changes are
-done in head_8xx.S.
+In preparation of handling CONFIG_VMAP_STACK, DTLB miss handler need
+to use different scratch registers than other exception handlers in
+order to not jeopardise exception entry on stack DTLB misses.
 
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/kernel/head_8xx.S         | 34 ++++++++++++++++++++++++++++------
- arch/powerpc/platforms/Kconfig.cputype |  1 +
- 2 files changed, 29 insertions(+), 6 deletions(-)
+ arch/powerpc/kernel/head_8xx.S | 27 ++++++++++++++-------------
+ arch/powerpc/perf/8xx-pmu.c    | 12 ++++++++----
+ 2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/arch/powerpc/kernel/head_8xx.S b/arch/powerpc/kernel/head_8xx.S
-index 225e242ce1c5..fc6d4d10e298 100644
+index 25e19af49705..3de9c5f1746c 100644
 --- a/arch/powerpc/kernel/head_8xx.S
 +++ b/arch/powerpc/kernel/head_8xx.S
-@@ -127,7 +127,7 @@ instruction_counter:
- /* Machine check */
- 	. = 0x200
- MachineCheck:
--	EXCEPTION_PROLOG
-+	EXCEPTION_PROLOG dar
- 	save_dar_dsisr_on_stack r4, r5, r11
- 	li	r6, RPN_PATTERN
- 	mtspr	SPRN_DAR, r6	/* Tag DAR, to be used in DTLB Error */
-@@ -140,7 +140,7 @@ MachineCheck:
- /* Alignment exception */
- 	. = 0x600
- Alignment:
--	EXCEPTION_PROLOG
-+	EXCEPTION_PROLOG dar
- 	save_dar_dsisr_on_stack r4, r5, r11
- 	li	r6, RPN_PATTERN
- 	mtspr	SPRN_DAR, r6	/* Tag DAR, to be used in DTLB Error */
-@@ -457,20 +457,26 @@ InstructionTLBError:
-  */
- 	. = 0x1400
- DataTLBError:
--	EXCEPTION_PROLOG_0
-+	EXCEPTION_PROLOG_0 dar
- 	mfspr	r11, SPRN_DAR
- 	cmpwi	cr1, r11, RPN_PATTERN
- 	beq-	cr1, FixupDAR	/* must be a buggy dcbX, icbi insn. */
- DARFixed:/* Return from dcbx instruction bug workaround */
-+#ifdef CONFIG_VMAP_STACK
-+	li	r11, RPN_PATTERN
-+	mtspr	SPRN_DAR, r11	/* Tag DAR, to be used in DTLB Error */
-+#endif
- 	EXCEPTION_PROLOG_1
--	EXCEPTION_PROLOG_2
-+	EXCEPTION_PROLOG_2 dar
- 	get_and_save_dar_dsisr_on_stack r4, r5, r11
- 	andis.	r10,r5,DSISR_NOHPTE@h
- 	beq+	.Ldtlbie
- 	tlbie	r4
- .Ldtlbie:
-+#ifndef CONFIG_VMAP_STACK
- 	li	r10,RPN_PATTERN
- 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
-+#endif
- 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
- 	EXC_XFER_LITE(0x300, handle_page_fault)
+@@ -193,8 +193,9 @@ SystemCall:
+ 0:	lwz	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
+ 	addi	r10, r10, 1
+ 	stw	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
+-	mfspr	r10, SPRN_SPRG_SCRATCH0
+-	mfspr	r11, SPRN_SPRG_SCRATCH1
++	mfspr	r10, SPRN_DAR
++	mtspr	SPRN_DAR, r11	/* Tag DAR */
++	mfspr	r11, SPRN_M_TW
+ 	rfi
+ #endif
  
-@@ -492,16 +498,20 @@ DARFixed:/* Return from dcbx instruction bug workaround */
-  */
- do_databreakpoint:
- 	EXCEPTION_PROLOG_1
--	EXCEPTION_PROLOG_2
-+	EXCEPTION_PROLOG_2 dar
- 	addi	r3,r1,STACK_FRAME_OVERHEAD
- 	mfspr	r4,SPRN_BAR
- 	stw	r4,_DAR(r11)
-+#ifdef CONFIG_VMAP_STACK
-+	lwz	r5,_DSISR(r11)
-+#else
- 	mfspr	r5,SPRN_DSISR
-+#endif
- 	EXC_XFER_STD(0x1c00, do_break)
+@@ -337,8 +338,8 @@ ITLBMissLinear:
  
- 	. = 0x1c00
- DataBreakpoint:
--	EXCEPTION_PROLOG_0
-+	EXCEPTION_PROLOG_0 dar
- 	mfspr	r11, SPRN_SRR0
- 	cmplwi	cr1, r11, (.Ldtlbie - PAGE_OFFSET)@l
- 	cmplwi	cr7, r11, (.Litlbie - PAGE_OFFSET)@l
-@@ -530,6 +540,11 @@ InstructionBreakpoint:
- 	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_STD)
- 	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_STD)
+ 	. = 0x1200
+ DataStoreTLBMiss:
+-	mtspr	SPRN_SPRG_SCRATCH0, r10
+-	mtspr	SPRN_SPRG_SCRATCH1, r11
++	mtspr	SPRN_DAR, r10
++	mtspr	SPRN_M_TW, r11
+ 	mfcr	r11
  
-+#ifdef CONFIG_VMAP_STACK
-+stack_ovf_trampoline:
-+	b	stack_ovf
-+#endif
+ 	/* If we are faulting a kernel address, we have to use the
+@@ -403,10 +404,10 @@ DataStoreTLBMiss:
+ 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+ 
+ 	/* Restore registers */
+-	mtspr	SPRN_DAR, r11	/* Tag DAR */
+ 
+-0:	mfspr	r10, SPRN_SPRG_SCRATCH0
+-	mfspr	r11, SPRN_SPRG_SCRATCH1
++0:	mfspr	r10, SPRN_DAR
++	mtspr	SPRN_DAR, r11	/* Tag DAR */
++	mfspr	r11, SPRN_M_TW
+ 	rfi
+ 	patch_site	0b, patch__dtlbmiss_exit_1
+ 
+@@ -422,10 +423,10 @@ DTLBMissIMMR:
+ 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+ 
+ 	li	r11, RPN_PATTERN
+-	mtspr	SPRN_DAR, r11	/* Tag DAR */
+ 
+-0:	mfspr	r10, SPRN_SPRG_SCRATCH0
+-	mfspr	r11, SPRN_SPRG_SCRATCH1
++0:	mfspr	r10, SPRN_DAR
++	mtspr	SPRN_DAR, r11	/* Tag DAR */
++	mfspr	r11, SPRN_M_TW
+ 	rfi
+ 	patch_site	0b, patch__dtlbmiss_exit_2
+ 
+@@ -459,10 +460,10 @@ DTLBMissLinear:
+ 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+ 
+ 	li	r11, RPN_PATTERN
+-	mtspr	SPRN_DAR, r11	/* Tag DAR */
+ 
+-0:	mfspr	r10, SPRN_SPRG_SCRATCH0
+-	mfspr	r11, SPRN_SPRG_SCRATCH1
++0:	mfspr	r10, SPRN_DAR
++	mtspr	SPRN_DAR, r11	/* Tag DAR */
++	mfspr	r11, SPRN_M_TW
+ 	rfi
+ 	patch_site	0b, patch__dtlbmiss_exit_3
+ 
+diff --git a/arch/powerpc/perf/8xx-pmu.c b/arch/powerpc/perf/8xx-pmu.c
+index 19124b0b171a..1ad03c55c88c 100644
+--- a/arch/powerpc/perf/8xx-pmu.c
++++ b/arch/powerpc/perf/8xx-pmu.c
+@@ -157,10 +157,6 @@ static void mpc8xx_pmu_read(struct perf_event *event)
+ 
+ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
+ {
+-	/* mfspr r10, SPRN_SPRG_SCRATCH0 */
+-	unsigned int insn = PPC_INST_MFSPR | __PPC_RS(R10) |
+-			    __PPC_SPR(SPRN_SPRG_SCRATCH0);
+-
+ 	mpc8xx_pmu_read(event);
+ 
+ 	/* If it was the last user, stop counting to avoid useles overhead */
+@@ -173,6 +169,10 @@ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
+ 		break;
+ 	case PERF_8xx_ID_ITLB_LOAD_MISS:
+ 		if (atomic_dec_return(&itlb_miss_ref) == 0) {
++			/* mfspr r10, SPRN_SPRG_SCRATCH0 */
++			unsigned int insn = PPC_INST_MFSPR | __PPC_RS(R10) |
++					    __PPC_SPR(SPRN_SPRG_SCRATCH0);
 +
- 	. = 0x2000
- 
- /* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions
-@@ -650,7 +665,14 @@ FixupDAR:/* Entry point for dcbx workaround. */
- 152:
- 	mfdar	r11
- 	mtctr	r11			/* restore ctr reg from DAR */
-+#ifdef CONFIG_VMAP_STACK
-+	mfspr	r11, SPRN_SPRG_THREAD
-+	stw	r10, DAR(r11)
-+	mfspr	r10, SPRN_DSISR
-+	stw	r10, DSISR(r11)
-+#else
- 	mtdar	r10			/* save fault EA to DAR */
-+#endif
- 	mfspr	r10,SPRN_M_TW
- 	b	DARFixed		/* Go back to normal TLB handling */
- 
-diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-index 12543e53fa96..3c42569b75cc 100644
---- a/arch/powerpc/platforms/Kconfig.cputype
-+++ b/arch/powerpc/platforms/Kconfig.cputype
-@@ -49,6 +49,7 @@ config PPC_8xx
- 	select PPC_HAVE_KUEP
- 	select PPC_HAVE_KUAP
- 	select PPC_MM_SLICES if HUGETLB_PAGE
-+	select HAVE_ARCH_VMAP_STACK
- 
- config 40x
- 	bool "AMCC 40x"
+ 			patch_instruction_site(&patch__itlbmiss_exit_1, insn);
+ #ifndef CONFIG_PIN_TLB_TEXT
+ 			patch_instruction_site(&patch__itlbmiss_exit_2, insn);
+@@ -181,6 +181,10 @@ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
+ 		break;
+ 	case PERF_8xx_ID_DTLB_LOAD_MISS:
+ 		if (atomic_dec_return(&dtlb_miss_ref) == 0) {
++			/* mfspr r10, SPRN_DAR */
++			unsigned int insn = PPC_INST_MFSPR | __PPC_RS(R10) |
++					    __PPC_SPR(SPRN_DAR);
++
+ 			patch_instruction_site(&patch__dtlbmiss_exit_1, insn);
+ 			patch_instruction_site(&patch__dtlbmiss_exit_2, insn);
+ 			patch_instruction_site(&patch__dtlbmiss_exit_3, insn);
 -- 
 2.13.3
 
