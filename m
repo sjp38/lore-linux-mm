@@ -3,400 +3,228 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8180CC49ED9
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 05:43:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 28BC3C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 05:58:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 362F921479
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 05:43:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 362F921479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id B9FBB2171F
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 05:58:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9FBB2171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8EFF6B0003; Tue, 10 Sep 2019 01:43:13 -0400 (EDT)
+	id 1C3EE6B0003; Tue, 10 Sep 2019 01:58:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3ECE6B0006; Tue, 10 Sep 2019 01:43:13 -0400 (EDT)
+	id 14D546B0006; Tue, 10 Sep 2019 01:58:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C2DB76B0007; Tue, 10 Sep 2019 01:43:13 -0400 (EDT)
+	id 0157C6B0007; Tue, 10 Sep 2019 01:58:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0111.hostedemail.com [216.40.44.111])
-	by kanga.kvack.org (Postfix) with ESMTP id 93A196B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:43:13 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 2EB7D181AC9BF
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:43:13 +0000 (UTC)
-X-FDA: 75917917866.22.bells76_1be962bd95d3d
-X-HE-Tag: bells76_1be962bd95d3d
-X-Filterd-Recvd-Size: 14426
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf42.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:43:11 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A514B28;
-	Mon,  9 Sep 2019 22:43:10 -0700 (PDT)
-Received: from [10.162.40.137] (p8cg001049571a15.blr.arm.com [10.162.40.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 53DA43F67D;
-	Mon,  9 Sep 2019 22:45:25 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
- page table helpers
-To: Christophe Leroy <christophe.leroy@c-s.fr>,
- "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
- linux-sh@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
- Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
- Dave Hansen <dave.hansen@intel.com>, Paul Mackerras <paulus@samba.org>,
- sparclinux@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>,
- linux-s390@vger.kernel.org, x86@kernel.org,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Vlastimil Babka <vbabka@suse.cz>,
- linux-snps-arc@lists.infradead.org, Kees Cook <keescook@chromium.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Mark Brown <broonie@kernel.org>, Dan Williams <dan.j.williams@intel.com>,
- Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- linux-arm-kernel@lists.infradead.org,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mips@vger.kernel.org,
- Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
- Peter Zijlstra <peterz@infradead.org>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>, Paul Burton <paul.burton@mips.com>,
- Vineet Gupta <vgupta@synopsys.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>
-References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
- <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
- <20190904221618.1b624a98@thinkpad>
- <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
- <20190905190629.523bdb87@thinkpad>
- <3c609e33-afbb-ffaf-481a-6d225a06d1d0@arm.com>
- <20190906210346.5ecbff01@thinkpad>
- <3d5de35f-8192-1c75-50a9-03e66e3b8e5c@arm.com>
- <20190909151344.ghfypjbgxyosjdk3@box>
- <5883d41a-8299-1584-aa3d-fac89b3d9b5b@arm.com>
- <94029d96-47c4-3020-57a8-4e03de1b4fc8@c-s.fr>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <b0e2c87c-1130-4219-246b-e050a9da2a39@arm.com>
-Date: Tue, 10 Sep 2019 11:13:07 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Received: from forelay.hostedemail.com (smtprelay0124.hostedemail.com [216.40.44.124])
+	by kanga.kvack.org (Postfix) with ESMTP id CC46E6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:58:07 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 82E67840B
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:58:07 +0000 (UTC)
+X-FDA: 75917955414.11.idea66_ca6cb22d1e2c
+X-HE-Tag: idea66_ca6cb22d1e2c
+X-Filterd-Recvd-Size: 9912
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:58:06 +0000 (UTC)
+Received: (qmail 18961 invoked from network); 10 Sep 2019 07:58:05 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Tue, 10 Sep 2019 07:58:05 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+ cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+ Vlastimil Babka <vbabka@suse.cz>
+References: <20190905114022.GH3838@dhcp22.suse.cz>
+ <7a3d23f2-b5fe-b4c0-41cd-e79070637bd9@profihost.ag>
+ <e866c481-04f2-fdb4-4d99-e7be2414591e@profihost.ag>
+ <20190909082732.GC27159@dhcp22.suse.cz>
+ <1d9ee19a-98c9-cd78-1e5b-21d9d6e36792@profihost.ag>
+ <20190909110136.GG27159@dhcp22.suse.cz>
+ <20190909120811.GL27159@dhcp22.suse.cz>
+ <88ff0310-b9ab-36b6-d8ab-b6edd484d973@profihost.ag>
+ <20190909122852.GM27159@dhcp22.suse.cz>
+ <2d04fc69-8fac-2900-013b-7377ca5fd9a8@profihost.ag>
+ <20190909124950.GN27159@dhcp22.suse.cz>
+ <10fa0b97-631d-f82b-0881-89adb9ad5ded@profihost.ag>
+ <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
+Message-ID: <35a058ac-ceb3-51fd-e463-ab9ab52d4718@profihost.ag>
+Date: Tue, 10 Sep 2019 07:58:05 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <94029d96-47c4-3020-57a8-4e03de1b4fc8@c-s.fr>
+In-Reply-To: <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Those are also constantly running on this system (30G free mem):
+  101 root      20   0       0      0      0 S  12,9  0,0  40:38.45
+[kswapd0]
+   89 root      39  19       0      0      0 S  11,6  0,0  38:58.84
+[khugepaged]
 
+# cat /proc/pagetypeinfo
+Page block order: 9
+Pages per block:  512
 
-On 09/10/2019 10:15 AM, Christophe Leroy wrote:
->=20
->=20
-> On 09/10/2019 03:56 AM, Anshuman Khandual wrote:
->>
->>
->> On 09/09/2019 08:43 PM, Kirill A. Shutemov wrote:
->>> On Mon, Sep 09, 2019 at 11:56:50AM +0530, Anshuman Khandual wrote:
+Free pages count per migrate type at order       0      1      2      3
+     4      5      6      7      8      9     10
+Node    0, zone      DMA, type    Unmovable      0      0      0      1
+     2      1      1      0      1      0      0
+Node    0, zone      DMA, type      Movable      0      0      0      0
+     0      0      0      0      0      1      3
+Node    0, zone      DMA, type  Reclaimable      0      0      0      0
+     0      0      0      0      0      0      0
+Node    0, zone      DMA, type   HighAtomic      0      0      0      0
+     0      0      0      0      0      0      0
+Node    0, zone      DMA, type      Isolate      0      0      0      0
+     0      0      0      0      0      0      0
+Node    0, zone    DMA32, type    Unmovable      0      1      0      1
+     0      1      0      1      1      0      3
+Node    0, zone    DMA32, type      Movable     66     53     71     57
+    59     53     49     47     24      2     42
+Node    0, zone    DMA32, type  Reclaimable      0      0      3      1
+     0      1      1      1      1      0      0
+Node    0, zone    DMA32, type   HighAtomic      0      0      0      0
+     0      0      0      0      0      0      0
+Node    0, zone    DMA32, type      Isolate      0      0      0      0
+     0      0      0      0      0      0      0
+Node    0, zone   Normal, type    Unmovable      1   5442  25546  12849
+  8379   5771   3297   1523    268      0      0
+Node    0, zone   Normal, type      Movable 100322 153229 102511  75583
+ 52007  34284  19259   9465   2014     15      5
+Node    0, zone   Normal, type  Reclaimable   4002   4299   2395   3721
+  2568   1056    489    177     63      0      0
+Node    0, zone   Normal, type   HighAtomic      0      0      1      3
+     3      3      1      0      1      0      0
+Node    0, zone   Normal, type      Isolate      0      0      0      0
+     0      0      0      0      0      0      0
+
+Number of blocks type     Unmovable      Movable  Reclaimable
+HighAtomic      Isolate
+Node 0, zone      DMA            1            7            0
+0            0
+Node 0, zone    DMA32           10         1005            1
+0            0
+Node 0, zone   Normal         3411        27125         1207
+1            0
+
+Greets,
+Stefan
+
+Am 10.09.19 um 07:56 schrieb Stefan Priebe - Profihost AG:
+> 
+> Am 09.09.19 um 14:56 schrieb Stefan Priebe - Profihost AG:
+>> Am 09.09.19 um 14:49 schrieb Michal Hocko:
+>>> On Mon 09-09-19 14:37:52, Stefan Priebe - Profihost AG wrote:
 >>>>
->>>>
->>>> On 09/07/2019 12:33 AM, Gerald Schaefer wrote:
->>>>> On Fri, 6 Sep 2019 11:58:59 +0530
->>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
->>>>>
->>>>>> On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
->>>>>>> On Thu, 5 Sep 2019 14:48:14 +0530
->>>>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
->>>>>>> =C2=A0=C2=A0
->>>>>>>>> [...]
->>>>>>>>>> +
->>>>>>>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4=
-LEVEL_HACK)
->>>>>>>>>> +static void pud_clear_tests(pud_t *pudp)
->>>>>>>>>> +{
->>>>>>>>>> +=C2=A0=C2=A0=C2=A0 memset(pudp, RANDOM_NZVALUE, sizeof(pud_t)=
-);
->>>>>>>>>> +=C2=A0=C2=A0=C2=A0 pud_clear(pudp);
->>>>>>>>>> +=C2=A0=C2=A0=C2=A0 WARN_ON(!pud_none(READ_ONCE(*pudp)));
->>>>>>>>>> +}
->>>>>>>>>
->>>>>>>>> For pgd/p4d/pud_clear(), we only clear if the page table level =
-is present
->>>>>>>>> and not folded. The memset() here overwrites the table type bit=
-s, so
->>>>>>>>> pud_clear() will not clear anything on s390 and the pud_none() =
-check will
->>>>>>>>> fail.
->>>>>>>>> Would it be possible to OR a (larger) random value into the tab=
-le, so that
->>>>>>>>> the lower 12 bits would be preserved?
->>>>>>>>
->>>>>>>> So the suggestion is instead of doing memset() on entry with RAN=
-DOM_NZVALUE,
->>>>>>>> it should OR a large random value preserving lower 12 bits. Hmm,=
- this should
->>>>>>>> still do the trick for other platforms, they just need non zero =
-value. So on
->>>>>>>> s390, the lower 12 bits on the page table entry already has vali=
-d value while
->>>>>>>> entering this function which would make sure that pud_clear() re=
-ally does
->>>>>>>> clear the entry ?
+>>>> Am 09.09.19 um 14:28 schrieb Michal Hocko:
+>>>>> On Mon 09-09-19 14:10:02, Stefan Priebe - Profihost AG wrote:
+>>>>>>
+>>>>>> Am 09.09.19 um 14:08 schrieb Michal Hocko:
+>>>>>>> On Mon 09-09-19 13:01:36, Michal Hocko wrote:
+>>>>>>>> and that matches moments when we reclaimed memory. There seems to be a
+>>>>>>>> steady THP allocations flow so maybe this is a source of the direct
+>>>>>>>> reclaim?
 >>>>>>>
->>>>>>> Yes, in theory the table entry on s390 would have the type set in=
- the last
->>>>>>> 4 bits, so preserving those would be enough. If it does not confl=
-ict with
->>>>>>> others, I would still suggest preserving all 12 bits since those =
-would contain
->>>>>>> arch-specific flags in general, just to be sure. For s390, the pt=
-e/pmd tests
->>>>>>> would also work with the memset, but for consistency I think the =
-same logic
->>>>>>> should be used in all pxd_clear_tests.
->>>>>>
->>>>>> Makes sense but..
->>>>>>
->>>>>> There is a small challenge with this. Modifying individual bits on=
- a given
->>>>>> page table entry from generic code like this test case is bit tric=
-ky. That
->>>>>> is because there are not enough helpers to create entries with an =
-absolute
->>>>>> value. This would have been easier if all the platforms provided f=
-unctions
->>>>>> like __pxx() which is not the case now. Otherwise something like t=
-his should
->>>>>> have worked.
->>>>>>
->>>>>>
->>>>>> pud_t pud =3D READ_ONCE(*pudp);
->>>>>> pud =3D __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0=
-))
->>>>>> WRITE_ONCE(*pudp, pud);
->>>>>>
->>>>>> But __pud() will fail to build in many platforms.
+>>>>>>> I was thinking about this some more and THP being a source of reclaim
+>>>>>>> sounds quite unlikely. At least in a default configuration because we
+>>>>>>> shouldn't do anything expensinve in the #PF path. But there might be a
+>>>>>>> difference source of high order (!costly) allocations. Could you check
+>>>>>>> how many allocation requests like that you have on your system?
+>>>>>>>
+>>>>>>> mount -t debugfs none /debug
+>>>>>>> echo "order > 0" > /debug/tracing/events/kmem/mm_page_alloc/filter
+>>>>>>> echo 1 > /debug/tracing/events/kmem/mm_page_alloc/enable
+>>>>>>> cat /debug/tracing/trace_pipe > $file
 >>>>>
->>>>> Hmm, I simply used this on my system to make pud_clear_tests() work=
-, not
->>>>> sure if it works on all archs:
+>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
+>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
+>>>>>  
+>>>>> might tell us something as well but it might turn out that it just still
+>>>>> doesn't give us the full picture and we might need
+>>>>> echo stacktrace > /debug/tracing/trace_options
 >>>>>
->>>>> pud_val(*pudp) |=3D RANDOM_NZVALUE;
+>>>>> It will generate much more output though.
+>>>>>
+>>>>>> Just now or when PSI raises?
+>>>>>
+>>>>> When the excessive reclaim is happening ideally.
 >>>>
->>>> Which compiles on arm64 but then fails on x86 because of the way pmd=
-_val()
->>>> has been defined there.
+>>>> This one is from a server with 28G memfree but memory pressure is still
+>>>> jumping between 0 and 10%.
+>>>>
+>>>> I did:
+>>>> echo "order > 0" >
+>>>> /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/filter
+>>>>
+>>>> echo 1 > /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/enable
+>>>>
+>>>> echo 1 >
+>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
+>>>>
+>>>> echo 1 >
+>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
+>>>>
+>>>> timeout 120 cat /sys/kernel/debug/tracing/trace_pipe > /trace
+>>>>
+>>>> File attached.
 >>>
->>> Use instead
+>>> There is no reclaim captured in this trace dump.
+>>> $ zcat trace1.gz | sed 's@.*\(order=[0-9]\).*\(gfp_flags=.*\)@\1 \2@' | sort | uniq -c
+>>>     777 order=1 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>     663 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>     153 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>     911 order=1 gfp_flags=GFP_KERNEL_ACCOUNT|__GFP_ZERO
+>>>    4872 order=1 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+>>>      62 order=1 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>      14 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
+>>>      11 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_RECLAIMABLE
+>>>    1263 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>      45 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
+>>>       1 order=2 gfp_flags=GFP_KERNEL|__GFP_COMP|__GFP_ZERO
+>>>    7853 order=2 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+>>>      73 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>     729 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
+>>>     528 order=3 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>    1203 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+>>>    5295 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
+>>>       1 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>     132 order=3 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+>>>      13 order=5 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
+>>>       1 order=6 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
+>>>    1232 order=9 gfp_flags=GFP_TRANSHUGE
+>>>     108 order=9 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
+>>>     362 order=9 gfp_flags=GFP_TRANSHUGE_LIGHT|__GFP_THISNODE
 >>>
->>> =C2=A0=C2=A0=C2=A0=C2=A0*pudp =3D __pud(pud_val(*pudp) | RANDOM_NZVAL=
-UE);
->>
->> Agreed.
->>
->> As I had mentioned before this would have been really the cleanest app=
-roach.
->>
->>>
->>> It *should* be more portable.
->>
->> Not really, because not all the platforms have __pxx() definitions rig=
-ht now.
->> Going with these will clearly cause build failures on affected platfor=
-ms. Lets
->> examine __pud() for instance. It is defined only on these platforms.
->>
->> arch/arm64/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 #define __pud(x) ((pud_t) { (x) } )
->> arch/mips/include/asm/pgtable-64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pud(x) ((pud_t) { (x) })
->> arch/powerpc/include/asm/pgtable-be-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pud(x) ((pud_t) { cpu_to_be64(x) })
->> arch/powerpc/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0 #define __=
-pud(x) ((pud_t) { (x) })
->> arch/s390/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pud(x) ((pud_t) { (x) } )
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pud(x) ((pud_t) { (x) } )
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pud(x) (x)
->> arch/x86/include/asm/pgtable.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pud(x) native_make_pud(x)
->=20
-> You missed:
-> arch/x86/include/asm/paravirt.h:static inline pud_t __pud(pudval_t val)
-> include/asm-generic/pgtable-nop4d-hack.h:#define __pud(x) =C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ((p=
-ud_t) { __pgd(x) })
-> include/asm-generic/pgtable-nopud.h:#define __pud(x) =C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 ((pud_t) { __p4d(x) })
->=20
->>
->> Similarly for __pmd()
->>
->> arch/alpha/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/arm/include/asm/page-nommu.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pmd(x)=C2=A0 (x)
->> arch/arm/include/asm/pgtable-2level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/arm/include/asm/pgtable-2level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pmd(x)=C2=A0 (x)
->> arch/arm/include/asm/pgtable-3level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/arm/include/asm/pgtable-3level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pmd(x)=C2=A0 (x)
->> arch/arm64/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/m68k/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { { (x) }, })
->> arch/mips/include/asm/pgtable-64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/nds32/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 (x)
->> arch/parisc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/parisc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 (x)
->> arch/powerpc/include/asm/pgtable-be-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pmd(x)=C2=A0 ((pmd_t) { cpu_to_be64(x) })
->> arch/powerpc/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0 #define __=
-pmd(x)=C2=A0 ((pmd_t) { (x) })
->> arch/riscv/include/asm/pgtable-64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) })
->> arch/s390/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/sh/include/asm/pgtable-3level.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/sparc/include/asm/page_32.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pmd(x)=C2=A0 ((pmd_t) { { (x) }, })
->> arch/sparc/include/asm/page_32.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pmd(x)=C2=A0 ((pmd_t) { { (x) }, })
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pmd(x)=C2=A0 (x)
->> arch/um/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/um/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 ((pmd_t) { (x) } )
->> arch/x86/include/asm/pgtable.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pmd(x)=C2=A0 native_make_pmd(x)
->=20
-> You missed:
-> arch/x86/include/asm/paravirt.h:static inline pmd_t __pmd(pmdval_t val)
-> include/asm-generic/page.h:#define __pmd(x)=C2=A0=C2=A0=C2=A0=C2=A0 ((p=
-md_t) { (x) } )
-> include/asm-generic/pgtable-nopmd.h:#define __pmd(x) =C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 ((pmd_t) { __pud(x) } )
->=20
->=20
->>
->> Similarly for __pgd()
->>
->> arch/alpha/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/alpha/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 (x)
->> arch/arc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/arc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 (x)
->> arch/arm/include/asm/pgtable-3level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/arm/include/asm/pgtable-3level-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pgd(x)=C2=A0 (x)
->> arch/arm64/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/csky/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/hexagon/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/m68k/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/mips/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/nds32/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 (x)
->> arch/nios2/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/openrisc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/parisc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/parisc/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 (x)
->> arch/powerpc/include/asm/pgtable-be-types.h:=C2=A0=C2=A0=C2=A0 #define=
- __pgd(x)=C2=A0 ((pgd_t) { cpu_to_be64(x) })
->> arch/powerpc/include/asm/pgtable-types.h:=C2=A0=C2=A0=C2=A0 #define __=
-pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/riscv/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/s390/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/sh/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/sparc/include/asm/page_32.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/sparc/include/asm/page_32.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 (x)
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/sparc/include/asm/page_64.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0 #define __pgd(x)=C2=A0 (x)
->> arch/um/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->> arch/unicore32/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) })
->> arch/unicore32/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 #define __pgd(x)=C2=A0 (x)
->> arch/x86/include/asm/pgtable.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 native_make_pgd(x)
->> arch/xtensa/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __pgd(x)=C2=A0 ((pgd_t) { (x) } )
->=20
-> You missed:
-> arch/x86/include/asm/paravirt.h:static inline pgd_t __pgd(pgdval_t val)
-> include/asm-generic/page.h:#define __pgd(x)=C2=A0=C2=A0=C2=A0=C2=A0 ((p=
-gd_t) { (x) } )
->=20
->=20
->>
->> Similarly for __p4d()
->>
->> arch/s390/include/asm/page.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 #define __p4d(x)=C2=A0 ((p4d_t) { (x) } )
->> arch/x86/include/asm/pgtable.h:=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0 #define __p4d(x)=C2=A0 native_make_p4d(x)
->=20
-> You missed:
-> arch/x86/include/asm/paravirt.h:static inline p4d_t __p4d(p4dval_t val)
-> include/asm-generic/5level-fixup.h:#define __p4d(x) __pgd(x)
-> include/asm-generic/pgtable-nop4d.h:#define __p4d(x) =C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 ((p4d_t) { __pgd(x) })
->=20
->=20
->>
->> The search pattern here has been "#define __pxx(". Unless I am missing=
- something,
->> I dont see how we can use these without risking build failures.
->>
->=20
-> I guess you missed that arches not defining them fall back on the defin=
-itions in include/asm-generic
-
-You are right. I was confused whether these generic definitions were real=
-ly
-applicable for all those platforms as fallback (with so many page table
-level folding combinations available) when they dont define. Sure will ta=
-ke
-this approach and try to build them on multiple platforms.
+>>> Nothing really stands out because except for the THP ones none of others
+>>> are going to even be using movable zone.
+>> It might be that this is not an ideal example is was just the fastest i
+>> could find. May be we really need one with much higher pressure.
+> 
+> here another trace log where a system has 30GB free memory but is under
+> constant pressure and does not build up any file cache caused by memory
+> pressure.
+> 
+> 
+> Greets,
+> Stefan
+> 
 
