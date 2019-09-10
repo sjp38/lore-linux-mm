@@ -2,160 +2,249 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	SUBJ_ALL_CAPS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75EC3C49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:49:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D80FC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:03:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D0E42084D
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:49:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=bitdefender.onmicrosoft.com header.i=@bitdefender.onmicrosoft.com header.b="lQQbIR4k"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D0E42084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=bitdefender.com
+	by mail.kernel.org (Postfix) with ESMTP id EEC3520872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:03:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC3520872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA9256B0006; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
+	id 891096B0003; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B817B6B0008; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
+	id 842716B0006; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A97356B000C; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
+	id 730D06B0007; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0232.hostedemail.com [216.40.44.232])
-	by kanga.kvack.org (Postfix) with ESMTP id 88E646B0006
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:49:57 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 33EFB824376A
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:49:57 +0000 (UTC)
-X-FDA: 75918237234.17.goat73_73e3ad7358f44
-X-HE-Tag: goat73_73e3ad7358f44
-X-Filterd-Recvd-Size: 9115
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10127.outbound.protection.outlook.com [40.107.1.127])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:49:56 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=d3Ep0OBxahAxUixdpLP+oCXy4SkUZviz/jEElVhnrfqrrk/U2+8qyBYMmN0L/Tw+eNg4yfLeuUX3/vQj+nBARRUUotTF35NJUHAL/P+X0+/6dGBZEJIEEchc8fITWgqEXaoC3t0y6ynTlixgrv4GkssNE1Mw60n7oip733Kpb39batPGAeoGZxiZ/qwv53ck6lMsbfqeXrNYUomNYyOKSQUDIBhwz8fLWxZgxOvl/LoIX5ReNAZITsheetdmh4Mg1mSxSK/zs/LYL3LtF5PUJkcl5IBbmQBUQDJ2QpHhQNuW4XBj0N6jmVXRFjhS4fTPRTLPWTCTKmkGRW7IQQ/bAg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=ASETWczpefwet6aunu87Wv9waZJEk4Wclhfh8inzY9k=;
- b=Q8qirSqAp8q9gnCGaOxF6Q2VXk3byz6xQDP5GBtx/XRdxei+l7Ybe0y/NQ5dQ9y2ht8oZ3xH5FyGy8lHpbdMfFXDELXIe2jyAPIRFjdUOpObBayO1+OrOQxiHXhrqKV8oib7O6ki5UmXURpTZKtciCzUgVX7SHQNuUCgsnYyjIboxg1/fbPX6QbZJ7L3OuH4aR9xBcToLIe0vY5dkzOpyaW9w0T2tR+Vb84mNNEvFUQ19Fhxzx95dnz9Vdww3W6zWsXOZJJZECp7pK/o3F+iS55+xL+V0Ndq7Zb4sq8M+dSxUV2CazMvD+3jbfYcbqoBPR/+NLWf6WMtQ3SAjsM4ng==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=bitdefender.com; dmarc=pass action=none
- header.from=bitdefender.com; dkim=pass header.d=bitdefender.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=bitdefender.onmicrosoft.com; s=selector2-bitdefender-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=ASETWczpefwet6aunu87Wv9waZJEk4Wclhfh8inzY9k=;
- b=lQQbIR4kjg/h/+TWX/KRvmbObAI6dk6HJHuypOY84odYIf+pUbo8ruXySxks++/5JoA8dZuCUMPaJwL1Ml/rAoCb8srbnUcOeF6khj/M6Cg23+6CTriPlj6MPCKIRu1UtMFwT7j62TXVmZnrg5VL6VMUgkCdj8Nr9dbQU9clA5g=
-Received: from DB7PR02MB3979.eurprd02.prod.outlook.com (20.177.121.157) by
- DB7PR02MB4744.eurprd02.prod.outlook.com (20.177.192.206) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2241.18; Tue, 10 Sep 2019 07:49:51 +0000
-Received: from DB7PR02MB3979.eurprd02.prod.outlook.com
- ([fe80::a9d4:6e4d:dca:97a7]) by DB7PR02MB3979.eurprd02.prod.outlook.com
- ([fe80::a9d4:6e4d:dca:97a7%7]) with mapi id 15.20.2241.018; Tue, 10 Sep 2019
- 07:49:51 +0000
-From: Mircea CIRJALIU - MELIU <mcirjaliu@bitdefender.com>
-To: Paolo Bonzini <pbonzini@redhat.com>, Jerome Glisse <jglisse@redhat.com>
-CC: =?utf-8?B?QWRhbGJlcnQgTGF6xINy?= <alazar@bitdefender.com>, Matthew Wilcox
-	<willy@infradead.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"virtualization@lists.linux-foundation.org"
-	<virtualization@lists.linux-foundation.org>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?=
-	<rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Tamas K
- Lengyel <tamas@tklengyel.com>, Mathieu Tarral
-	<mathieu.tarral@protonmail.com>, =?utf-8?B?U2FtdWVsIExhdXLDqW4=?=
-	<samuel.lauren@iki.fi>, Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka
-	<jan.kiszka@siemens.com>, Stefan Hajnoczi <stefanha@redhat.com>, Weijiang
- Yang <weijiang.yang@intel.com>, Yu C <yu.c.zhang@intel.com>,
-	=?utf-8?B?TWloYWkgRG9uyJt1?= <mdontu@bitdefender.com>
-Subject: RE: DANGER WILL ROBINSON, DANGER
-Thread-Topic: DANGER WILL ROBINSON, DANGER
-Thread-Index:
- AQHVTs8soTQpQXiOD0KEAgMKguVJzKb471OAgAOvxoCAAA/uAIAMAODggBTcuICABjXSgIAA6j0w
-Date: Tue, 10 Sep 2019 07:49:51 +0000
-Message-ID:
- <DB7PR02MB3979D1143909423F8767ACE2BBB60@DB7PR02MB3979.eurprd02.prod.outlook.com>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-72-alazar@bitdefender.com>
- <20190809162444.GP5482@bombadil.infradead.org>
- <1565694095.D172a51.28640.@15f23d3a749365d981e968181cce585d2dcb3ffa>
- <20190815191929.GA9253@redhat.com> <20190815201630.GA25517@redhat.com>
- <VI1PR02MB398411CA9A56081FF4D1248EBBA40@VI1PR02MB3984.eurprd02.prod.outlook.com>
- <20190905180955.GA3251@redhat.com>
- <5b0966de-b690-fb7b-5a72-bc7906459168@redhat.com>
-In-Reply-To: <5b0966de-b690-fb7b-5a72-bc7906459168@redhat.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=mcirjaliu@bitdefender.com; 
-x-originating-ip: [91.199.104.6]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 258488b6-e5ca-4f01-0064-08d735c37674
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DB7PR02MB4744;
-x-ms-traffictypediagnostic: DB7PR02MB4744:|DB7PR02MB4744:|DB7PR02MB4744:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs:
- <DB7PR02MB4744D110DFB6D71DAC1B9FC1BBB60@DB7PR02MB4744.eurprd02.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 01565FED4C
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(346002)(376002)(136003)(366004)(39860400002)(396003)(199004)(189003)(99286004)(4326008)(53936002)(6246003)(55016002)(9686003)(7696005)(76176011)(86362001)(107886003)(66556008)(64756008)(66446008)(66946007)(6436002)(66476007)(110136005)(316002)(5660300002)(54906003)(3846002)(6116002)(478600001)(305945005)(66066001)(74316002)(14444005)(33656002)(6506007)(53546011)(2906002)(14454004)(7416002)(71200400001)(7736002)(71190400001)(81156014)(186003)(81166006)(26005)(8676002)(8936002)(102836004)(25786009)(76116006)(52536014)(229853002)(256004)(486006)(476003)(446003)(11346002);DIR:OUT;SFP:1102;SCL:1;SRVR:DB7PR02MB4744;H:DB7PR02MB3979.eurprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: bitdefender.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 4UoWRl3lVzjSa2PwmsFoUyNqAv7Cp6QUshLxr/fOkrPJW4KvLF7SKURzdcI71zBNjvrTJV/Ckl236D90HJBffp2y8aFZdG7cSE8er8NUZ1gtEkBXa7RXPhoY1XoJEeiqc7iy+pXvDYVuk46wp0N6j1LS/eZ9UYoOXhdkucZbsLMS4nfMKK9psKkWuMZaMvlcGA8TW78WnyZ/wTV+vfwqAT+IWn8s00JhvkeGQ9ZPYs8mnLxY0zvECMk1x4wev3pU6evH/ARAg/QQSu8nU3iJw6G1OdUSYO9kSA7zHkEJms+5Nc1mMYyRkrn+SNcS/b/6Nkn+ZcuC1tc2Bk00YY7F+J6hpZcYDB9JYctYdItDiBVVCCLJHJlfoYi2qU9v+otL5xtFlfo+Uw12Co8WDvN7HLrNdQc2z65woz6ggee2UCs=
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 507986B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id F1ED4180AD7C3
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:03:48 +0000 (UTC)
+X-FDA: 75918272136.12.maid35_5b6606c56801a
+X-HE-Tag: maid35_5b6606c56801a
+X-Filterd-Recvd-Size: 11511
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:03:47 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 54954AED0;
+	Tue, 10 Sep 2019 08:03:46 +0000 (UTC)
+Subject: Re: [PATCH v4 04/17] arm64: hibernate: use get_safe_page directly
+To: Pavel Tatashin <pasha.tatashin@soleen.com>, jmorris@namei.org,
+ sashal@kernel.org, ebiederm@xmission.com, kexec@lists.infradead.org,
+ linux-kernel@vger.kernel.org, corbet@lwn.net, catalin.marinas@arm.com,
+ will@kernel.org, linux-arm-kernel@lists.infradead.org, marc.zyngier@arm.com,
+ james.morse@arm.com, vladimir.murzin@arm.com, bhsharma@redhat.com,
+ linux-mm@kvack.org, mark.rutland@arm.com
+References: <20190909181221.309510-1-pasha.tatashin@soleen.com>
+ <20190909181221.309510-5-pasha.tatashin@soleen.com>
+From: Matthias Brugger <mbrugger@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=mbrugger@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <e2ceb43a-d7bf-e0c6-c3ea-b83c95ba880d@suse.com>
+Date: Tue, 10 Sep 2019 10:03:44 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-OriginatorOrg: bitdefender.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 258488b6-e5ca-4f01-0064-08d735c37674
-X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Sep 2019 07:49:51.6724
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 487baf29-f1da-469a-9221-243f830c36f3
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: t9in6MLiGE7e2+GD9/OEIkYZBTOTcsSHgEi9BQSCDi1e30PyuTFK0w/OZ5p5KmLQBWazSSF9b63c+ta3bfq3+78cTwUv+bLwwkjxZZn5KwY=
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR02MB4744
+In-Reply-To: <20190909181221.309510-5-pasha.tatashin@soleen.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiAwNS8wOS8xOSAyMDowOSwgSmVyb21lIEdsaXNzZSB3cm90ZToNCj4gPiBOb3Qgc3VyZSBp
-IHVuZGVyc3RhbmQsIHlvdSBhcmUgc2F5aW5nIHRoYXQgdGhlIHNvbHV0aW9uIGkgb3V0bGluZQ0K
-PiA+IGFib3ZlIGRvZXMgbm90IHdvcmsgPyBJZiBzbyB0aGVuIGkgdGhpbmsgeW91IGFyZSB3cm9u
-ZywgaW4gdGhlIGFib3ZlDQo+ID4gc29sdXRpb24gdGhlIGltcG9ydGluZyBwcm9jZXNzIG1tYXAg
-YSBkZXZpY2UgZmlsZSBhbmQgdGhlIHJlc3VsdGluZw0KPiA+IHZtYSBpcyB0aGVuIHBvcHVsYXRl
-ZCB1c2luZyBpbnNlcnRfcGZuKCkgYW5kIGNvbnN0YW50bHkga2VlcA0KPiA+IHN5bmNocm9uaXpl
-IHdpdGggdGhlIHRhcmdldCBwcm9jZXNzIHRocm91Z2ggbWlycm9yaW5nIHdoaWNoIG1lYW5zIHRo
-YXQNCj4gPiB5b3UgbmV2ZXIgaGF2ZSB0byBsb29rIGF0IHRoZSBzdHJ1Y3QgcGFnZSAuLi4geW91
-IGNhbiBtaXJyb3IgYW55IGtpbmQNCj4gPiBvZiBtZW1vcnkgZnJvbSB0aGUgcmVtb3RlIHByb2Nl
-c3MuDQo+IA0KPiBJZiBpbnNlcnRfcGZuIGluIHR1cm4gY2FsbHMgTU1VIG5vdGlmaWVycyBmb3Ig
-dGhlIHRhcmdldCBWTUEgKHdoaWNoIHdvdWxkIGJlDQo+IHRoZSBLVk0gTU1VIG5vdGlmaWVyKSwg
-dGhlbiB0aGF0IHdvdWxkIHdvcmsuICBUaG91Z2ggSSBndWVzcyBpdCB3b3VsZCBiZQ0KPiBwb3Nz
-aWJsZSB0byBjYWxsIE1NVSBub3RpZmllciB1cGRhdGUgY2FsbGJhY2tzIGFyb3VuZCB0aGUgY2Fs
-bCB0byBpbnNlcnRfcGZuLg0KDQpDYW4ndCBkbyB0aGF0Lg0KRmlyc3QsIGluc2VydF9wZm4oKSB1
-c2VzIHNldF9wdGVfYXQoKSB3aGljaCB3b24ndCB0cmlnZ2VyIHRoZSBNTVUgbm90aWZpZXIgb24N
-CnRoZSB0YXJnZXQgVk1BLiBJdCdzIGFsc28gc3RhdGljLCBzbyBJJ2xsIGhhdmUgdG8gYWNjZXNz
-IGl0IHRocnUgdm1mX2luc2VydF9wZm4oKQ0Kb3Igdm1mX2luc2VydF9taXhlZCgpLg0KDQpPdXIg
-bW9kZWwgKHRoZSBpbXBvcnRpbmcgcHJvY2VzcyBpcyBlbmNhcHN1bGF0ZWQgaW4gYW5vdGhlciBW
-TSkgZm9yY2VzIHVzDQp0byBtaXJyb3IgY2VydGFpbiBwYWdlcyBmcm9tIHRoZSBhbm9uIFZNQSBi
-YWNraW5nIG9uZSBWTSdzIHN5c3RlbSBSQU0gdG8gDQp0aGUgb3RoZXIgVk0ncyBhbm9uIFZNQS4g
-DQoNClVzaW5nIHRoZSBmdW5jdGlvbnMgYWJvdmUgbWVhbnMgc2V0dGluZyBWTV9QRk5NQVB8Vk1f
-TUlYRURNQVAgb24gDQp0aGUgdGFyZ2V0IGFub24gVk1BLCBidXQgSSBndWVzcyB0aGlzIGJyZWFr
-cyB0aGUgVk1BLiBJcyB0aGlzIHJlY29tbWVuZGVkPw0KDQpUaGVuLCBtYXBwaW5nIGFub24gcGFn
-ZXMgZnJvbSBvbmUgVk1BIHRvIGFub3RoZXIgd2l0aG91dCBmaXhpbmcgdGhlIA0KcmVmY291bnQg
-YW5kIHRoZSBtYXBjb3VudCBicmVha3MgdGhlIGRhZW1vbnMgdGhhdCB0aGluayB0aGV5J3JlIHdv
-cmtpbmcgDQpvbiBhIHB1cmUgYW5vbiBWTUEgKGtjb21wYWN0ZCwga2h1Z2VwYWdlZCkuDQoNCk1p
-cmNlYQ0K
+
+
+On 09/09/2019 20:12, Pavel Tatashin wrote:
+> create_safe_exec_page() uses hibernate's allocator to create a set of page
+> table to map a single page that will contain the relocation code.
+> 
+> Remove the allocator related arguments, and use get_safe_page directly, as
+> it is done in other local functions in this file to simplify function
+> prototype.
+> 
+> Removing this function pointer makes it easier to refactor the code later.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+
+Reviewed-by: Matthias Brugger <mbrugger@suse.com>
+
+> ---
+>  arch/arm64/kernel/hibernate.c | 17 +++++++----------
+>  1 file changed, 7 insertions(+), 10 deletions(-)
+> 
+> diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
+> index 227cc26720f7..47a861e0cb0c 100644
+> --- a/arch/arm64/kernel/hibernate.c
+> +++ b/arch/arm64/kernel/hibernate.c
+> @@ -196,9 +196,7 @@ EXPORT_SYMBOL(arch_hibernation_header_restore);
+>   */
+>  static int create_safe_exec_page(void *src_start, size_t length,
+>  				 unsigned long dst_addr,
+> -				 phys_addr_t *phys_dst_addr,
+> -				 void *(*allocator)(gfp_t mask),
+> -				 gfp_t mask)
+> +				 phys_addr_t *phys_dst_addr)
+>  {
+>  	int rc = 0;
+>  	pgd_t *trans_pgd;
+> @@ -206,7 +204,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  	pud_t *pudp;
+>  	pmd_t *pmdp;
+>  	pte_t *ptep;
+> -	unsigned long dst = (unsigned long)allocator(mask);
+> +	unsigned long dst = get_safe_page(GFP_ATOMIC);
+>  
+>  	if (!dst) {
+>  		rc = -ENOMEM;
+> @@ -216,7 +214,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  	memcpy((void *)dst, src_start, length);
+>  	__flush_icache_range(dst, dst + length);
+>  
+> -	trans_pgd = allocator(mask);
+> +	trans_pgd = (void *)get_safe_page(GFP_ATOMIC);
+>  	if (!trans_pgd) {
+>  		rc = -ENOMEM;
+>  		goto out;
+> @@ -224,7 +222,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  
+>  	pgdp = pgd_offset_raw(trans_pgd, dst_addr);
+>  	if (pgd_none(READ_ONCE(*pgdp))) {
+> -		pudp = allocator(mask);
+> +		pudp = (void *)get_safe_page(GFP_ATOMIC);
+>  		if (!pudp) {
+>  			rc = -ENOMEM;
+>  			goto out;
+> @@ -234,7 +232,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  
+>  	pudp = pud_offset(pgdp, dst_addr);
+>  	if (pud_none(READ_ONCE(*pudp))) {
+> -		pmdp = allocator(mask);
+> +		pmdp = (void *)get_safe_page(GFP_ATOMIC);
+>  		if (!pmdp) {
+>  			rc = -ENOMEM;
+>  			goto out;
+> @@ -244,7 +242,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  
+>  	pmdp = pmd_offset(pudp, dst_addr);
+>  	if (pmd_none(READ_ONCE(*pmdp))) {
+> -		ptep = allocator(mask);
+> +		ptep = (void *)get_safe_page(GFP_ATOMIC);
+>  		if (!ptep) {
+>  			rc = -ENOMEM;
+>  			goto out;
+> @@ -530,8 +528,7 @@ int swsusp_arch_resume(void)
+>  	 */
+>  	rc = create_safe_exec_page(__hibernate_exit_text_start, exit_size,
+>  				   (unsigned long)hibernate_exit,
+> -				   &phys_hibernate_exit,
+> -				   (void *)get_safe_page, GFP_ATOMIC);
+> +				   &phys_hibernate_exit);
+>  	if (rc) {
+>  		pr_err("Failed to create safe executable page for hibernate_exit code.\n");
+>  		goto out;
+> 
 
