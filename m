@@ -2,228 +2,129 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0224C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:37:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97183C4740A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:44:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E25D2081B
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:37:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E25D2081B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
+	by mail.kernel.org (Postfix) with ESMTP id 6586C20863
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:44:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6586C20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F5336B000C; Tue, 10 Sep 2019 05:37:22 -0400 (EDT)
+	id F247A6B0006; Tue, 10 Sep 2019 05:44:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A5066B000D; Tue, 10 Sep 2019 05:37:22 -0400 (EDT)
+	id ED5356B0008; Tue, 10 Sep 2019 05:44:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16E356B000E; Tue, 10 Sep 2019 05:37:22 -0400 (EDT)
+	id DC3456B000A; Tue, 10 Sep 2019 05:44:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
-	by kanga.kvack.org (Postfix) with ESMTP id E9C3E6B000C
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:37:21 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 8536C180AD7C3
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:37:21 +0000 (UTC)
-X-FDA: 75918507882.12.ants28_230d366b2ed15
-X-HE-Tag: ants28_230d366b2ed15
-X-Filterd-Recvd-Size: 9742
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:37:20 +0000 (UTC)
-Received: (qmail 8994 invoked from network); 10 Sep 2019 11:37:19 +0200
-X-Fcrdns: No
-Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
-  (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Tue, 10 Sep 2019 11:37:19 +0200
-Subject: Re: lot of MemAvailable but falling cache and raising PSI
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
- cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
- Vlastimil Babka <vbabka@suse.cz>
-References: <20190909110136.GG27159@dhcp22.suse.cz>
- <20190909120811.GL27159@dhcp22.suse.cz>
- <88ff0310-b9ab-36b6-d8ab-b6edd484d973@profihost.ag>
- <20190909122852.GM27159@dhcp22.suse.cz>
- <2d04fc69-8fac-2900-013b-7377ca5fd9a8@profihost.ag>
- <20190909124950.GN27159@dhcp22.suse.cz>
- <10fa0b97-631d-f82b-0881-89adb9ad5ded@profihost.ag>
- <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
- <20190910082919.GL2063@dhcp22.suse.cz>
- <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
- <20190910090241.GM2063@dhcp22.suse.cz>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Message-ID: <743a047e-a46f-32fa-1fe4-a9bd8f09ed87@profihost.ag>
-Date: Tue, 10 Sep 2019 11:37:19 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190910090241.GM2063@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
+Received: from forelay.hostedemail.com (smtprelay0129.hostedemail.com [216.40.44.129])
+	by kanga.kvack.org (Postfix) with ESMTP id BE3876B0006
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:44:09 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 69DC622007
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:44:09 +0000 (UTC)
+X-FDA: 75918525018.02.desk72_5e58a3cccb901
+X-HE-Tag: desk72_5e58a3cccb901
+X-Filterd-Recvd-Size: 4010
+Received: from mailgw01.mediatek.com (unknown [210.61.82.183])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:44:07 +0000 (UTC)
+X-UUID: 7db3989441fd4168b9615b951f209fdb-20190910
+X-UUID: 7db3989441fd4168b9615b951f209fdb-20190910
+Received: from mtkcas09.mediatek.inc [(172.21.101.178)] by mailgw01.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0809 with TLS)
+	with ESMTP id 1966950674; Tue, 10 Sep 2019 17:44:03 +0800
+Received: from MTKCAS06.mediatek.inc (172.21.101.30) by
+ mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Tue, 10 Sep 2019 17:43:58 +0800
+Received: from [172.21.84.99] (172.21.84.99) by MTKCAS06.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Tue, 10 Sep 2019 17:43:58 +0800
+Message-ID: <1568108638.24886.7.camel@mtksdccf07>
+Subject: Re: [PATCH v2 1/2] mm/page_ext: support to record the last stack of
+ page
+From: Walter Wu <walter-zh.wu@mediatek.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+CC: David Hildenbrand <david@redhat.com>, Andrey Ryabinin
+	<aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Dmitry
+ Vyukov" <dvyukov@google.com>, Matthias Brugger <matthias.bgg@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky
+	<schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>, Andrey Konovalov
+	<andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner
+	<tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>, Qian Cai
+	<cai@lca.pw>, <linux-kernel@vger.kernel.org>, <kasan-dev@googlegroups.com>,
+	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
+Date: Tue, 10 Sep 2019 17:43:58 +0800
+In-Reply-To: <20190910093103.4cmqk4semlhgpmle@box.shutemov.name>
+References: <20190909085339.25350-1-walter-zh.wu@mediatek.com>
+	 <36b5a8e0-2783-4c0e-4fc7-78ea652ba475@redhat.com>
+	 <1568077669.24886.3.camel@mtksdccf07>
+	 <20190910093103.4cmqk4semlhgpmle@box.shutemov.name>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
 Content-Transfer-Encoding: 7bit
-X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
+MIME-Version: 1.0
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-Am 10.09.19 um 11:02 schrieb Michal Hocko:
-> On Tue 10-09-19 10:38:25, Stefan Priebe - Profihost AG wrote:
->> Am 10.09.19 um 10:29 schrieb Michal Hocko:
->>> On Tue 10-09-19 07:56:36, Stefan Priebe - Profihost AG wrote:
->>>>
->>>> Am 09.09.19 um 14:56 schrieb Stefan Priebe - Profihost AG:
->>>>> Am 09.09.19 um 14:49 schrieb Michal Hocko:
->>>>>> On Mon 09-09-19 14:37:52, Stefan Priebe - Profihost AG wrote:
->>>>>>>
->>>>>>> Am 09.09.19 um 14:28 schrieb Michal Hocko:
->>>>>>>> On Mon 09-09-19 14:10:02, Stefan Priebe - Profihost AG wrote:
->>>>>>>>>
->>>>>>>>> Am 09.09.19 um 14:08 schrieb Michal Hocko:
->>>>>>>>>> On Mon 09-09-19 13:01:36, Michal Hocko wrote:
->>>>>>>>>>> and that matches moments when we reclaimed memory. There seems to be a
->>>>>>>>>>> steady THP allocations flow so maybe this is a source of the direct
->>>>>>>>>>> reclaim?
->>>>>>>>>>
->>>>>>>>>> I was thinking about this some more and THP being a source of reclaim
->>>>>>>>>> sounds quite unlikely. At least in a default configuration because we
->>>>>>>>>> shouldn't do anything expensinve in the #PF path. But there might be a
->>>>>>>>>> difference source of high order (!costly) allocations. Could you check
->>>>>>>>>> how many allocation requests like that you have on your system?
->>>>>>>>>>
->>>>>>>>>> mount -t debugfs none /debug
->>>>>>>>>> echo "order > 0" > /debug/tracing/events/kmem/mm_page_alloc/filter
->>>>>>>>>> echo 1 > /debug/tracing/events/kmem/mm_page_alloc/enable
->>>>>>>>>> cat /debug/tracing/trace_pipe > $file
->>>>>>>>
->>>>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
->>>>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
->>>>>>>>  
->>>>>>>> might tell us something as well but it might turn out that it just still
->>>>>>>> doesn't give us the full picture and we might need
->>>>>>>> echo stacktrace > /debug/tracing/trace_options
->>>>>>>>
->>>>>>>> It will generate much more output though.
->>>>>>>>
->>>>>>>>> Just now or when PSI raises?
->>>>>>>>
->>>>>>>> When the excessive reclaim is happening ideally.
->>>>>>>
->>>>>>> This one is from a server with 28G memfree but memory pressure is still
->>>>>>> jumping between 0 and 10%.
->>>>>>>
->>>>>>> I did:
->>>>>>> echo "order > 0" >
->>>>>>> /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/filter
->>>>>>>
->>>>>>> echo 1 > /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/enable
->>>>>>>
->>>>>>> echo 1 >
->>>>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
->>>>>>>
->>>>>>> echo 1 >
->>>>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
->>>>>>>
->>>>>>> timeout 120 cat /sys/kernel/debug/tracing/trace_pipe > /trace
->>>>>>>
->>>>>>> File attached.
->>>>>>
->>>>>> There is no reclaim captured in this trace dump.
->>>>>> $ zcat trace1.gz | sed 's@.*\(order=[0-9]\).*\(gfp_flags=.*\)@\1 \2@' | sort | uniq -c
->>>>>>     777 order=1 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>     663 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>     153 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>     911 order=1 gfp_flags=GFP_KERNEL_ACCOUNT|__GFP_ZERO
->>>>>>    4872 order=1 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
->>>>>>      62 order=1 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>      14 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
->>>>>>      11 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_RECLAIMABLE
->>>>>>    1263 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>      45 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
->>>>>>       1 order=2 gfp_flags=GFP_KERNEL|__GFP_COMP|__GFP_ZERO
->>>>>>    7853 order=2 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
->>>>>>      73 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>     729 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
->>>>>>     528 order=3 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>    1203 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
->>>>>>    5295 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
->>>>>>       1 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>     132 order=3 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
->>>>>>      13 order=5 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
->>>>>>       1 order=6 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
->>>>>>    1232 order=9 gfp_flags=GFP_TRANSHUGE
->>>>>>     108 order=9 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
->>>>>>     362 order=9 gfp_flags=GFP_TRANSHUGE_LIGHT|__GFP_THISNODE
->>>>>>
->>>>>> Nothing really stands out because except for the THP ones none of others
->>>>>> are going to even be using movable zone.
->>>>> It might be that this is not an ideal example is was just the fastest i
->>>>> could find. May be we really need one with much higher pressure.
->>>>
->>>> here another trace log where a system has 30GB free memory but is under
->>>> constant pressure and does not build up any file cache caused by memory
->>>> pressure.
->>>
->>> So the reclaim is clearly induced by THP allocations
->>> $ zgrep vmscan trace2.gz | grep gfp_flags | sed 's@.*\(gfp_flags=.*\) .*@\1@' | sort | uniq -c
->>>    1580 gfp_flags=GFP_TRANSHUGE
->>>      15 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
->>>
->>> $ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@nr_reclaimed=@@' |  awk '{nr+=$6+0}END{print nr}'
->>> 1541726
->>>
->>> 6GB of memory reclaimed in 1776s. That is a lot! But the THP allocation
->>> rate is really high as well
->>> $ zgrep "page_alloc.*GFP_TRANSHUGE" trace2.gz | wc -l
->>> 15340
->>>
->>> this is 30GB worth of THPs (some of them might get released of course).
->>> Also only 10% of requests ends up reclaiming.
->>>
->>> One additional interesting point
->>> $ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@.*nr_reclaimed=\([[0-9]*\)@\1@' | calc_min_max.awk
->>> min: 1.00 max: 2792.00 avg: 965.99 std: 331.12 nr: 1596
->>>
->>> Even though the std is high there are quite some outliers when a lot of
->>> memory is reclaimed.
->>>
->>> Which kernel version is this. And again, what is the THP configuration.
->>
->> This is 4.19.66 regarding THP you mean this:
+On Tue, 2019-09-10 at 12:31 +0300, Kirill A. Shutemov wrote:
+> On Tue, Sep 10, 2019 at 09:07:49AM +0800, Walter Wu wrote:
+> > On Mon, 2019-09-09 at 12:57 +0200, David Hildenbrand wrote:
+> > > On 09.09.19 10:53, Walter Wu wrote:
+> > > > KASAN will record last stack of page in order to help programmer
+> > > > to see memory corruption caused by page.
+> > > > 
+> > > > What is difference between page_owner and our patch?
+> > > > page_owner records alloc stack of page, but our patch is to record
+> > > > last stack(it may be alloc or free stack of page).
+> > > > 
+> > > > Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
+> > > > ---
+> > > >  mm/page_ext.c | 3 +++
+> > > >  1 file changed, 3 insertions(+)
+> > > > 
+> > > > diff --git a/mm/page_ext.c b/mm/page_ext.c
+> > > > index 5f5769c7db3b..7ca33dcd9ffa 100644
+> > > > --- a/mm/page_ext.c
+> > > > +++ b/mm/page_ext.c
+> > > > @@ -65,6 +65,9 @@ static struct page_ext_operations *page_ext_ops[] = {
+> > > >  #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+> > > >  	&page_idle_ops,
+> > > >  #endif
+> > > > +#ifdef CONFIG_KASAN
+> > > > +	&page_stack_ops,
+> > > > +#endif
+> > > >  };
+> > > >  
+> > > >  static unsigned long total_usage;
+> > > > 
+> > > 
+> > > Are you sure this patch compiles?
+> > > 
+> > This is patchsets, it need another patch2.
+> > We have verified it by running KASAN UT on Qemu.
 > 
-> Do you see the same behavior with 5.3?
-
-I rebootet with 5.3.0-rc8 - let's see what happens it might take some
-    hours or even days.
-
->> /sys/kernel/mm/transparent_hugepage/defrag:always defer [defer+madvise]
->> madvise never
->>
->> /sys/kernel/mm/transparent_hugepage/enabled:[always] madvise never
->>
->> /sys/kernel/mm/transparent_hugepage/hpage_pmd_size:2097152
->>
->> /sys/kernel/mm/transparent_hugepage/shmem_enabled:always within_size
->> advise [never] deny force
->>
->> /sys/kernel/mm/transparent_hugepage/use_zero_page:1
->>
->> /sys/kernel/mm/transparent_hugepage/enabled was madvise until yesterday
->> where i tried to switch to defer+madvise - which didn't help.
+> Any patchset must be bisectable: do not break anything in the middle of
+> patchset.
 > 
-> Many processes hitting the reclaim are php5 others I cannot say because
-> their cmd is not reflected in the trace. I suspect those are using
-> madvise. I haven't really seen kcompactd interfering much. That would
-> suggest using defer.
 
-You mean i should set transparent_hugepage to defer?
+Thanks your reminder.
+I should explain complete message at commit log.
+Our patchsets is below:
+https://lkml.org/lkml/2019/9/9/104
+https://lkml.org/lkml/2019/9/9/123
 
-Stefan
 
 
