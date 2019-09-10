@@ -2,43 +2,43 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FC41C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 12:20:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ABFFBC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 12:23:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A23220872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 12:20:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A23220872
+	by mail.kernel.org (Postfix) with ESMTP id 7727320872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 12:23:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7727320872
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F23CB6B0003; Tue, 10 Sep 2019 08:20:33 -0400 (EDT)
+	id E5E606B0003; Tue, 10 Sep 2019 08:23:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EACD76B0006; Tue, 10 Sep 2019 08:20:33 -0400 (EDT)
+	id DE82D6B0006; Tue, 10 Sep 2019 08:23:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9BFC6B0007; Tue, 10 Sep 2019 08:20:33 -0400 (EDT)
+	id CD6FF6B0007; Tue, 10 Sep 2019 08:23:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0109.hostedemail.com [216.40.44.109])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0B26B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:20:33 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 71BB7BEF6
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:20:33 +0000 (UTC)
-X-FDA: 75918919146.30.coal14_4ce23f663f3c
-X-HE-Tag: coal14_4ce23f663f3c
-X-Filterd-Recvd-Size: 2873
+Received: from forelay.hostedemail.com (smtprelay0127.hostedemail.com [216.40.44.127])
+	by kanga.kvack.org (Postfix) with ESMTP id A6A066B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:23:16 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 5ADA2180AD7C3
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:23:16 +0000 (UTC)
+X-FDA: 75918925992.23.stew54_1c80ed13f1e03
+X-HE-Tag: stew54_1c80ed13f1e03
+X-Filterd-Recvd-Size: 4996
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:20:32 +0000 (UTC)
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:23:15 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 80E9FABCE;
-	Tue, 10 Sep 2019 12:20:31 +0000 (UTC)
-Date: Tue, 10 Sep 2019 14:20:30 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 9A3ACB68B;
+	Tue, 10 Sep 2019 12:23:14 +0000 (UTC)
+Date: Tue, 10 Sep 2019 14:23:13 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: Alexander Duyck <alexander.duyck@gmail.com>
 Cc: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, mst@redhat.com,
@@ -52,15 +52,14 @@ Cc: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, mst@redhat.com,
 	pbonzini@redhat.com, dan.j.williams@intel.com,
 	fengguang.wu@intel.com, alexander.h.duyck@linux.intel.com,
 	kirill.shutemov@linux.intel.com
-Subject: Re: [PATCH v9 2/8] mm: Adjust shuffle code to allow for future
- coalescing
-Message-ID: <20190910122030.GV2063@dhcp22.suse.cz>
+Subject: Re: [PATCH v9 3/8] mm: Move set/get_pcppage_migratetype to mmzone.h
+Message-ID: <20190910122313.GW2063@dhcp22.suse.cz>
 References: <20190907172225.10910.34302.stgit@localhost.localdomain>
- <20190907172520.10910.83100.stgit@localhost.localdomain>
+ <20190907172528.10910.37051.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190907172520.10910.83100.stgit@localhost.localdomain>
+In-Reply-To: <20190907172528.10910.37051.stgit@localhost.localdomain>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -68,37 +67,85 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 07-09-19 10:25:20, Alexander Duyck wrote:
+On Sat 07-09-19 10:25:28, Alexander Duyck wrote:
 > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 > 
-> Move the head/tail adding logic out of the shuffle code and into the
-> __free_one_page function since ultimately that is where it is really
-> needed anyway. By doing this we should be able to reduce the overhead
-> and can consolidate all of the list addition bits in one spot.
+> In order to support page reporting it will be necessary to store and
+> retrieve the migratetype of a page. To enable that I am moving the set and
+> get operations for pcppage_migratetype into the mm/internal.h header so
+> that they can be used outside of the page_alloc.c file.
 
-This changelog doesn't really explain why we want this. You are
-reshuffling the code, allright, but why do we want to reshuffle? Is the
-result readability a better code reuse or something else? Where
-does the claimed reduced overhead coming from?
-
-From a quick look buddy_merge_likely looks nicer than the code splat
-we have. Good.
-
-But then
+Please describe who is the user and why does it needs this interface.
+This is really important because migratetype is an MM internal thing and
+external users shouldn't really care about it at all. We really do not
+want a random code to call those, especially the set_pcppage_migratetype.
 
 > Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  mm/internal.h   |   18 ++++++++++++++++++
+>  mm/page_alloc.c |   18 ------------------
+>  2 files changed, 18 insertions(+), 18 deletions(-)
+> 
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 0d5f720c75ab..e4a1a57bbd40 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -549,6 +549,24 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+>  	return get_pageblock_migratetype(page) == MIGRATE_HIGHATOMIC;
+>  }
+>  
+> +/*
+> + * A cached value of the page's pageblock's migratetype, used when the page is
+> + * put on a pcplist. Used to avoid the pageblock migratetype lookup when
+> + * freeing from pcplists in most cases, at the cost of possibly becoming stale.
+> + * Also the migratetype set in the page does not necessarily match the pcplist
+> + * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with any
+> + * other index - this ensures that it will be put on the correct CMA freelist.
+> + */
+> +static inline int get_pcppage_migratetype(struct page *page)
+> +{
+> +	return page->index;
+> +}
+> +
+> +static inline void set_pcppage_migratetype(struct page *page, int migratetype)
+> +{
+> +	page->index = migratetype;
+> +}
+> +
+>  void setup_zone_pageset(struct zone *zone);
+>  extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
+>  #endif	/* __MM_INTERNAL_H */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4e4356ba66c7..a791f2baeeeb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -185,24 +185,6 @@ static int __init early_init_on_free(char *buf)
+>  }
+>  early_param("init_on_free", early_init_on_free);
+>  
+> -/*
+> - * A cached value of the page's pageblock's migratetype, used when the page is
+> - * put on a pcplist. Used to avoid the pageblock migratetype lookup when
+> - * freeing from pcplists in most cases, at the cost of possibly becoming stale.
+> - * Also the migratetype set in the page does not necessarily match the pcplist
+> - * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with any
+> - * other index - this ensures that it will be put on the correct CMA freelist.
+> - */
+> -static inline int get_pcppage_migratetype(struct page *page)
+> -{
+> -	return page->index;
+> -}
+> -
+> -static inline void set_pcppage_migratetype(struct page *page, int migratetype)
+> -{
+> -	page->index = migratetype;
+> -}
+> -
+>  #ifdef CONFIG_PM_SLEEP
+>  /*
+>   * The following functions are used by the suspend/hibernate code to temporarily
 
-[...]
-
-> -	if (is_shuffle_order(order))
-> -		add_to_free_area_random(page, &zone->free_area[order],
-> -				migratetype);
-> +	area = &zone->free_area[order];
-> +	if (is_shuffle_order(order) ? shuffle_pick_tail() :
-> +	    buddy_merge_likely(pfn, buddy_pfn, page, order))
-
-Ouch this is just awful don't you think?
 -- 
 Michal Hocko
 SUSE Labs
