@@ -1,187 +1,122 @@
-Return-Path: <SRS0=8wNw=XE=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4DF6C4740A
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 23:26:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B895BC4740C
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 00:52:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60B7520863
-	for <linux-mm@archiver.kernel.org>; Mon,  9 Sep 2019 23:26:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 591AC2082C
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 00:52:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eIYFZ/BH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60B7520863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="htQl4RsZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 591AC2082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EAA1A6B0007; Mon,  9 Sep 2019 19:26:18 -0400 (EDT)
+	id A23616B0003; Mon,  9 Sep 2019 20:52:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E59A46B0008; Mon,  9 Sep 2019 19:26:18 -0400 (EDT)
+	id 9ACD56B0006; Mon,  9 Sep 2019 20:52:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D47556B000A; Mon,  9 Sep 2019 19:26:18 -0400 (EDT)
+	id 8737A6B0007; Mon,  9 Sep 2019 20:52:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0166.hostedemail.com [216.40.44.166])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8E36B0007
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 19:26:18 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 4B46C180AD7C3
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:26:18 +0000 (UTC)
-X-FDA: 75916968036.01.cork57_541412c5ec20e
-X-HE-Tag: cork57_541412c5ec20e
-X-Filterd-Recvd-Size: 6932
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf42.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:26:17 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id x15so8725185pgg.8
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 16:26:17 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0015.hostedemail.com [216.40.44.15])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FFF46B0003
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 20:52:53 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 0A5DEAC14
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 00:52:53 +0000 (UTC)
+X-FDA: 75917186226.06.work46_706e806a9883a
+X-HE-Tag: work46_706e806a9883a
+X-Filterd-Recvd-Size: 4194
+Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
+	by imf15.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 00:52:52 +0000 (UTC)
+Received: by mail-ot1-f65.google.com with SMTP id z26so6293801oto.1
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 17:52:52 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=SjSMthJTNkjw6lGU7Gi+zgafw5Sbiv6n1l0iOaJFBnY=;
-        b=eIYFZ/BHSmQjOTOquVJTUH5h40zErYkLXeHZ+HKrbkK6QjtIi/5vnbIa+0jk7tBd5d
-         grR0GbkmPKY2Dm9uFI6V5SVcOubOUKBAlXhWnz9Iabdhlw6CwIG02QFFUob02D3Kha1N
-         LkQrgJuasMDZ0AKqKq5axfo7UJaB6+StzjWMA7S3LWUSrS24/N9mKFeE2uJ4w4RfwUqs
-         BpdFnG9Jb7NGIySgvmpXYGC00Cf26eKneAkqmSmAvgyfCEdYiudfu00Uwwd6VLzpqwii
-         s4emg0A5pnT/OwJasInwdrBzCvU8o12BYcShFAsqg1hnco9tYIbg5j0MxFrRRIUorEQY
-         +aHQ==
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=nGIIao9PdFSLqjKhUlXcUfbYL/hFNuXa3CP5/F54v8M=;
+        b=htQl4RsZD/SoZ/vc52gD8t3b50B7xySrWXQ7BLNx7V0jbJLA5b9RhJn2wyqnyWLSv4
+         ApKclrkm7kzU9kr0b2RpyLy2x2YU2Eq+b7BV+QtnEPvFfBnZO+ZyUbI13yj+BHU6xPKx
+         1xJ+4apj8ckZWJtLPpVkQECrxSxK7IA9IEeEzEXHOFDAosZ0gFT4UhOuPywHXDgykGwO
+         7Y9fy0jC1Rpx3o/nmO4hrTf7Jyv7XrsFnYiaIR/eSOJ6mT7WnD+dkowkZAJQxtUmK5Yj
+         owIO8eanjx7Fi2sViZkk8H6w3RyLAWzBe7zsV6BNOfd3RsgH5yv0Ma1mDrFnEa3Na/Rm
+         UrGw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:sender:date:from:to:cc:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=SjSMthJTNkjw6lGU7Gi+zgafw5Sbiv6n1l0iOaJFBnY=;
-        b=M8ItvYOZgidfF6IFY+iYAnbQ5sZW3Sq1JD72HyWVZvJ2DKzmO4JJLIS5QMfe2ETpEA
-         QQCtdyThRA0ZEksAhi+F8Md95SAMRJhRwrvpiPmDVEjfohh65WIf6s1knaNR3pgd7y4Q
-         PIas1BKjgnXTY4bMcOYtpFEmIMFBoGDyBF6JtwIXWBvXkLgQumuUW5nZlnS2Yeyf0NC3
-         hlrwd/XpqlTo0ckdT5Ut9mPUnOL2Kx/pXxKmGjLzD/Kk67lybMMmmm88RRK+sj7M2jPc
-         ftDm+0HTAMiLZ+Wv52grGBdnGksS+WJvxLRocsAvIbNT034x0iflsG+UE+kD8WyVXoe/
-         EVrg==
-X-Gm-Message-State: APjAAAUbm9Uya8jSLV6tP7qa66Bu77vgVUd+RIUApIUVpBQNC1BAFu3B
-	sx7P2o4eo69U6Qy0kPkC79o=
-X-Google-Smtp-Source: APXvYqz/ztHeJ6C/xwKdMpCESja8yOslsB4fpt+zS/NnGuIxBIHRayiNVcjFvSdXoG6iHr1hY3Vgjw==
-X-Received: by 2002:a65:68cd:: with SMTP id k13mr24372143pgt.411.1568071576378;
-        Mon, 09 Sep 2019 16:26:16 -0700 (PDT)
-Received: from google.com ([2620:15c:211:1:3e01:2939:5992:52da])
-        by smtp.gmail.com with ESMTPSA id q22sm14239493pgh.49.2019.09.09.16.26.14
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 09 Sep 2019 16:26:15 -0700 (PDT)
-Date: Mon, 9 Sep 2019 16:26:13 -0700
-From: Minchan Kim <minchan@kernel.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: linux-mm@kvack.org
-Subject: Re: [PATCH] mm: fix the race between swapin_readahead and
- SWP_SYNCHRONOUS_IO path
-Message-ID: <20190909232613.GA39783@google.com>
-References: <1567169011-4748-1-git-send-email-vinmenon@codeaurora.org>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=nGIIao9PdFSLqjKhUlXcUfbYL/hFNuXa3CP5/F54v8M=;
+        b=ooDDs4EhE6WE6H/giwy2hf6SwEjwLx6mZaXo8u93XKBZgbJfYGzZpEsPBW7mACyRsB
+         Hw6zr4fvXE6vMtGAJMZc4BcBEzx+XoYjZv6rPhOCVaNASUHUmytUKQ5qojlN85EukWL1
+         FsfiVWUTro1AsmFgZvy9rjObufOiskuh0MBaezF+hmnTheJwjAGRkGlSFRg96q+DY0TB
+         ts03LodfqDrLqHCpN2pMYVOBx1ph80ZzTWWVhEfg54LRa5UIvLtKL0kFmHd6a+KvhY+2
+         2X7r7a4Ig/1Kzou7BjefsBqz8fqa3eaKH0CWSXbogAnihy87bw6C7+stKEllk+0T3I7B
+         1eKQ==
+X-Gm-Message-State: APjAAAUn6RMrCeENdjabbJ9qrQFfM9M+VdrA/p4KJaiob5m5IEbzKX9Y
+	Sw8XeDqkPTX+30qBwIjT4/anDazWg/FjbPWivqw=
+X-Google-Smtp-Source: APXvYqzkQoPCx4SYbSI7XLeNrk+DA2aad7QI5zqB6UhLaP/Kt2foPN9VkhR43wq0JloRyhoYwN5OeXtAOrbv8Rh0w3Y=
+X-Received: by 2002:a9d:12e4:: with SMTP id g91mr21315054otg.368.1568076771758;
+ Mon, 09 Sep 2019 17:52:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1567169011-4748-1-git-send-email-vinmenon@codeaurora.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190903160430.1368-1-lpf.vector@gmail.com> <20190903160430.1368-2-lpf.vector@gmail.com>
+ <4e9a237f-2370-0f55-34d2-1fbb9334bf88@suse.cz> <CAD7_sbEwwqp_ONzYxPQfBDORH4g2Du=LKt=eWf+6SsLgtysBmA@mail.gmail.com>
+ <3a95d20d-ccf9-bd45-2db3-380cc3e0cd17@rasmusvillemoes.dk>
+In-Reply-To: <3a95d20d-ccf9-bd45-2db3-380cc3e0cd17@rasmusvillemoes.dk>
+From: Pengfei Li <lpf.vector@gmail.com>
+Date: Tue, 10 Sep 2019 08:52:40 +0800
+Message-ID: <CAD7_sbHV=tXrZaBuQuifVznFMUf13hs7t_QcgFVmrCdMHT4Ytg@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm, slab: Make kmalloc_info[] contain all types of names
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, 
+	Christopher Lameter <cl@linux.com>, penberg@kernel.org, rientjes@google.com, 
+	iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Vinayak,
+On Tue, Sep 10, 2019 at 2:30 AM Rasmus Villemoes
+<linux@rasmusvillemoes.dk> wrote:
+>
+> On 09/09/2019 18.53, Pengfei Li wrote:
+> > On Mon, Sep 9, 2019 at 10:59 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> >>>   /*
+> >>>    * kmalloc_info[] is to make slub_debug=,kmalloc-xx option work at boot time.
+> >>>    * kmalloc_index() supports up to 2^26=64MB, so the final entry of the table is
+> >>>    * kmalloc-67108864.
+> >>>    */
+> >>>   const struct kmalloc_info_struct kmalloc_info[] __initconst = {
+> >>
+> >> BTW should it really be an __initconst, when references to the names
+> >> keep on living in kmem_cache structs? Isn't this for data that's
+> >> discarded after init?
+> >
+> > You are right, I will remove __initconst in v2.
+>
+> No, __initconst is correct, and should be kept. The string literals
+> which the .name pointers point to live in .rodata, and we're copying the
+> values of these .name pointers. Nothing refers to something inside
+> kmalloc_info[] after init. (It would be a whole different matter if
+> struct kmalloc_info_struct consisted of { char name[NN]; unsigned int
+> size; }).
+>
 
-On Fri, Aug 30, 2019 at 06:13:31PM +0530, Vinayak Menon wrote:
-> The following race is observed due to which a processes faulting
-> on a swap entry, finds the page neither in swapcache nor swap. This
-> causes zram to give a zero filled page that gets mapped to the
-> process, resulting in a user space crash later.
-> 
-> Consider parent and child processes Pa and Pb sharing the same swap
-> slot with swap_count 2. Swap is on zram with SWP_SYNCHRONOUS_IO set.
-> Virtual address 'VA' of Pa and Pb points to the shared swap entry.
-> 
-> Pa                                       Pb
-> 
-> fault on VA                              fault on VA
-> do_swap_page                             do_swap_page
-> lookup_swap_cache fails                  lookup_swap_cache fails
->                                          Pb scheduled out
-> swapin_readahead (deletes zram entry)
-> swap_free (makes swap_count 1)
->                                          Pb scheduled in
->                                          swap_readpage (swap_count == 1)
->                                          Takes SWP_SYNCHRONOUS_IO path
->                                          zram enrty absent
->                                          zram gives a zero filled page
-> 
-> Fix this by reading the swap_count before lookup_swap_cache, which conforms
-> with the order in which page is added to swap cache and swap count is
-> decremented in do_swap_page. In the race case above, this will let Pb take
-> the readahead path and thus pick the proper page from swapcache.
+Thank you for your comment. I will keep it in v3.
 
-Thanks for the report, Vinayak.
+I did learn :)
 
-It's a zram specific issue because it deallocates zram block
-unconditionally once read IO is done. The expectation was that dirty
-page is on the swap cache but with SWP_SYNCHRONOUS_IO, it's not true
-any more so I want to resolve the issue in zram specific code, not
-general one.
 
-A idea in my mind is swap_slot_free_notify should check the slot
-reference counter and if it's higher than 1, it shouldn't free the
-slot until. What do you think about?
-
-> 
-> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
-> ---
->  mm/memory.c | 21 ++++++++++++++++-----
->  1 file changed, 16 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e0c232f..22643aa 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2744,6 +2744,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
->  	struct page *page = NULL, *swapcache;
->  	struct mem_cgroup *memcg;
->  	swp_entry_t entry;
-> +	struct swap_info_struct *si;
-> +	bool skip_swapcache = false;
->  	pte_t pte;
->  	int locked;
->  	int exclusive = 0;
-> @@ -2771,15 +2773,24 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
->  
->  
->  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-> +
-> +	/*
-> +	 * lookup_swap_cache below can fail and before the SWP_SYNCHRONOUS_IO
-> +	 * check is made, another process can populate the swapcache, delete
-> +	 * the swap entry and decrement the swap count. So decide on taking
-> +	 * the SWP_SYNCHRONOUS_IO path before the lookup. In the event of the
-> +	 * race described, the victim process will find a swap_count > 1
-> +	 * and can then take the readahead path instead of SWP_SYNCHRONOUS_IO.
-> +	 */
-> +	si = swp_swap_info(entry);
-> +	if (si->flags & SWP_SYNCHRONOUS_IO && __swap_count(entry) == 1)
-> +		skip_swapcache = true;
-> +
->  	page = lookup_swap_cache(entry, vma, vmf->address);
->  	swapcache = page;
->  
->  	if (!page) {
-> -		struct swap_info_struct *si = swp_swap_info(entry);
-> -
-> -		if (si->flags & SWP_SYNCHRONOUS_IO &&
-> -				__swap_count(entry) == 1) {
-> -			/* skip swapcache */
-> +		if (skip_swapcache) {
->  			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
->  							vmf->address);
->  			if (page) {
-> -- 
-> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-> member of the Code Aurora Forum, hosted by The Linux Foundation
-> 
+> Rasmus
 
