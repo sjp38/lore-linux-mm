@@ -2,74 +2,75 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
 	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 491E5C4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0646C4740A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C6312171F
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 604A7222CB
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dYDodNZN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C6312171F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aVuidaQP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 604A7222CB
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 91F776B000A; Mon,  9 Sep 2019 21:27:17 -0400 (EDT)
+	id 01F076B000C; Mon,  9 Sep 2019 21:27:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A80A6B000C; Mon,  9 Sep 2019 21:27:17 -0400 (EDT)
+	id EEB256B000D; Mon,  9 Sep 2019 21:27:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 76FA86B000D; Mon,  9 Sep 2019 21:27:17 -0400 (EDT)
+	id DD9CE6B000E; Mon,  9 Sep 2019 21:27:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E8636B000A
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 21:27:17 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 07EBB824CA2E
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:17 +0000 (UTC)
-X-FDA: 75917272914.11.train96_79b9f7a59f91f
-X-HE-Tag: train96_79b9f7a59f91f
-X-Filterd-Recvd-Size: 4350
-Received: from mail-pf1-f194.google.com (mail-pf1-f194.google.com [209.85.210.194])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:16 +0000 (UTC)
-Received: by mail-pf1-f194.google.com with SMTP id y22so10530825pfr.3
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 18:27:16 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0185.hostedemail.com [216.40.44.185])
+	by kanga.kvack.org (Postfix) with ESMTP id B96126B000C
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 21:27:24 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 690B78783
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:24 +0000 (UTC)
+X-FDA: 75917273208.25.quill61_7ace63322df21
+X-HE-Tag: quill61_7ace63322df21
+X-Filterd-Recvd-Size: 9003
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
+	by imf19.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:23 +0000 (UTC)
+Received: by mail-pf1-f195.google.com with SMTP id q10so10523120pfl.0
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 18:27:23 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=htVKbWpEm9QB8qGdRGMXDAO+pxBcl0ZnD2WqCc7LzfU=;
-        b=dYDodNZNZBL5k3zCSxOWdPRcFUyUB01dhilO31VRCQCWzNTMmGKwgRqx0ezOfDNyAW
-         Xam9LqMjWHWhmXYZ+UyPClwkIDonR2TO65P68AgHwdI+LfXGtXhOV+odbW27EuJiV4SP
-         XTvrH2cyaxDU5S7EOTZIh8ZgmIO9Vta9yYvLfVVzJ6tPL8MOhtJkVxJZPSFFuj67j8ht
-         keJg435MhybFE/gLA3crGRYdZ2lA8uk+6OFVaRys6lrMlTQ3wlHysXZ6BZlWF0dXyJBy
-         7keLQZaUsd4mzy4NYzg79RUQWhi3PbxSlYR1MYRG7hv9PUI8MXdUUzjCGpUVkyRvCYwr
-         iBag==
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=7ScgMFAOOXn7zrz2ktcww61aqak7m9GXt4/M+m23yyA=;
+        b=aVuidaQPJW9hxc+aWpkf91QuO+P0aUkIZFS5ZqFL6veRgGpENHBaWTIZzsdhgqFfKl
+         vE3tkE2ZPXNW8aq1S+ueai3+oB6IVUGdyCObPFAYVXOrDGD9mVivX8vQlmWVXBXsaRaI
+         u1vihvzV0CQqdcVKNr3S+sgGvU9NS8Y+0MOkNkvhmCZcgzuWbohpGLttJ/SiFLvIxumP
+         iCM4+AO2rEioaJEtWhSa+PiKHR8qd46Q+mb7+CsBeif6bl/6XqhMf/3wHT7MtM2g0/uy
+         7OcsdnI/EwQ9JjCvjiBRs0/crfhPiacA3ST3RNcdthtbKC3SwZje3bIZ2zLiojasVGv3
+         VuAA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=htVKbWpEm9QB8qGdRGMXDAO+pxBcl0ZnD2WqCc7LzfU=;
-        b=qRtZV5x5439CdlMbrYcXzFMMicQKX558WM/oQgGlvid7nwiFWea1Pla6efPOGjxybx
-         x2w8BuHTRhRu2uUIruG/kiwGPkbyB186vjTEkhF36VwkW3PHPuucCy+k3PL5i0k/NbmW
-         6GtZSjfOuYDzrlmuSRIVsFOL1oFY4FpfoV16ehA9bsWAPHubCiuifKfwVVm6nSZaoM5K
-         IWMIaU+s2TwZbZutGKL1eDYsLFB9GSGw4GmT4MvQHA5lKZ9Q149nj5xdpTptY+SlaOcC
-         lwv1NeubGCncfl60yFi/MT/kV+dIZcin71s13VAzpxqB3s3sF80CXuQrfoAa5INn719F
-         LY0Q==
-X-Gm-Message-State: APjAAAX7hHf+fe/5N5dRPLQjwMtfVf7x/tuqulgKBowNDq1WHzjbBPqp
-	T/JSnNhp9hwAczGcr8Qbch0=
-X-Google-Smtp-Source: APXvYqxUIk1rV0t0iVtAqOPrGBZ2YrYBDkkoRIbbfvd0laZuVU6CmCAT86RnUjmrgQPtc1DrgI+F5Q==
-X-Received: by 2002:a62:f246:: with SMTP id y6mr31513531pfl.22.1568078835198;
-        Mon, 09 Sep 2019 18:27:15 -0700 (PDT)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=7ScgMFAOOXn7zrz2ktcww61aqak7m9GXt4/M+m23yyA=;
+        b=sqM7OOXvbscMh1QlYdb06wY1hvQrYfWKNq2Df5ahdlTwQFQRn7n+roe/oLHRx3b1xB
+         R9F1U4hNeb+FwLBdaevrjV6flXsbFUmi5zd3IkyN5FEgl/gHH64lyKx+JIGTgvrq2eEZ
+         IszxIrGnkUrH+Olc5nEVZujvY3i0yx+qO8HjBmiJPkswJJ8URps90pI9H4rjkJc/pS2g
+         3url/qcmeyNLDFVwewE12ZS2Ghj534zaCbB8QzwLxcy7umnCVFGsbbkCT4r8e7KTq/4b
+         nh10cmEsL8wi/IbRo4AHMBtfod+XG/6SmDDBg6r+oTbajOkC5zYMyPmMWTqt8+5pfJfq
+         s+GQ==
+X-Gm-Message-State: APjAAAX2pDsPdjGKtL3qr62F1/9lQwft36YATZcaPGNj/yrsICHf/9uF
+	tvjeZpAMwfmWRiKbwyh0gpg=
+X-Google-Smtp-Source: APXvYqwcT3m7b4EbVhj/KsS6AP1ykFhFfaArOsg6fePpH8ejFRXdEz66lOtjUsLuhYHNuIQp1BNh3Q==
+X-Received: by 2002:a63:e54:: with SMTP id 20mr24379483pgo.244.1568078842766;
+        Mon, 09 Sep 2019 18:27:22 -0700 (PDT)
 Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id b20sm19558629pff.158.2019.09.09.18.27.07
+        by smtp.gmail.com with ESMTPSA id b20sm19558629pff.158.2019.09.09.18.27.15
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 09 Sep 2019 18:27:14 -0700 (PDT)
+        Mon, 09 Sep 2019 18:27:22 -0700 (PDT)
 From: Pengfei Li <lpf.vector@gmail.com>
 To: akpm@linux-foundation.org
 Cc: vbabka@suse.cz,
@@ -81,10 +82,12 @@ Cc: vbabka@suse.cz,
 	linux-kernel@vger.kernel.org,
 	guro@fb.com,
 	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v3 0/4] mm, slab: Make kmalloc_info[] contain all types of names
-Date: Tue, 10 Sep 2019 09:26:48 +0800
-Message-Id: <20190910012652.3723-1-lpf.vector@gmail.com>
+Subject: [PATCH v3 1/4] mm, slab: Make kmalloc_info[] contain all types of names
+Date: Tue, 10 Sep 2019 09:26:49 +0800
+Message-Id: <20190910012652.3723-2-lpf.vector@gmail.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190910012652.3723-1-lpf.vector@gmail.com>
+References: <20190910012652.3723-1-lpf.vector@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -93,19 +96,6 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Changes in v3
---
-1. restore __initconst (patch 1/4)
-2. rename patch 3/4
-3. add more clarification for patch 4/4
-
-Changes in v2
---
-1. remove __initconst (patch 1/5)
-2. squash patch 2/5
-3. add ack tag from Vlastimil Babka
-
-
 There are three types of kmalloc, KMALLOC_NORMAL, KMALLOC_RECLAIM
 and KMALLOC_DMA.
 
@@ -113,34 +103,179 @@ The name of KMALLOC_NORMAL is contained in kmalloc_info[].name,
 but the names of KMALLOC_RECLAIM and KMALLOC_DMA are dynamically
 generated by kmalloc_cache_name().
 
-Patch1 predefines the names of all types of kmalloc to save
+This patch predefines the names of all types of kmalloc to save
 the time spent dynamically generating names.
 
-The other 4 patches did some cleanup work.
+Besides, remove the kmalloc_cache_name() that is no longer used.
 
-These changes make sense, and the time spent by new_kmalloc_cache()
-has been reduced by approximately 36.3%.
+Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Roman Gushchin <guro@fb.com>
+---
+ mm/slab.c        |  2 +-
+ mm/slab.h        |  2 +-
+ mm/slab_common.c | 91 ++++++++++++++++++++++++++----------------------
+ 3 files changed, 51 insertions(+), 44 deletions(-)
 
-                         Time spent by
-                         new_kmalloc_cache()
-5.3-rc7                       66264
-5.3-rc7+patch                 42188
-
-
-Pengfei Li (4):
-  mm, slab: Make kmalloc_info[] contain all types of names
-  mm, slab: Remove unused kmalloc_size()
-  mm, slab_common: use enum kmalloc_cache_type to iterate over kmalloc
-    caches
-  mm, slab_common: Make the loop for initializing KMALLOC_DMA start from
-    1
-
- include/linux/slab.h |  20 ---------
- mm/slab.c            |   7 +--
- mm/slab.h            |   2 +-
- mm/slab_common.c     | 101 +++++++++++++++++++++++--------------------
- 4 files changed, 59 insertions(+), 71 deletions(-)
-
+diff --git a/mm/slab.c b/mm/slab.c
+index 9df370558e5d..c42b6211f42e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1247,7 +1247,7 @@ void __init kmem_cache_init(void)
+ 	 * structures first.  Without this, further allocations will bug.
+ 	 */
+ 	kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE] =3D create_kmalloc_cache(
+-				kmalloc_info[INDEX_NODE].name,
++				kmalloc_info[INDEX_NODE].name[KMALLOC_NORMAL],
+ 				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS,
+ 				0, kmalloc_size(INDEX_NODE));
+ 	slab_state =3D PARTIAL_NODE;
+diff --git a/mm/slab.h b/mm/slab.h
+index 9057b8056b07..2fc8f956906a 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -76,7 +76,7 @@ extern struct kmem_cache *kmem_cache;
+=20
+ /* A table of kmalloc cache names and sizes */
+ extern const struct kmalloc_info_struct {
+-	const char *name;
++	const char *name[NR_KMALLOC_TYPES];
+ 	unsigned int size;
+ } kmalloc_info[];
+=20
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 807490fe217a..002e16673581 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1092,26 +1092,56 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_=
+t flags)
+ 	return kmalloc_caches[kmalloc_type(flags)][index];
+ }
+=20
++#ifdef CONFIG_ZONE_DMA
++#define SET_KMALLOC_SIZE(__size, __short_size)			\
++{								\
++	.name[KMALLOC_NORMAL]  =3D "kmalloc-" #__short_size,	\
++	.name[KMALLOC_RECLAIM] =3D "kmalloc-rcl-" #__short_size,	\
++	.name[KMALLOC_DMA]     =3D "dma-kmalloc-" #__short_size,	\
++	.size =3D __size,						\
++}
++#else
++#define SET_KMALLOC_SIZE(__size, __short_size)			\
++{								\
++	.name[KMALLOC_NORMAL]  =3D "kmalloc-" #__short_size,	\
++	.name[KMALLOC_RECLAIM] =3D "kmalloc-rcl-" #__short_size,	\
++	.size =3D __size,						\
++}
++#endif
++
+ /*
+  * kmalloc_info[] is to make slub_debug=3D,kmalloc-xx option work at boo=
+t time.
+  * kmalloc_index() supports up to 2^26=3D64MB, so the final entry of the=
+ table is
+  * kmalloc-67108864.
+  */
+ const struct kmalloc_info_struct kmalloc_info[] __initconst =3D {
+-	{NULL,                      0},		{"kmalloc-96",             96},
+-	{"kmalloc-192",           192},		{"kmalloc-8",               8},
+-	{"kmalloc-16",             16},		{"kmalloc-32",             32},
+-	{"kmalloc-64",             64},		{"kmalloc-128",           128},
+-	{"kmalloc-256",           256},		{"kmalloc-512",           512},
+-	{"kmalloc-1k",           1024},		{"kmalloc-2k",           2048},
+-	{"kmalloc-4k",           4096},		{"kmalloc-8k",           8192},
+-	{"kmalloc-16k",         16384},		{"kmalloc-32k",         32768},
+-	{"kmalloc-64k",         65536},		{"kmalloc-128k",       131072},
+-	{"kmalloc-256k",       262144},		{"kmalloc-512k",       524288},
+-	{"kmalloc-1M",        1048576},		{"kmalloc-2M",        2097152},
+-	{"kmalloc-4M",        4194304},		{"kmalloc-8M",        8388608},
+-	{"kmalloc-16M",      16777216},		{"kmalloc-32M",      33554432},
+-	{"kmalloc-64M",      67108864}
++	SET_KMALLOC_SIZE(0, 0),
++	SET_KMALLOC_SIZE(96, 96),
++	SET_KMALLOC_SIZE(192, 192),
++	SET_KMALLOC_SIZE(8, 8),
++	SET_KMALLOC_SIZE(16, 16),
++	SET_KMALLOC_SIZE(32, 32),
++	SET_KMALLOC_SIZE(64, 64),
++	SET_KMALLOC_SIZE(128, 128),
++	SET_KMALLOC_SIZE(256, 256),
++	SET_KMALLOC_SIZE(512, 512),
++	SET_KMALLOC_SIZE(1024, 1k),
++	SET_KMALLOC_SIZE(2048, 2k),
++	SET_KMALLOC_SIZE(4096, 4k),
++	SET_KMALLOC_SIZE(8192, 8k),
++	SET_KMALLOC_SIZE(16384, 16k),
++	SET_KMALLOC_SIZE(32768, 32k),
++	SET_KMALLOC_SIZE(65536, 64k),
++	SET_KMALLOC_SIZE(131072, 128k),
++	SET_KMALLOC_SIZE(262144, 256k),
++	SET_KMALLOC_SIZE(524288, 512k),
++	SET_KMALLOC_SIZE(1048576, 1M),
++	SET_KMALLOC_SIZE(2097152, 2M),
++	SET_KMALLOC_SIZE(4194304, 4M),
++	SET_KMALLOC_SIZE(8388608, 8M),
++	SET_KMALLOC_SIZE(16777216, 16M),
++	SET_KMALLOC_SIZE(33554432, 32M),
++	SET_KMALLOC_SIZE(67108864, 64M)
+ };
+=20
+ /*
+@@ -1161,36 +1191,14 @@ void __init setup_kmalloc_cache_index_table(void)
+ 	}
+ }
+=20
+-static const char *
+-kmalloc_cache_name(const char *prefix, unsigned int size)
+-{
+-
+-	static const char units[3] =3D "\0kM";
+-	int idx =3D 0;
+-
+-	while (size >=3D 1024 && (size % 1024 =3D=3D 0)) {
+-		size /=3D 1024;
+-		idx++;
+-	}
+-
+-	return kasprintf(GFP_NOWAIT, "%s-%u%c", prefix, size, units[idx]);
+-}
+-
+ static void __init
+ new_kmalloc_cache(int idx, int type, slab_flags_t flags)
+ {
+-	const char *name;
+-
+-	if (type =3D=3D KMALLOC_RECLAIM) {
++	if (type =3D=3D KMALLOC_RECLAIM)
+ 		flags |=3D SLAB_RECLAIM_ACCOUNT;
+-		name =3D kmalloc_cache_name("kmalloc-rcl",
+-						kmalloc_info[idx].size);
+-		BUG_ON(!name);
+-	} else {
+-		name =3D kmalloc_info[idx].name;
+-	}
+=20
+-	kmalloc_caches[type][idx] =3D create_kmalloc_cache(name,
++	kmalloc_caches[type][idx] =3D create_kmalloc_cache(
++					kmalloc_info[idx].name[type],
+ 					kmalloc_info[idx].size, flags, 0,
+ 					kmalloc_info[idx].size);
+ }
+@@ -1232,11 +1240,10 @@ void __init create_kmalloc_caches(slab_flags_t fl=
+ags)
+=20
+ 		if (s) {
+ 			unsigned int size =3D kmalloc_size(i);
+-			const char *n =3D kmalloc_cache_name("dma-kmalloc", size);
+=20
+-			BUG_ON(!n);
+ 			kmalloc_caches[KMALLOC_DMA][i] =3D create_kmalloc_cache(
+-				n, size, SLAB_CACHE_DMA | flags, 0, 0);
++				kmalloc_info[i].name[KMALLOC_DMA],
++				size, SLAB_CACHE_DMA | flags, 0, 0);
+ 		}
+ 	}
+ #endif
 --=20
 2.21.0
 
