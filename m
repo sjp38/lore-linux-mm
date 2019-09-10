@@ -6,40 +6,41 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1EC20C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 13:05:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 297D6C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 13:14:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D25D920872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 13:05:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D25D920872
+	by mail.kernel.org (Postfix) with ESMTP id E3C0821019
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 13:14:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3C0821019
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 628AA6B0003; Tue, 10 Sep 2019 09:05:57 -0400 (EDT)
+	id 8E0AB6B0003; Tue, 10 Sep 2019 09:14:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B26B6B0006; Tue, 10 Sep 2019 09:05:57 -0400 (EDT)
+	id 86A3F6B0006; Tue, 10 Sep 2019 09:14:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C6C96B0007; Tue, 10 Sep 2019 09:05:57 -0400 (EDT)
+	id 758A36B0007; Tue, 10 Sep 2019 09:14:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
-	by kanga.kvack.org (Postfix) with ESMTP id 2465D6B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:05:57 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id B4120181AC9C4
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 13:05:56 +0000 (UTC)
-X-FDA: 75919033512.10.eggs79_6e05eb6f57a2c
-X-HE-Tag: eggs79_6e05eb6f57a2c
-X-Filterd-Recvd-Size: 2741
+Received: from forelay.hostedemail.com (smtprelay0135.hostedemail.com [216.40.44.135])
+	by kanga.kvack.org (Postfix) with ESMTP id 5251E6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:14:48 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 085CB81D7
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 13:14:48 +0000 (UTC)
+X-FDA: 75919055856.16.tramp95_29d1161e47f0d
+X-HE-Tag: tramp95_29d1161e47f0d
+X-Filterd-Recvd-Size: 3107
 Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 13:05:55 +0000 (UTC)
-Received: (qmail 27932 invoked from network); 10 Sep 2019 15:05:54 +0200
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 13:14:47 +0000 (UTC)
+Received: (qmail 28771 invoked from network); 10 Sep 2019 15:14:45 +0200
 X-Fcrdns: No
 Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
   (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Tue, 10 Sep 2019 15:05:54 +0200
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Tue, 10 Sep 2019 15:14:45 +0200
 Subject: Re: lot of MemAvailable but falling cache and raising PSI
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
  cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
@@ -55,13 +56,13 @@ References: <2d04fc69-8fac-2900-013b-7377ca5fd9a8@profihost.ag>
  <20190910110741.GR2063@dhcp22.suse.cz>
  <364d4c2e-9c9a-d8b3-43a8-aa17cccae9c7@profihost.ag>
  <20190910125756.GB2063@dhcp22.suse.cz>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Message-ID: <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
-Date: Tue, 10 Sep 2019 15:05:54 +0200
+ <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
+Message-ID: <b1fe902f-fce6-1aa9-f371-ceffdad85968@profihost.ag>
+Date: Tue, 10 Sep 2019 15:14:45 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190910125756.GB2063@dhcp22.suse.cz>
+In-Reply-To: <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
 Content-Type: text/plain; charset=utf-8
 Content-Language: de-DE
 Content-Transfer-Encoding: 7bit
@@ -72,24 +73,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-Am 10.09.19 um 14:57 schrieb Michal Hocko:
-> On Tue 10-09-19 14:45:37, Stefan Priebe - Profihost AG wrote:
->> Hello Michal,
->>
->> ok this might take a long time. Attached you'll find a graph from a
->> fresh boot what happens over time (here 17 August to 30 August). Memory
->> Usage decreases as well as cache but slowly and only over time and days.
->>
->> So it might take 2-3 weeks running Kernel 5.3 to see what happens.
+Am 10.09.19 um 15:05 schrieb Stefan Priebe - Profihost AG:
 > 
-> No problem. Just make sure to collect the requested data from the time
-> you see the actual problem. Btw. you try my very dumb scriplets to get
-> an idea of how much memory gets reclaimed due to THP.
+> Am 10.09.19 um 14:57 schrieb Michal Hocko:
+>> On Tue 10-09-19 14:45:37, Stefan Priebe - Profihost AG wrote:
+>>> Hello Michal,
+>>>
+>>> ok this might take a long time. Attached you'll find a graph from a
+>>> fresh boot what happens over time (here 17 August to 30 August). Memory
+>>> Usage decreases as well as cache but slowly and only over time and days.
+>>>
+>>> So it might take 2-3 weeks running Kernel 5.3 to see what happens.
+>>
+>> No problem. Just make sure to collect the requested data from the time
+>> you see the actual problem. Btw. you try my very dumb scriplets to get
+>> an idea of how much memory gets reclaimed due to THP.
+> 
+> You mean your sed and sort on top of the trace file? No i did not with
+> the current 5.3 kernel do you think it will show anything interesting?
+> Which line shows me how much memory gets reclaimed due to THP?
 
-You mean your sed and sort on top of the trace file? No i did not with
-the current 5.3 kernel do you think it will show anything interesting?
-Which line shows me how much memory gets reclaimed due to THP?
+Is something like a kernel memory leak possible? Or wouldn't this end up
+in having a lot of free memory which doesn't seem usable.
 
+I also wonder why a reclaim takes place when there is enough memory.
+
+Greets,
 Stefan
 
