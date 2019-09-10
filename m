@@ -2,93 +2,163 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C155BC4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 14:01:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AC7FC4740A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 14:25:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6727C2081B
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 14:01:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6727C2081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id C008920863
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 14:25:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="eTl3Ht16"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C008920863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA3CA6B0003; Tue, 10 Sep 2019 10:01:45 -0400 (EDT)
+	id 550E86B0003; Tue, 10 Sep 2019 10:25:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B533A6B0006; Tue, 10 Sep 2019 10:01:45 -0400 (EDT)
+	id 500F56B0006; Tue, 10 Sep 2019 10:25:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A42496B0007; Tue, 10 Sep 2019 10:01:45 -0400 (EDT)
+	id 415BC6B0007; Tue, 10 Sep 2019 10:25:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0006.hostedemail.com [216.40.44.6])
-	by kanga.kvack.org (Postfix) with ESMTP id 817186B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:01:45 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 28F7E82437CF
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 14:01:45 +0000 (UTC)
-X-FDA: 75919174170.08.32128A4
-Received: from filter.hostedemail.com (10.5.16.251.rfc1918.com [10.5.16.251])
-	by smtpin08.hostedemail.com (Postfix) with ESMTP id 144761819DA39
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 14:01:12 +0000 (UTC)
-X-HE-Tag: fall87_a6ac7aa6133d
-X-Filterd-Recvd-Size: 2216
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 14:01:11 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 60A59B71C;
-	Tue, 10 Sep 2019 14:01:09 +0000 (UTC)
-Date: Tue, 10 Sep 2019 16:01:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"adobriyan@gmail.com" <adobriyan@gmail.com>,
-	"hch@lst.de" <hch@lst.de>,
-	"longman@redhat.com" <longman@redhat.com>,
-	"sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
-	"mst@redhat.com" <mst@redhat.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Junichi Nomura <j-nomura@ce.jp.nec.com>
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-Message-ID: <20190910140107.GD2063@dhcp22.suse.cz>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+Received: from forelay.hostedemail.com (smtprelay0085.hostedemail.com [216.40.44.85])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A63C6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:25:19 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 9E33F4FF7
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 14:25:18 +0000 (UTC)
+X-FDA: 75919233516.18.boot28_4b64660ae5640
+X-HE-Tag: boot28_4b64660ae5640
+X-Filterd-Recvd-Size: 5990
+Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 14:25:17 +0000 (UTC)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8AENkGG131485;
+	Tue, 10 Sep 2019 14:25:03 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to : content-transfer-encoding; s=corp-2019-08-05;
+ bh=NHdeAPKmmXhs2gh53Ao/iY+rl0IHNTcE9ceoYzmW3PA=;
+ b=eTl3Ht16X9k57STX22Nfse1q1i+nAE2TOCTXC5ruD8NFqq1ebwh84ldhbSzISgmnssuF
+ bZIfi3jJldDUhk95HDI8Qd7vioZqIgsTPuYAJmJmPMMhEmrPrpnfOh22bWYYwfdvPQ0W
+ 5AsHTQqRr9rI0b5wOBdrcZw9xuTuRG07TVcmSqgR2hpE7BFSph8b9enoTeIcAerW5cCB
+ MUJWN4L+0WArFfdjI4p38FksHxgCerqViUcWoGVEtdoSJk+8+JEyW4ldrL6DbwPH/ZHW
+ sBwq1gi3p5aaqVp2L//aIpV1VGxmbF2cRKlZoK8+zPUvKfHfPO9l4u4RIOqNoXrolw3h Jw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2uw1jy3swg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 10 Sep 2019 14:25:03 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8AENt39128686;
+	Tue, 10 Sep 2019 14:25:02 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userp3030.oracle.com with ESMTP id 2uxd6ch563-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 10 Sep 2019 14:25:02 +0000
+Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x8AEOwoJ025439;
+	Tue, 10 Sep 2019 14:24:58 GMT
+Received: from char.us.oracle.com (/10.152.32.25)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 10 Sep 2019 07:24:58 -0700
+Received: by char.us.oracle.com (Postfix, from userid 1000)
+	id D9F686A010E; Tue, 10 Sep 2019 10:26:42 -0400 (EDT)
+Date: Tue, 10 Sep 2019 10:26:42 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org,
+        virtualization@lists.linux-foundation.org,
+        Paolo Bonzini <pbonzini@redhat.com>,
+        Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+        Tamas K Lengyel <tamas@tklengyel.com>,
+        Mathieu Tarral <mathieu.tarral@protonmail.com>,
+        Samuel =?iso-8859-1?Q?Laur=E9n?= <samuel.lauren@iki.fi>,
+        Patrick Colp <patrick.colp@oracle.com>,
+        Jan Kiszka <jan.kiszka@siemens.com>,
+        Stefan Hajnoczi <stefanha@redhat.com>,
+        Weijiang Yang <weijiang.yang@intel.com>, Zhang@pps.reinject,
+        Yu C <yu.c.zhang@intel.com>,
+        Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>
+Subject: Re: [RFC PATCH v6 69/92] kvm: x86: keep the page protected if
+ tracked by the introspection tool
+Message-ID: <20190910142642.GC5879@char.us.oracle.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-70-alazar@bitdefender.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190809160047.8319-70-alazar@bitdefender.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9376 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1909100140
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9376 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1909100140
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 06-09-19 08:09:52, Toshiki Fukasawa wrote:
-[...]
-> @@ -5856,8 +5855,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  		if (!altmap)
->  			return;
->  
-> -		if (start_pfn == altmap->base_pfn)
-> -			start_pfn += altmap->reserve;
->  		end_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
+On Fri, Aug 09, 2019 at 07:00:24PM +0300, Adalbert Laz=C4=83r wrote:
+> This patch might be obsolete thanks to single-stepping.
 
-Who is actually setting reserve? This is is something really impossible
-to grep for in the kernle and git grep on altmap->reserve doesn't show
-anything AFAICS.
+sooo should it be skipped from this large patchset to easy
+review?
 
-Btw. irrespective to this issue all three callers should be using
-pfn_to_online_page rather than pfn_to_page AFAICS. It doesn't really
-make sense to collect data for offline pfn ranges. They might be
-uninitialized even without zone device.
--- 
-Michal Hocko
-SUSE Labs
+>=20
+> Signed-off-by: Adalbert Laz=C4=83r <alazar@bitdefender.com>
+> ---
+>  arch/x86/kvm/x86.c | 9 +++++++--
+>  1 file changed, 7 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> index 2c06de73a784..06f44ce8ed07 100644
+> --- a/arch/x86/kvm/x86.c
+> +++ b/arch/x86/kvm/x86.c
+> @@ -6311,7 +6311,8 @@ static bool reexecute_instruction(struct kvm_vcpu=
+ *vcpu, gva_t cr2,
+>  		indirect_shadow_pages =3D vcpu->kvm->arch.indirect_shadow_pages;
+>  		spin_unlock(&vcpu->kvm->mmu_lock);
+> =20
+> -		if (indirect_shadow_pages)
+> +		if (indirect_shadow_pages
+> +		    && !kvmi_tracked_gfn(vcpu, gpa_to_gfn(gpa)))
+>  			kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa));
+> =20
+>  		return true;
+> @@ -6322,7 +6323,8 @@ static bool reexecute_instruction(struct kvm_vcpu=
+ *vcpu, gva_t cr2,
+>  	 * and it failed try to unshadow page and re-enter the
+>  	 * guest to let CPU execute the instruction.
+>  	 */
+> -	kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa));
+> +	if (!kvmi_tracked_gfn(vcpu, gpa_to_gfn(gpa)))
+> +		kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa));
+> =20
+>  	/*
+>  	 * If the access faults on its page table, it can not
+> @@ -6374,6 +6376,9 @@ static bool retry_instruction(struct x86_emulate_=
+ctxt *ctxt,
+>  	if (!vcpu->arch.mmu->direct_map)
+>  		gpa =3D kvm_mmu_gva_to_gpa_write(vcpu, cr2, NULL);
+> =20
+> +	if (kvmi_tracked_gfn(vcpu, gpa_to_gfn(gpa)))
+> +		return false;
+> +
+>  	kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa));
+> =20
+>  	return true;
 
