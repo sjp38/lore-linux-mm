@@ -7,79 +7,77 @@ X-Spam-Status: No, score=-10.0 required=3.0
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DAFBC3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDC85C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD8D6206A5
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD8D6206A5
+	by mail.kernel.org (Postfix) with ESMTP id 825DD206A5
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 825DD206A5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F72B6B0008; Tue, 10 Sep 2019 04:30:03 -0400 (EDT)
+	id 2FF966B000A; Tue, 10 Sep 2019 04:30:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A7D26B000A; Tue, 10 Sep 2019 04:30:03 -0400 (EDT)
+	id 2B3D86B000C; Tue, 10 Sep 2019 04:30:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5729A6B000C; Tue, 10 Sep 2019 04:30:03 -0400 (EDT)
+	id 17BB26B000D; Tue, 10 Sep 2019 04:30:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0146.hostedemail.com [216.40.44.146])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F56E6B0008
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:03 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 66290824376C
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:30:02 +0000 (UTC)
-X-FDA: 75918338244.11.sleep14_1d5ef2aa25904
-X-HE-Tag: sleep14_1d5ef2aa25904
-X-Filterd-Recvd-Size: 7142
+Received: from forelay.hostedemail.com (smtprelay0184.hostedemail.com [216.40.44.184])
+	by kanga.kvack.org (Postfix) with ESMTP id DD02B6B000A
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:05 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 89E98AF9F
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:30:05 +0000 (UTC)
+X-FDA: 75918338370.05.foot31_1dca36a0ff319
+X-HE-Tag: foot31_1dca36a0ff319
+X-Filterd-Recvd-Size: 22002
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:30:01 +0000 (UTC)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8A8SZtY105369
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:00 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ux87209g3-1
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:30:04 +0000 (UTC)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8A8RI23108775
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:03 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ux55bdvj7-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:00 -0400
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:03 -0400
 Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Tue, 10 Sep 2019 09:29:58 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 10 Sep 2019 09:30:00 +0100
+Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 10 Sep 2019 09:29:54 +0100
+	Tue, 10 Sep 2019 09:29:57 +0100
 Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8A8TrYX58916958
+	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8A8TUxH41157100
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 10 Sep 2019 08:29:53 GMT
+	Tue, 10 Sep 2019 08:29:31 GMT
 Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E61765204F;
-	Tue, 10 Sep 2019 08:29:52 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 660E55205F;
+	Tue, 10 Sep 2019 08:29:55 +0000 (GMT)
 Received: from bharata.ibmuc.com (unknown [9.199.35.217])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTP id A271052050;
-	Tue, 10 Sep 2019 08:29:50 +0000 (GMT)
+	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3BEE75204E;
+	Tue, 10 Sep 2019 08:29:53 +0000 (GMT)
 From: Bharata B Rao <bharata@linux.ibm.com>
 To: linuxppc-dev@lists.ozlabs.org
 Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
         aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
         linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
         cclaudio@linux.ibm.com, hch@lst.de,
-        Suraj Jitindar Singh <sjitindarsingh@gmail.com>,
-        Paul Mackerras <paulus@ozlabs.org>,
         Bharata B Rao <bharata@linux.ibm.com>
-Subject: [PATCH v8 1/8] KVM: PPC: Book3S HV: Define usage types for rmap array in guest memslot
-Date: Tue, 10 Sep 2019 13:59:39 +0530
+Subject: [PATCH v8 2/8] kvmppc: Movement of pages between normal and secure memory
+Date: Tue, 10 Sep 2019 13:59:40 +0530
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190910082946.7849-1-bharata@linux.ibm.com>
 References: <20190910082946.7849-1-bharata@linux.ibm.com>
 MIME-Version: 1.0
 X-TM-AS-GCONF: 00
-x-cbid: 19091008-0012-0000-0000-0000034967DF
+x-cbid: 19091008-0008-0000-0000-00000313C59B
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19091008-0013-0000-0000-00002183CAE5
-Message-Id: <20190910082946.7849-2-bharata@linux.ibm.com>
+x-cbparentid: 19091008-0009-0000-0000-00004A322C01
+Message-Id: <20190910082946.7849-3-bharata@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-10_06:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
@@ -94,96 +92,658 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+Manage migration of pages betwen normal and secure memory of secure
+guest by implementing H_SVM_PAGE_IN and H_SVM_PAGE_OUT hcalls.
 
-The rmap array in the guest memslot is an array of size number of guest
-pages, allocated at memslot creation time. Each rmap entry in this array
-is used to store information about the guest page to which it
-corresponds. For example for a hpt guest it is used to store a lock bit,
-rc bits, a present bit and the index of a hpt entry in the guest hpt
-which maps this page. For a radix guest which is running nested guests
-it is used to store a pointer to a linked list of nested rmap entries
-which store the nested guest physical address which maps this guest
-address and for which there is a pte in the shadow page table.
+H_SVM_PAGE_IN: Move the content of a normal page to secure page
+H_SVM_PAGE_OUT: Move the content of a secure page to normal page
 
-As there are currently two uses for the rmap array, and the potential
-for this to expand to more in the future, define a type field (being the
-top 8 bits of the rmap entry) to be used to define the type of the rmap
-entry which is currently present and define two values for this field
-for the two current uses of the rmap array.
+Private ZONE_DEVICE memory equal to the amount of secure memory
+available in the platform for running secure guests is created.
+Whenever a page belonging to the guest becomes secure, a page from
+this private device memory is used to represent and track that secure
+page on the HV side. The movement of pages between normal and secure
+memory is done via migrate_vma_pages() using UV_PAGE_IN and
+UV_PAGE_OUT ucalls.
 
-Since the nested case uses the rmap entry to store a pointer, define
-this type as having the two high bits set as is expected for a pointer.
-Define the hpt entry type as having bit 56 set (bit 7 IBM bit ordering).
-
-Signed-off-by: Suraj Jitindar Singh <sjitindarsingh@gmail.com>
-Signed-off-by: Paul Mackerras <paulus@ozlabs.org>
 Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
-		[Added rmap type KVMPPC_RMAP_UVMEM_PFN]
 ---
- arch/powerpc/include/asm/kvm_host.h | 28 ++++++++++++++++++++++++----
- arch/powerpc/kvm/book3s_hv_rm_mmu.c |  2 +-
- 2 files changed, 25 insertions(+), 5 deletions(-)
+ arch/powerpc/include/asm/hvcall.h           |   4 +
+ arch/powerpc/include/asm/kvm_book3s_uvmem.h |  29 ++
+ arch/powerpc/include/asm/kvm_host.h         |  12 +
+ arch/powerpc/include/asm/ultravisor-api.h   |   2 +
+ arch/powerpc/include/asm/ultravisor.h       |  14 +
+ arch/powerpc/kvm/Makefile                   |   3 +
+ arch/powerpc/kvm/book3s_hv.c                |  19 +
+ arch/powerpc/kvm/book3s_hv_uvmem.c          | 431 ++++++++++++++++++++
+ 8 files changed, 514 insertions(+)
+ create mode 100644 arch/powerpc/include/asm/kvm_book3s_uvmem.h
+ create mode 100644 arch/powerpc/kvm/book3s_hv_uvmem.c
 
+diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm=
+/hvcall.h
+index 11112023e327..2595d0144958 100644
+--- a/arch/powerpc/include/asm/hvcall.h
++++ b/arch/powerpc/include/asm/hvcall.h
+@@ -342,6 +342,10 @@
+ #define H_TLB_INVALIDATE	0xF808
+ #define H_COPY_TOFROM_GUEST	0xF80C
+=20
++/* Platform-specific hcalls used by the Ultravisor */
++#define H_SVM_PAGE_IN		0xEF00
++#define H_SVM_PAGE_OUT		0xEF04
++
+ /* Values for 2nd argument to H_SET_MODE */
+ #define H_SET_MODE_RESOURCE_SET_CIABR		1
+ #define H_SET_MODE_RESOURCE_SET_DAWR		2
+diff --git a/arch/powerpc/include/asm/kvm_book3s_uvmem.h b/arch/powerpc/i=
+nclude/asm/kvm_book3s_uvmem.h
+new file mode 100644
+index 000000000000..9603c2b48d67
+--- /dev/null
++++ b/arch/powerpc/include/asm/kvm_book3s_uvmem.h
+@@ -0,0 +1,29 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __POWERPC_KVM_PPC_HMM_H__
++#define __POWERPC_KVM_PPC_HMM_H__
++
++#ifdef CONFIG_PPC_UV
++unsigned long kvmppc_h_svm_page_in(struct kvm *kvm,
++				   unsigned long gra,
++				   unsigned long flags,
++				   unsigned long page_shift);
++unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
++				    unsigned long gra,
++				    unsigned long flags,
++				    unsigned long page_shift);
++#else
++static inline unsigned long
++kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
++		     unsigned long flags, unsigned long page_shift)
++{
++	return H_UNSUPPORTED;
++}
++
++static inline unsigned long
++kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gra,
++		      unsigned long flags, unsigned long page_shift)
++{
++	return H_UNSUPPORTED;
++}
++#endif /* CONFIG_PPC_UV */
++#endif /* __POWERPC_KVM_PPC_HMM_H__ */
 diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/a=
 sm/kvm_host.h
-index 4bb552d639b8..81cd221ccc04 100644
+index 81cd221ccc04..16633ad3be45 100644
 --- a/arch/powerpc/include/asm/kvm_host.h
 +++ b/arch/powerpc/include/asm/kvm_host.h
-@@ -232,11 +232,31 @@ struct revmap_entry {
- };
+@@ -869,4 +869,16 @@ static inline void kvm_arch_vcpu_blocking(struct kvm=
+_vcpu *vcpu) {}
+ static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+ static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 =20
- /*
-- * We use the top bit of each memslot->arch.rmap entry as a lock bit,
-- * and bit 32 as a present flag.  The bottom 32 bits are the
-- * index in the guest HPT of a HPTE that points to the page.
-+ * The rmap array of size number of guest pages is allocated for each me=
-mslot.
-+ * This array is used to store usage specific information about the gues=
-t page.
-+ * Below are the encodings of the various possible usage types.
-  */
--#define KVMPPC_RMAP_LOCK_BIT	63
-+/* Free bits which can be used to define a new usage */
-+#define KVMPPC_RMAP_TYPE_MASK	0xff00000000000000
-+#define KVMPPC_RMAP_NESTED	0xc000000000000000	/* Nested rmap array */
-+#define KVMPPC_RMAP_HPT		0x0100000000000000	/* HPT guest */
-+#define KVMPPC_RMAP_UVMEM_PFN	0x0200000000000000	/* Secure GPA */
-+
-+static inline unsigned long kvmppc_rmap_type(unsigned long *rmap)
++#ifdef CONFIG_PPC_UV
++int kvmppc_uvmem_init(void);
++void kvmppc_uvmem_free(void);
++#else
++static inline int kvmppc_uvmem_init(void)
 +{
-+	return (*rmap & KVMPPC_RMAP_TYPE_MASK);
++	return 0;
++}
++
++static inline void kvmppc_uvmem_free(void) {}
++#endif /* CONFIG_PPC_UV */
++
+ #endif /* __POWERPC_KVM_HOST_H__ */
+diff --git a/arch/powerpc/include/asm/ultravisor-api.h b/arch/powerpc/inc=
+lude/asm/ultravisor-api.h
+index 6a0f9c74f959..1cd1f595fd81 100644
+--- a/arch/powerpc/include/asm/ultravisor-api.h
++++ b/arch/powerpc/include/asm/ultravisor-api.h
+@@ -25,5 +25,7 @@
+ /* opcodes */
+ #define UV_WRITE_PATE			0xF104
+ #define UV_RETURN			0xF11C
++#define UV_PAGE_IN			0xF128
++#define UV_PAGE_OUT			0xF12C
+=20
+ #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
+diff --git a/arch/powerpc/include/asm/ultravisor.h b/arch/powerpc/include=
+/asm/ultravisor.h
+index d7aa97aa7834..0fc4a974b2e8 100644
+--- a/arch/powerpc/include/asm/ultravisor.h
++++ b/arch/powerpc/include/asm/ultravisor.h
+@@ -31,4 +31,18 @@ static inline int uv_register_pate(u64 lpid, u64 dw0, =
+u64 dw1)
+ 	return ucall_norets(UV_WRITE_PATE, lpid, dw0, dw1);
+ }
+=20
++static inline int uv_page_in(u64 lpid, u64 src_ra, u64 dst_gpa, u64 flag=
+s,
++			     u64 page_shift)
++{
++	return ucall_norets(UV_PAGE_IN, lpid, src_ra, dst_gpa, flags,
++			    page_shift);
++}
++
++static inline int uv_page_out(u64 lpid, u64 dst_ra, u64 src_gpa, u64 fla=
+gs,
++			      u64 page_shift)
++{
++	return ucall_norets(UV_PAGE_OUT, lpid, dst_ra, src_gpa, flags,
++			    page_shift);
++}
++
+ #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
+diff --git a/arch/powerpc/kvm/Makefile b/arch/powerpc/kvm/Makefile
+index 4c67cc79de7c..2bfeaa13befb 100644
+--- a/arch/powerpc/kvm/Makefile
++++ b/arch/powerpc/kvm/Makefile
+@@ -71,6 +71,9 @@ kvm-hv-y +=3D \
+ 	book3s_64_mmu_radix.o \
+ 	book3s_hv_nested.o
+=20
++kvm-hv-$(CONFIG_PPC_UV) +=3D \
++	book3s_hv_uvmem.o
++
+ kvm-hv-$(CONFIG_PPC_TRANSACTIONAL_MEM) +=3D \
+ 	book3s_hv_tm.o
+=20
+diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
+index cde3f5a4b3e4..c5404db8f0cd 100644
+--- a/arch/powerpc/kvm/book3s_hv.c
++++ b/arch/powerpc/kvm/book3s_hv.c
+@@ -72,6 +72,8 @@
+ #include <asm/xics.h>
+ #include <asm/xive.h>
+ #include <asm/hw_breakpoint.h>
++#include <asm/kvm_host.h>
++#include <asm/kvm_book3s_uvmem.h>
+=20
+ #include "book3s.h"
+=20
+@@ -1075,6 +1077,18 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+ 					 kvmppc_get_gpr(vcpu, 5),
+ 					 kvmppc_get_gpr(vcpu, 6));
+ 		break;
++	case H_SVM_PAGE_IN:
++		ret =3D kvmppc_h_svm_page_in(vcpu->kvm,
++					   kvmppc_get_gpr(vcpu, 4),
++					   kvmppc_get_gpr(vcpu, 5),
++					   kvmppc_get_gpr(vcpu, 6));
++		break;
++	case H_SVM_PAGE_OUT:
++		ret =3D kvmppc_h_svm_page_out(vcpu->kvm,
++					    kvmppc_get_gpr(vcpu, 4),
++					    kvmppc_get_gpr(vcpu, 5),
++					    kvmppc_get_gpr(vcpu, 6));
++		break;
+ 	default:
+ 		return RESUME_HOST;
+ 	}
+@@ -5523,11 +5537,16 @@ static int kvmppc_book3s_init_hv(void)
+ 			no_mixing_hpt_and_radix =3D true;
+ 	}
+=20
++	r =3D kvmppc_uvmem_init();
++	if (r < 0)
++		pr_err("KVM-HV: kvmppc_uvmem_init failed %d\n", r);
++
+ 	return r;
+ }
+=20
+ static void kvmppc_book3s_exit_hv(void)
+ {
++	kvmppc_uvmem_free();
+ 	kvmppc_free_host_rm_ops();
+ 	if (kvmppc_radix_possible())
+ 		kvmppc_radix_exit();
+diff --git a/arch/powerpc/kvm/book3s_hv_uvmem.c b/arch/powerpc/kvm/book3s=
+_hv_uvmem.c
+new file mode 100644
+index 000000000000..a1eccb065ba9
+--- /dev/null
++++ b/arch/powerpc/kvm/book3s_hv_uvmem.c
+@@ -0,0 +1,431 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Secure pages management: Migration of pages between normal and secure
++ * memory of KVM guests.
++ *
++ * Copyright 2018 Bharata B Rao, IBM Corp. <bharata@linux.ibm.com>
++ */
++
++/*
++ * A pseries guest can be run as secure guest on Ultravisor-enabled
++ * POWER platforms. On such platforms, this driver will be used to manag=
+e
++ * the movement of guest pages between the normal memory managed by
++ * hypervisor (HV) and secure memory managed by Ultravisor (UV).
++ *
++ * The page-in or page-out requests from UV will come to HV as hcalls an=
+d
++ * HV will call back into UV via ultracalls to satisfy these page reques=
+ts.
++ *
++ * Private ZONE_DEVICE memory equal to the amount of secure memory
++ * available in the platform for running secure guests is hotplugged.
++ * Whenever a page belonging to the guest becomes secure, a page from th=
+is
++ * private device memory is used to represent and track that secure page
++ * on the HV side.
++ *
++ * For each page that gets moved into secure memory, a device PFN is use=
+d
++ * on the HV side and migration PTE corresponding to that PFN would be
++ * populated in the QEMU page tables. Device PFNs are stored in the rmap
++ * array. Whenever a guest page becomes secure, device PFN allocated for
++ * the same will be populated in the corresponding slot in the rmap
++ * array. The overloading of rmap array's usage which otherwise is
++ * used primarily by HPT guests means that this feature (secure
++ * guest on PEF platforms) is available only for Radix MMU guests.
++ * Also since the same rmap array is used differently by nested
++ * guests, a secure guest can't have further nested guests.
++ */
++
++#include <linux/pagemap.h>
++#include <linux/migrate.h>
++#include <linux/kvm_host.h>
++#include <asm/ultravisor.h>
++
++static struct dev_pagemap kvmppc_uvmem_pgmap;
++static unsigned long *kvmppc_uvmem_pfn_bitmap;
++static DEFINE_SPINLOCK(kvmppc_uvmem_pfn_lock);
++
++struct kvmppc_uvmem_page_pvt {
++	unsigned long *rmap;
++	unsigned int lpid;
++	unsigned long gpa;
++};
++
++/*
++ * Get a free device PFN from the pool
++ *
++ * Called when a normal page is moved to secure memory (UV_PAGE_IN). Dev=
+ice
++ * PFN will be used to keep track of the secure page on HV side.
++ *
++ * @rmap here is the slot in the rmap array that corresponds to @gpa.
++ * Thus a non-zero rmap entry indicates that the corresponding guest
++ * page has become secure, and is not mapped on the HV side.
++ *
++ * NOTE: lock_rmap() could be used to prevent concurrent page-in and
++ * page-out on the same GPA.
++ */
++static struct page *kvmppc_uvmem_get_page(unsigned long *rmap,
++					  unsigned long gpa, unsigned int lpid)
++{
++	struct page *dpage =3D NULL;
++	unsigned long bit, uvmem_pfn;
++	struct kvmppc_uvmem_page_pvt *pvt;
++	unsigned long pfn_last, pfn_first;
++
++	pfn_first =3D kvmppc_uvmem_pgmap.res.start >> PAGE_SHIFT;
++	pfn_last =3D pfn_first +
++		   (resource_size(&kvmppc_uvmem_pgmap.res) >> PAGE_SHIFT);
++
++	spin_lock(&kvmppc_uvmem_pfn_lock);
++	bit =3D find_first_zero_bit(kvmppc_uvmem_pfn_bitmap,
++				  pfn_last - pfn_first);
++	if (bit >=3D (pfn_last - pfn_first))
++		goto out;
++	bitmap_set(kvmppc_uvmem_pfn_bitmap, bit, 1);
++
++	uvmem_pfn =3D bit + pfn_first;
++	dpage =3D pfn_to_page(uvmem_pfn);
++	if (!trylock_page(dpage))
++		goto out_clear;
++
++	pvt =3D kzalloc(sizeof(*pvt), GFP_KERNEL);
++	if (!pvt)
++		goto out_unlock;
++	spin_unlock(&kvmppc_uvmem_pfn_lock);
++
++	*rmap =3D uvmem_pfn | KVMPPC_RMAP_UVMEM_PFN;
++	pvt->rmap =3D rmap;
++	pvt->gpa =3D gpa;
++	pvt->lpid =3D lpid;
++	dpage->zone_device_data =3D pvt;
++
++	get_page(dpage);
++	return dpage;
++
++out_unlock:
++	unlock_page(dpage);
++out_clear:
++	bitmap_clear(kvmppc_uvmem_pfn_bitmap, uvmem_pfn - pfn_first, 1);
++out:
++	spin_unlock(&kvmppc_uvmem_pfn_lock);
++	return NULL;
 +}
 +
 +/*
-+ * rmap usage definition for a hash page table (hpt) guest:
-+ * 0x0000080000000000	Lock bit
-+ * 0x0000018000000000	RC bits
-+ * 0x0000000100000000	Present bit
-+ * 0x00000000ffffffff	HPT index bits
-+ * The bottom 32 bits are the index in the guest HPT of a HPTE that poin=
-ts to
-+ * the page.
++ * Alloc a PFN from private device memory pool and copy page from normal
++ * memory to secure memory using UV_PAGE_IN uvcall.
 + */
-+#define KVMPPC_RMAP_LOCK_BIT	43
- #define KVMPPC_RMAP_RC_SHIFT	32
- #define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
- #define KVMPPC_RMAP_PRESENT	0x100000000ul
-diff --git a/arch/powerpc/kvm/book3s_hv_rm_mmu.c b/arch/powerpc/kvm/book3=
-s_hv_rm_mmu.c
-index 63e0ce91e29d..7186c65c61c9 100644
---- a/arch/powerpc/kvm/book3s_hv_rm_mmu.c
-+++ b/arch/powerpc/kvm/book3s_hv_rm_mmu.c
-@@ -99,7 +99,7 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct re=
-vmap_entry *rev,
- 	} else {
- 		rev->forw =3D rev->back =3D pte_index;
- 		*rmap =3D (*rmap & ~KVMPPC_RMAP_INDEX) |
--			pte_index | KVMPPC_RMAP_PRESENT;
-+			pte_index | KVMPPC_RMAP_PRESENT | KVMPPC_RMAP_HPT;
- 	}
- 	unlock_rmap(rmap);
- }
++static int
++kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
++		   unsigned long end, unsigned long *rmap,
++		   unsigned long gpa, unsigned int lpid,
++		   unsigned long page_shift)
++{
++	unsigned long src_pfn, dst_pfn =3D 0;
++	struct migrate_vma mig;
++	struct page *spage;
++	unsigned long pfn;
++	struct page *dpage;
++	int ret =3D 0;
++
++	memset(&mig, 0, sizeof(mig));
++	mig.vma =3D vma;
++	mig.start =3D start;
++	mig.end =3D end;
++	mig.src =3D &src_pfn;
++	mig.dst =3D &dst_pfn;
++
++	ret =3D migrate_vma_setup(&mig);
++	if (ret)
++		return ret;
++
++	spage =3D migrate_pfn_to_page(*mig.src);
++	pfn =3D *mig.src >> MIGRATE_PFN_SHIFT;
++	if (!spage || !(*mig.src & MIGRATE_PFN_MIGRATE)) {
++		ret =3D 0;
++		goto out_finalize;
++	}
++
++	dpage =3D kvmppc_uvmem_get_page(rmap, gpa, lpid);
++	if (!dpage) {
++		ret =3D -1;
++		goto out_finalize;
++	}
++
++	if (spage)
++		uv_page_in(lpid, pfn << page_shift, gpa, 0, page_shift);
++
++	*mig.dst =3D migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
++	migrate_vma_pages(&mig);
++out_finalize:
++	migrate_vma_finalize(&mig);
++	return ret;
++}
++
++/*
++ * H_SVM_PAGE_IN: Move page from normal memory to secure memory.
++ */
++unsigned long
++kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
++		     unsigned long flags, unsigned long page_shift)
++{
++	unsigned long start, end;
++	struct vm_area_struct *vma;
++	int srcu_idx;
++	unsigned long gfn =3D gpa >> page_shift;
++	struct kvm_memory_slot *slot;
++	unsigned long *rmap;
++	int ret;
++
++	if (page_shift !=3D PAGE_SHIFT)
++		return H_P3;
++
++	if (flags)
++		return H_P2;
++
++	ret =3D H_PARAMETER;
++	srcu_idx =3D srcu_read_lock(&kvm->srcu);
++	down_read(&kvm->mm->mmap_sem);
++	slot =3D gfn_to_memslot(kvm, gfn);
++	if (!slot)
++		goto out;
++
++	rmap =3D &slot->arch.rmap[gfn - slot->base_gfn];
++	start =3D gfn_to_hva(kvm, gfn);
++	if (kvm_is_error_hva(start))
++		goto out;
++
++	if (kvmppc_rmap_type(rmap) =3D=3D KVMPPC_RMAP_UVMEM_PFN)
++		goto out;
++
++	end =3D start + (1UL << page_shift);
++	vma =3D find_vma_intersection(kvm->mm, start, end);
++	if (!vma || vma->vm_start > start || vma->vm_end < end)
++		goto out;
++
++	if (!kvmppc_svm_page_in(vma, start, end, rmap, gpa, kvm->arch.lpid,
++				page_shift))
++		ret =3D H_SUCCESS;
++out:
++	up_read(&kvm->mm->mmap_sem);
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++	return ret;
++}
++
++/*
++ * Provision a new page on HV side and copy over the contents
++ * from secure memory using UV_PAGE_OUT uvcall.
++ */
++static int
++kvmppc_svm_page_out(struct vm_area_struct *vma, unsigned long start,
++		    unsigned long end, unsigned long page_shift)
++{
++	unsigned long src_pfn, dst_pfn =3D 0;
++	struct migrate_vma mig;
++	struct page *dpage, *spage;
++	struct kvmppc_uvmem_page_pvt *pvt;
++	unsigned long pfn;
++	int ret =3D U_SUCCESS;
++
++	memset(&mig, 0, sizeof(mig));
++	mig.vma =3D vma;
++	mig.start =3D start;
++	mig.end =3D end;
++	mig.src =3D &src_pfn;
++	mig.dst =3D &dst_pfn;
++
++	ret =3D migrate_vma_setup(&mig);
++	if (ret)
++		return ret;
++
++	spage =3D migrate_pfn_to_page(*mig.src);
++	if (!spage || !(*mig.src & MIGRATE_PFN_MIGRATE))
++		goto out_finalize;
++
++	if (!is_zone_device_page(spage))
++		goto out_finalize;
++
++	dpage =3D alloc_page_vma(GFP_HIGHUSER, vma, start);
++	if (!dpage) {
++		ret =3D -1;
++		goto out_finalize;
++	}
++
++	lock_page(dpage);
++	pvt =3D spage->zone_device_data;
++	pfn =3D page_to_pfn(dpage);
++
++	ret =3D uv_page_out(pvt->lpid, pfn << page_shift, pvt->gpa, 0,
++			  page_shift);
++
++	if (ret =3D=3D U_SUCCESS)
++		*mig.dst =3D migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
++	else {
++		unlock_page(dpage);
++		__free_page(dpage);
++		goto out_finalize;
++	}
++
++	migrate_vma_pages(&mig);
++out_finalize:
++	migrate_vma_finalize(&mig);
++	return ret;
++}
++
++/*
++ * Fault handler callback when HV touches any page that has been
++ * moved to secure memory, we ask UV to give back the page by
++ * issuing UV_PAGE_OUT uvcall.
++ *
++ * This eventually results in dropping of device PFN and the newly
++ * provisioned page/PFN gets populated in QEMU page tables.
++ */
++static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
++{
++	if (kvmppc_svm_page_out(vmf->vma, vmf->address,
++				vmf->address + PAGE_SIZE, PAGE_SHIFT))
++		return VM_FAULT_SIGBUS;
++	else
++		return 0;
++}
++
++/*
++ * Release the device PFN back to the pool
++ *
++ * Gets called when secure page becomes a normal page during H_SVM_PAGE_=
+OUT.
++ */
++static void kvmppc_uvmem_page_free(struct page *page)
++{
++	unsigned long pfn =3D page_to_pfn(page) -
++			(kvmppc_uvmem_pgmap.res.start >> PAGE_SHIFT);
++	struct kvmppc_uvmem_page_pvt *pvt;
++
++	spin_lock(&kvmppc_uvmem_pfn_lock);
++	bitmap_clear(kvmppc_uvmem_pfn_bitmap, pfn, 1);
++	spin_unlock(&kvmppc_uvmem_pfn_lock);
++
++	pvt =3D page->zone_device_data;
++	page->zone_device_data =3D NULL;
++	*pvt->rmap =3D 0;
++	kfree(pvt);
++}
++
++static const struct dev_pagemap_ops kvmppc_uvmem_ops =3D {
++	.page_free =3D kvmppc_uvmem_page_free,
++	.migrate_to_ram	=3D kvmppc_uvmem_migrate_to_ram,
++};
++
++/*
++ * H_SVM_PAGE_OUT: Move page from secure memory to normal memory.
++ */
++unsigned long
++kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
++		      unsigned long flags, unsigned long page_shift)
++{
++	unsigned long start, end;
++	struct vm_area_struct *vma;
++	int srcu_idx;
++	int ret;
++
++	if (page_shift !=3D PAGE_SHIFT)
++		return H_P3;
++
++	if (flags)
++		return H_P2;
++
++	ret =3D H_PARAMETER;
++	srcu_idx =3D srcu_read_lock(&kvm->srcu);
++	down_read(&kvm->mm->mmap_sem);
++	start =3D gfn_to_hva(kvm, gpa >> page_shift);
++	if (kvm_is_error_hva(start))
++		goto out;
++
++	end =3D start + (1UL << page_shift);
++	vma =3D find_vma_intersection(kvm->mm, start, end);
++	if (!vma || vma->vm_start > start || vma->vm_end < end)
++		goto out;
++
++	if (!kvmppc_svm_page_out(vma, start, end, page_shift))
++		ret =3D H_SUCCESS;
++out:
++	up_read(&kvm->mm->mmap_sem);
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++	return ret;
++}
++
++static u64 kvmppc_get_secmem_size(void)
++{
++	struct device_node *np;
++	int i, len;
++	const __be32 *prop;
++	u64 size =3D 0;
++
++	np =3D of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
++	if (!np)
++		goto out;
++
++	prop =3D of_get_property(np, "secure-memory-ranges", &len);
++	if (!prop)
++		goto out_put;
++
++	for (i =3D 0; i < len / (sizeof(*prop) * 4); i++)
++		size +=3D of_read_number(prop + (i * 4) + 2, 2);
++
++out_put:
++	of_node_put(np);
++out:
++	return size;
++}
++
++int kvmppc_uvmem_init(void)
++{
++	int ret =3D 0;
++	unsigned long size;
++	struct resource *res;
++	void *addr;
++	unsigned long pfn_last, pfn_first;
++
++	size =3D kvmppc_get_secmem_size();
++	if (!size) {
++		ret =3D -ENODEV;
++		goto out;
++	}
++
++	res =3D request_free_mem_region(&iomem_resource, size, "kvmppc_uvmem");
++	if (IS_ERR(res)) {
++		ret =3D PTR_ERR(res);
++		goto out;
++	}
++
++	kvmppc_uvmem_pgmap.type =3D MEMORY_DEVICE_PRIVATE;
++	kvmppc_uvmem_pgmap.res =3D *res;
++	kvmppc_uvmem_pgmap.ops =3D &kvmppc_uvmem_ops;
++	addr =3D memremap_pages(&kvmppc_uvmem_pgmap, NUMA_NO_NODE);
++	if (IS_ERR(addr)) {
++		ret =3D PTR_ERR(addr);
++		goto out_free_region;
++	}
++
++	pfn_first =3D res->start >> PAGE_SHIFT;
++	pfn_last =3D pfn_first + (resource_size(res) >> PAGE_SHIFT);
++	kvmppc_uvmem_pfn_bitmap =3D kcalloc(BITS_TO_LONGS(pfn_last - pfn_first)=
+,
++					  sizeof(unsigned long), GFP_KERNEL);
++	if (!kvmppc_uvmem_pfn_bitmap) {
++		ret =3D -ENOMEM;
++		goto out_unmap;
++	}
++
++	pr_info("KVMPPC-UVMEM: Secure Memory size 0x%lx\n", size);
++	return ret;
++out_unmap:
++	memunmap_pages(&kvmppc_uvmem_pgmap);
++out_free_region:
++	release_mem_region(res->start, size);
++out:
++	return ret;
++}
++
++void kvmppc_uvmem_free(void)
++{
++	memunmap_pages(&kvmppc_uvmem_pgmap);
++	release_mem_region(kvmppc_uvmem_pgmap.res.start,
++			   resource_size(&kvmppc_uvmem_pgmap.res));
++	kfree(kvmppc_uvmem_pfn_bitmap);
++}
 --=20
 2.21.0
 
