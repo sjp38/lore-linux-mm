@@ -3,113 +3,168 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6297C49ED9
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 16:18:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82B3CC5AE59
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 16:18:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 867AC21479
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 16:18:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 867AC21479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 46BAE20872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 16:18:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46BAE20872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D7BF6B026A; Tue, 10 Sep 2019 12:18:13 -0400 (EDT)
+	id EE6F86B026B; Tue, 10 Sep 2019 12:18:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2624B6B026B; Tue, 10 Sep 2019 12:18:13 -0400 (EDT)
+	id E97B76B026C; Tue, 10 Sep 2019 12:18:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 128B16B026C; Tue, 10 Sep 2019 12:18:13 -0400 (EDT)
+	id D850F6B026D; Tue, 10 Sep 2019 12:18:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
-	by kanga.kvack.org (Postfix) with ESMTP id E05396B026A
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:18:12 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 8DAA5181AC9BF
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:18:12 +0000 (UTC)
-X-FDA: 75919518024.13.bears66_2a687b7199027
-X-HE-Tag: bears66_2a687b7199027
-X-Filterd-Recvd-Size: 3820
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:18:11 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0AB911000;
-	Tue, 10 Sep 2019 09:18:10 -0700 (PDT)
-Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id ABDE73F71F;
-	Tue, 10 Sep 2019 09:18:04 -0700 (PDT)
-Date: Tue, 10 Sep 2019 17:17:59 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	will@kernel.org, mark.rutland@arm.com, mhocko@suse.com,
-	ira.weiny@intel.com, david@redhat.com, cai@lca.pw,
-	logang@deltatee.com, cpandya@codeaurora.org, arunks@codeaurora.org,
-	dan.j.williams@intel.com, mgorman@techsingularity.net,
-	osalvador@suse.de, ard.biesheuvel@arm.com, steve.capper@arm.com,
-	broonie@kernel.org, valentin.schneider@arm.com,
-	Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
-Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
-Message-ID: <20190910161759.GI14442@C02TF0J2HF1T.local>
-References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
- <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B46356B026B
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 12:18:40 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 676DB824376E
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:18:40 +0000 (UTC)
+X-FDA: 75919519200.19.feast88_2e91b4b8a4d34
+X-HE-Tag: feast88_2e91b4b8a4d34
+X-Filterd-Recvd-Size: 7060
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:18:39 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CE513882EF;
+	Tue, 10 Sep 2019 16:18:38 +0000 (UTC)
+Received: from work-vm (ovpn-117-238.ams2.redhat.com [10.36.117.238])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8A45E5DA21;
+	Tue, 10 Sep 2019 16:18:20 +0000 (UTC)
+Date: Tue, 10 Sep 2019 17:18:18 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org,
+	kvm list <kvm@vger.kernel.org>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+	"Wang, Wei W" <wei.w.wang@intel.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [virtio-dev] Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+Message-ID: <20190910161818.GF2797@work-vm>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz>
+ <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz>
+ <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
+In-Reply-To: <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
 User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 10 Sep 2019 16:18:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 03, 2019 at 03:15:58PM +0530, Anshuman Khandual wrote:
-> @@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
->  void vmemmap_free(unsigned long start, unsigned long end,
->  		struct vmem_altmap *altmap)
->  {
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +	/*
-> +	 * FIXME: We should have called remove_pagetable(start, end, true).
-> +	 * vmemmap and vmalloc virtual range might share intermediate kernel
-> +	 * page table entries. Removing vmemmap range page table pages here
-> +	 * can potentially conflict with a concurrent vmalloc() allocation.
-> +	 *
-> +	 * This is primarily because vmalloc() does not take init_mm ptl for
-> +	 * the entire page table walk and it's modification. Instead it just
-> +	 * takes the lock while allocating and installing page table pages
-> +	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
-> +	 * entry via memory hot remove can cause vmalloc() kernel page table
-> +	 * walk pointers to be invalid on the fly which can cause corruption
-> +	 * or worst, a crash.
-> +	 *
-> +	 * So free_empty_tables() gets called where vmalloc and vmemmap range
-> +	 * do not overlap at any intermediate level kernel page table entry.
-> +	 */
-> +	unmap_hotplug_range(start, end, true);
-> +	if (!vmalloc_vmemmap_overlap)
-> +		free_empty_tables(start, end);
-> +#endif
->  }
->  #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+* Alexander Duyck (alexander.duyck@gmail.com) wrote:
+> On Tue, Sep 10, 2019 at 7:47 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Tue 10-09-19 07:42:43, Alexander Duyck wrote:
+> > > On Tue, Sep 10, 2019 at 5:42 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > I wanted to review "mm: Introduce Reported pages" just realize that I
+> > > > have no clue on what is going on so returned to the cover and it didn't
+> > > > really help much. I am completely unfamiliar with virtio so please bear
+> > > > with me.
+> > > >
+> > > > On Sat 07-09-19 10:25:03, Alexander Duyck wrote:
+> > > > [...]
+> > > > > This series provides an asynchronous means of reporting to a hypervisor
+> > > > > that a guest page is no longer in use and can have the data associated
+> > > > > with it dropped. To do this I have implemented functionality that allows
+> > > > > for what I am referring to as unused page reporting
+> > > > >
+> > > > > The functionality for this is fairly simple. When enabled it will allocate
+> > > > > statistics to track the number of reported pages in a given free area.
+> > > > > When the number of free pages exceeds this value plus a high water value,
+> > > > > currently 32, it will begin performing page reporting which consists of
+> > > > > pulling pages off of free list and placing them into a scatter list. The
+> > > > > scatterlist is then given to the page reporting device and it will perform
+> > > > > the required action to make the pages "reported", in the case of
+> > > > > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+> > > > > and as such they are forced out of the guest. After this they are placed
+> > > > > back on the free list,
+> > > >
+> > > > And here I am reallly lost because "forced out of the guest" makes me
+> > > > feel that those pages are no longer usable by the guest. So how come you
+> > > > can add them back to the free list. I suspect understanding this part
+> > > > will allow me to understand why we have to mark those pages and prevent
+> > > > merging.
+> > >
+> > > Basically as the paragraph above mentions "forced out of the guest"
+> > > really is just the hypervisor calling MADV_DONTNEED on the page in
+> > > question. So the behavior is the same as any userspace application
+> > > that calls MADV_DONTNEED where the contents are no longer accessible
+> > > from userspace and attempting to access them will result in a fault
+> > > and the page being populated with a zero fill on-demand page, or a
+> > > copy of the file contents if the memory is file backed.
+> >
+> > As I've said I have no idea about virt so this doesn't really tell me
+> > much. Does that mean that if somebody allocates such a page and tries to
+> > access it then virt will handle a fault and bring it back?
+> 
+> Actually I am probably describing too much as the MADV_DONTNEED is the
+> hypervisor behavior in response to the virtio-balloon notification. A
+> more thorough explanation of it can be found by just running "man
+> madvise", probably best just to leave it at that since I am probably
+> confusing things by describing hypervisor behavior in a kernel patch
+> set.
+> 
+> For the most part all the page reporting really does is provide a way
+> to incrementally identify unused regions of memory in the buddy
+> allocator. That in turn is used by virtio-balloon in a polling thread
+> to report to the hypervisor what pages are not in use so that it can
+> make a decision on what to do with the pages now that it knows they
+> are unused.
+> 
+> All this is providing is just a report and it is optional if the
+> hypervisor will act on it or not. If the hypervisor takes some sort of
+> action on the page, then the expectation is that the hypervisor will
+> use some sort of mechanism such as a page fault to discover when the
+> page is used again.
 
-I wonder whether we could simply ignore the vmemmap freeing altogether,
-just leave it around and not unmap it. This way, we could call
-unmap_kernel_range() for removing the linear map and we save some code.
+OK, that's interestingly different (but OK) from some other schemes that
+hav ebeen described which *require* the guest to somehow indicate the
+page is in use before starting to use the page again.
 
-For the linear map, I think we use just above 2MB of tables for 1GB of
-memory mapped (worst case with 4KB pages we need 512 pte pages). For
-vmemmap we'd use slightly above 2MB for a 64GB hotplugged memory. Do we
-expect such memory to be re-plugged again in the same range? If we do,
-then I shouldn't even bother with removing the vmmemmap.
+Dave
 
-I don't fully understand the use-case for memory hotremove, so any
-additional info would be useful to make a decision here.
-
--- 
-Catalin
+> ---------------------------------------------------------------------
+> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
+> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
+> 
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
