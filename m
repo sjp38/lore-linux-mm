@@ -7,38 +7,38 @@ X-Spam-Status: No, score=-10.0 required=3.0
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBEB0C4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8929BC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A73DA20872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A73DA20872
+	by mail.kernel.org (Postfix) with ESMTP id 52B8F20872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 52B8F20872
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 233776B026E; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
+	id 4F4E96B0010; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 196DB6B000E; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
+	id 231836B000C; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6FBF6B026A; Tue, 10 Sep 2019 06:30:53 -0400 (EDT)
+	id F00A36B0010; Tue, 10 Sep 2019 06:30:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
-	by kanga.kvack.org (Postfix) with ESMTP id BCAD86B000E
+Received: from forelay.hostedemail.com (smtprelay0062.hostedemail.com [216.40.44.62])
+	by kanga.kvack.org (Postfix) with ESMTP id B8AF26B000C
 	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 06:30:53 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7C488824376D
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 6808B813F
 	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:30:53 +0000 (UTC)
-X-FDA: 75918642786.18.bulb57_41f2ee7033a08
-X-HE-Tag: bulb57_41f2ee7033a08
-X-Filterd-Recvd-Size: 3455
+X-FDA: 75918642786.17.fuel52_41efec64e613b
+X-HE-Tag: fuel52_41efec64e613b
+X-Filterd-Recvd-Size: 3947
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:30:52 +0000 (UTC)
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:30:53 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 02ADFB008;
-	Tue, 10 Sep 2019 10:30:50 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 9D768AF0B;
+	Tue, 10 Sep 2019 10:30:49 +0000 (UTC)
 From: Oscar Salvador <osalvador@suse.de>
 To: n-horiguchi@ah.jp.nec.com
 Cc: mhocko@kernel.org,
@@ -46,9 +46,9 @@ Cc: mhocko@kernel.org,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH 10/10] mm,hwpoison: Use hugetlb_replace_page to replace free hugetlb pages
-Date: Tue, 10 Sep 2019 12:30:16 +0200
-Message-Id: <20190910103016.14290-11-osalvador@suse.de>
+Subject: [PATCH 04/10] mm,hwpoison: remove MF_COUNT_INCREASED
+Date: Tue, 10 Sep 2019 12:30:10 +0200
+Message-Id: <20190910103016.14290-5-osalvador@suse.de>
 X-Mailer: git-send-email 2.13.7
 In-Reply-To: <20190910103016.14290-1-osalvador@suse.de>
 References: <20190910103016.14290-1-osalvador@suse.de>
@@ -58,98 +58,95 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When soft offlining a free hugtlb, try first to allocate a new hugetlb
-to the pool and pass the old state to the new one by move_hugetlb_state().
-Either we succeed or not, we dissolve the poisoned hugetlb page.
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Worst-scenario case is that we cannot allocate a new fresh hugetlb page
-as a replacement.
+Now there's no user of MF_COUNT_INCREASED, so we can safely remove
+it from all calling points.
 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/hugetlb.c        | 16 ++++++++++++++++
- mm/memory-failure.c | 34 ++++++++++++++++++++++++++++------
- 2 files changed, 44 insertions(+), 6 deletions(-)
+ include/linux/mm.h  |  7 +++----
+ mm/memory-failure.c | 16 +++-------------
+ 2 files changed, 6 insertions(+), 17 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 139e1c05c9a1..d0844aec7531 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -5154,3 +5154,19 @@ void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason)
- 		spin_unlock(&hugetlb_lock);
- 	}
- }
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+int hugetlb_replace_page(struct page *page, int reason)
-+{
-+	int nid = page_to_nid(page);
-+	struct hstate *h = page_hstate(page);
-+	struct page *new_page;
-+
-+	new_page = alloc_huge_page_nodemask(h, nid, &node_states[N_MEMORY]);
-+	if (!new_page)
-+		return -ENOMEM;
-+
-+	move_hugetlb_state(page, new_page, reason);
-+	return 0;
-+}
-+#endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad6766a08f9b..fb36a4165a4e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2814,10 +2814,9 @@ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+ 				  unsigned long nr_pages);
+ 
+ enum mf_flags {
+-	MF_COUNT_INCREASED = 1 << 0,
+-	MF_ACTION_REQUIRED = 1 << 1,
+-	MF_MUST_KILL = 1 << 2,
+-	MF_SOFT_OFFLINE = 1 << 3,
++	MF_ACTION_REQUIRED = 1 << 0,
++	MF_MUST_KILL = 1 << 1,
++	MF_SOFT_OFFLINE = 1 << 2,
+ };
+ extern int memory_failure(unsigned long pfn, int flags);
+ extern void memory_failure_queue(unsigned long pfn, int flags);
 diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 03f07015a106..fe73fe19c6e9 100644
+index e43b61462fd5..1be785b25324 100644
 --- a/mm/memory-failure.c
 +++ b/mm/memory-failure.c
-@@ -79,6 +79,7 @@ EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
- EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
+@@ -1092,7 +1092,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int flags)
  
- extern bool take_page_off_buddy(struct page *page);
-+extern int hugetlb_replace_page(struct page *page, int reason);
+ 	num_poisoned_pages_inc();
  
- static bool page_set_poison(struct page *page)
- {
-@@ -1804,16 +1805,37 @@ static int soft_offline_in_use_page(struct page *page)
- 	return __soft_offline_page(page);
- }
- 
-+static int soft_offline_free_huge_page(struct page *page)
-+{
-+	struct page *hpage = compound_head(page);
-+
-+	/*
-+	 * Try to add a new hugetlb page to the pool
-+	 */
-+	if (hugetlb_replace_page(hpage, MR_MEMORY_FAILURE))
-+		return -EBUSY;
-+
-+	/*
-+	 * Remove old hugetlb from the pool
-+	 */
-+	if (!page_set_poison(hpage))
-+		return -EBUSY;
-+
-+	return 0;
-+}
-+
- static int soft_offline_free_page(struct page *page)
- {
--	int rc = dissolve_free_huge_page(page);
-+	int rc = -EBUSY;
- 
--	if (!rc) {
--		if (take_page_off_buddy(page))
-+	if (PageHuge(page))
-+		rc = soft_offline_free_huge_page(page);
-+	else
-+		if (take_page_off_buddy(page)) {
- 			page_set_poison(page);
+-	if (!(flags & MF_COUNT_INCREASED) && !get_hwpoison_page(p)) {
++	if (!get_hwpoison_page(p)) {
+ 		/*
+ 		 * Check "filter hit" and "race with other subpage."
+ 		 */
+@@ -1286,7 +1286,7 @@ int memory_failure(unsigned long pfn, int flags)
+ 	 * In fact it's dangerous to directly bump up page count from 0,
+ 	 * that may make page_ref_freeze()/page_ref_unfreeze() mismatch.
+ 	 */
+-	if (!(flags & MF_COUNT_INCREASED) && !get_hwpoison_page(p)) {
++	if (!get_hwpoison_page(p)) {
+ 		if (is_free_buddy_page(p)) {
+ 			action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
+ 			return 0;
+@@ -1327,10 +1327,7 @@ int memory_failure(unsigned long pfn, int flags)
+ 	shake_page(p, 0);
+ 	/* shake_page could have turned it free. */
+ 	if (!PageLRU(p) && is_free_buddy_page(p)) {
+-		if (flags & MF_COUNT_INCREASED)
+-			action_result(pfn, MF_MSG_BUDDY, MF_DELAYED);
 -		else
--			rc = -EBUSY;
--	}
-+			rc = 0;
-+		}
-+
- 	return rc;
- }
+-			action_result(pfn, MF_MSG_BUDDY_2ND, MF_DELAYED);
++		action_result(pfn, MF_MSG_BUDDY_2ND, MF_DELAYED);
+ 		return 0;
+ 	}
+ 
+@@ -1618,9 +1615,6 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
+ {
+ 	int ret;
+ 
+-	if (flags & MF_COUNT_INCREASED)
+-		return 1;
+-
+ 	/*
+ 	 * When the target page is a free hugepage, just remove it
+ 	 * from free hugepage list.
+@@ -1890,15 +1884,11 @@ int soft_offline_page(struct page *page, int flags)
+ 	if (is_zone_device_page(page)) {
+ 		pr_debug_ratelimited("soft_offline: %#lx page is device page\n",
+ 				pfn);
+-		if (flags & MF_COUNT_INCREASED)
+-			put_page(page);
+ 		return -EIO;
+ 	}
+ 
+ 	if (PageHWPoison(page)) {
+ 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+-		if (flags & MF_COUNT_INCREASED)
+-			put_hwpoison_page(page);
+ 		return -EBUSY;
+ 	}
  
 -- 
 2.12.3
