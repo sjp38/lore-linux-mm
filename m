@@ -2,190 +2,190 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B76A4C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:29:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D85BC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A3AF21019
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:29:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A3AF21019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E2067208E4
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:30:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2067208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E99976B0006; Tue, 10 Sep 2019 04:29:22 -0400 (EDT)
+	id 856D36B0007; Tue, 10 Sep 2019 04:30:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E49B36B0007; Tue, 10 Sep 2019 04:29:22 -0400 (EDT)
+	id 807726B0008; Tue, 10 Sep 2019 04:30:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D86C76B0008; Tue, 10 Sep 2019 04:29:22 -0400 (EDT)
+	id 71D316B000A; Tue, 10 Sep 2019 04:30:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0139.hostedemail.com [216.40.44.139])
-	by kanga.kvack.org (Postfix) with ESMTP id B79766B0006
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:29:22 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 5D267180AD7C3
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:29:22 +0000 (UTC)
-X-FDA: 75918336564.18.space36_178ec6169d814
-X-HE-Tag: space36_178ec6169d814
-X-Filterd-Recvd-Size: 7892
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:29:21 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 049E2AD73;
-	Tue, 10 Sep 2019 08:29:19 +0000 (UTC)
-Date: Tue, 10 Sep 2019 10:29:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
-	cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: lot of MemAvailable but falling cache and raising PSI
-Message-ID: <20190910082919.GL2063@dhcp22.suse.cz>
-References: <20190909082732.GC27159@dhcp22.suse.cz>
- <1d9ee19a-98c9-cd78-1e5b-21d9d6e36792@profihost.ag>
- <20190909110136.GG27159@dhcp22.suse.cz>
- <20190909120811.GL27159@dhcp22.suse.cz>
- <88ff0310-b9ab-36b6-d8ab-b6edd484d973@profihost.ag>
- <20190909122852.GM27159@dhcp22.suse.cz>
- <2d04fc69-8fac-2900-013b-7377ca5fd9a8@profihost.ag>
- <20190909124950.GN27159@dhcp22.suse.cz>
- <10fa0b97-631d-f82b-0881-89adb9ad5ded@profihost.ag>
- <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
+Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BDA96B0007
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:30:00 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id EFAC4181AC9BF
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:29:59 +0000 (UTC)
+X-FDA: 75918338118.29.cat35_1d0314ebcbd3b
+X-HE-Tag: cat35_1d0314ebcbd3b
+X-Filterd-Recvd-Size: 7321
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:29:59 +0000 (UTC)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8A8RJmC108784
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:29:57 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ux55bdvf1-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:29:57 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Tue, 10 Sep 2019 09:29:55 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 10 Sep 2019 09:29:52 +0100
+Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8A8TosZ41091092
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 10 Sep 2019 08:29:50 GMT
+Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6391E52051;
+	Tue, 10 Sep 2019 08:29:50 +0000 (GMT)
+Received: from bharata.ibmuc.com (unknown [9.199.35.217])
+	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTP id 5D5775204F;
+	Tue, 10 Sep 2019 08:29:48 +0000 (GMT)
+From: Bharata B Rao <bharata@linux.ibm.com>
+To: linuxppc-dev@lists.ozlabs.org
+Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
+        aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
+        linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+        cclaudio@linux.ibm.com, hch@lst.de,
+        Bharata B Rao <bharata@linux.ibm.com>
+Subject: [PATCH v8 0/8] kvmppc: Driver to manage pages of secure guest
+Date: Tue, 10 Sep 2019 13:59:38 +0530
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-TM-AS-GCONF: 00
+x-cbid: 19091008-0016-0000-0000-000002A96838
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19091008-0017-0000-0000-00003309ED99
+Message-Id: <20190910082946.7849-1-bharata@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-10_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909100085
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 10-09-19 07:56:36, Stefan Priebe - Profihost AG wrote:
-> 
-> Am 09.09.19 um 14:56 schrieb Stefan Priebe - Profihost AG:
-> > Am 09.09.19 um 14:49 schrieb Michal Hocko:
-> >> On Mon 09-09-19 14:37:52, Stefan Priebe - Profihost AG wrote:
-> >>>
-> >>> Am 09.09.19 um 14:28 schrieb Michal Hocko:
-> >>>> On Mon 09-09-19 14:10:02, Stefan Priebe - Profihost AG wrote:
-> >>>>>
-> >>>>> Am 09.09.19 um 14:08 schrieb Michal Hocko:
-> >>>>>> On Mon 09-09-19 13:01:36, Michal Hocko wrote:
-> >>>>>>> and that matches moments when we reclaimed memory. There seems to be a
-> >>>>>>> steady THP allocations flow so maybe this is a source of the direct
-> >>>>>>> reclaim?
-> >>>>>>
-> >>>>>> I was thinking about this some more and THP being a source of reclaim
-> >>>>>> sounds quite unlikely. At least in a default configuration because we
-> >>>>>> shouldn't do anything expensinve in the #PF path. But there might be a
-> >>>>>> difference source of high order (!costly) allocations. Could you check
-> >>>>>> how many allocation requests like that you have on your system?
-> >>>>>>
-> >>>>>> mount -t debugfs none /debug
-> >>>>>> echo "order > 0" > /debug/tracing/events/kmem/mm_page_alloc/filter
-> >>>>>> echo 1 > /debug/tracing/events/kmem/mm_page_alloc/enable
-> >>>>>> cat /debug/tracing/trace_pipe > $file
-> >>>>
-> >>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
-> >>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
-> >>>>  
-> >>>> might tell us something as well but it might turn out that it just still
-> >>>> doesn't give us the full picture and we might need
-> >>>> echo stacktrace > /debug/tracing/trace_options
-> >>>>
-> >>>> It will generate much more output though.
-> >>>>
-> >>>>> Just now or when PSI raises?
-> >>>>
-> >>>> When the excessive reclaim is happening ideally.
-> >>>
-> >>> This one is from a server with 28G memfree but memory pressure is still
-> >>> jumping between 0 and 10%.
-> >>>
-> >>> I did:
-> >>> echo "order > 0" >
-> >>> /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/filter
-> >>>
-> >>> echo 1 > /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/enable
-> >>>
-> >>> echo 1 >
-> >>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
-> >>>
-> >>> echo 1 >
-> >>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
-> >>>
-> >>> timeout 120 cat /sys/kernel/debug/tracing/trace_pipe > /trace
-> >>>
-> >>> File attached.
-> >>
-> >> There is no reclaim captured in this trace dump.
-> >> $ zcat trace1.gz | sed 's@.*\(order=[0-9]\).*\(gfp_flags=.*\)@\1 \2@' | sort | uniq -c
-> >>     777 order=1 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>     663 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>     153 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>     911 order=1 gfp_flags=GFP_KERNEL_ACCOUNT|__GFP_ZERO
-> >>    4872 order=1 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
-> >>      62 order=1 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>      14 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
-> >>      11 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_RECLAIMABLE
-> >>    1263 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>      45 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
-> >>       1 order=2 gfp_flags=GFP_KERNEL|__GFP_COMP|__GFP_ZERO
-> >>    7853 order=2 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
-> >>      73 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>     729 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
-> >>     528 order=3 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>    1203 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
-> >>    5295 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
-> >>       1 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>     132 order=3 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
-> >>      13 order=5 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
-> >>       1 order=6 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
-> >>    1232 order=9 gfp_flags=GFP_TRANSHUGE
-> >>     108 order=9 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
-> >>     362 order=9 gfp_flags=GFP_TRANSHUGE_LIGHT|__GFP_THISNODE
-> >>
-> >> Nothing really stands out because except for the THP ones none of others
-> >> are going to even be using movable zone.
-> > It might be that this is not an ideal example is was just the fastest i
-> > could find. May be we really need one with much higher pressure.
-> 
-> here another trace log where a system has 30GB free memory but is under
-> constant pressure and does not build up any file cache caused by memory
-> pressure.
+Hi,
 
-So the reclaim is clearly induced by THP allocations
-$ zgrep vmscan trace2.gz | grep gfp_flags | sed 's@.*\(gfp_flags=.*\) .*@\1@' | sort | uniq -c
-   1580 gfp_flags=GFP_TRANSHUGE
-     15 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
+A pseries guest can be run as a secure guest on Ultravisor-enabled
+POWER platforms. On such platforms, this driver will be used to manage
+the movement of guest pages between the normal memory managed by
+hypervisor(HV) and secure memory managed by Ultravisor(UV).
 
-$ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@nr_reclaimed=@@' |  awk '{nr+=$6+0}END{print nr}'
-1541726
+Private ZONE_DEVICE memory equal to the amount of secure memory
+available in the platform for running secure guests is created.
+Whenever a page belonging to the guest becomes secure, a page from
+this private device memory is used to represent and track that secure
+page on the HV side. The movement of pages between normal and secure
+memory is done via migrate_vma_pages(). The reverse movement is driven
+via pagemap_ops.migrate_to_ram().
 
-6GB of memory reclaimed in 1776s. That is a lot! But the THP allocation
-rate is really high as well
-$ zgrep "page_alloc.*GFP_TRANSHUGE" trace2.gz | wc -l
-15340
+The page-in or page-out requests from UV will come to HV as hcalls and
+HV will call back into UV via uvcalls to satisfy these page requests.
 
-this is 30GB worth of THPs (some of them might get released of course).
-Also only 10% of requests ends up reclaiming.
+These patches are against hmm.git
+(https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=3Dh=
+mm)
 
-One additional interesting point
-$ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@.*nr_reclaimed=\([[0-9]*\)@\1@' | calc_min_max.awk
-min: 1.00 max: 2792.00 avg: 965.99 std: 331.12 nr: 1596
+plus
 
-Even though the std is high there are quite some outliers when a lot of
-memory is reclaimed.
+Claudio Carvalho's base ultravisor enablement patches that are present
+in Michael Ellerman's tree
+(https://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git/log/?h=
+=3Dtopic/ppc-kvm)
 
-Which kernel version is this. And again, what is the THP configuration.
--- 
-Michal Hocko
-SUSE Labs
+These patches along with Claudio's above patches are required to
+run secure pseries guests on KVM. This patchset is based on hmm.git
+because hmm.git has migrate_vma cleanup and not-device memremap_pages
+patchsets that are required by this patchset.
+
+Changes in v8
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+- s/kvmppc_devm/kvmppc_uvmem
+- Carrying Suraj's patch that defines bit positions for different rmap
+  functions from Paul's kvm-next branch. Added KVMPPC_RMAP_UVMEM_PFN
+  to this patch.
+- No need to use irqsave version of spinlock to protect pfn bitmap
+- mmap_sem and srcu_lock reversal in page-in/page-out so that we
+  have uniform locking semantics in page-in, page-out, fault and
+  reset paths. This also matches with other usages of the same
+  two locks in powerpc code.
+- kvmppc_uvmem_free_memslot_pfns() needs kvm srcu read lock.
+- Addressed all the review feedback from Christoph and Sukadev.
+  - Dropped kvmppc_rmap_is_devm_pfn() and introduced kvmppc_rmap_type()
+  - Bail out early if page-in request comes for an already paged-in page
+  - kvmppc_uvmem_pfn_lock re-arrangement
+  - Check for failure from gfn_to_memslot in kvmppc_h_svm_page_in
+  - Consolidate migrate_vma setup and related code into two helpers
+    kvmppc_svm_page_in/out.
+  - Use NUMA_NO_NODE in memremap_pages() instead of -1
+  - Removed externs in declarations
+  - Ensure *rmap assignment gets cleared in the error case in
+    kvmppc_uvmem_get_page()
+- A few other code cleanups
+
+v7: https://lists.ozlabs.org/pipermail/linuxppc-dev/2019-August/195631.ht=
+ml
+
+Anshuman Khandual (1):
+  KVM: PPC: Ultravisor: Add PPC_UV config option
+
+Bharata B Rao (6):
+  kvmppc: Movement of pages between normal and secure memory
+  kvmppc: Shared pages support for secure guests
+  kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE hcalls
+  kvmppc: Handle memory plug/unplug to secure VM
+  kvmppc: Radix changes for secure guest
+  kvmppc: Support reset of secure guest
+
+Suraj Jitindar Singh (1):
+  KVM: PPC: Book3S HV: Define usage types for rmap array in guest
+    memslot
+
+ Documentation/virt/kvm/api.txt              |  19 +
+ arch/powerpc/Kconfig                        |  17 +
+ arch/powerpc/include/asm/hvcall.h           |   9 +
+ arch/powerpc/include/asm/kvm_book3s_uvmem.h |  48 ++
+ arch/powerpc/include/asm/kvm_host.h         |  56 +-
+ arch/powerpc/include/asm/kvm_ppc.h          |   2 +
+ arch/powerpc/include/asm/ultravisor-api.h   |   6 +
+ arch/powerpc/include/asm/ultravisor.h       |  36 ++
+ arch/powerpc/kvm/Makefile                   |   3 +
+ arch/powerpc/kvm/book3s_64_mmu_radix.c      |  22 +
+ arch/powerpc/kvm/book3s_hv.c                | 121 ++++
+ arch/powerpc/kvm/book3s_hv_rm_mmu.c         |   2 +-
+ arch/powerpc/kvm/book3s_hv_uvmem.c          | 604 ++++++++++++++++++++
+ arch/powerpc/kvm/powerpc.c                  |  12 +
+ include/uapi/linux/kvm.h                    |   1 +
+ 15 files changed, 953 insertions(+), 5 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/kvm_book3s_uvmem.h
+ create mode 100644 arch/powerpc/kvm/book3s_hv_uvmem.c
+
+--=20
+2.21.0
+
 
