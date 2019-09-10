@@ -6,39 +6,40 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D80FC3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:03:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D384C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:21:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC3520872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:03:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC3520872
+	by mail.kernel.org (Postfix) with ESMTP id C8F05206A5
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:21:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8F05206A5
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 891096B0003; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
+	id 306856B0003; Tue, 10 Sep 2019 04:21:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 842716B0006; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
+	id 2B6D36B0006; Tue, 10 Sep 2019 04:21:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 730D06B0007; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
+	id 157A16B0007; Tue, 10 Sep 2019 04:21:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 507986B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:03:49 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id F1ED4180AD7C3
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:03:48 +0000 (UTC)
-X-FDA: 75918272136.12.maid35_5b6606c56801a
-X-HE-Tag: maid35_5b6606c56801a
-X-Filterd-Recvd-Size: 11511
+Received: from forelay.hostedemail.com (smtprelay0101.hostedemail.com [216.40.44.101])
+	by kanga.kvack.org (Postfix) with ESMTP id E79F76B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:21:13 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 9BC0E6124
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:21:13 +0000 (UTC)
+X-FDA: 75918316026.03.idea74_61c8bd038ed0b
+X-HE-Tag: idea74_61c8bd038ed0b
+X-Filterd-Recvd-Size: 11031
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf09.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:03:47 +0000 (UTC)
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:21:11 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 54954AED0;
-	Tue, 10 Sep 2019 08:03:46 +0000 (UTC)
-Subject: Re: [PATCH v4 04/17] arm64: hibernate: use get_safe_page directly
+	by mx1.suse.de (Postfix) with ESMTP id 4C4E6AE78;
+	Tue, 10 Sep 2019 08:21:10 +0000 (UTC)
+Subject: Re: [PATCH v4 05/17] arm64: hibernate: remove gotos in
+ create_safe_exec_page
 To: Pavel Tatashin <pasha.tatashin@soleen.com>, jmorris@namei.org,
  sashal@kernel.org, ebiederm@xmission.com, kexec@lists.infradead.org,
  linux-kernel@vger.kernel.org, corbet@lwn.net, catalin.marinas@arm.com,
@@ -46,7 +47,7 @@ To: Pavel Tatashin <pasha.tatashin@soleen.com>, jmorris@namei.org,
  james.morse@arm.com, vladimir.murzin@arm.com, bhsharma@redhat.com,
  linux-mm@kvack.org, mark.rutland@arm.com
 References: <20190909181221.309510-1-pasha.tatashin@soleen.com>
- <20190909181221.309510-5-pasha.tatashin@soleen.com>
+ <20190909181221.309510-6-pasha.tatashin@soleen.com>
 From: Matthias Brugger <mbrugger@suse.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=mbrugger@suse.com; prefer-encrypt=mutual; keydata=
@@ -141,12 +142,12 @@ Autocrypt: addr=mbrugger@suse.com; prefer-encrypt=mutual; keydata=
  DnchsfHg18gCCrEtYZ9czwNjVoV1Tv2lpzTTk+6HEJaQpMnPeAKbOeehq3gYKcvmDL+bRCTj
  mXg8WrBZdUuj0BCDYqneaUgVnp+wQogA3mHGVs281v1XZmjlsVmM9Y8VPE614zSiZQBL5Cin
  BTTI8ssYlV/aIKYi0dxRcj6vYnAfUImOsdZ5AQja5xIqw1rwWWUOYb99
-Message-ID: <e2ceb43a-d7bf-e0c6-c3ea-b83c95ba880d@suse.com>
-Date: Tue, 10 Sep 2019 10:03:44 +0200
+Message-ID: <9135be3e-cf7e-821d-928d-db98aa3ec9c8@suse.com>
+Date: Tue, 10 Sep 2019 10:21:08 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190909181221.309510-5-pasha.tatashin@soleen.com>
+In-Reply-To: <20190909181221.309510-6-pasha.tatashin@soleen.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -159,92 +160,102 @@ List-ID: <linux-mm.kvack.org>
 
 
 On 09/09/2019 20:12, Pavel Tatashin wrote:
-> create_safe_exec_page() uses hibernate's allocator to create a set of page
-> table to map a single page that will contain the relocation code.
+> Usually, gotos are used to handle cleanup after exception, but
+> in case of create_safe_exec_page there are no clean-ups. So,
+> simply return the errors directly.
 > 
-> Remove the allocator related arguments, and use get_safe_page directly, as
-> it is done in other local functions in this file to simplify function
-> prototype.
-> 
-> Removing this function pointer makes it easier to refactor the code later.
-> 
+
+While at it, how about also cleaning up swsusp_arch_resume() which has the same
+issue.
+
+Regards,
+Matthias
+
 > Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-
-Reviewed-by: Matthias Brugger <mbrugger@suse.com>
-
+> Reviewed-by: James Morse <james.morse@arm.com>
 > ---
->  arch/arm64/kernel/hibernate.c | 17 +++++++----------
->  1 file changed, 7 insertions(+), 10 deletions(-)
+>  arch/arm64/kernel/hibernate.c | 34 +++++++++++-----------------------
+>  1 file changed, 11 insertions(+), 23 deletions(-)
 > 
 > diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-> index 227cc26720f7..47a861e0cb0c 100644
+> index 47a861e0cb0c..7bbeb33c700d 100644
 > --- a/arch/arm64/kernel/hibernate.c
 > +++ b/arch/arm64/kernel/hibernate.c
-> @@ -196,9 +196,7 @@ EXPORT_SYMBOL(arch_hibernation_header_restore);
->   */
->  static int create_safe_exec_page(void *src_start, size_t length,
+> @@ -198,7 +198,6 @@ static int create_safe_exec_page(void *src_start, size_t length,
 >  				 unsigned long dst_addr,
-> -				 phys_addr_t *phys_dst_addr,
-> -				 void *(*allocator)(gfp_t mask),
-> -				 gfp_t mask)
-> +				 phys_addr_t *phys_dst_addr)
+>  				 phys_addr_t *phys_dst_addr)
 >  {
->  	int rc = 0;
+> -	int rc = 0;
 >  	pgd_t *trans_pgd;
-> @@ -206,7 +204,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  	pgd_t *pgdp;
 >  	pud_t *pudp;
->  	pmd_t *pmdp;
+> @@ -206,47 +205,37 @@ static int create_safe_exec_page(void *src_start, size_t length,
 >  	pte_t *ptep;
-> -	unsigned long dst = (unsigned long)allocator(mask);
-> +	unsigned long dst = get_safe_page(GFP_ATOMIC);
+>  	unsigned long dst = get_safe_page(GFP_ATOMIC);
 >  
->  	if (!dst) {
->  		rc = -ENOMEM;
-> @@ -216,7 +214,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+> -	if (!dst) {
+> -		rc = -ENOMEM;
+> -		goto out;
+> -	}
+> +	if (!dst)
+> +		return -ENOMEM;
+>  
 >  	memcpy((void *)dst, src_start, length);
 >  	__flush_icache_range(dst, dst + length);
 >  
-> -	trans_pgd = allocator(mask);
-> +	trans_pgd = (void *)get_safe_page(GFP_ATOMIC);
->  	if (!trans_pgd) {
->  		rc = -ENOMEM;
->  		goto out;
-> @@ -224,7 +222,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  	trans_pgd = (void *)get_safe_page(GFP_ATOMIC);
+> -	if (!trans_pgd) {
+> -		rc = -ENOMEM;
+> -		goto out;
+> -	}
+> +	if (!trans_pgd)
+> +		return -ENOMEM;
 >  
 >  	pgdp = pgd_offset_raw(trans_pgd, dst_addr);
 >  	if (pgd_none(READ_ONCE(*pgdp))) {
-> -		pudp = allocator(mask);
-> +		pudp = (void *)get_safe_page(GFP_ATOMIC);
->  		if (!pudp) {
->  			rc = -ENOMEM;
->  			goto out;
-> @@ -234,7 +232,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  		pudp = (void *)get_safe_page(GFP_ATOMIC);
+> -		if (!pudp) {
+> -			rc = -ENOMEM;
+> -			goto out;
+> -		}
+> +		if (!pudp)
+> +			return -ENOMEM;
+>  		pgd_populate(&init_mm, pgdp, pudp);
+>  	}
 >  
 >  	pudp = pud_offset(pgdp, dst_addr);
 >  	if (pud_none(READ_ONCE(*pudp))) {
-> -		pmdp = allocator(mask);
-> +		pmdp = (void *)get_safe_page(GFP_ATOMIC);
->  		if (!pmdp) {
->  			rc = -ENOMEM;
->  			goto out;
-> @@ -244,7 +242,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  		pmdp = (void *)get_safe_page(GFP_ATOMIC);
+> -		if (!pmdp) {
+> -			rc = -ENOMEM;
+> -			goto out;
+> -		}
+> +		if (!pmdp)
+> +			return -ENOMEM;
+>  		pud_populate(&init_mm, pudp, pmdp);
+>  	}
 >  
 >  	pmdp = pmd_offset(pudp, dst_addr);
 >  	if (pmd_none(READ_ONCE(*pmdp))) {
-> -		ptep = allocator(mask);
-> +		ptep = (void *)get_safe_page(GFP_ATOMIC);
->  		if (!ptep) {
->  			rc = -ENOMEM;
->  			goto out;
-> @@ -530,8 +528,7 @@ int swsusp_arch_resume(void)
->  	 */
->  	rc = create_safe_exec_page(__hibernate_exit_text_start, exit_size,
->  				   (unsigned long)hibernate_exit,
-> -				   &phys_hibernate_exit,
-> -				   (void *)get_safe_page, GFP_ATOMIC);
-> +				   &phys_hibernate_exit);
->  	if (rc) {
->  		pr_err("Failed to create safe executable page for hibernate_exit code.\n");
->  		goto out;
+>  		ptep = (void *)get_safe_page(GFP_ATOMIC);
+> -		if (!ptep) {
+> -			rc = -ENOMEM;
+> -			goto out;
+> -		}
+> +		if (!ptep)
+> +			return -ENOMEM;
+>  		pmd_populate_kernel(&init_mm, pmdp, ptep);
+>  	}
+>  
+> @@ -272,8 +261,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
+>  
+>  	*phys_dst_addr = virt_to_phys((void *)dst);
+>  
+> -out:
+> -	return rc;
+> +	return 0;
+>  }
+>  
+>  #define dcache_clean_range(start, end)	__flush_dcache_area(start, (end - start))
 > 
 
