@@ -2,151 +2,209 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3538FC4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 02:53:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F9D8C49ED6
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:38:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 026C1218DE
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 02:53:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 026C1218DE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=au1.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id DF23321726
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:38:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF23321726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A17056B000A; Mon,  9 Sep 2019 22:53:02 -0400 (EDT)
+	id 402246B0003; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A14E6B000C; Mon,  9 Sep 2019 22:53:02 -0400 (EDT)
+	id 38A916B0006; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B67E6B000D; Mon,  9 Sep 2019 22:53:02 -0400 (EDT)
+	id 264B16B0007; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
-	by kanga.kvack.org (Postfix) with ESMTP id 6594B6B000A
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 22:53:02 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 0EE92181AC9AE
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 02:53:02 +0000 (UTC)
-X-FDA: 75917489004.09.bike33_8ed7f2879430e
-X-HE-Tag: bike33_8ed7f2879430e
-X-Filterd-Recvd-Size: 5151
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 02:53:01 +0000 (UTC)
-Received: from pps.filterd (m0187473.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8A2q79D035544
-	for <linux-mm@kvack.org>; Mon, 9 Sep 2019 22:53:00 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uv86vm6t6-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 09 Sep 2019 22:53:00 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <alastair@au1.ibm.com>;
-	Tue, 10 Sep 2019 03:52:57 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 10 Sep 2019 03:52:53 +0100
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8A2qqo059375790
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 10 Sep 2019 02:52:52 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id ABD9AA4057;
-	Tue, 10 Sep 2019 02:52:52 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 57E46A4053;
-	Tue, 10 Sep 2019 02:52:52 +0000 (GMT)
-Received: from ozlabs.au.ibm.com (unknown [9.192.253.14])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 10 Sep 2019 02:52:52 +0000 (GMT)
-Received: from adsilva.ozlabs.ibm.com (haven.au.ibm.com [9.192.254.114])
-	(using TLSv1.2 with cipher DHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by ozlabs.au.ibm.com (Postfix) with ESMTPSA id 0C7EDA01D3;
-	Tue, 10 Sep 2019 12:52:51 +1000 (AEST)
-From: "Alastair D'Silva" <alastair@au1.ibm.com>
-To: alastair@d-silva.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-        David Hildenbrand <david@redhat.com>,
-        Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
-        Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
-        Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Subject: [PATCH 2/2] mm: Add a bounds check in devm_memremap_pages()
-Date: Tue, 10 Sep 2019 12:52:21 +1000
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190910025225.25904-1-alastair@au1.ibm.com>
-References: <20190910025225.25904-1-alastair@au1.ibm.com>
+Received: from forelay.hostedemail.com (smtprelay0062.hostedemail.com [216.40.44.62])
+	by kanga.kvack.org (Postfix) with ESMTP id F10346B0003
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:38:06 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 934B78E5A
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:38:06 +0000 (UTC)
+X-FDA: 75917602572.29.voice68_63d8e494cec43
+X-HE-Tag: voice68_63d8e494cec43
+X-Filterd-Recvd-Size: 8148
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:38:06 +0000 (UTC)
+Received: by mail-io1-f69.google.com with SMTP id f24so21174262ion.4
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 20:38:05 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:date:message-id:subject:from:to;
+        bh=Rd/SAk5CtZwf/BrETHXkyZKKBtvN/8H2VfgfX20+5x4=;
+        b=E05pROXtHzNpRlwgl44vQu/7TRC2TMa6Uw/6frpCPGjx42pu9C1zH+9xahICHDv+m7
+         nVXU1uPZtZvRkyUaYFzRXn5he5SOvQweBeDCHCkSgw70UGihi3I1t6U5rcfXdvGSmGYz
+         Cy7wVPYFsr/UxdpazXBKG9BDlngGWe8StLhET211Uy10tBnvXbQ+BOSqsjwOnPrHu7nw
+         LcigR/NPK1YCrHA9D6/ORU2tX1E7z0XTSPH9wfkfktBa/EfcQIqVQtqzL53sasPMriGL
+         spy3scG5eoKlwdK0nx9159U0SeYjWehQh1SUuzkmIVojG3Hy9YZYg2RoU+UDPpsTgCYG
+         kDTg==
+X-Gm-Message-State: APjAAAVPwy2qtghkKA0/bjuiCAjygfFDMXrYACvLZMNCMbuDM8pCAlk9
+	oXi8hft5RAQsfQh+w/dOi1UFNcCk3IbOrsVbu1gWwFxvaKKk
+X-Google-Smtp-Source: APXvYqy8z5tCABQwtCejIYZLwHFWWUW9p92XwbjPu6406dfxH/DFby8KUmRkDBRPD5enP5epvzyRkTeR+lTpGpeMbwCEDZHEK/4P
 MIME-Version: 1.0
-X-TM-AS-GCONF: 00
-x-cbid: 19091002-0012-0000-0000-0000034946A0
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19091002-0013-0000-0000-00002183A8A5
-Message-Id: <20190910025225.25904-3-alastair@au1.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-10_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=965 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1909100026
-Content-Transfer-Encoding: quoted-printable
+X-Received: by 2002:a5d:9b06:: with SMTP id y6mr18645624ion.77.1568086685410;
+ Mon, 09 Sep 2019 20:38:05 -0700 (PDT)
+Date: Mon, 09 Sep 2019 20:38:05 -0700
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000dc762d05922aa177@google.com>
+Subject: possible deadlock in shmem_fallocate (3)
+From: syzbot <syzbot+5d04068d02b9da8a0947@syzkaller.appspotmail.com>
+To: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	syzkaller-bugs@googlegroups.com
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Alastair D'Silva <alastair@d-silva.org>
+Hello,
 
-The call to check_hotplug_memory_addressable() validates that the memory
-is fully addressable.
+syzbot found the following crash on:
 
-Without this call, it is possible that we may remap pages that is
-not physically addressable, resulting in bogus section numbers
-being returned from __section_nr().
+HEAD commit:    6d028043 Add linux-next specific files for 20190830
+git tree:       linux-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=12359ec6600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=82a6bec43ab0cb69
+dashboard link: https://syzkaller.appspot.com/bug?extid=5d04068d02b9da8a0947
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
 
-Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+5d04068d02b9da8a0947@syzkaller.appspotmail.com
+
+======================================================
+WARNING: possible circular locking dependency detected
+5.3.0-rc6-next-20190830 #75 Not tainted
+------------------------------------------------------
+kswapd0/1770 is trying to acquire lock:
+ffff8880a0b9b780 (&sb->s_type->i_mutex_key#13){+.+.}, at: inode_lock  
+include/linux/fs.h:789 [inline]
+ffff8880a0b9b780 (&sb->s_type->i_mutex_key#13){+.+.}, at:  
+shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
+
+but task is already holding lock:
+ffffffff89042f80 (fs_reclaim){+.+.}, at: __fs_reclaim_acquire+0x0/0x30  
+mm/page_alloc.c:4889
+
+which lock already depends on the new lock.
+
+
+the existing dependency chain (in reverse order) is:
+
+-> #1 (fs_reclaim){+.+.}:
+        __fs_reclaim_acquire mm/page_alloc.c:4075 [inline]
+        fs_reclaim_acquire.part.0+0x24/0x30 mm/page_alloc.c:4086
+        fs_reclaim_acquire mm/page_alloc.c:4662 [inline]
+        prepare_alloc_pages mm/page_alloc.c:4659 [inline]
+        __alloc_pages_nodemask+0x52f/0x900 mm/page_alloc.c:4711
+        alloc_pages_vma+0x1bc/0x3f0 mm/mempolicy.c:2114
+        shmem_alloc_page+0xbd/0x180 mm/shmem.c:1496
+        shmem_alloc_and_acct_page+0x165/0x990 mm/shmem.c:1521
+        shmem_getpage_gfp+0x598/0x2680 mm/shmem.c:1835
+        shmem_getpage mm/shmem.c:152 [inline]
+        shmem_write_begin+0x105/0x1e0 mm/shmem.c:2480
+        generic_perform_write+0x23b/0x540 mm/filemap.c:3304
+        __generic_file_write_iter+0x25e/0x630 mm/filemap.c:3433
+        generic_file_write_iter+0x420/0x690 mm/filemap.c:3465
+        call_write_iter include/linux/fs.h:1890 [inline]
+        new_sync_write+0x4d3/0x770 fs/read_write.c:483
+        __vfs_write+0xe1/0x110 fs/read_write.c:496
+        vfs_write+0x268/0x5d0 fs/read_write.c:558
+        ksys_write+0x14f/0x290 fs/read_write.c:611
+        __do_sys_write fs/read_write.c:623 [inline]
+        __se_sys_write fs/read_write.c:620 [inline]
+        __x64_sys_write+0x73/0xb0 fs/read_write.c:620
+        do_syscall_64+0xfa/0x760 arch/x86/entry/common.c:290
+        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+-> #0 (&sb->s_type->i_mutex_key#13){+.+.}:
+        check_prev_add kernel/locking/lockdep.c:2476 [inline]
+        check_prevs_add kernel/locking/lockdep.c:2581 [inline]
+        validate_chain kernel/locking/lockdep.c:2971 [inline]
+        __lock_acquire+0x2596/0x4a00 kernel/locking/lockdep.c:3955
+        lock_acquire+0x190/0x410 kernel/locking/lockdep.c:4487
+        down_write+0x93/0x150 kernel/locking/rwsem.c:1534
+        inode_lock include/linux/fs.h:789 [inline]
+        shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
+        ashmem_shrink_scan drivers/staging/android/ashmem.c:462 [inline]
+        ashmem_shrink_scan+0x370/0x510 drivers/staging/android/ashmem.c:437
+        do_shrink_slab+0x40f/0xa30 mm/vmscan.c:560
+        shrink_slab mm/vmscan.c:721 [inline]
+        shrink_slab+0x19a/0x680 mm/vmscan.c:694
+        shrink_node+0x223/0x12e0 mm/vmscan.c:2807
+        kswapd_shrink_node mm/vmscan.c:3549 [inline]
+        balance_pgdat+0x57c/0xea0 mm/vmscan.c:3707
+        kswapd+0x5c3/0xf30 mm/vmscan.c:3958
+        kthread+0x361/0x430 kernel/kthread.c:255
+        ret_from_fork+0x24/0x30 arch/x86/entry/entry_64.S:352
+
+other info that might help us debug this:
+
+  Possible unsafe locking scenario:
+
+        CPU0                    CPU1
+        ----                    ----
+   lock(fs_reclaim);
+                                lock(&sb->s_type->i_mutex_key#13);
+                                lock(fs_reclaim);
+   lock(&sb->s_type->i_mutex_key#13);
+
+  *** DEADLOCK ***
+
+2 locks held by kswapd0/1770:
+  #0: ffffffff89042f80 (fs_reclaim){+.+.}, at: __fs_reclaim_acquire+0x0/0x30  
+mm/page_alloc.c:4889
+  #1: ffffffff8901ffe8 (shrinker_rwsem){++++}, at: shrink_slab  
+mm/vmscan.c:711 [inline]
+  #1: ffffffff8901ffe8 (shrinker_rwsem){++++}, at: shrink_slab+0xe6/0x680  
+mm/vmscan.c:694
+
+stack backtrace:
+CPU: 0 PID: 1770 Comm: kswapd0 Not tainted 5.3.0-rc6-next-20190830 #75
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
+  print_circular_bug.isra.0.cold+0x163/0x172 kernel/locking/lockdep.c:1685
+  check_noncircular+0x32e/0x3e0 kernel/locking/lockdep.c:1809
+  check_prev_add kernel/locking/lockdep.c:2476 [inline]
+  check_prevs_add kernel/locking/lockdep.c:2581 [inline]
+  validate_chain kernel/locking/lockdep.c:2971 [inline]
+  __lock_acquire+0x2596/0x4a00 kernel/locking/lockdep.c:3955
+  lock_acquire+0x190/0x410 kernel/locking/lockdep.c:4487
+  down_write+0x93/0x150 kernel/locking/rwsem.c:1534
+  inode_lock include/linux/fs.h:789 [inline]
+  shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
+  ashmem_shrink_scan drivers/staging/android/ashmem.c:462 [inline]
+  ashmem_shrink_scan+0x370/0x510 drivers/staging/android/ashmem.c:437
+  do_shrink_slab+0x40f/0xa30 mm/vmscan.c:560
+  shrink_slab mm/vmscan.c:721 [inline]
+  shrink_slab+0x19a/0x680 mm/vmscan.c:694
+  shrink_node+0x223/0x12e0 mm/vmscan.c:2807
+  kswapd_shrink_node mm/vmscan.c:3549 [inline]
+  balance_pgdat+0x57c/0xea0 mm/vmscan.c:3707
+  kswapd+0x5c3/0xf30 mm/vmscan.c:3958
+  kthread+0x361/0x430 kernel/kthread.c:255
+  ret_from_fork+0x24/0x30 arch/x86/entry/entry_64.S:352
+
+
 ---
- mm/memremap.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-diff --git a/mm/memremap.c b/mm/memremap.c
-index 86432650f829..fd00993caa3e 100644
---- a/mm/memremap.c
-+++ b/mm/memremap.c
-@@ -269,6 +269,13 @@ void *devm_memremap_pages(struct device *dev, struct=
- dev_pagemap *pgmap)
-=20
- 	mem_hotplug_begin();
-=20
-+	error =3D check_hotplug_memory_addressable(res->start,
-+						 resource_size(res));
-+	if (error) {
-+		mem_hotplug_done();
-+		goto err_checkrange;
-+	}
-+
- 	/*
- 	 * For device private memory we call add_pages() as we only need to
- 	 * allocate and initialize struct page for the device memory. More-
-@@ -324,6 +331,7 @@ void *devm_memremap_pages(struct device *dev, struct =
-dev_pagemap *pgmap)
-=20
-  err_add_memory:
- 	kasan_remove_zero_shadow(__va(res->start), resource_size(res));
-+ err_checkrange:
-  err_kasan:
- 	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
-  err_pfn_remap:
---=20
-2.21.0
-
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
 
