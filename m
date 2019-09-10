@@ -6,42 +6,42 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EED1FC4740A
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:45:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F324C49ED6
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:46:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF33E2084D
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:45:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF33E2084D
+	by mail.kernel.org (Postfix) with ESMTP id E1F5C21479
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 07:46:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1F5C21479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D1E76B0003; Tue, 10 Sep 2019 03:45:54 -0400 (EDT)
+	id 7B6156B0006; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 283AD6B0006; Tue, 10 Sep 2019 03:45:54 -0400 (EDT)
+	id 78C906B0008; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1721E6B0008; Tue, 10 Sep 2019 03:45:54 -0400 (EDT)
+	id 67B406B000C; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D3B6B0003
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:45:53 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 8B8F4824376A
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:45:53 +0000 (UTC)
-X-FDA: 75918226986.09.cent46_5076a24628a2a
-X-HE-Tag: cent46_5076a24628a2a
-X-Filterd-Recvd-Size: 8300
+Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E376B0006
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:46:01 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DF294A2DB
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:46:00 +0000 (UTC)
+X-FDA: 75918227280.15.mass71_518bb40c96f5d
+X-HE-Tag: mass71_518bb40c96f5d
+X-Filterd-Recvd-Size: 8293
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:45:52 +0000 (UTC)
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 07:46:00 +0000 (UTC)
 Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 88B9BC05AA58;
-	Tue, 10 Sep 2019 07:45:51 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 1CE3D7BDAB;
+	Tue, 10 Sep 2019 07:45:59 +0000 (UTC)
 Received: from [10.36.117.199] (ovpn-117-199.ams2.redhat.com [10.36.117.199])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7FDFD5D9C9;
-	Tue, 10 Sep 2019 07:45:48 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 559EF5D9C9;
+	Tue, 10 Sep 2019 07:45:56 +0000 (UTC)
 Subject: Re: [PATCH 1/2] memory_hotplug: Add a bounds check to
  check_hotplug_memory_range()
 To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
@@ -101,8 +101,8 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <f2cde731-30a8-04ca-0ec6-f654d48db7bc@redhat.com>
-Date: Tue, 10 Sep 2019 09:45:47 +0200
+Message-ID: <117e4c00-48f6-a752-60de-48f72630372c@redhat.com>
+Date: Tue, 10 Sep 2019 09:45:55 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
@@ -110,7 +110,7 @@ In-Reply-To: <20190910025225.25904-2-alastair@au1.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 10 Sep 2019 07:45:51 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 10 Sep 2019 07:45:59 +0000 (UTC)
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -175,7 +175,7 @@ lug.h
 > +#endif
 > +
 
-I think using MAX_POSSIBLE_PHYSMEM_BITS bits is wrong. You should use
+I think using MAX_POSSIBLE_PHYSMEM_BITS is wrong. You should use
 MAX_PHYSMEM_BITS.
 
 E.g. on x86_64, MAX_POSSIBLE_PHYSMEM_BITS is 52, while MAX_PHYSMEM_BITS
