@@ -2,152 +2,217 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EF465C3A5A2
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:40:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB295C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:02:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A535E21479
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 08:40:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="j3cSCDAD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A535E21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id AB804206A5
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:02:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB804206A5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47E566B0008; Tue, 10 Sep 2019 04:40:41 -0400 (EDT)
+	id 3D0F76B0003; Tue, 10 Sep 2019 05:02:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42EF66B000A; Tue, 10 Sep 2019 04:40:41 -0400 (EDT)
+	id 381366B0007; Tue, 10 Sep 2019 05:02:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31D726B000C; Tue, 10 Sep 2019 04:40:41 -0400 (EDT)
+	id 271B86B0008; Tue, 10 Sep 2019 05:02:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0127.hostedemail.com [216.40.44.127])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FF946B0008
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 04:40:41 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 6DBA862F2
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:40:40 +0000 (UTC)
-X-FDA: 75918365040.25.yard70_7a2ff3db5c027
-X-HE-Tag: yard70_7a2ff3db5c027
-X-Filterd-Recvd-Size: 7416
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60079.outbound.protection.outlook.com [40.107.6.79])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 08:40:39 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=TvB+NSgcPJ88BkjVU05pCryNFLcaZ8KcRUj65Bzn5K9jLMxvAn6eYDik9HJjgMkdclvj92Te4lxyLSWDzcFuBV7BvFca+6mT+XwyOsDGGTt4UzjWz3Pz4BgSL7yfkC1YkSb8OC54A9OwmLgKwWSQeWnC965/29DD2/MHmZQNdvOue3uv9cFQQ/dTk7IdGtDwQfCKtX+4r3RR0mdU3lsP/n99RSvL1pa+U8REp4u2+ejXhhfEFp4GgzEOY7iQx7vr4GhXLR1jK/XzelDH3YLzGMBd+xKju2IjSPBIozSRT9Qb/5fdljptHLwUixBqK1LK2enP0wbSRT5y8/sZj20TWw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=F1QQ9djeLKJ6XYuuU005tEADhQxNoCFe597rl/FVTwA=;
- b=RH4PhRPTBz12je0bymb4Vi5DvJtL6sADD7LHq3cHcysul6V8vPz5V4+oEf5olwnf/KV/UhhWNLJ340y/ENUHaldxUjF3+RMWR8p/tAwF1cNtDBPKCDBqsChlX6B3FvikgSu/ZFbiZVnT+4AjGniyM0j4q5xrrtIyMzSW9a8MrqPFkdg/dMcfdlx5P3C7uNm6hhXKOiAqr4NOxOXXAro2YmTYSZR5VRd4f8qecZoxvZuR57Ju49ZKCfcUC+f5h9TdkRwUPM0BNHeWKF729Vht5CZIeKQBbAgFTW8hv7n+AanHZl53+5msRNOYFkdG8SzWoEx9kL946YX7ITNR7v6u7g==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=F1QQ9djeLKJ6XYuuU005tEADhQxNoCFe597rl/FVTwA=;
- b=j3cSCDADh8FuvTjwr1oqeO7CRHMfJEdRkrMU2yzWAMMjZfqBF1CAOyJC6Ka9+UzTA0QWewS+zKgqSm49nZ68UUncr9DyyKZJdsVxWpaZFMBNHpPLwksa7SSn0uhybzu3AkVkiqjlGek3OkelYYG+LYhWe2CvhC4/8/hU/kK3wmM=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5581.eurprd05.prod.outlook.com (20.177.202.217) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2241.20; Tue, 10 Sep 2019 08:40:37 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::79a3:d971:d1f3:ab6f]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::79a3:d971:d1f3:ab6f%7]) with mapi id 15.20.2241.018; Tue, 10 Sep 2019
- 08:40:37 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Michal Hocko <mhocko@kernel.org>
-CC: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>, Bernard Metzler <bmt@zurich.ibm.com>, "Matthew
- Wilcox (Oracle)" <willy@infradead.org>, "Kirill A. Shutemov"
-	<kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm: add dummy can_do_mlock() helper
-Thread-Topic: [PATCH] mm: add dummy can_do_mlock() helper
-Thread-Index: AQHVZ08q5wbucvrEOU+F8Ef7pGgfzKckfwoAgAAZK4A=
-Date: Tue, 10 Sep 2019 08:40:37 +0000
-Message-ID: <20190910084035.GB2835@mellanox.com>
-References: <20190909204201.931830-1-arnd@arndb.de>
- <20190910071030.GG2063@dhcp22.suse.cz>
-In-Reply-To: <20190910071030.GG2063@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MR2P264CA0044.FRAP264.PROD.OUTLOOK.COM (2603:10a6:500::32)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [148.69.85.38]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 2c104742-f0b7-4dc6-5191-08d735ca8d8c
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5581;
-x-ms-traffictypediagnostic: VI1PR05MB5581:
-x-microsoft-antispam-prvs:
- <VI1PR05MB55816868514870A19F39B7E1CFB60@VI1PR05MB5581.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01565FED4C
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(366004)(136003)(396003)(376002)(346002)(39860400002)(189003)(199004)(4326008)(102836004)(14454004)(6916009)(316002)(2906002)(478600001)(6486002)(6116002)(3846002)(7736002)(33656002)(305945005)(6436002)(81156014)(8676002)(229853002)(81166006)(66946007)(66476007)(66556008)(66446008)(36756003)(64756008)(2616005)(6512007)(5660300002)(25786009)(256004)(476003)(486006)(8936002)(66066001)(6246003)(53936002)(71190400001)(1076003)(99286004)(52116002)(71200400001)(76176011)(86362001)(6506007)(386003)(54906003)(4744005)(186003)(26005)(446003)(11346002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5581;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- LCm8xoH/HMTZXB9FJb0zmT+VXaZ5Ql18F7IE2Tz3wLhVAhgW/65eTmgJHHnQpY8xK8zJyvUfMlo7QXQN2P7pxWvImDK1Ek2fA+Efqb9Jov3skao1Wxm+mDhUED/Pwv1TOLO+Mycs+32VRw46A+764RJNcxyZd7qFg5WJry9dmkEnVnKlpxlwThU921sM8GgVtdj4IGIV1falRwKfmSG4e/BaVBLaB/pRiJlqJsxjPJyBgwJOJlj+F/AzQmLM4GXYQ+4y1W51HhPjb3a5CSFuT59U/GZhUAy8zqOq/aNAA8crOobjJlzkuIrYvw0aFe1Bkfw/Bihvy3FSPqcPn89MgTPXuzBh6WY3/jnTRlfUWSSko11CwP2NwYuGV5mP8p/ziXquyEjAEGtaf9E/ZiJbaDqxb7PCZ2TwXkYm1W3c1jE=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <CDF1680DB7EDAD4FAB98E70AA6992DE0@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
+	by kanga.kvack.org (Postfix) with ESMTP id F3AF96B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:02:43 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id A1F2C824CA3E
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:02:43 +0000 (UTC)
+X-FDA: 75918420606.06.sun09_17bf7262e511d
+X-HE-Tag: sun09_17bf7262e511d
+X-Filterd-Recvd-Size: 9166
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:02:43 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id BD586AE35;
+	Tue, 10 Sep 2019 09:02:41 +0000 (UTC)
+Date: Tue, 10 Sep 2019 11:02:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+	cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+Message-ID: <20190910090241.GM2063@dhcp22.suse.cz>
+References: <20190909110136.GG27159@dhcp22.suse.cz>
+ <20190909120811.GL27159@dhcp22.suse.cz>
+ <88ff0310-b9ab-36b6-d8ab-b6edd484d973@profihost.ag>
+ <20190909122852.GM27159@dhcp22.suse.cz>
+ <2d04fc69-8fac-2900-013b-7377ca5fd9a8@profihost.ag>
+ <20190909124950.GN27159@dhcp22.suse.cz>
+ <10fa0b97-631d-f82b-0881-89adb9ad5ded@profihost.ag>
+ <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
+ <20190910082919.GL2063@dhcp22.suse.cz>
+ <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 2c104742-f0b7-4dc6-5191-08d735ca8d8c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Sep 2019 08:40:37.2242
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: ABT03u30wSpxo8rJjG7hFdQzUftrOO9vySf8Hho2G5oGSMU6cB64ZB5w4HrZ9CwM4phrKDiXGuC7ziBKp5redQ==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5581
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 10, 2019 at 09:10:30AM +0200, Michal Hocko wrote:
-> On Mon 09-09-19 22:41:40, Arnd Bergmann wrote:
-> > On kernels without CONFIG_MMU, we get a link error for the siw
-> > driver:
-> >=20
-> > drivers/infiniband/sw/siw/siw_mem.o: In function `siw_umem_get':
-> > siw_mem.c:(.text+0x4c8): undefined reference to `can_do_mlock'
-> >=20
-> > This is probably not the only driver that needs the function
-> > and could otherwise build correctly without CONFIG_MMU, so
-> > add a dummy variant that always returns false.
-> >=20
-> > Fixes: 2251334dcac9 ("rdma/siw: application buffer management")
-> > Suggested-by: Jason Gunthorpe <jgg@mellanox.com>
-> > Signed-off-by: Arnd Bergmann <arnd@arndb.de>
->=20
-> Makes sense
-> Acked-by: Michal Hocko <mhocko@suse.com>
->=20
-> but IB on nonMMU? Whut? Is there any HW that actually supports this?
-> Just wondering...
+On Tue 10-09-19 10:38:25, Stefan Priebe - Profihost AG wrote:
+> Am 10.09.19 um 10:29 schrieb Michal Hocko:
+> > On Tue 10-09-19 07:56:36, Stefan Priebe - Profihost AG wrote:
+> >>
+> >> Am 09.09.19 um 14:56 schrieb Stefan Priebe - Profihost AG:
+> >>> Am 09.09.19 um 14:49 schrieb Michal Hocko:
+> >>>> On Mon 09-09-19 14:37:52, Stefan Priebe - Profihost AG wrote:
+> >>>>>
+> >>>>> Am 09.09.19 um 14:28 schrieb Michal Hocko:
+> >>>>>> On Mon 09-09-19 14:10:02, Stefan Priebe - Profihost AG wrote:
+> >>>>>>>
+> >>>>>>> Am 09.09.19 um 14:08 schrieb Michal Hocko:
+> >>>>>>>> On Mon 09-09-19 13:01:36, Michal Hocko wrote:
+> >>>>>>>>> and that matches moments when we reclaimed memory. There seems to be a
+> >>>>>>>>> steady THP allocations flow so maybe this is a source of the direct
+> >>>>>>>>> reclaim?
+> >>>>>>>>
+> >>>>>>>> I was thinking about this some more and THP being a source of reclaim
+> >>>>>>>> sounds quite unlikely. At least in a default configuration because we
+> >>>>>>>> shouldn't do anything expensinve in the #PF path. But there might be a
+> >>>>>>>> difference source of high order (!costly) allocations. Could you check
+> >>>>>>>> how many allocation requests like that you have on your system?
+> >>>>>>>>
+> >>>>>>>> mount -t debugfs none /debug
+> >>>>>>>> echo "order > 0" > /debug/tracing/events/kmem/mm_page_alloc/filter
+> >>>>>>>> echo 1 > /debug/tracing/events/kmem/mm_page_alloc/enable
+> >>>>>>>> cat /debug/tracing/trace_pipe > $file
+> >>>>>>
+> >>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
+> >>>>>> echo 1 > /debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
+> >>>>>>  
+> >>>>>> might tell us something as well but it might turn out that it just still
+> >>>>>> doesn't give us the full picture and we might need
+> >>>>>> echo stacktrace > /debug/tracing/trace_options
+> >>>>>>
+> >>>>>> It will generate much more output though.
+> >>>>>>
+> >>>>>>> Just now or when PSI raises?
+> >>>>>>
+> >>>>>> When the excessive reclaim is happening ideally.
+> >>>>>
+> >>>>> This one is from a server with 28G memfree but memory pressure is still
+> >>>>> jumping between 0 and 10%.
+> >>>>>
+> >>>>> I did:
+> >>>>> echo "order > 0" >
+> >>>>> /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/filter
+> >>>>>
+> >>>>> echo 1 > /sys/kernel/debug/tracing/events/kmem/mm_page_alloc/enable
+> >>>>>
+> >>>>> echo 1 >
+> >>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_begin/enable
+> >>>>>
+> >>>>> echo 1 >
+> >>>>> /sys/kernel/debug/tracing/events/vmscan/mm_vmscan_direct_reclaim_end/enable
+> >>>>>
+> >>>>> timeout 120 cat /sys/kernel/debug/tracing/trace_pipe > /trace
+> >>>>>
+> >>>>> File attached.
+> >>>>
+> >>>> There is no reclaim captured in this trace dump.
+> >>>> $ zcat trace1.gz | sed 's@.*\(order=[0-9]\).*\(gfp_flags=.*\)@\1 \2@' | sort | uniq -c
+> >>>>     777 order=1 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>     663 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>     153 order=1 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>     911 order=1 gfp_flags=GFP_KERNEL_ACCOUNT|__GFP_ZERO
+> >>>>    4872 order=1 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+> >>>>      62 order=1 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>      14 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
+> >>>>      11 order=2 gfp_flags=GFP_ATOMIC|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_RECLAIMABLE
+> >>>>    1263 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>      45 order=2 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
+> >>>>       1 order=2 gfp_flags=GFP_KERNEL|__GFP_COMP|__GFP_ZERO
+> >>>>    7853 order=2 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+> >>>>      73 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>     729 order=3 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_RECLAIMABLE
+> >>>>     528 order=3 gfp_flags=__GFP_IO|__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>    1203 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_ACCOUNT
+> >>>>    5295 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP
+> >>>>       1 order=3 gfp_flags=GFP_NOWAIT|__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>     132 order=3 gfp_flags=GFP_NOWAIT|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC
+> >>>>      13 order=5 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
+> >>>>       1 order=6 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY|__GFP_COMP|__GFP_ZERO
+> >>>>    1232 order=9 gfp_flags=GFP_TRANSHUGE
+> >>>>     108 order=9 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
+> >>>>     362 order=9 gfp_flags=GFP_TRANSHUGE_LIGHT|__GFP_THISNODE
+> >>>>
+> >>>> Nothing really stands out because except for the THP ones none of others
+> >>>> are going to even be using movable zone.
+> >>> It might be that this is not an ideal example is was just the fastest i
+> >>> could find. May be we really need one with much higher pressure.
+> >>
+> >> here another trace log where a system has 30GB free memory but is under
+> >> constant pressure and does not build up any file cache caused by memory
+> >> pressure.
+> > 
+> > So the reclaim is clearly induced by THP allocations
+> > $ zgrep vmscan trace2.gz | grep gfp_flags | sed 's@.*\(gfp_flags=.*\) .*@\1@' | sort | uniq -c
+> >    1580 gfp_flags=GFP_TRANSHUGE
+> >      15 gfp_flags=GFP_TRANSHUGE|__GFP_THISNODE
+> > 
+> > $ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@nr_reclaimed=@@' |  awk '{nr+=$6+0}END{print nr}'
+> > 1541726
+> > 
+> > 6GB of memory reclaimed in 1776s. That is a lot! But the THP allocation
+> > rate is really high as well
+> > $ zgrep "page_alloc.*GFP_TRANSHUGE" trace2.gz | wc -l
+> > 15340
+> > 
+> > this is 30GB worth of THPs (some of them might get released of course).
+> > Also only 10% of requests ends up reclaiming.
+> > 
+> > One additional interesting point
+> > $ zgrep vmscan trace2.gz | grep nr_reclaimed | sed 's@.*nr_reclaimed=\([[0-9]*\)@\1@' | calc_min_max.awk
+> > min: 1.00 max: 2792.00 avg: 965.99 std: 331.12 nr: 1596
+> > 
+> > Even though the std is high there are quite some outliers when a lot of
+> > memory is reclaimed.
+> > 
+> > Which kernel version is this. And again, what is the THP configuration.
+> 
+> This is 4.19.66 regarding THP you mean this:
 
-I've never heard of anyone doing this configuration, and I don't
-really know much about nommu to comment if it could even potentially
-work or not..
+Do you see the same behavior with 5.3?
 
-Jason
+> /sys/kernel/mm/transparent_hugepage/defrag:always defer [defer+madvise]
+> madvise never
+> 
+> /sys/kernel/mm/transparent_hugepage/enabled:[always] madvise never
+> 
+> /sys/kernel/mm/transparent_hugepage/hpage_pmd_size:2097152
+> 
+> /sys/kernel/mm/transparent_hugepage/shmem_enabled:always within_size
+> advise [never] deny force
+> 
+> /sys/kernel/mm/transparent_hugepage/use_zero_page:1
+> 
+> /sys/kernel/mm/transparent_hugepage/enabled was madvise until yesterday
+> where i tried to switch to defer+madvise - which didn't help.
+
+Many processes hitting the reclaim are php5 others I cannot say because
+their cmd is not reflected in the trace. I suspect those are using
+madvise. I haven't really seen kcompactd interfering much. That would
+suggest using defer.
+
+-- 
+Michal Hocko
+SUSE Labs
 
