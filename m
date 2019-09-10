@@ -2,128 +2,119 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,
+	USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9062C4740C
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CABA2C4740A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 02:16:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75BCF21726
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 01:27:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7420A2086A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 02:16:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CwKvZC/r"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75BCF21726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QMvvyOIf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7420A2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 290036B0266; Mon,  9 Sep 2019 21:27:47 -0400 (EDT)
+	id C567C6B0003; Mon,  9 Sep 2019 22:16:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23FFB6B0269; Mon,  9 Sep 2019 21:27:47 -0400 (EDT)
+	id C06116B0006; Mon,  9 Sep 2019 22:16:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 107AA6B026A; Mon,  9 Sep 2019 21:27:47 -0400 (EDT)
+	id B1C3A6B0007; Mon,  9 Sep 2019 22:16:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0048.hostedemail.com [216.40.44.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC026B0266
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 21:27:46 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 824D78243763
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:46 +0000 (UTC)
-X-FDA: 75917274132.25.tree95_7e0a24e77125a
-X-HE-Tag: tree95_7e0a24e77125a
-X-Filterd-Recvd-Size: 3926
-Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 01:27:45 +0000 (UTC)
-Received: by mail-pf1-f195.google.com with SMTP id i1so1667816pfa.6
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 18:27:45 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0245.hostedemail.com [216.40.44.245])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FFA96B0003
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 22:16:06 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 2EEC83A92
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 02:16:06 +0000 (UTC)
+X-FDA: 75917395932.13.crush07_6f6db90081c34
+X-HE-Tag: crush07_6f6db90081c34
+X-Filterd-Recvd-Size: 4403
+Received: from mail-io1-f66.google.com (mail-io1-f66.google.com [209.85.166.66])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 02:16:05 +0000 (UTC)
+Received: by mail-io1-f66.google.com with SMTP id h144so33850528iof.7
+        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 19:16:05 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=z0ivIH0CLLNNjAWBlrwIKDFI2cokRF0sKteG5gWpNc4=;
-        b=CwKvZC/r+gmvybd4uHXDOj6GImjAwuSp/3ZG529ovEbvTmzdB+ugI3QMZykaj8Vj0b
-         +3cW7ORGPP38mahjYemQIFY/ZLI2B20X3aL2SSMn+G/+VM3m9Wznt4MwsSZo/MUw5A7t
-         IZdcmAk2HpK4IVD0MQ8IOVzv+gqHN7182CP9plZhTaT5FkAUrHLHoz0f7ntiZR3FwipF
-         U9Dkjds7cDIfUDgvErgcoSjEJ3wGlvku1xZeq5aARNTJTDSg6LEm0wrNzk55E62e8ifk
-         UmdOds+v5ABGh2/f14kh4MZqCAZDFiSIDQBaFJtIbz14tCnH8GMbflVYQSqmpZp1dlyw
-         pevg==
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=s0zjoo9SPbyn3mwdviPBzOKNzAEbtRRkUdJYEIlsrM8=;
+        b=QMvvyOIfmJ8b72UgqfZt+USf5rJhMBxGxpXY31hltr/3Z1sUpbI4yCYBzFvxLinfta
+         N766ptEWkXUde2Yf4CiM8hW/ksvxTrsaQZk06jljXmIFBS9WiUv6Y8iE7jVzl909rVZh
+         EYHuH4oLMBPNgaCalq9NbS5Uxdx1pQi23IOqcqksnRFTcZkYHQHb2TXrnWlwtl4VDXy0
+         0jQ50ujM5J1t6jdfqTj4FeJjCFS1fBwc9InXgufcIZ6/dReeNDNy6XZPUfQMU/niYTeR
+         6Hrxwf/IRkOlmFPjCP6FwayaYvtZX3Gzm87t13pvPx4tY1mb3wnKa4NWQcvihsrra6J5
+         Uyrg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=z0ivIH0CLLNNjAWBlrwIKDFI2cokRF0sKteG5gWpNc4=;
-        b=HiD2fnCi6A5chcjYFKVTME+TIsFTYlWN/DPIt0fIxAXCGl3tcPUOGFSVcCEZrslB8+
-         9WxXJPR71kHRQ1BSBti0fbjBUDTImRHURmTybXfcPP7cVBapZnybrsrm2btqoKNH7kXk
-         4LNwKnYh8mI2c12hwxJThZ8akKJZUwnNefO2cI4Ar21vvv0Ss6d8kDWxbiyQNzq2JWfO
-         owhoz/XoYQHJAuJ2LHueUkKF3/BhE8Y8VCaQRofgyh8ezU2+eoAnoNJk9HVFTu46QcYp
-         qZ9zSvq9XT/NIx3xVZ2X30DdwzPQR1on1fRkodg0yuVXyc//pYA034DJauz0RthIH5Tw
-         FaPA==
-X-Gm-Message-State: APjAAAVXj7zRhfCdEMS3NhDkw0cd7+ju0sx1NMWB41Z2V2NvS0wEkJ6D
-	qR4NxZkEEE90OivuwhBBTBQ=
-X-Google-Smtp-Source: APXvYqzzsQDdtbXZUkzusTKy4WxRxPWuZxQNE+lSoOl5lbcBkgjJohKXfZw/PYBmP5eYuUnatXVOUg==
-X-Received: by 2002:a62:3893:: with SMTP id f141mr15612910pfa.221.1568078864996;
-        Mon, 09 Sep 2019 18:27:44 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id b20sm19558629pff.158.2019.09.09.18.27.38
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=s0zjoo9SPbyn3mwdviPBzOKNzAEbtRRkUdJYEIlsrM8=;
+        b=sKT5iCY4Uop2v5AFnvqNKnmckJbm2gyb85reo5tDik18c6Y93R2XaKNKAQPlO5E5eC
+         ofofWMLY34Tq+dproub3G9JjGEClb0su/9qAG4HSSxGXqq0LdSUT1tnk9X5jjfBzX+Hm
+         0N5aA/Ehss7y5FntMk/zrE/VB85CpcnBoMYuYG+raQvE0ifPJ2JTI8NDnwkviYSPftuS
+         eINzV+vQm3w7hvHF/+rLmXluvtO3rQS78hNbbClRmMlM6WmliMBZ+MAlT3os1wFWKYS0
+         kOqi8XCoLSsaZxf0yebmC01NqCATmA2a4yf6EYxFZ4XWPxfd3FeztxBRftes6T+G8xGj
+         dlHA==
+X-Gm-Message-State: APjAAAVaGCHmD3l2aAQ3OsoQMCrRtOWHyjd74ST4y8MjwH65W+Suxc4J
+	OK6QYXuwpvsB7ufSk3BReJbZGA==
+X-Google-Smtp-Source: APXvYqy1bTR2h5IQgYy9MmFm5wRWpSShFSHEK6QI4hje5LSBnukLQ2sJCXKpmJnByre9fpYnDPgkzw==
+X-Received: by 2002:a02:c546:: with SMTP id g6mr3736142jaj.59.1568081764686;
+        Mon, 09 Sep 2019 19:16:04 -0700 (PDT)
+Received: from google.com ([2620:15c:183:0:9f3b:444a:4649:ca05])
+        by smtp.gmail.com with ESMTPSA id f7sm13892189ioj.66.2019.09.09.19.16.03
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Mon, 09 Sep 2019 18:27:44 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org
-Cc: vbabka@suse.cz,
-	cl@linux.com,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	guro@fb.com,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v3 4/4] mm, slab_common: Make the loop for initializing KMALLOC_DMA start from 1
-Date: Tue, 10 Sep 2019 09:26:52 +0800
-Message-Id: <20190910012652.3723-5-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190910012652.3723-1-lpf.vector@gmail.com>
-References: <20190910012652.3723-1-lpf.vector@gmail.com>
+        Mon, 09 Sep 2019 19:16:04 -0700 (PDT)
+Date: Mon, 9 Sep 2019 20:16:00 -0600
+From: Yu Zhao <yuzhao@google.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: avoid slub allocation while holding list_lock
+Message-ID: <20190910021600.GA28048@google.com>
+References: <e5e25aa3-651d-92b4-ac82-c5011c66a7cb@I-love.SAKURA.ne.jp>
+ <20190909213938.GA53078@google.com>
+ <201909100141.x8A1fVdu048305@www262.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201909100141.x8A1fVdu048305@www262.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KMALLOC_DMA will be initialized only if KMALLOC_NORMAL with
-the same index exists.
+On Tue, Sep 10, 2019 at 10:41:31AM +0900, Tetsuo Handa wrote:
+> Yu Zhao wrote:
+> > I think we can safely assume PAGE_SIZE is unsigned long aligned and
+> > page->objects is non-zero. But if you don't feel comfortable with these
+> > assumptions, I'd be happy to ensure them explicitly.
+> 
+> I know PAGE_SIZE is unsigned long aligned. If someone by chance happens to
+> change from "dynamic allocation" to "on stack", get_order() will no longer
+> be called and the bug will show up.
+> 
+> I don't know whether __get_free_page(GFP_ATOMIC) can temporarily consume more
+> than 4096 bytes, but if it can, we might want to avoid "dynamic allocation".
 
-And kmalloc_caches[KMALLOC_NORMAL][0] is always NULL.
+With GFP_ATOMIC and ~~__GFP_HIGHMEM, it shouldn't.
 
-Therefore, the loop that initializes KMALLOC_DMA should start
-at 1 instead of 0, which will reduce 1 meaningless attempt.
+> By the way, if "struct kmem_cache_node" is object which won't have many thousands
+> of instances, can't we embed that buffer into "struct kmem_cache_node" because
+> max size of that buffer is only 4096 bytes?
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- mm/slab_common.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index af45b5278fdc..c81fc7dc2946 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1236,7 +1236,7 @@ void __init create_kmalloc_caches(slab_flags_t flag=
-s)
- 	slab_state =3D UP;
-=20
- #ifdef CONFIG_ZONE_DMA
--	for (i =3D 0; i <=3D KMALLOC_SHIFT_HIGH; i++) {
-+	for (i =3D 1; i <=3D KMALLOC_SHIFT_HIGH; i++) {
- 		struct kmem_cache *s =3D kmalloc_caches[KMALLOC_NORMAL][i];
-=20
- 		if (s) {
---=20
-2.21.0
-
+It seems to me allocation in error path is better than always keeping
+a page around. But the latter may still be acceptable given it's done
+only when debug is on and, of course, on a per-node scale.
 
