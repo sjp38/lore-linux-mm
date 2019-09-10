@@ -2,205 +2,283 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1304BC49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D15AC3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2CE620872
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2CE620872
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id AED6120872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:31:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gaM1Wphg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AED6120872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFBF56B000E; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
+	id 5D8A46B0270; Tue, 10 Sep 2019 06:31:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C71BF6B026D; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
+	id 5895F6B0271; Tue, 10 Sep 2019 06:31:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8261E6B026B; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
+	id 4511D6B0272; Tue, 10 Sep 2019 06:31:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0212.hostedemail.com [216.40.44.212])
-	by kanga.kvack.org (Postfix) with ESMTP id 22B3C6B026D
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 06:30:54 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id BEF87181AC9AE
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:30:53 +0000 (UTC)
-X-FDA: 75918642786.09.pail72_41f88ead7ef4c
-X-HE-Tag: pail72_41f88ead7ef4c
-X-Filterd-Recvd-Size: 5368
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:30:53 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E54D1AF93;
-	Tue, 10 Sep 2019 10:30:49 +0000 (UTC)
-From: Oscar Salvador <osalvador@suse.de>
-To: n-horiguchi@ah.jp.nec.com
-Cc: mhocko@kernel.org,
-	mike.kravetz@oracle.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH 09/10] mm,hwpoison: Rework soft offline for free pages
-Date: Tue, 10 Sep 2019 12:30:15 +0200
-Message-Id: <20190910103016.14290-10-osalvador@suse.de>
-X-Mailer: git-send-email 2.13.7
-In-Reply-To: <20190910103016.14290-1-osalvador@suse.de>
-References: <20190910103016.14290-1-osalvador@suse.de>
+Received: from forelay.hostedemail.com (smtprelay0246.hostedemail.com [216.40.44.246])
+	by kanga.kvack.org (Postfix) with ESMTP id 235986B0270
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 06:31:47 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 853A98243768
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:31:46 +0000 (UTC)
+X-FDA: 75918645012.13.slip23_499ea27b85e45
+X-HE-Tag: slip23_499ea27b85e45
+X-Filterd-Recvd-Size: 8881
+Received: from mail-lj1-f194.google.com (mail-lj1-f194.google.com [209.85.208.194])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:31:45 +0000 (UTC)
+Received: by mail-lj1-f194.google.com with SMTP id a4so15856123ljk.8
+        for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:31:45 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version
+         :content-transfer-encoding;
+        bh=x0YgKmdVtumN8tvDl4QalfpDpMB5gNsbs7jNvv+lUoo=;
+        b=gaM1WphgA3BYhyQ3v2TEVs/84kZ3SRr/EFx6UBDMAK2XgnVFpWeEjEJ862aNXmdqX+
+         dQUMj1mCe2LtTH/gsVlXkse22+SQO5olU/+1krJhRdIr3m0aYomsgIaAUYD8d0qe+47z
+         W94Xx0kuTUV1dUo/HIOoaUMtKPIZBOeEfxQFkA+JFrnigXIzS88yC7viA2cNjUaaxbLu
+         CSBl6IfY5g9k/ttH8CRbpqWgLMLTux6c/sp+7d3m3wIEQ8GeIc42d5BkhdzSv9p0v0qb
+         /NNZJWLGK+CV9BOczlqpIH8edaw8bWg/Pt/GIpChdu3n6IUbt4l1prNwJHlUaW0vm7ha
+         XQUA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
+         :content-transfer-encoding;
+        bh=x0YgKmdVtumN8tvDl4QalfpDpMB5gNsbs7jNvv+lUoo=;
+        b=i5GNQq0i8qiee5VmKgkuDteGgnCzwqg7pmVc/m799EXfcRgirraS/u9xdgtTaTjWNE
+         /PqJ9vLwWCW1TYnqeK+3sNc+poahAD1FM3r0xsdTjYKDHBNvQ+xuWtIpAi8L+6k2uV3D
+         ifczZs7/zcN3ODIXHimJtK9e9NwsDhPyLEeYTUaCsP0SUjMB5mZwoleagJ0PmAoiYgdB
+         GlI90o1bbmzVwNkGQD62tQgYcdUZnBnYMZ7j6y65J8nzdLtR1GFV3hl84TnHgn499WJh
+         5k2Q2x6OrpnIRJqp7C/wu4TzeaRKSz8SnCR/Hiw59JID2l+P4zRVZyRYhX194v2sXBBy
+         D/ow==
+X-Gm-Message-State: APjAAAW0VHe1MzjY/GY1Oud9hU4DXkgwzSmItMo7//XPYzgJ68QPSorq
+	x463l8CIBU0LZuKitLSMlcvcmHAkQ21d2A==
+X-Google-Smtp-Source: APXvYqyE6++B1h1BdnFoXxDSPjLEOcnaW38D6HkTmwvK3nhegfJ4gTgtUvHdKO5Gg7mBbDMyrnPXdA==
+X-Received: by 2002:a2e:86c5:: with SMTP id n5mr12600118ljj.153.1568111503915;
+        Tue, 10 Sep 2019 03:31:43 -0700 (PDT)
+Received: from seldlx21914.corpusers.net ([37.139.156.40])
+        by smtp.gmail.com with ESMTPSA id q11sm244474ljc.27.2019.09.10.03.31.43
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Sep 2019 03:31:43 -0700 (PDT)
+Date: Tue, 10 Sep 2019 12:31:42 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?ISO-8859-1?Q?Agust=EDn?=
+ Dall'Alba <agustin@dallalba.com.ar>, Henry Burns
+ <henrywolfeburns@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] Revert
+ "mm/z3fold.c: fix race between migration and destruction"
+Message-Id: <20190910123142.7a9c8d2de4d0acbc0977c602@gmail.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.30; x86_64-unknown-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-take_page_off_buddy will be used to take a page meant to be poisoned
-off the buddy allocator.
-take_page_off_buddy calls break_down_buddy_pages, which will split a
-higher-order page in case our page belongs to one.
+With the original commit applied, z3fold_zpool_destroy() may
+get blocked on wait_event() for indefinite time. Revert this
+commit for the time being to get rid of this problem since the
+issue the original commit addresses is less severe.
 
-Once we grab the page, we call page_set_poison to set it as poisoned
-and grab a refcount on it.
+This reverts commit d776aaa9895eb6eb770908e899cb7f5bd5025b3c.
 
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Reported-by: Agust=EDn Dall'Alba <agustin@dallalba.com.ar>
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 ---
- include/linux/page-flags.h |  5 ----
- mm/memory-failure.c        |  6 +++--
- mm/page_alloc.c            | 59 +++++++++++++++++++++++++++++++++++++++-------
- 3 files changed, 54 insertions(+), 16 deletions(-)
+ mm/z3fold.c | 90 -----------------------------------------------------
+ 1 file changed, 90 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index f91cb8898ff0..21df81c9ea57 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -414,13 +414,8 @@ PAGEFLAG_FALSE(Uncached)
- PAGEFLAG(HWPoison, hwpoison, PF_ANY)
- TESTSCFLAG(HWPoison, hwpoison, PF_ANY)
- #define __PG_HWPOISON (1UL << PG_hwpoison)
--extern bool set_hwpoison_free_buddy_page(struct page *page);
- #else
- PAGEFLAG_FALSE(HWPoison)
--static inline bool set_hwpoison_free_buddy_page(struct page *page)
--{
--	return 0;
--}
- #define __PG_HWPOISON 0
- #endif
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index ce017a0d79a6..03f07015a106 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -78,6 +78,8 @@ EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
- EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
- EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
- 
-+extern bool take_page_off_buddy(struct page *page);
-+
- static bool page_set_poison(struct page *page)
- {
- 	SetPageHWPoison(page);
-@@ -1807,8 +1809,8 @@ static int soft_offline_free_page(struct page *page)
- 	int rc = dissolve_free_huge_page(page);
- 
- 	if (!rc) {
--		if (set_hwpoison_free_buddy_page(page))
--			num_poisoned_pages_inc();
-+		if (take_page_off_buddy(page))
-+			page_set_poison(page);
- 		else
- 			rc = -EBUSY;
- 	}
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fe38229d0a77..68f6c2cda512 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -8605,30 +8605,71 @@ bool is_free_buddy_page(struct page *page)
- 
- #ifdef CONFIG_MEMORY_FAILURE
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 75b7962439ff..ed19d98c9dcd 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -41,7 +41,6 @@
+ #include <linux/workqueue.h>
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
+-#include <linux/wait.h>
+ #include <linux/zpool.h>
+ #include <linux/magic.h>
+=20
+@@ -146,8 +145,6 @@ struct z3fold_header {
+  * @release_wq:	workqueue for safe page release
+  * @work:	work_struct for safe page release
+  * @inode:	inode for z3fold pseudo filesystem
+- * @destroying: bool to stop migration once we start destruction
+- * @isolated: int to count the number of pages currently in isolation
+  *
+  * This structure is allocated at pool creation time and maintains metadata
+  * pertaining to a particular z3fold pool.
+@@ -166,11 +163,8 @@ struct z3fold_pool {
+ 	const struct zpool_ops *zpool_ops;
+ 	struct workqueue_struct *compact_wq;
+ 	struct workqueue_struct *release_wq;
+-	struct wait_queue_head isolate_wait;
+ 	struct work_struct work;
+ 	struct inode *inode;
+-	bool destroying;
+-	int isolated;
+ };
+=20
  /*
-- * Set PG_hwpoison flag if a given page is confirmed to be a free page.  This
-- * test is performed under the zone lock to prevent a race against page
-- * allocation.
-+ * Break down a higher-order page in sub-pages, and keep our target out of
-+ * buddy allocator.
-  */
--bool set_hwpoison_free_buddy_page(struct page *page)
-+static void break_down_buddy_pages(struct zone *zone, struct page *page,
-+				   struct page *target, int low, int high,
-+				   struct free_area *area, int migratetype)
-+{
-+	unsigned long size = 1 << high;
-+	struct page *current_buddy, *next_page;
-+
-+	while (high > low) {
-+		area--;
-+		high--;
-+		size >>= 1;
-+
-+		if (target >= &page[size]) {
-+			next_page = page + size;
-+			current_buddy = page;
-+		} else {
-+			next_page = page;
-+			current_buddy = page + size;
-+		}
-+
-+		if (set_page_guard(zone, current_buddy, high, migratetype))
-+			continue;
-+
-+		if (current_buddy != target) {
-+			add_to_free_area(current_buddy, area, migratetype);
-+			set_page_order(current_buddy, high);
-+			page = next_page;
-+		}
-+	}
-+}
-+
-+/*
-+ * Take a page that will be marked as poisoned off the buddy allocator.
-+ */
-+bool take_page_off_buddy(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
- 	unsigned long pfn = page_to_pfn(page);
- 	unsigned long flags;
- 	unsigned int order;
--	bool hwpoisoned = false;
-+	bool ret = false;
- 
- 	spin_lock_irqsave(&zone->lock, flags);
- 	for (order = 0; order < MAX_ORDER; order++) {
- 		struct page *page_head = page - (pfn & ((1 << order) - 1));
-+		int buddy_order = page_order(page_head);
-+		struct free_area *area = &(zone->free_area[buddy_order]);
-+
-+		if (PageBuddy(page_head) && buddy_order >= order) {
-+			unsigned long pfn_head = page_to_pfn(page_head);
-+			int migratetype = get_pfnblock_migratetype(page_head,
-+								   pfn_head);
- 
--		if (PageBuddy(page_head) && page_order(page_head) >= order) {
--			if (!TestSetPageHWPoison(page))
--				hwpoisoned = true;
-+			del_page_from_free_area(page_head, area);
-+			break_down_buddy_pages(zone, page_head, page, 0,
-+					       buddy_order, area, migratetype);
-+			ret = true;
- 			break;
- 		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 
--	return hwpoisoned;
-+	return ret;
+@@ -775,7 +769,6 @@ static struct z3fold_pool *z3fold_create_pool(const cha=
+r *name, gfp_t gfp,
+ 		goto out_c;
+ 	spin_lock_init(&pool->lock);
+ 	spin_lock_init(&pool->stale_lock);
+-	init_waitqueue_head(&pool->isolate_wait);
+ 	pool->unbuddied =3D __alloc_percpu(sizeof(struct list_head)*NCHUNKS, 2);
+ 	if (!pool->unbuddied)
+ 		goto out_pool;
+@@ -815,15 +808,6 @@ static struct z3fold_pool *z3fold_create_pool(const ch=
+ar *name, gfp_t gfp,
+ 	return NULL;
  }
- #endif
--- 
-2.12.3
-
+=20
+-static bool pool_isolated_are_drained(struct z3fold_pool *pool)
+-{
+-	bool ret;
+-
+-	spin_lock(&pool->lock);
+-	ret =3D pool->isolated =3D=3D 0;
+-	spin_unlock(&pool->lock);
+-	return ret;
+-}
+ /**
+  * z3fold_destroy_pool() - destroys an existing z3fold pool
+  * @pool:	the z3fold pool to be destroyed
+@@ -833,22 +817,6 @@ static bool pool_isolated_are_drained(struct z3fold_po=
+ol *pool)
+ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+ {
+ 	kmem_cache_destroy(pool->c_handle);
+-	/*
+-	 * We set pool-> destroying under lock to ensure that
+-	 * z3fold_page_isolate() sees any changes to destroying. This way we
+-	 * avoid the need for any memory barriers.
+-	 */
+-
+-	spin_lock(&pool->lock);
+-	pool->destroying =3D true;
+-	spin_unlock(&pool->lock);
+-
+-	/*
+-	 * We need to ensure that no pages are being migrated while we destroy
+-	 * these workqueues, as migration can queue work on either of the
+-	 * workqueues.
+-	 */
+-	wait_event(pool->isolate_wait, !pool_isolated_are_drained(pool));
+=20
+ 	/*
+ 	 * We need to destroy pool->compact_wq before pool->release_wq,
+@@ -1339,28 +1307,6 @@ static u64 z3fold_get_pool_size(struct z3fold_pool *=
+pool)
+ 	return atomic64_read(&pool->pages_nr);
+ }
+=20
+-/*
+- * z3fold_dec_isolated() expects to be called while pool->lock is held.
+- */
+-static void z3fold_dec_isolated(struct z3fold_pool *pool)
+-{
+-	assert_spin_locked(&pool->lock);
+-	VM_BUG_ON(pool->isolated <=3D 0);
+-	pool->isolated--;
+-
+-	/*
+-	 * If we have no more isolated pages, we have to see if
+-	 * z3fold_destroy_pool() is waiting for a signal.
+-	 */
+-	if (pool->isolated =3D=3D 0 && waitqueue_active(&pool->isolate_wait))
+-		wake_up_all(&pool->isolate_wait);
+-}
+-
+-static void z3fold_inc_isolated(struct z3fold_pool *pool)
+-{
+-	pool->isolated++;
+-}
+-
+ static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
+ {
+ 	struct z3fold_header *zhdr;
+@@ -1387,34 +1333,6 @@ static bool z3fold_page_isolate(struct page *page, i=
+solate_mode_t mode)
+ 		spin_lock(&pool->lock);
+ 		if (!list_empty(&page->lru))
+ 			list_del(&page->lru);
+-		/*
+-		 * We need to check for destruction while holding pool->lock, as
+-		 * otherwise destruction could see 0 isolated pages, and
+-		 * proceed.
+-		 */
+-		if (unlikely(pool->destroying)) {
+-			spin_unlock(&pool->lock);
+-			/*
+-			 * If this page isn't stale, somebody else holds a
+-			 * reference to it. Let't drop our refcount so that they
+-			 * can call the release logic.
+-			 */
+-			if (unlikely(kref_put(&zhdr->refcount,
+-					      release_z3fold_page_locked))) {
+-				/*
+-				 * If we get here we have kref problems, so we
+-				 * should freak out.
+-				 */
+-				WARN(1, "Z3fold is experiencing kref problems\n");
+-				z3fold_page_unlock(zhdr);
+-				return false;
+-			}
+-			z3fold_page_unlock(zhdr);
+-			return false;
+-		}
+-
+-
+-		z3fold_inc_isolated(pool);
+ 		spin_unlock(&pool->lock);
+ 		z3fold_page_unlock(zhdr);
+ 		return true;
+@@ -1483,10 +1401,6 @@ static int z3fold_page_migrate(struct address_space =
+*mapping, struct page *newpa
+=20
+ 	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
+=20
+-	spin_lock(&pool->lock);
+-	z3fold_dec_isolated(pool);
+-	spin_unlock(&pool->lock);
+-
+ 	page_mapcount_reset(page);
+ 	put_page(page);
+ 	return 0;
+@@ -1506,14 +1420,10 @@ static void z3fold_page_putback(struct page *page)
+ 	INIT_LIST_HEAD(&page->lru);
+ 	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+ 		atomic64_dec(&pool->pages_nr);
+-		spin_lock(&pool->lock);
+-		z3fold_dec_isolated(pool);
+-		spin_unlock(&pool->lock);
+ 		return;
+ 	}
+ 	spin_lock(&pool->lock);
+ 	list_add(&page->lru, &pool->lru);
+-	z3fold_dec_isolated(pool);
+ 	spin_unlock(&pool->lock);
+ 	z3fold_page_unlock(zhdr);
+ }
+--=20
+2.17.1
 
