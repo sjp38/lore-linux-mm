@@ -2,209 +2,257 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F9D8C49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:38:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F335C4740A
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:56:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF23321726
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:38:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF23321726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 53FDB2171F
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 03:56:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53FDB2171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 402246B0003; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
+	id E54666B0003; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38A916B0006; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
+	id DDCF56B0006; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 264B16B0007; Mon,  9 Sep 2019 23:38:07 -0400 (EDT)
+	id CA4046B0007; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0062.hostedemail.com [216.40.44.62])
-	by kanga.kvack.org (Postfix) with ESMTP id F10346B0003
-	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:38:06 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 934B78E5A
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:38:06 +0000 (UTC)
-X-FDA: 75917602572.29.voice68_63d8e494cec43
-X-HE-Tag: voice68_63d8e494cec43
-X-Filterd-Recvd-Size: 8148
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:38:06 +0000 (UTC)
-Received: by mail-io1-f69.google.com with SMTP id f24so21174262ion.4
-        for <linux-mm@kvack.org>; Mon, 09 Sep 2019 20:38:05 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:date:message-id:subject:from:to;
-        bh=Rd/SAk5CtZwf/BrETHXkyZKKBtvN/8H2VfgfX20+5x4=;
-        b=E05pROXtHzNpRlwgl44vQu/7TRC2TMa6Uw/6frpCPGjx42pu9C1zH+9xahICHDv+m7
-         nVXU1uPZtZvRkyUaYFzRXn5he5SOvQweBeDCHCkSgw70UGihi3I1t6U5rcfXdvGSmGYz
-         Cy7wVPYFsr/UxdpazXBKG9BDlngGWe8StLhET211Uy10tBnvXbQ+BOSqsjwOnPrHu7nw
-         LcigR/NPK1YCrHA9D6/ORU2tX1E7z0XTSPH9wfkfktBa/EfcQIqVQtqzL53sasPMriGL
-         spy3scG5eoKlwdK0nx9159U0SeYjWehQh1SUuzkmIVojG3Hy9YZYg2RoU+UDPpsTgCYG
-         kDTg==
-X-Gm-Message-State: APjAAAVPwy2qtghkKA0/bjuiCAjygfFDMXrYACvLZMNCMbuDM8pCAlk9
-	oXi8hft5RAQsfQh+w/dOi1UFNcCk3IbOrsVbu1gWwFxvaKKk
-X-Google-Smtp-Source: APXvYqy8z5tCABQwtCejIYZLwHFWWUW9p92XwbjPu6406dfxH/DFby8KUmRkDBRPD5enP5epvzyRkTeR+lTpGpeMbwCEDZHEK/4P
+Received: from forelay.hostedemail.com (smtprelay0055.hostedemail.com [216.40.44.55])
+	by kanga.kvack.org (Postfix) with ESMTP id A2A516B0003
+	for <linux-mm@kvack.org>; Mon,  9 Sep 2019 23:56:54 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 31750180AD7C3
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:56:54 +0000 (UTC)
+X-FDA: 75917649948.08.card21_764d75cd76850
+X-HE-Tag: card21_764d75cd76850
+X-Filterd-Recvd-Size: 11381
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 03:56:52 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8D9AB28;
+	Mon,  9 Sep 2019 20:56:51 -0700 (PDT)
+Received: from [10.162.40.137] (p8cg001049571a15.blr.arm.com [10.162.40.137])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 249BA3F67D;
+	Mon,  9 Sep 2019 20:56:40 -0700 (PDT)
+Subject: Re: [PATCH 1/1] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org,
+ Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
+ Steven Price <Steven.Price@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Matthew Wilcox <willy@infradead.org>,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
+ James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-snps-arc@lists.infradead.org,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+References: <1567497706-8649-1-git-send-email-anshuman.khandual@arm.com>
+ <1567497706-8649-2-git-send-email-anshuman.khandual@arm.com>
+ <20190904221618.1b624a98@thinkpad>
+ <20e3044d-2af5-b27b-7653-cec53bdec941@arm.com>
+ <20190905190629.523bdb87@thinkpad>
+ <3c609e33-afbb-ffaf-481a-6d225a06d1d0@arm.com>
+ <20190906210346.5ecbff01@thinkpad>
+ <3d5de35f-8192-1c75-50a9-03e66e3b8e5c@arm.com>
+ <20190909151344.ghfypjbgxyosjdk3@box>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <5883d41a-8299-1584-aa3d-fac89b3d9b5b@arm.com>
+Date: Tue, 10 Sep 2019 09:26:50 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-X-Received: by 2002:a5d:9b06:: with SMTP id y6mr18645624ion.77.1568086685410;
- Mon, 09 Sep 2019 20:38:05 -0700 (PDT)
-Date: Mon, 09 Sep 2019 20:38:05 -0700
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000dc762d05922aa177@google.com>
-Subject: possible deadlock in shmem_fallocate (3)
-From: syzbot <syzbot+5d04068d02b9da8a0947@syzkaller.appspotmail.com>
-To: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	syzkaller-bugs@googlegroups.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <20190909151344.ghfypjbgxyosjdk3@box>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-
-syzbot found the following crash on:
-
-HEAD commit:    6d028043 Add linux-next specific files for 20190830
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=12359ec6600000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=82a6bec43ab0cb69
-dashboard link: https://syzkaller.appspot.com/bug?extid=5d04068d02b9da8a0947
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-
-Unfortunately, I don't have any reproducer for this crash yet.
-
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+5d04068d02b9da8a0947@syzkaller.appspotmail.com
-
-======================================================
-WARNING: possible circular locking dependency detected
-5.3.0-rc6-next-20190830 #75 Not tainted
-------------------------------------------------------
-kswapd0/1770 is trying to acquire lock:
-ffff8880a0b9b780 (&sb->s_type->i_mutex_key#13){+.+.}, at: inode_lock  
-include/linux/fs.h:789 [inline]
-ffff8880a0b9b780 (&sb->s_type->i_mutex_key#13){+.+.}, at:  
-shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
-
-but task is already holding lock:
-ffffffff89042f80 (fs_reclaim){+.+.}, at: __fs_reclaim_acquire+0x0/0x30  
-mm/page_alloc.c:4889
-
-which lock already depends on the new lock.
 
 
-the existing dependency chain (in reverse order) is:
+On 09/09/2019 08:43 PM, Kirill A. Shutemov wrote:
+> On Mon, Sep 09, 2019 at 11:56:50AM +0530, Anshuman Khandual wrote:
+>>
+>>
+>> On 09/07/2019 12:33 AM, Gerald Schaefer wrote:
+>>> On Fri, 6 Sep 2019 11:58:59 +0530
+>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+>>>
+>>>> On 09/05/2019 10:36 PM, Gerald Schaefer wrote:
+>>>>> On Thu, 5 Sep 2019 14:48:14 +0530
+>>>>> Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+>>>>>   
+>>>>>>> [...]    
+>>>>>>>> +
+>>>>>>>> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
+>>>>>>>> +static void pud_clear_tests(pud_t *pudp)
+>>>>>>>> +{
+>>>>>>>> +	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
+>>>>>>>> +	pud_clear(pudp);
+>>>>>>>> +	WARN_ON(!pud_none(READ_ONCE(*pudp)));
+>>>>>>>> +}    
+>>>>>>>
+>>>>>>> For pgd/p4d/pud_clear(), we only clear if the page table level is present
+>>>>>>> and not folded. The memset() here overwrites the table type bits, so
+>>>>>>> pud_clear() will not clear anything on s390 and the pud_none() check will
+>>>>>>> fail.
+>>>>>>> Would it be possible to OR a (larger) random value into the table, so that
+>>>>>>> the lower 12 bits would be preserved?    
+>>>>>>
+>>>>>> So the suggestion is instead of doing memset() on entry with RANDOM_NZVALUE,
+>>>>>> it should OR a large random value preserving lower 12 bits. Hmm, this should
+>>>>>> still do the trick for other platforms, they just need non zero value. So on
+>>>>>> s390, the lower 12 bits on the page table entry already has valid value while
+>>>>>> entering this function which would make sure that pud_clear() really does
+>>>>>> clear the entry ?  
+>>>>>
+>>>>> Yes, in theory the table entry on s390 would have the type set in the last
+>>>>> 4 bits, so preserving those would be enough. If it does not conflict with
+>>>>> others, I would still suggest preserving all 12 bits since those would contain
+>>>>> arch-specific flags in general, just to be sure. For s390, the pte/pmd tests
+>>>>> would also work with the memset, but for consistency I think the same logic
+>>>>> should be used in all pxd_clear_tests.  
+>>>>
+>>>> Makes sense but..
+>>>>
+>>>> There is a small challenge with this. Modifying individual bits on a given
+>>>> page table entry from generic code like this test case is bit tricky. That
+>>>> is because there are not enough helpers to create entries with an absolute
+>>>> value. This would have been easier if all the platforms provided functions
+>>>> like __pxx() which is not the case now. Otherwise something like this should
+>>>> have worked.
+>>>>
+>>>>
+>>>> pud_t pud = READ_ONCE(*pudp);
+>>>> pud = __pud(pud_val(pud) | RANDOM_VALUE (keeping lower 12 bits 0))
+>>>> WRITE_ONCE(*pudp, pud);
+>>>>
+>>>> But __pud() will fail to build in many platforms.
+>>>
+>>> Hmm, I simply used this on my system to make pud_clear_tests() work, not
+>>> sure if it works on all archs:
+>>>
+>>> pud_val(*pudp) |= RANDOM_NZVALUE;
+>>
+>> Which compiles on arm64 but then fails on x86 because of the way pmd_val()
+>> has been defined there.
+> 
+> Use instead
+> 
+> 	*pudp = __pud(pud_val(*pudp) | RANDOM_NZVALUE);
 
--> #1 (fs_reclaim){+.+.}:
-        __fs_reclaim_acquire mm/page_alloc.c:4075 [inline]
-        fs_reclaim_acquire.part.0+0x24/0x30 mm/page_alloc.c:4086
-        fs_reclaim_acquire mm/page_alloc.c:4662 [inline]
-        prepare_alloc_pages mm/page_alloc.c:4659 [inline]
-        __alloc_pages_nodemask+0x52f/0x900 mm/page_alloc.c:4711
-        alloc_pages_vma+0x1bc/0x3f0 mm/mempolicy.c:2114
-        shmem_alloc_page+0xbd/0x180 mm/shmem.c:1496
-        shmem_alloc_and_acct_page+0x165/0x990 mm/shmem.c:1521
-        shmem_getpage_gfp+0x598/0x2680 mm/shmem.c:1835
-        shmem_getpage mm/shmem.c:152 [inline]
-        shmem_write_begin+0x105/0x1e0 mm/shmem.c:2480
-        generic_perform_write+0x23b/0x540 mm/filemap.c:3304
-        __generic_file_write_iter+0x25e/0x630 mm/filemap.c:3433
-        generic_file_write_iter+0x420/0x690 mm/filemap.c:3465
-        call_write_iter include/linux/fs.h:1890 [inline]
-        new_sync_write+0x4d3/0x770 fs/read_write.c:483
-        __vfs_write+0xe1/0x110 fs/read_write.c:496
-        vfs_write+0x268/0x5d0 fs/read_write.c:558
-        ksys_write+0x14f/0x290 fs/read_write.c:611
-        __do_sys_write fs/read_write.c:623 [inline]
-        __se_sys_write fs/read_write.c:620 [inline]
-        __x64_sys_write+0x73/0xb0 fs/read_write.c:620
-        do_syscall_64+0xfa/0x760 arch/x86/entry/common.c:290
-        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+Agreed.
 
--> #0 (&sb->s_type->i_mutex_key#13){+.+.}:
-        check_prev_add kernel/locking/lockdep.c:2476 [inline]
-        check_prevs_add kernel/locking/lockdep.c:2581 [inline]
-        validate_chain kernel/locking/lockdep.c:2971 [inline]
-        __lock_acquire+0x2596/0x4a00 kernel/locking/lockdep.c:3955
-        lock_acquire+0x190/0x410 kernel/locking/lockdep.c:4487
-        down_write+0x93/0x150 kernel/locking/rwsem.c:1534
-        inode_lock include/linux/fs.h:789 [inline]
-        shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
-        ashmem_shrink_scan drivers/staging/android/ashmem.c:462 [inline]
-        ashmem_shrink_scan+0x370/0x510 drivers/staging/android/ashmem.c:437
-        do_shrink_slab+0x40f/0xa30 mm/vmscan.c:560
-        shrink_slab mm/vmscan.c:721 [inline]
-        shrink_slab+0x19a/0x680 mm/vmscan.c:694
-        shrink_node+0x223/0x12e0 mm/vmscan.c:2807
-        kswapd_shrink_node mm/vmscan.c:3549 [inline]
-        balance_pgdat+0x57c/0xea0 mm/vmscan.c:3707
-        kswapd+0x5c3/0xf30 mm/vmscan.c:3958
-        kthread+0x361/0x430 kernel/kthread.c:255
-        ret_from_fork+0x24/0x30 arch/x86/entry/entry_64.S:352
+As I had mentioned before this would have been really the cleanest approach.
 
-other info that might help us debug this:
+> 
+> It *should* be more portable.
 
-  Possible unsafe locking scenario:
+Not really, because not all the platforms have __pxx() definitions right now.
+Going with these will clearly cause build failures on affected platforms. Lets
+examine __pud() for instance. It is defined only on these platforms.
 
-        CPU0                    CPU1
-        ----                    ----
-   lock(fs_reclaim);
-                                lock(&sb->s_type->i_mutex_key#13);
-                                lock(fs_reclaim);
-   lock(&sb->s_type->i_mutex_key#13);
+arch/arm64/include/asm/pgtable-types.h:		#define __pud(x) ((pud_t) { (x) } )
+arch/mips/include/asm/pgtable-64.h:		#define __pud(x) ((pud_t) { (x) })
+arch/powerpc/include/asm/pgtable-be-types.h:	#define __pud(x) ((pud_t) { cpu_to_be64(x) })
+arch/powerpc/include/asm/pgtable-types.h:	#define __pud(x) ((pud_t) { (x) })
+arch/s390/include/asm/page.h:			#define __pud(x) ((pud_t) { (x) } )
+arch/sparc/include/asm/page_64.h:		#define __pud(x) ((pud_t) { (x) } )
+arch/sparc/include/asm/page_64.h:		#define __pud(x) (x)
+arch/x86/include/asm/pgtable.h:			#define __pud(x) native_make_pud(x)
 
-  *** DEADLOCK ***
+Similarly for __pmd()
 
-2 locks held by kswapd0/1770:
-  #0: ffffffff89042f80 (fs_reclaim){+.+.}, at: __fs_reclaim_acquire+0x0/0x30  
-mm/page_alloc.c:4889
-  #1: ffffffff8901ffe8 (shrinker_rwsem){++++}, at: shrink_slab  
-mm/vmscan.c:711 [inline]
-  #1: ffffffff8901ffe8 (shrinker_rwsem){++++}, at: shrink_slab+0xe6/0x680  
-mm/vmscan.c:694
+arch/alpha/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+arch/arm/include/asm/page-nommu.h:		#define __pmd(x)  (x)
+arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
+arch/arm/include/asm/pgtable-2level-types.h:	#define __pmd(x)  (x)
+arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  ((pmd_t) { (x) } )
+arch/arm/include/asm/pgtable-3level-types.h:	#define __pmd(x)  (x)
+arch/arm64/include/asm/pgtable-types.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+arch/m68k/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { { (x) }, })
+arch/mips/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+arch/nds32/include/asm/page.h:			#define __pmd(x)  (x)
+arch/parisc/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+arch/parisc/include/asm/page.h:			#define __pmd(x)  (x)
+arch/powerpc/include/asm/pgtable-be-types.h:	#define __pmd(x)  ((pmd_t) { cpu_to_be64(x) })
+arch/powerpc/include/asm/pgtable-types.h:	#define __pmd(x)  ((pmd_t) { (x) })
+arch/riscv/include/asm/pgtable-64.h:		#define __pmd(x)  ((pmd_t) { (x) })
+arch/s390/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+arch/sh/include/asm/pgtable-3level.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
+arch/sparc/include/asm/page_32.h:		#define __pmd(x)  ((pmd_t) { { (x) }, })
+arch/sparc/include/asm/page_64.h:		#define __pmd(x)  ((pmd_t) { (x) } )
+arch/sparc/include/asm/page_64.h:		#define __pmd(x)  (x)
+arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+arch/um/include/asm/page.h:			#define __pmd(x)  ((pmd_t) { (x) } )
+arch/x86/include/asm/pgtable.h:			#define __pmd(x)  native_make_pmd(x)
 
-stack backtrace:
-CPU: 0 PID: 1770 Comm: kswapd0 Not tainted 5.3.0-rc6-next-20190830 #75
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-  print_circular_bug.isra.0.cold+0x163/0x172 kernel/locking/lockdep.c:1685
-  check_noncircular+0x32e/0x3e0 kernel/locking/lockdep.c:1809
-  check_prev_add kernel/locking/lockdep.c:2476 [inline]
-  check_prevs_add kernel/locking/lockdep.c:2581 [inline]
-  validate_chain kernel/locking/lockdep.c:2971 [inline]
-  __lock_acquire+0x2596/0x4a00 kernel/locking/lockdep.c:3955
-  lock_acquire+0x190/0x410 kernel/locking/lockdep.c:4487
-  down_write+0x93/0x150 kernel/locking/rwsem.c:1534
-  inode_lock include/linux/fs.h:789 [inline]
-  shmem_fallocate+0x15a/0xc60 mm/shmem.c:2728
-  ashmem_shrink_scan drivers/staging/android/ashmem.c:462 [inline]
-  ashmem_shrink_scan+0x370/0x510 drivers/staging/android/ashmem.c:437
-  do_shrink_slab+0x40f/0xa30 mm/vmscan.c:560
-  shrink_slab mm/vmscan.c:721 [inline]
-  shrink_slab+0x19a/0x680 mm/vmscan.c:694
-  shrink_node+0x223/0x12e0 mm/vmscan.c:2807
-  kswapd_shrink_node mm/vmscan.c:3549 [inline]
-  balance_pgdat+0x57c/0xea0 mm/vmscan.c:3707
-  kswapd+0x5c3/0xf30 mm/vmscan.c:3958
-  kthread+0x361/0x430 kernel/kthread.c:255
-  ret_from_fork+0x24/0x30 arch/x86/entry/entry_64.S:352
+Similarly for __pgd()
 
+arch/alpha/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/alpha/include/asm/page.h:			#define __pgd(x)  (x)
+arch/arc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+arch/arc/include/asm/page.h:			#define __pgd(x)  (x)
+arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  ((pgd_t) { (x) } )
+arch/arm/include/asm/pgtable-3level-types.h:	#define __pgd(x)  (x)
+arch/arm64/include/asm/pgtable-types.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+arch/csky/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+arch/hexagon/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+arch/m68k/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/mips/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/nds32/include/asm/page.h:			#define __pgd(x)  (x)
+arch/nios2/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+arch/openrisc/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+arch/parisc/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/parisc/include/asm/page.h:			#define __pgd(x)  (x)
+arch/powerpc/include/asm/pgtable-be-types.h:	#define __pgd(x)  ((pgd_t) { cpu_to_be64(x) })
+arch/powerpc/include/asm/pgtable-types.h:	#define __pgd(x)  ((pgd_t) { (x) })
+arch/riscv/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) })
+arch/s390/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/sh/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/sparc/include/asm/page_32.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+arch/sparc/include/asm/page_32.h:		#define __pgd(x)  (x)
+arch/sparc/include/asm/page_64.h:		#define __pgd(x)  ((pgd_t) { (x) } )
+arch/sparc/include/asm/page_64.h:		#define __pgd(x)  (x)
+arch/um/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
+arch/unicore32/include/asm/page.h:		#define __pgd(x)  ((pgd_t) { (x) })
+arch/unicore32/include/asm/page.h:		#define __pgd(x)  (x)
+arch/x86/include/asm/pgtable.h:			#define __pgd(x)  native_make_pgd(x)
+arch/xtensa/include/asm/page.h:			#define __pgd(x)  ((pgd_t) { (x) } )
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+Similarly for __p4d()
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+arch/s390/include/asm/page.h:			#define __p4d(x)  ((p4d_t) { (x) } )
+arch/x86/include/asm/pgtable.h:			#define __p4d(x)  native_make_p4d(x)
+
+The search pattern here has been "#define __pxx(". Unless I am missing something,
+I dont see how we can use these without risking build failures.
 
