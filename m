@@ -2,175 +2,228 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 168D7C49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:21:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45A12C3A5A2
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:27:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D6B22084D
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:21:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="jKloMCTV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D6B22084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E87CC20872
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:27:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E87CC20872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 23CC46B0007; Tue, 10 Sep 2019 05:21:18 -0400 (EDT)
+	id 7908F6B0003; Tue, 10 Sep 2019 05:27:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1ED736B0008; Tue, 10 Sep 2019 05:21:18 -0400 (EDT)
+	id 719F76B0007; Tue, 10 Sep 2019 05:27:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0DCFC6B000C; Tue, 10 Sep 2019 05:21:18 -0400 (EDT)
+	id 5B98D6B0008; Tue, 10 Sep 2019 05:27:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0219.hostedemail.com [216.40.44.219])
-	by kanga.kvack.org (Postfix) with ESMTP id E014C6B0007
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:21:17 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id A24D18243768
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:21:17 +0000 (UTC)
-X-FDA: 75918467394.03.desk67_28483d2095b3d
-X-HE-Tag: desk67_28483d2095b3d
-X-Filterd-Recvd-Size: 7174
-Received: from mail-ot1-f66.google.com (mail-ot1-f66.google.com [209.85.210.66])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:21:16 +0000 (UTC)
-Received: by mail-ot1-f66.google.com with SMTP id z26so8168473oto.1
-        for <linux-mm@kvack.org>; Tue, 10 Sep 2019 02:21:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=V15g9krwElh5s7ubtVRB+OPlWr+bh/CCGHQMHIst0mg=;
-        b=jKloMCTV2Hfo5rjrHrNVD5uu9OsubyMBqmOMrtzEZfjnQOlY84UlHGoemFPHuW0Uvc
-         Xy8b6X22PTLv00Eoe1bUrISeP6U+hNgOdhVko6Pd80qoqp3DWIuYIetNoD/UWMAyMU+/
-         oYgPh3vLlik4dolpS7iRuxLN2Aim0L7oI/ICaabvCPp/8keooUr7tdfAhVB1FGEWv+Xs
-         x5yZcXi9qc6v6wZbKmXk5zgODl31w260Ghz1lF17cmDNkcoJ03wwGNKdvsuMgpFA+R0Q
-         WVA8+7eLnANoehlKlA6eX83Ks+RTA02g5nvaXLf+xRw0z0PvS/qBb/OsZUgadEH7uoyr
-         TTcg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=V15g9krwElh5s7ubtVRB+OPlWr+bh/CCGHQMHIst0mg=;
-        b=JtH/vW3E/v6Cr4LU8akJXjrBt5ezx6nUuBlwvmlaaCmPanFr74PeyJ5KeQgUJPeUno
-         RUYPtEWNjtqbrT9Pp/11WJ8xcdEFGXzcVcylGSe5wjt/FWcQksE5gIph4ro9JD7b+EcJ
-         8iqDCtMSpjW9qYGdG7KtLUTX8M07SzMLULgNgRPPxPto+x8wL+ngre7q83IKFo2pfaRz
-         5k6JJEtsExJwR4rqPma593+inDdo56+cXFi48LrHZ3RXBRbi/yyfUb/EUZdJpwqlyOa0
-         NBSSzWdBGBj1d2pqfYJGMxrK2LNb4rFPlHIr+8EvxWAYQfBnGGhZi7rAHkH36pRfYcbf
-         UQNw==
-X-Gm-Message-State: APjAAAVGS0tngro4uE90DKS29uSA1HXQPl3eGhQHtHW47S6wUDUk3ALN
-	f33rRC+6yb6avOvQwI4FohtgrAHqYPLoIFT3+S8WiA==
-X-Google-Smtp-Source: APXvYqy2s1HOVT5KWkC7vc1cJBH9IgMcXfX2UD8wgbY4zwDCPPr5Lsujug0iHzMmDGj5UqgT8qeL3ITtDPK3I3GKhmI=
-X-Received: by 2002:a9d:2642:: with SMTP id a60mr23742841otb.247.1568107275846;
- Tue, 10 Sep 2019 02:21:15 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0125.hostedemail.com [216.40.44.125])
+	by kanga.kvack.org (Postfix) with ESMTP id 307AF6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:27:09 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DDE448E58
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:27:08 +0000 (UTC)
+X-FDA: 75918482136.11.silk46_5b5f7d069744b
+X-HE-Tag: silk46_5b5f7d069744b
+X-Filterd-Recvd-Size: 11151
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:27:07 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D4AA4AF68;
+	Tue, 10 Sep 2019 09:27:05 +0000 (UTC)
+Subject: Re: [PATCH v5 0/4] Raspberry Pi 4 DMA addressing support
+To: Stefan Wahren <wahrenst@gmx.net>, catalin.marinas@arm.com,
+ marc.zyngier@arm.com, robh+dt@kernel.org, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org,
+ hch@lst.de, Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: robin.murphy@arm.com, f.fainelli@gmail.com, will@kernel.org,
+ linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
+ m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
+References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
+ <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+From: Matthias Brugger <mbrugger@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=mbrugger@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <3f9af46e-2e1a-771f-57f2-86a53caaf94a@suse.com>
+Date: Tue, 10 Sep 2019 11:27:04 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
- <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com> <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
- <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com> <6a99e003-e1ab-b9e8-7b25-bc5605ab0eb2@vx.jp.nec.com>
- <e4e54258-e83b-cf0b-b66e-9874be6b5122@redhat.com> <f9b10653-949b-64a6-6539-a32bd980edb9@redhat.com>
- <CAPcyv4gA4mcDEPeCFokn_jy5gX62cK0U40EzL7M8c0iDO7U7bg@mail.gmail.com> <c6198acd-8ff7-c40c-cb4e-f0f12f841b38@redhat.com>
-In-Reply-To: <c6198acd-8ff7-c40c-cb4e-f0f12f841b38@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 10 Sep 2019 02:21:04 -0700
-Message-ID: <CAPcyv4ioWGySF36Urzza7RrRBiP=-ivBmnt0YJF=jOPVAXZEnw@mail.gmail.com>
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-To: David Hildenbrand <david@redhat.com>
-Cc: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, 
-	"adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>, 
-	"longman@redhat.com" <longman@redhat.com>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, 
-	"mst@redhat.com" <mst@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, 
-	Junichi Nomura <j-nomura@ce.jp.nec.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 9, 2019 at 5:06 AM David Hildenbrand <david@redhat.com> wrote:
->
-> On 09.09.19 13:53, Dan Williams wrote:
-> > On Mon, Sep 9, 2019 at 1:11 AM David Hildenbrand <david@redhat.com> wrote:
-> > [..]
-> >>>> It seems that SECTION_IS_ONLINE and SECTION_MARKED_PRESENT can be used to
-> >>>> distinguish uninitialized struct pages if we can apply them to ZONE_DEVICE,
-> >>>> but that is no longer necessary with this approach.
-> >>>
-> >>> Let's take a step back here to understand the issues I am aware of. I
-> >>> think we should solve this for good now:
-> >>>
-> >>> A PFN walker takes a look at a random PFN at a random point in time. It
-> >>> finds a PFN with SECTION_MARKED_PRESENT && !SECTION_IS_ONLINE. The
-> >>> options are:
-> >>>
-> >>> 1. It is buddy memory (add_memory()) that has not been online yet. The
-> >>> memmap contains garbage. Don't access.
-> >>>
-> >>> 2. It is ZONE_DEVICE memory with a valid memmap. Access it.
-> >>>
-> >>> 3. It is ZONE_DEVICE memory with an invalid memmap, because the section
-> >>> is only partially present: E.g., device starts at offset 64MB within a
-> >>> section or the device ends at offset 64MB within a section. Don't access it.
-> >>>
-> >>> 4. It is ZONE_DEVICE memory with an invalid memmap, because the memmap
-> >>> was not initialized yet. memmap_init_zone_device() did not yet succeed
-> >>> after dropping the mem_hotplug lock in mm/memremap.c. Don't access it.
-> >>>
-> >>> 5. It is reserved ZONE_DEVICE memory ("pages mapped, but reserved for
-> >>> driver") with an invalid memmap. Don't access it.
-> >>>
-> >>> I can see that your patch tries to make #5 vanish by initializing the
-> >>> memmap, fair enough. #3 and #4 can't be detected. The PFN walker could
-> >>> still stumble over uninitialized memmaps.
-> >>>
-> >>
-> >> FWIW, I thinkg having something like pfn_zone_device(), similarly
-> >> implemented like pfn_zone_device_reserved() could be one solution to
-> >> most issues.
-> >
-> > I've been thinking of a replacement for PTE_DEVMAP with section-level,
-> > or sub-section level flags. The section-level flag would still require
-> > a call to get_dev_pagemap() to validate that the pfn is not section in
-> > the subsection case which seems to be entirely too much overhead. If
-> > ZONE_DEVICE is to be a first class citizen in pfn walkers I think it
-> > would be worth the cost to double the size of subsection_map and to
-> > identify whether a sub-section is ZONE_DEVICE, or not.
-> >
-> > Thoughts?
-> >
->
-> I thought about this last week and came up with something like
->
-> 1. Convert SECTION_IS_ONLINE to SECTION IS_ACTIVE
->
-> 2. Make pfn_to_online_page() also check that it's not ZONE_DEVICE.
-> Online pfns are limited to !ZONE_DEVICE.
->
-> 3. Extend subsection_map to an additional active_map
->
-> 4. Set SECTION IS_ACTIVE *iff* the whole active_map is set. This keeps
-> most accesses of pfn_to_online_page() fast. If !SECTION IS_ACTIVE, check
-> the active_map.
->
-> 5. Set sub-sections active/unactive in
-> move_pfn_range_to_zone()/remove_pfn_range_from_zone() - see "[PATCH v4
-> 0/8] mm/memory_hotplug: Shrink zones before removing memory" for the
-> latter.
->
-> 6. Set boot memory properly active (this is a tricky bit :/ ).
->
-> However, it turned out too complex for my taste (and limited time to
-> spend on this), so I abandoned that idea for now. If somebody wants to
-> pick that up, fine.
->
 
-That seems to solve the pfn walk case but it would not address the
-need for PTE_DEVMAP or speed up the other places that want an
-efficient way to determine if it's worthwhile to call
-get_dev_pagemap().
+
+On 09/09/2019 21:33, Stefan Wahren wrote:
+> Hi Nicolas,
+> 
+> Am 09.09.19 um 11:58 schrieb Nicolas Saenz Julienne:
+>> Hi all,
+>> this series attempts to address some issues we found while bringing up
+>> the new Raspberry Pi 4 in arm64 and it's intended to serve as a follow
+>> up of these discussions:
+>> v4: https://lkml.org/lkml/2019/9/6/352
+>> v3: https://lkml.org/lkml/2019/9/2/589
+>> v2: https://lkml.org/lkml/2019/8/20/767
+>> v1: https://lkml.org/lkml/2019/7/31/922
+>> RFC: https://lkml.org/lkml/2019/7/17/476
+>>
+>> The new Raspberry Pi 4 has up to 4GB of memory but most peripherals can
+>> only address the first GB: their DMA address range is
+>> 0xc0000000-0xfc000000 which is aliased to the first GB of physical
+>> memory 0x00000000-0x3c000000. Note that only some peripherals have these
+>> limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wider
+>> view of the address space by virtue of being hooked up trough a second
+>> interconnect.
+>>
+>> Part of this is solved on arm32 by setting up the machine specific
+>> '.dma_zone_size = SZ_1G', which takes care of reserving the coherent
+>> memory area at the right spot. That said no buffer bouncing (needed for
+>> dma streaming) is available at the moment, but that's a story for
+>> another series.
+>>
+>> Unfortunately there is no such thing as 'dma_zone_size' in arm64. Only
+>> ZONE_DMA32 is created which is interpreted by dma-direct and the arm64
+>> arch code as if all peripherals where be able to address the first 4GB
+>> of memory.
+>>
+>> In the light of this, the series implements the following changes:
+>>
+>> - Create both DMA zones in arm64, ZONE_DMA will contain the first 1G
+>>   area and ZONE_DMA32 the rest of the 32 bit addressable memory. So far
+>>   the RPi4 is the only arm64 device with such DMA addressing limitations
+>>   so this hardcoded solution was deemed preferable.
+>>
+>> - Properly set ARCH_ZONE_DMA_BITS.
+>>
+>> - Reserve the CMA area in a place suitable for all peripherals.
+>>
+>> This series has been tested on multiple devices both by checking the
+>> zones setup matches the expectations and by double-checking physical
+>> addresses on pages allocated on the three relevant areas GFP_DMA,
+>> GFP_DMA32, GFP_KERNEL:
+>>
+>> - On an RPi4 with variations on the ram memory size. But also forcing
+>>   the situation where all three memory zones are nonempty by setting a 3G
+>>   ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA support.
+>>
+> i like to test this series on Raspberry Pi 4 and i have some questions
+> to get arm64 running:
+> 
+> Do you use U-Boot? Which tree?
+
+If you want to use U-Boot, try v2019.10-rc4, it should have everything you need
+to boot your kernel.
+
+Regards,
+Matthias
+
+> Are there any config.txt tweaks necessary?
+> 
+> 
 
