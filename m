@@ -2,293 +2,231 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_SANE_2 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 599DDC49ED6
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:53:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94029C49ED6
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:10:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14546206CD
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 09:53:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14546206CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 5699520863
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 10:10:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5699520863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A3B9F6B0006; Tue, 10 Sep 2019 05:53:33 -0400 (EDT)
+	id E27CF6B0003; Tue, 10 Sep 2019 06:10:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C4D06B0008; Tue, 10 Sep 2019 05:53:33 -0400 (EDT)
+	id DFFBF6B0006; Tue, 10 Sep 2019 06:10:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 864AC6B000A; Tue, 10 Sep 2019 05:53:33 -0400 (EDT)
+	id CEE056B0007; Tue, 10 Sep 2019 06:10:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0150.hostedemail.com [216.40.44.150])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A7786B0006
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 05:53:33 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 042AF284BD
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:53:33 +0000 (UTC)
-X-FDA: 75918548706.08.dust57_1ecb42a73f547
-X-HE-Tag: dust57_1ecb42a73f547
-X-Filterd-Recvd-Size: 9239
-Received: from mailgw02.mediatek.com (unknown [210.61.82.184])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 09:53:31 +0000 (UTC)
-X-UUID: 39136821071a4a61acaf347912375c23-20190910
-X-UUID: 39136821071a4a61acaf347912375c23-20190910
-Received: from mtkmrs01.mediatek.inc [(172.21.131.159)] by mailgw02.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0809 with TLS)
-	with ESMTP id 761175253; Tue, 10 Sep 2019 17:53:25 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 10 Sep 2019 17:53:23 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 10 Sep 2019 17:53:23 +0800
-Message-ID: <1568109204.24886.14.camel@mtksdccf07>
-Subject: Re: [PATCH v2 0/2] mm/kasan: dump alloc/free stack for page
- allocator
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov
-	<dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, "Arnd
- Bergmann" <arnd@arndb.de>, Qian Cai <cai@lca.pw>
-CC: Alexander Potapenko <glider@google.com>, Matthias Brugger
-	<matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Will Deacon <will@kernel.org>, "Thomas
- Gleixner" <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>,
-	<linux-kernel@vger.kernel.org>, <kasan-dev@googlegroups.com>,
-	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
-Date: Tue, 10 Sep 2019 17:53:24 +0800
-In-Reply-To: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
-References: <20190909082412.24356-1-walter-zh.wu@mediatek.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
+	by kanga.kvack.org (Postfix) with ESMTP id B015B6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 06:10:13 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 64CE36107
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:10:13 +0000 (UTC)
+X-FDA: 75918590706.12.hot12_1efecb35e1845
+X-HE-Tag: hot12_1efecb35e1845
+X-Filterd-Recvd-Size: 10003
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 10:10:12 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6693318CB8FB;
+	Tue, 10 Sep 2019 10:10:11 +0000 (UTC)
+Received: from [10.36.118.106] (unknown [10.36.118.106])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0A9955D6B2;
+	Tue, 10 Sep 2019 10:10:00 +0000 (UTC)
+Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
+ ZONE_DEVICE driver.
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+ "mhocko@kernel.org" <mhocko@kernel.org>,
+ "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
+ "longman@redhat.com" <longman@redhat.com>,
+ "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
+ "mst@redhat.com" <mst@redhat.com>,
+ Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+ Junichi Nomura <j-nomura@ce.jp.nec.com>
+References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+ <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
+ <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
+ <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com>
+ <6a99e003-e1ab-b9e8-7b25-bc5605ab0eb2@vx.jp.nec.com>
+ <e4e54258-e83b-cf0b-b66e-9874be6b5122@redhat.com>
+ <f9b10653-949b-64a6-6539-a32bd980edb9@redhat.com>
+ <CAPcyv4gA4mcDEPeCFokn_jy5gX62cK0U40EzL7M8c0iDO7U7bg@mail.gmail.com>
+ <c6198acd-8ff7-c40c-cb4e-f0f12f841b38@redhat.com>
+ <CAPcyv4ioWGySF36Urzza7RrRBiP=-ivBmnt0YJF=jOPVAXZEnw@mail.gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <c0dbddc7-6d43-bc6f-b4fd-e413af292857@redhat.com>
+Date: Tue, 10 Sep 2019 12:10:00 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MTK: N
+In-Reply-To: <CAPcyv4ioWGySF36Urzza7RrRBiP=-ivBmnt0YJF=jOPVAXZEnw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.63]); Tue, 10 Sep 2019 10:10:11 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-09-09 at 16:24 +0800, walter-zh.wu@mediatek.com wrote:
-> From: Walter Wu <walter-zh.wu@mediatek.com>
+On 10.09.19 11:21, Dan Williams wrote:
+> On Mon, Sep 9, 2019 at 5:06 AM David Hildenbrand <david@redhat.com> wrote:
+>>
+>> On 09.09.19 13:53, Dan Williams wrote:
+>>> On Mon, Sep 9, 2019 at 1:11 AM David Hildenbrand <david@redhat.com> wrote:
+>>> [..]
+>>>>>> It seems that SECTION_IS_ONLINE and SECTION_MARKED_PRESENT can be used to
+>>>>>> distinguish uninitialized struct pages if we can apply them to ZONE_DEVICE,
+>>>>>> but that is no longer necessary with this approach.
+>>>>>
+>>>>> Let's take a step back here to understand the issues I am aware of. I
+>>>>> think we should solve this for good now:
+>>>>>
+>>>>> A PFN walker takes a look at a random PFN at a random point in time. It
+>>>>> finds a PFN with SECTION_MARKED_PRESENT && !SECTION_IS_ONLINE. The
+>>>>> options are:
+>>>>>
+>>>>> 1. It is buddy memory (add_memory()) that has not been online yet. The
+>>>>> memmap contains garbage. Don't access.
+>>>>>
+>>>>> 2. It is ZONE_DEVICE memory with a valid memmap. Access it.
+>>>>>
+>>>>> 3. It is ZONE_DEVICE memory with an invalid memmap, because the section
+>>>>> is only partially present: E.g., device starts at offset 64MB within a
+>>>>> section or the device ends at offset 64MB within a section. Don't access it.
+>>>>>
+>>>>> 4. It is ZONE_DEVICE memory with an invalid memmap, because the memmap
+>>>>> was not initialized yet. memmap_init_zone_device() did not yet succeed
+>>>>> after dropping the mem_hotplug lock in mm/memremap.c. Don't access it.
+>>>>>
+>>>>> 5. It is reserved ZONE_DEVICE memory ("pages mapped, but reserved for
+>>>>> driver") with an invalid memmap. Don't access it.
+>>>>>
+>>>>> I can see that your patch tries to make #5 vanish by initializing the
+>>>>> memmap, fair enough. #3 and #4 can't be detected. The PFN walker could
+>>>>> still stumble over uninitialized memmaps.
+>>>>>
+>>>>
+>>>> FWIW, I thinkg having something like pfn_zone_device(), similarly
+>>>> implemented like pfn_zone_device_reserved() could be one solution to
+>>>> most issues.
+>>>
+>>> I've been thinking of a replacement for PTE_DEVMAP with section-level,
+>>> or sub-section level flags. The section-level flag would still require
+>>> a call to get_dev_pagemap() to validate that the pfn is not section in
+>>> the subsection case which seems to be entirely too much overhead. If
+>>> ZONE_DEVICE is to be a first class citizen in pfn walkers I think it
+>>> would be worth the cost to double the size of subsection_map and to
+>>> identify whether a sub-section is ZONE_DEVICE, or not.
+>>>
+>>> Thoughts?
+>>>
+>>
+>> I thought about this last week and came up with something like
+>>
+>> 1. Convert SECTION_IS_ONLINE to SECTION IS_ACTIVE
+>>
+>> 2. Make pfn_to_online_page() also check that it's not ZONE_DEVICE.
+>> Online pfns are limited to !ZONE_DEVICE.
+>>
+>> 3. Extend subsection_map to an additional active_map
+>>
+>> 4. Set SECTION IS_ACTIVE *iff* the whole active_map is set. This keeps
+>> most accesses of pfn_to_online_page() fast. If !SECTION IS_ACTIVE, check
+>> the active_map.
+>>
+>> 5. Set sub-sections active/unactive in
+>> move_pfn_range_to_zone()/remove_pfn_range_from_zone() - see "[PATCH v4
+>> 0/8] mm/memory_hotplug: Shrink zones before removing memory" for the
+>> latter.
+>>
+>> 6. Set boot memory properly active (this is a tricky bit :/ ).
+>>
+>> However, it turned out too complex for my taste (and limited time to
+>> spend on this), so I abandoned that idea for now. If somebody wants to
+>> pick that up, fine.
+>>
 > 
-> This patch is KASAN report adds the alloc/free stacks for page allocator
-> in order to help programmer to see memory corruption caused by page.
+> That seems to solve the pfn walk case but it would not address the
+> need for PTE_DEVMAP or speed up the other places that want an
+> efficient way to determine if it's worthwhile to call
+> get_dev_pagemap().
 > 
-> By default, KASAN doesn't record alloc and free stack for page allocator.
-> It is difficult to fix up page use-after-free or dobule-free issue.
-> 
-> Our patchsets will record the last stack of pages.
-> It is very helpful for solving the page use-after-free or double-free.
-> 
-> KASAN report will show the last stack of page, it may be:
-> a) If page is in-use state, then it prints alloc stack.
->    It is useful to fix up page out-of-bound issue.
-> 
-> BUG: KASAN: slab-out-of-bounds in kmalloc_pagealloc_oob_right+0x88/0x90
-> Write of size 1 at addr ffffffc0d64ea00a by task cat/115
-> ...
-> Allocation stack of page:
->  set_page_stack.constprop.1+0x30/0xc8
->  kasan_alloc_pages+0x18/0x38
->  prep_new_page+0x5c/0x150
->  get_page_from_freelist+0xb8c/0x17c8
->  __alloc_pages_nodemask+0x1a0/0x11b0
->  kmalloc_order+0x28/0x58
->  kmalloc_order_trace+0x28/0xe0
->  kmalloc_pagealloc_oob_right+0x2c/0x68
-> 
-> b) If page is freed state, then it prints free stack.
->    It is useful to fix up page use-after-free or double-free issue.
-> 
-> BUG: KASAN: use-after-free in kmalloc_pagealloc_uaf+0x70/0x80
-> Write of size 1 at addr ffffffc0d651c000 by task cat/115
-> ...
-> Free stack of page:
->  kasan_free_pages+0x68/0x70
->  __free_pages_ok+0x3c0/0x1328
->  __free_pages+0x50/0x78
->  kfree+0x1c4/0x250
->  kmalloc_pagealloc_uaf+0x38/0x80
-> 
-> This has been discussed, please refer below link.
-> https://bugzilla.kernel.org/show_bug.cgi?id=203967
-> 
-> Changes since v1:
-> - slim page_owner and move it into kasan
-> - enable the feature by default
-> 
-> Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
-> ---
->  include/linux/kasan.h |  1 +
->  lib/Kconfig.kasan     |  2 ++
->  mm/kasan/common.c     | 32 ++++++++++++++++++++++++++++++++
->  mm/kasan/kasan.h      |  5 +++++
->  mm/kasan/report.c     | 27 +++++++++++++++++++++++++++
->  5 files changed, 67 insertions(+)
-> 
-> diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-> index cc8a03cc9674..97e1bcb20489 100644
-> --- a/include/linux/kasan.h
-> +++ b/include/linux/kasan.h
-> @@ -19,6 +19,7 @@ extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE];
->  extern pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD];
->  extern pud_t kasan_early_shadow_pud[PTRS_PER_PUD];
->  extern p4d_t kasan_early_shadow_p4d[MAX_PTRS_PER_P4D];
-> +extern struct page_ext_operations page_stack_ops;
->  
->  int kasan_populate_early_shadow(const void *shadow_start,
->  				const void *shadow_end);
-> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> index 4fafba1a923b..b5a9410ba4e8 100644
-> --- a/lib/Kconfig.kasan
-> +++ b/lib/Kconfig.kasan
-> @@ -41,6 +41,7 @@ config KASAN_GENERIC
->  	select SLUB_DEBUG if SLUB
->  	select CONSTRUCTORS
->  	select STACKDEPOT
-> +	select PAGE_EXTENSION
->  	help
->  	  Enables generic KASAN mode.
->  	  Supported in both GCC and Clang. With GCC it requires version 4.9.2
-> @@ -63,6 +64,7 @@ config KASAN_SW_TAGS
->  	select SLUB_DEBUG if SLUB
->  	select CONSTRUCTORS
->  	select STACKDEPOT
-> +	select PAGE_EXTENSION
->  	help
->  	  Enables software tag-based KASAN mode.
->  	  This mode requires Top Byte Ignore support by the CPU and therefore
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index 2277b82902d8..c349143d2587 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -211,10 +211,38 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
->  	kasan_unpoison_shadow(sp, size);
->  }
->  
-> +static bool need_page_stack(void)
-> +{
-> +	return true;
-> +}
-> +
-> +struct page_ext_operations page_stack_ops = {
-> +	.size = sizeof(depot_stack_handle_t),
-> +	.need = need_page_stack,
-> +};
-> +
-> +static void set_page_stack(struct page *page, gfp_t gfp_mask)
-> +{
-> +	struct page_ext *page_ext = lookup_page_ext(page);
-> +	depot_stack_handle_t handle;
-> +	depot_stack_handle_t *page_stack;
-> +
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
-> +	handle = save_stack(gfp_mask);
-> +
-> +	page_stack = get_page_stack(page_ext);
-> +	*page_stack = handle;
-> +}
-> +
->  void kasan_alloc_pages(struct page *page, unsigned int order)
->  {
->  	u8 tag;
->  	unsigned long i;
-> +	gfp_t gfp_flags = GFP_KERNEL;
-> +
-> +	set_page_stack(page, gfp_flags);
->  
->  	if (unlikely(PageHighMem(page)))
->  		return;
-> @@ -227,6 +255,10 @@ void kasan_alloc_pages(struct page *page, unsigned int order)
->  
->  void kasan_free_pages(struct page *page, unsigned int order)
->  {
-> +	gfp_t gfp_flags = GFP_KERNEL;
-> +
-> +	set_page_stack(page, gfp_flags);
-> +
->  	if (likely(!PageHighMem(page)))
->  		kasan_poison_shadow(page_address(page),
->  				PAGE_SIZE << order,
-> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-> index 014f19e76247..95b3b510d04f 100644
-> --- a/mm/kasan/kasan.h
-> +++ b/mm/kasan/kasan.h
-> @@ -126,6 +126,11 @@ static inline bool addr_has_shadow(const void *addr)
->  	return (addr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
->  }
->  
-> +static inline depot_stack_handle_t *get_page_stack(struct page_ext *page_ext)
-> +{
-> +	return (void *)page_ext + page_stack_ops.offset;
-> +}
-> +
->  void kasan_poison_shadow(const void *address, size_t size, u8 value);
->  
->  /**
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index 0e5f965f1882..2e26bc192114 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -344,6 +344,32 @@ static void print_address_stack_frame(const void *addr)
->  	print_decoded_frame_descr(frame_descr);
->  }
->  
-> +static void dump_page_stack(struct page *page)
-> +{
-> +	struct page_ext *page_ext = lookup_page_ext(page);
-> +	depot_stack_handle_t handle;
-> +	unsigned long *entries;
-> +	unsigned int nr_entries;
-> +	depot_stack_handle_t *page_stack;
-> +
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
-> +	page_stack = get_page_stack(page_ext);
-> +
-> +	handle = READ_ONCE(*page_stack);
-> +	if (!handle)
-> +		return;
-> +
-> +	if ((unsigned long)page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-> +		pr_info("Allocation stack of page:\n");
-> +	else
-> +		pr_info("Free stack of page:\n");
-> +
-> +	nr_entries = stack_depot_fetch(handle, &entries);
-> +	stack_trace_print(entries, nr_entries, 0);
-> +}
-> +
->  static void print_address_description(void *addr)
->  {
->  	struct page *page = addr_to_page(addr);
-> @@ -366,6 +392,7 @@ static void print_address_description(void *addr)
->  	if (page) {
->  		pr_err("The buggy address belongs to the page:\n");
->  		dump_page(page, "kasan: bad access detected");
-> +		dump_page_stack(page);
->  	}
->  
->  	print_address_stack_frame(addr);
 
-Hi All,
+Then I probably didn't get how your suggestion would look like :)
 
-We implement another version, it is different with v1. We hope that you
-can give an ideas and make the KASAN report better. If it is possible,
-we can use the less memory to show the corruption information that is
-enough to help programmer to fix up memory corruption.
+Would you suggest - instead of reusing SECTION_IS_ONLINE - something
+like SECTION_IS_DEVMAP / SECTION_IS_DEVICE, to decide whether to call
+get_dev_pagemap()?
 
-Thanks.
-Walter
+How to deal with subsections? I would like to avoid storing subsection
+information only useful for ZONE_DEVICE for any kind of sections (or
+could we then simply not store the information per subsection but
+instead check the device as initially suggested by me?)
 
+-- 
+
+Thanks,
+
+David / dhildenb
 
