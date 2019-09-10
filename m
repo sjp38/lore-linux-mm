@@ -2,227 +2,122 @@ Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82183C49ED9
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 20:19:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B3D6C5AE5C
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 20:26:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B5672084D
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 20:19:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B5672084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 3FA1B2084D
+	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 20:26:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FA1B2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D20A26B0005; Tue, 10 Sep 2019 16:19:13 -0400 (EDT)
+	id 7277C6B0005; Tue, 10 Sep 2019 16:26:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD0D96B0006; Tue, 10 Sep 2019 16:19:13 -0400 (EDT)
+	id 6D7E36B0006; Tue, 10 Sep 2019 16:26:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE7646B0007; Tue, 10 Sep 2019 16:19:13 -0400 (EDT)
+	id 614F56B0007; Tue, 10 Sep 2019 16:26:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD176B0005
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:19:13 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 35F7781D0
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 20:19:13 +0000 (UTC)
-X-FDA: 75920125386.19.pest58_6d8917b03423f
-X-HE-Tag: pest58_6d8917b03423f
-X-Filterd-Recvd-Size: 7752
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 20:19:12 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 94DEDAD31;
-	Tue, 10 Sep 2019 20:19:10 +0000 (UTC)
-Date: Tue, 10 Sep 2019 22:19:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Nitin Gupta <nigupta@nvidia.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
-	dan.j.williams@intel.com, khalid.aziz@oracle.com,
-	Matthew Wilcox <willy@infradead.org>, Yu Zhao <yuzhao@google.com>,
-	Qian Cai <cai@lca.pw>, Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Allison Randal <allison@lohutok.net>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Arun KS <arunks@codeaurora.org>,
-	Wei Yang <richard.weiyang@gmail.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] mm: Add callback for defining compaction completion
-Message-ID: <20190910201905.GG4023@dhcp22.suse.cz>
-References: <20190910200756.7143-1-nigupta@nvidia.com>
+Received: from forelay.hostedemail.com (smtprelay0120.hostedemail.com [216.40.44.120])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB2F6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:26:28 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C3949181AC9AE
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 20:26:27 +0000 (UTC)
+X-FDA: 75920143614.14.rifle01_1b3a6eeee5324
+X-HE-Tag: rifle01_1b3a6eeee5324
+X-Filterd-Recvd-Size: 4951
+Received: from mga12.intel.com (mga12.intel.com [192.55.52.136])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 20:26:26 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Sep 2019 13:26:25 -0700
+X-IronPort-AV: E=Sophos;i="5.64,490,1559545200"; 
+   d="scan'208";a="175429665"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga007-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Sep 2019 13:26:24 -0700
+Message-ID: <ab45e54fd81589c0e9a0645be5f0b9b4027b93ba.camel@linux.intel.com>
+Subject: Re: [PATCH v9 3/8] mm: Move set/get_pcppage_migratetype to mmzone.h
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Alexander Duyck
+	 <alexander.duyck@gmail.com>
+Cc: virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>, 
+ "Michael S. Tsirkin" <mst@redhat.com>, Catalin Marinas
+ <catalin.marinas@arm.com>, David Hildenbrand <david@redhat.com>, Dave
+ Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, Andrew
+ Morton <akpm@linux-foundation.org>,  will@kernel.org,
+ linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitesh Narayan Lal
+ <nitesh@redhat.com>, Rik van Riel <riel@surriel.com>,
+ lcapitulino@redhat.com, "Wang, Wei W" <wei.w.wang@intel.com>, Andrea
+ Arcangeli <aarcange@redhat.com>,  ying.huang@intel.com, Paolo Bonzini
+ <pbonzini@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Fengguang
+ Wu <fengguang.wu@intel.com>, "Kirill A. Shutemov"
+ <kirill.shutemov@linux.intel.com>
+Date: Tue, 10 Sep 2019 13:26:24 -0700
+In-Reply-To: <20190910174553.GC4023@dhcp22.suse.cz>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+	 <20190907172528.10910.37051.stgit@localhost.localdomain>
+	 <20190910122313.GW2063@dhcp22.suse.cz>
+	 <CAKgT0Ud1xqhEy_LL4AfMgreP0uXrkF-fSDn=6uDXfn7Pvj5AAw@mail.gmail.com>
+	 <20190910174553.GC4023@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190910200756.7143-1-nigupta@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 10-09-19 13:07:32, Nitin Gupta wrote:
-> For some applications we need to allocate almost all memory as hugepages.
-> However, on a running system, higher order allocations can fail if the
-> memory is fragmented. Linux kernel currently does on-demand compaction as
-> we request more hugepages but this style of compaction incurs very high
-> latency. Experiments with one-time full memory compaction (followed by
-> hugepage allocations) shows that kernel is able to restore a highly
-> fragmented memory state to a fairly compacted memory state within <1 sec
-> for a 32G system. Such data suggests that a more proactive compaction can
-> help us allocate a large fraction of memory as hugepages keeping allocation
-> latencies low.
+On Tue, 2019-09-10 at 19:45 +0200, Michal Hocko wrote:
+> On Tue 10-09-19 07:46:50, Alexander Duyck wrote:
+> > On Tue, Sep 10, 2019 at 5:23 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > On Sat 07-09-19 10:25:28, Alexander Duyck wrote:
+> > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > 
+> > > > In order to support page reporting it will be necessary to store and
+> > > > retrieve the migratetype of a page. To enable that I am moving the set and
+> > > > get operations for pcppage_migratetype into the mm/internal.h header so
+> > > > that they can be used outside of the page_alloc.c file.
+> > > 
+> > > Please describe who is the user and why does it needs this interface.
+> > > This is really important because migratetype is an MM internal thing and
+> > > external users shouldn't really care about it at all. We really do not
+> > > want a random code to call those, especially the set_pcppage_migratetype.
+> > 
+> > I was using it to store the migratetype of the page so that I could
+> > find the boundary list that contained the reported page as the array
+> > is indexed based on page order and migratetype. However on further
+> > discussion I am thinking I may just use page->index directly to index
+> > into the boundary array. Doing that I should be able to get a very
+> > slight improvement in lookup time since I am not having to pull order
+> > and migratetype and then compute the index based on that. In addition
+> > it becomes much more clear as to what is going on, and if needed I
+> > could add debug checks to verify the page is "Reported" and that the
+> > "Buddy" page type is set.
 > 
-> In general, compaction can introduce unexpected latencies for applications
-> that don't even have strong requirements for contiguous allocations. It is
-> also hard to efficiently determine if the current system state can be
-> easily compacted due to mixing of unmovable memory. Due to these reasons,
-> automatic background compaction by the kernel itself is hard to get right
-> in a way which does not hurt unsuspecting applications or waste CPU cycles.
+> Be careful though. A free page belongs to the page allocator and it is
+> free to reuse any fields for its purpose so using any of them nilly
+> willy is no go. If you need to stuff something like that then there
+> better be an api the allocator is aware of. My main objection is the
+> abuse migrate type. There might be other ways to express what you need.
+> Please make sure you clearly define that though.
 
-We do trigger background compaction on a high order pressure from the
-page allocator by waking up kcompactd. Why is that not sufficient?
+I will. Basically if the Reported is set then it will mean that the index
+value is in use and provides the index into the boundary array. The
+Reported flag will be cleared when the page is pulled from the buddy list
+and in the case of the page being allocated it is already overwritten by
+__rmqueue_smallest calling set_pcppage_migratetype which is what gave me
+the idea to just use that in the first place.
 
-> Even with these caveats, pro-active compaction can still be very useful in
-> certain scenarios to reduce hugepage allocation latencies. This callback
-> interface allows drivers to drive compaction based on their own policies
-> like the current level of external fragmentation for a particular order,
-> system load etc.
-
-So we do not trust the core MM to make a reasonable decision while we
-give a free ticket to modules. How does this make any sense at all? How
-is a random module going to make a more informed decision when it has
-less visibility on the overal MM situation.
-
-If you need to control compaction from the userspace you have an
-interface for that.  It is also completely unexplained why you need a
-completion callback.
-
-That being said, this looks like a terrible idea to me.
-
-> Signed-off-by: Nitin Gupta <nigupta@nvidia.com>
-> ---
->  include/linux/compaction.h | 10 ++++++++++
->  mm/compaction.c            | 20 ++++++++++++++------
->  mm/internal.h              |  2 ++
->  3 files changed, 26 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 9569e7c786d3..1ea828450fa2 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -58,6 +58,16 @@ enum compact_result {
->  	COMPACT_SUCCESS,
->  };
->  
-> +/* Callback function to determine if compaction is finished. */
-> +typedef enum compact_result (*compact_finished_cb)(
-> +	struct zone *zone, int order);
-> +
-> +enum compact_result compact_zone_order(struct zone *zone, int order,
-> +		gfp_t gfp_mask, enum compact_priority prio,
-> +		unsigned int alloc_flags, int classzone_idx,
-> +		struct page **capture,
-> +		compact_finished_cb compact_finished_cb);
-> +
->  struct alloc_context; /* in mm/internal.h */
->  
->  /*
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 952dc2fb24e5..73e2e9246bc4 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1872,6 +1872,9 @@ static enum compact_result __compact_finished(struct compact_control *cc)
->  			return COMPACT_PARTIAL_SKIPPED;
->  	}
->  
-> +	if (cc->compact_finished_cb)
-> +		return cc->compact_finished_cb(cc->zone, cc->order);
-> +
->  	if (is_via_compact_memory(cc->order))
->  		return COMPACT_CONTINUE;
->  
-> @@ -2274,10 +2277,11 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
->  	return ret;
->  }
->  
-> -static enum compact_result compact_zone_order(struct zone *zone, int order,
-> +enum compact_result compact_zone_order(struct zone *zone, int order,
->  		gfp_t gfp_mask, enum compact_priority prio,
->  		unsigned int alloc_flags, int classzone_idx,
-> -		struct page **capture)
-> +		struct page **capture,
-> +		compact_finished_cb compact_finished_cb)
->  {
->  	enum compact_result ret;
->  	struct compact_control cc = {
-> @@ -2293,10 +2297,11 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
->  					MIGRATE_ASYNC :	MIGRATE_SYNC_LIGHT,
->  		.alloc_flags = alloc_flags,
->  		.classzone_idx = classzone_idx,
-> -		.direct_compaction = true,
-> +		.direct_compaction = !compact_finished_cb,
->  		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
->  		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
-> -		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
-> +		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY),
-> +		.compact_finished_cb = compact_finished_cb
->  	};
->  	struct capture_control capc = {
->  		.cc = &cc,
-> @@ -2313,11 +2318,13 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
->  	VM_BUG_ON(!list_empty(&cc.freepages));
->  	VM_BUG_ON(!list_empty(&cc.migratepages));
->  
-> -	*capture = capc.page;
-> +	if (capture)
-> +		*capture = capc.page;
->  	current->capture_control = NULL;
->  
->  	return ret;
->  }
-> +EXPORT_SYMBOL(compact_zone_order);
->  
->  int sysctl_extfrag_threshold = 500;
->  
-> @@ -2361,7 +2368,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
->  		}
->  
->  		status = compact_zone_order(zone, order, gfp_mask, prio,
-> -				alloc_flags, ac_classzone_idx(ac), capture);
-> +				alloc_flags, ac_classzone_idx(ac), capture,
-> +				NULL);
->  		rc = max(status, rc);
->  
->  		/* The allocation should succeed, stop compacting */
-> diff --git a/mm/internal.h b/mm/internal.h
-> index e32390802fd3..f873f7c2b9dc 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -11,6 +11,7 @@
->  #include <linux/mm.h>
->  #include <linux/pagemap.h>
->  #include <linux/tracepoint-defs.h>
-> +#include <linux/compaction.h>
->  
->  /*
->   * The set of flags that only affect watermark checking and reclaim
-> @@ -203,6 +204,7 @@ struct compact_control {
->  	bool whole_zone;		/* Whole zone should/has been scanned */
->  	bool contended;			/* Signal lock or sched contention */
->  	bool rescan;			/* Rescanning the same pageblock */
-> +	compact_finished_cb compact_finished_cb;
->  };
->  
->  /*
-> -- 
-> 2.21.0
-
--- 
-Michal Hocko
-SUSE Labs
 
