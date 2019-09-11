@@ -4,44 +4,44 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59AFFECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B0F9ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28E2F207FC
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28E2F207FC
+	by mail.kernel.org (Postfix) with ESMTP id D45D5207FC
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D45D5207FC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB8A36B0271; Wed, 11 Sep 2019 11:06:24 -0400 (EDT)
+	id 824486B0273; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C69306B0272; Wed, 11 Sep 2019 11:06:24 -0400 (EDT)
+	id 7DC636B0274; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B58626B0273; Wed, 11 Sep 2019 11:06:24 -0400 (EDT)
+	id 6EC336B0275; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0157.hostedemail.com [216.40.44.157])
-	by kanga.kvack.org (Postfix) with ESMTP id 91E656B0271
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:06:24 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 4953F37F1
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:24 +0000 (UTC)
-X-FDA: 75922965888.14.blade57_37c9200727328
-X-HE-Tag: blade57_37c9200727328
-X-Filterd-Recvd-Size: 3499
+Received: from forelay.hostedemail.com (smtprelay0197.hostedemail.com [216.40.44.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CB706B0273
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 0092352CC
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:30 +0000 (UTC)
+X-FDA: 75922966182.10.books00_38d62b28b6706
+X-HE-Tag: books00_38d62b28b6706
+X-Filterd-Recvd-Size: 5405
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:23 +0000 (UTC)
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:30 +0000 (UTC)
 Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 63CF5307D925;
-	Wed, 11 Sep 2019 15:06:22 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6C9BB300DA3A;
+	Wed, 11 Sep 2019 15:06:29 +0000 (UTC)
 Received: from llong.com (ovpn-125-196.rdu2.redhat.com [10.10.125.196])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D361D5D9E2;
-	Wed, 11 Sep 2019 15:06:19 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id CCD7D5D9E2;
+	Wed, 11 Sep 2019 15:06:22 +0000 (UTC)
 From: Waiman Long <longman@redhat.com>
 To: Peter Zijlstra <peterz@infradead.org>,
 	Ingo Molnar <mingo@redhat.com>,
@@ -53,87 +53,124 @@ Cc: linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Davidlohr Bueso <dave@stgolabs.net>,
 	Waiman Long <longman@redhat.com>
-Subject: [PATCH 4/5] locking/rwsem: Enable timeout check when staying in the OSQ
-Date: Wed, 11 Sep 2019 16:05:36 +0100
-Message-Id: <20190911150537.19527-5-longman@redhat.com>
+Subject: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge PMD
+Date: Wed, 11 Sep 2019 16:05:37 +0100
+Message-Id: <20190911150537.19527-6-longman@redhat.com>
 In-Reply-To: <20190911150537.19527-1-longman@redhat.com>
 References: <20190911150537.19527-1-longman@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Wed, 11 Sep 2019 15:06:22 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 11 Sep 2019 15:06:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use the break function allowed by the new osq_lock() to enable early
-break from the OSQ when a timeout value is specified and expiration
-time has been reached.
+When allocating a large amount of static hugepages (~500-1500GB) on a
+system with large number of CPUs (4, 8 or even 16 sockets), performance
+degradation (random multi-second delays) was observed when thousands
+of processes are trying to fault in the data into the huge pages. The
+likelihood of the delay increases with the number of sockets and hence
+the CPUs a system has.  This only happens in the initial setup phase
+and will be gone after all the necessary data are faulted in.
+
+These random delays, however, are deemed unacceptable. The cause of
+that delay is the long wait time in acquiring the mmap_sem when trying
+to share the huge PMDs.
+
+To remove the unacceptable delays, we have to limit the amount of wait
+time on the mmap_sem. So the new down_write_timedlock() function is
+used to acquire the write lock on the mmap_sem with a timeout value of
+10ms which should not cause a perceivable delay. If timeout happens,
+the task will abandon its effort to share the PMD and allocate its own
+copy instead.
+
+When too many timeouts happens (threshold currently set at 256), the
+system may be too large for PMD sharing to be useful without undue delay.
+So the sharing will be disabled in this case.
 
 Signed-off-by: Waiman Long <longman@redhat.com>
 ---
- kernel/locking/rwsem.c | 35 +++++++++++++++++++++++++++++++----
- 1 file changed, 31 insertions(+), 4 deletions(-)
+ include/linux/fs.h |  7 +++++++
+ mm/hugetlb.c       | 24 +++++++++++++++++++++---
+ 2 files changed, 28 insertions(+), 3 deletions(-)
 
-diff --git a/kernel/locking/rwsem.c b/kernel/locking/rwsem.c
-index c15926ecb21e..78708097162a 100644
---- a/kernel/locking/rwsem.c
-+++ b/kernel/locking/rwsem.c
-@@ -794,23 +794,50 @@ static inline u64 rwsem_rspin_threshold(struct rw_semaphore *sem)
- 	return sched_clock() + delta;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 997a530ff4e9..e9d3ad465a6b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -40,6 +40,7 @@
+ #include <linux/fs_types.h>
+ #include <linux/build_bug.h>
+ #include <linux/stddef.h>
++#include <linux/ktime.h>
+ 
+ #include <asm/byteorder.h>
+ #include <uapi/linux/fs.h>
+@@ -519,6 +520,12 @@ static inline void i_mmap_lock_write(struct address_space *mapping)
+ 	down_write(&mapping->i_mmap_rwsem);
  }
  
-+struct rwsem_break_arg {
-+	u64 timeout;
-+	int loopcnt;
-+};
-+
-+static bool rwsem_osq_break(void *brk_arg)
++static inline bool i_mmap_timedlock_write(struct address_space *mapping,
++					 ktime_t timeout)
 +{
-+	struct rwsem_break_arg *arg = brk_arg;
-+
-+	arg->loopcnt++;
-+	/*
-+	 * Check sched_clock() only once every 256 iterations.
-+	 */
-+	if (!(arg->loopcnt++ & 0xff) && (sched_clock() >= arg->timeout))
-+		return true;
-+	return false;
++	return down_write_timedlock(&mapping->i_mmap_rwsem, timeout);
 +}
 +
- static bool rwsem_optimistic_spin(struct rw_semaphore *sem, bool wlock,
- 				  ktime_t timeout)
+ static inline void i_mmap_unlock_write(struct address_space *mapping)
  {
--	bool taken = false;
-+	bool taken = false, locked;
- 	int prev_owner_state = OWNER_NULL;
- 	int loop = 0;
- 	u64 rspin_threshold = 0, curtime;
-+	struct rwsem_break_arg break_arg;
- 	unsigned long nonspinnable = wlock ? RWSEM_WR_NONSPINNABLE
- 					   : RWSEM_RD_NONSPINNABLE;
+ 	up_write(&mapping->i_mmap_rwsem);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6d7296dd11b8..445af661ae29 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
+ 	}
+ }
  
- 	preempt_disable();
++#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
++
+ /*
+  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
+  * and returns the corresponding pte. While this is not necessary for the
+@@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	pte_t *spte = NULL;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
++	static atomic_t timeout_cnt;
  
- 	/* sem->wait_lock should not be held when doing optimistic spinning */
--	if (!osq_lock(&sem->osq, NULL, NULL))
--		goto done;
-+	if (timeout) {
-+		break_arg.timeout = ktime_to_ns(timeout);
-+		break_arg.loopcnt = 0;
-+		locked = osq_lock(&sem->osq, rwsem_osq_break, &break_arg);
-+		curtime = sched_clock();
-+	} else {
-+		locked = osq_lock(&sem->osq, NULL, NULL);
-+		curtime = 0;
+-	if (!vma_shareable(vma, addr))
+-		return (pte_t *)pmd_alloc(mm, pud, addr);
++	/*
++	 * Don't share if it is not sharable or locking attempt timed out
++	 * after 10ms. After 256 timeouts, PMD sharing will be permanently
++	 * disabled as it is just too slow.
++	 */
++	if (!vma_shareable(vma, addr) ||
++	   (atomic_read(&timeout_cnt) >= PMD_SHARE_DISABLE_THRESHOLD))
++		goto out_no_share;
++
++	if (!i_mmap_timedlock_write(mapping, ms_to_ktime(10))) {
++		if (atomic_inc_return(&timeout_cnt) ==
++		    PMD_SHARE_DISABLE_THRESHOLD)
++			pr_info("Hugetlbfs PMD sharing disabled because of timeouts!\n");
++		goto out_no_share;
 +	}
  
--	curtime = timeout ? sched_clock() : 0;
-+	if (!locked)
-+		goto done;
+-	i_mmap_lock_write(mapping);
+ 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
+ 		if (svma == vma)
+ 			continue;
+@@ -4806,6 +4821,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+ 	i_mmap_unlock_write(mapping);
+ 	return pte;
++
++out_no_share:
++	return (pte_t *)pmd_alloc(mm, pud, addr);
+ }
  
- 	/*
- 	 * Optimistically spin on the owner field and attempt to acquire the
+ /*
 -- 
 2.18.1
 
