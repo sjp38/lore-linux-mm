@@ -2,149 +2,104 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C52BECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:34:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ABEAEC49ED6
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:35:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30B89207FC
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:34:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gDzKMYbk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30B89207FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 773A2207FC
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:35:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 773A2207FC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFCC06B0005; Wed, 11 Sep 2019 10:34:00 -0400 (EDT)
+	id F1AF26B0006; Wed, 11 Sep 2019 10:35:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AACB06B0006; Wed, 11 Sep 2019 10:34:00 -0400 (EDT)
+	id EF1336B0007; Wed, 11 Sep 2019 10:35:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 974216B0007; Wed, 11 Sep 2019 10:34:00 -0400 (EDT)
+	id E2E626B0008; Wed, 11 Sep 2019 10:35:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
-	by kanga.kvack.org (Postfix) with ESMTP id 700306B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:34:00 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 03E8519B32
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:34:00 +0000 (UTC)
-X-FDA: 75922884240.10.loss15_3ff51f2597856
-X-HE-Tag: loss15_3ff51f2597856
-X-Filterd-Recvd-Size: 4942
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:33:59 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id g19so22717358otg.13
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:33:59 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=e7i1vpQoaz28lri8m0dOi8OheZbdU0yuzI5V0oHg1wI=;
-        b=gDzKMYbkL2/UIIox7n9fF8nxWK0jM/5rkqz+fvqtwhYarL9SJ44xQDt/t33K9VIBEz
-         jgma1b2JT6MCkvA0jq5vblNABt13d0t0hpoaNHGhp46fUzdNphFV7DuD9Irsfl5iZf5F
-         N3iTDI+gdue+yMu/CcQS7GF3+BL+vSupn4EgCbSi3eDwA1NmuIkGDIaZuVFiiZmGHHug
-         A/9VMetPrhM4Bt0fyJhBYs+lCgN3BySKPbFTvicbTfJNgb8UsyU06kLNd8iKBvxJjcJn
-         FWdbzt+L12PE1Eybea/kLOR1QtScPArTMBAlAae8QsT7wa+GA4E9hYfy11OCPBdFZxTA
-         T1gg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=e7i1vpQoaz28lri8m0dOi8OheZbdU0yuzI5V0oHg1wI=;
-        b=qqkdkEPsmLw8iN9jfEtruusAw0OGIdctpRUrahyPmvr0dc8z4E9fnY7Q0CQLsKzNrC
-         F+2XZwZHL8VC64Cmbpb/IrqxR/1hMdJAtEwAGZP/mjiBKolYl7ourALnJ8n92GKf5e5g
-         t0+3aI1e0vIm8pPWvI8k07+lN0wrGeAX6O1WnOjlLZRqFDwcgbiorwLyG/MKoGwOFSS4
-         Wpppb8N0jKq6kwEnOhKATqgDxDeMK+fPG25iMjMvlN5A1kut97Jis1iGAe532L3giVv3
-         Ve+AkUfNu2J3I6phNCdGpIizokj9WM8D2MgwxrblTvN5KZ0Wq2YiuEBsPzxtEJTddORz
-         pT8Q==
-X-Gm-Message-State: APjAAAXMND44QF2Qr7W9eVG3xdDSSDKylDcuc+fk/YSrWp3KpYdbFlfG
-	2de69ywp3G6T8QBRL8WvGV0E5Ik5//RbU1aTlB8=
-X-Google-Smtp-Source: APXvYqx7hau3v+uUL+g+yMLToPsiUNB+5jnulxOrqfaNC3BhfhcsFq7YjuvJLUpWsz1nZ/u3gZ7F7QhT4t5YSD7DVws=
-X-Received: by 2002:a9d:1ec:: with SMTP id e99mr25446946ote.173.1568212438718;
- Wed, 11 Sep 2019 07:33:58 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0135.hostedemail.com [216.40.44.135])
+	by kanga.kvack.org (Postfix) with ESMTP id C272F6B0006
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:35:36 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 51306180AD804
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:35:36 +0000 (UTC)
+X-FDA: 75922888272.12.bun67_4de535af46259
+X-HE-Tag: bun67_4de535af46259
+X-Filterd-Recvd-Size: 3342
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:35:35 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0980D1000;
+	Wed, 11 Sep 2019 07:35:34 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5DC9C3F67D;
+	Wed, 11 Sep 2019 07:35:30 -0700 (PDT)
+Date: Wed, 11 Sep 2019 15:35:27 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: hch@lst.de, wahrenst@gmx.net, marc.zyngier@arm.com, robh+dt@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-riscv@lists.infradead.org, Will Deacon <will@kernel.org>,
+	f.fainelli@gmail.com, robin.murphy@arm.com,
+	linux-kernel@vger.kernel.org, mbrugger@suse.com,
+	linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
+	m.szyprowski@samsung.com
+Subject: Re: [PATCH v5 3/4] arm64: use both ZONE_DMA and ZONE_DMA32
+Message-ID: <20190911143527.GB43864@C02TF0J2HF1T.local>
+References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
+ <20190909095807.18709-4-nsaenzjulienne@suse.de>
+ <b0b824bebb9ef13ce746f9914de83126b0386e23.camel@suse.de>
 MIME-Version: 1.0
-References: <20190910012652.3723-1-lpf.vector@gmail.com> <20190910012652.3723-5-lpf.vector@gmail.com>
- <23cb75f5-4a05-5901-2085-8aeabc78c100@suse.cz>
-In-Reply-To: <23cb75f5-4a05-5901-2085-8aeabc78c100@suse.cz>
-From: Pengfei Li <lpf.vector@gmail.com>
-Date: Wed, 11 Sep 2019 22:33:46 +0800
-Message-ID: <CAD7_sbHZuy4VZJ1KrF6TXmihfxi91Fo0OJMjuET4dpk-F7g6jA@mail.gmail.com>
-Subject: Re: [PATCH v3 4/4] mm, slab_common: Make the loop for initializing
- KMALLOC_DMA start from 1
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christopher Lameter <cl@linux.com>, penberg@kernel.org, 
-	rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b0b824bebb9ef13ce746f9914de83126b0386e23.camel@suse.de>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 10, 2019 at 6:26 PM Vlastimil Babka <vbabka@suse.cz> wrote:
->
-> On 9/10/19 3:26 AM, Pengfei Li wrote:
-> > KMALLOC_DMA will be initialized only if KMALLOC_NORMAL with
-> > the same index exists.
-> >
-> > And kmalloc_caches[KMALLOC_NORMAL][0] is always NULL.
-> >
-> > Therefore, the loop that initializes KMALLOC_DMA should start
-> > at 1 instead of 0, which will reduce 1 meaningless attempt.
->
-> IMHO the saving of one iteration isn't worth making the code more
-> subtle. KMALLOC_SHIFT_LOW would be nice, but that would skip 1 + 2 which
-> are special.
->
+On Wed, Sep 11, 2019 at 12:54:38PM +0200, Nicolas Saenz Julienne wrote:
+> On Mon, 2019-09-09 at 11:58 +0200, Nicolas Saenz Julienne wrote:
+> >  /*
+> > - * Return the maximum physical address for ZONE_DMA32 (DMA_BIT_MASK(32)). It
+> > - * currently assumes that for memory starting above 4G, 32-bit devices will
+> > - * use a DMA offset.
+> > + * Return the maximum physical address for a zone with a given address size
+> > + * limit. It currently assumes that for memory starting above 4G, 32-bit
+> > + * devices will use a DMA offset.
+> >   */
+> > -static phys_addr_t __init max_zone_dma32_phys(void)
+> > +static phys_addr_t __init max_zone_phys(unsigned int zone_bits)
+> >  {
+> >         phys_addr_t offset = memblock_start_of_DRAM() & GENMASK_ULL(63, 32);
+> > -       return min(offset + (1ULL << 32), memblock_end_of_DRAM());
+> > +       return min(offset + (1ULL << zone_bits), memblock_end_of_DRAM());
+> >  }
+> 
+> while testing other code on top of this series on odd arm64 machines I found an
+> issue: when memblock_start_of_DRAM() != 0, max_zone_phys() isn't taking into
+> account the offset to the beginning of memory. This doesn't matter with
+> zone_bits == 32 but it does when zone_bits == 30.
 
-Yes, I agree with you.
-This really makes the code more subtle.
+I thought about this but I confused myself and the only case I had in
+mind was an AMD Seattle system with RAM starting at 4GB.
 
-> Since you're doing these cleanups, have you considered reordering
-> kmalloc_info, size_index, kmalloc_index() etc so that sizes 96 and 192
-> are ordered naturally between 64, 128 and 256? That should remove
-> various special casing such as in create_kmalloc_caches(). I can't
-> guarantee it will be possible without breaking e.g. constant folding
-> optimizations etc., but seems to me it should be feasible. (There are
-> definitely more places to change than those I listed.)
->
+What we need from this function is that the lowest naturally aligned
+2^30 RAM is covered by ZONE_DMA while the rest to 2^32 are ZONE_DMA32.
+This assumed that devices only capable of 30-bit (or 32-bit), have the
+top address bits hardwired to be able access the bottom of the memory
+(and this would be expressed in DT as the DMA offset).
 
-In the past two days, I am working on what you suggested.
+I guess the fix here is to use GENMASK_ULL(63, zone_bits).
 
-So far, I have completed the coding work, but I need some time to make
-sure there are no bugs and verify the impact on performance.
-
-I will send v4 soon.
-
-Thank you for your review and suggestions.
-
---
-Pengfei
-
-> > Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
-> > ---
-> >   mm/slab_common.c | 2 +-
-> >   1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> > diff --git a/mm/slab_common.c b/mm/slab_common.c
-> > index af45b5278fdc..c81fc7dc2946 100644
-> > --- a/mm/slab_common.c
-> > +++ b/mm/slab_common.c
-> > @@ -1236,7 +1236,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
-> >       slab_state = UP;
-> >
-> >   #ifdef CONFIG_ZONE_DMA
-> > -     for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
-> > +     for (i = 1; i <= KMALLOC_SHIFT_HIGH; i++) {
-> >               struct kmem_cache *s = kmalloc_caches[KMALLOC_NORMAL][i];
-> >
-> >               if (s) {
-> >
->
+-- 
+Catalin
 
