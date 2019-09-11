@@ -2,217 +2,186 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62A08ECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:23:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD7CCC49ED6
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:46:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F39352089F
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:23:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F39352089F
+	by mail.kernel.org (Postfix) with ESMTP id 8D404206CD
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:46:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D404206CD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 63FBF6B0005; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
+	id 25EB86B0005; Wed, 11 Sep 2019 05:46:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F15D6B0006; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
+	id 20F676B0006; Wed, 11 Sep 2019 05:46:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E0E16B0007; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
+	id 0FDF76B0007; Wed, 11 Sep 2019 05:46:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0122.hostedemail.com [216.40.44.122])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DCAC6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id CB9C9211BB
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:54 +0000 (UTC)
-X-FDA: 75922102788.18.trail83_7957a8468b35a
-X-HE-Tag: trail83_7957a8468b35a
-X-Filterd-Recvd-Size: 9391
+Received: from forelay.hostedemail.com (smtprelay0005.hostedemail.com [216.40.44.5])
+	by kanga.kvack.org (Postfix) with ESMTP id D990D6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 05:46:11 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 7B2EC824CA3B
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:46:11 +0000 (UTC)
+X-FDA: 75922158942.27.frame30_18e77194b2d38
+X-HE-Tag: frame30_18e77194b2d38
+X-Filterd-Recvd-Size: 5880
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:53 +0000 (UTC)
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by imf25.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:46:11 +0000 (UTC)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 34EED2CD811
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:52 +0000 (UTC)
-Received: by mail-qk1-f200.google.com with SMTP id 11so24284893qkh.15
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 02:23:52 -0700 (PDT)
+	by mx1.redhat.com (Postfix) with ESMTPS id 143B5C056808
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:46:10 +0000 (UTC)
+Received: by mail-pg1-f200.google.com with SMTP id p192so3652279pgp.11
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 02:46:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to;
-        bh=mYSD9hRnX/6v3ywsydqfkpFUdOIKRrBI76zwVnPyG4o=;
-        b=qUAdtbQSntn57LYH1iD1pw8sNfqq0nZ3xhMekfbkTdN5HE6mkwg3CK8eDGj0ZYZFsE
-         fpCSjSQu1k4prDJfIQTWBpo+TmR1gFPYsAtNQfx0luoqUHexsJe7KtS0rCQYbOVoWIrP
-         NABYVOhmo/biExtmKWEdKQF6jqB+z42hnZB1T0CkeYIMOsLQqnrP6UGGNZZ3VWHpASsj
-         iVsXt94J/yGE7ORMyjgfxZFG3rb4b+Ga5yI9YQciHrygbBl0ODKtiG1KKwCXR+Umg67V
-         6YoPgZZ/di1EfMKzjGy8p2Gq70CO5RLWfEText+EgOkLQBOpvDdzQfcaP8QIdEn36Uuf
-         x3fg==
-X-Gm-Message-State: APjAAAW5NhzKXD6WavMMUux+IwJLv75n4m6bv32gX6cngq+xg67NmOC6
-	silnB8VSkrVl2QuBGBpbwTS22CPCU6r0ZprW1gn+WXaAI5HbQcZvUiN1q0Hd3KueBgbFUqx9jHU
-	l5s3UjPU8830=
-X-Received: by 2002:a37:a503:: with SMTP id o3mr33610731qke.115.1568193831418;
-        Wed, 11 Sep 2019 02:23:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8QR5cKcd/uXRYlQ318mPxE6jSP+97aQIMCCQ/RUZeDP873f/PJ5B1bFEAkiTG92ijMAd8cg==
-X-Received: by 2002:a37:a503:: with SMTP id o3mr33610704qke.115.1568193831205;
-        Wed, 11 Sep 2019 02:23:51 -0700 (PDT)
-Received: from redhat.com ([80.74.107.118])
-        by smtp.gmail.com with ESMTPSA id r13sm5657063qkm.48.2019.09.11.02.23.43
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=aGQLRgm7G2kTyYY3bxXh1HW8rTy0El4wjuzgSvgBfMw=;
+        b=eO1OmMt9EaZtOIRMjXJnK9CphSsvuagUVOIGbSQgxbM4/jXGA5wXTMHbWo2V89ZG9E
+         uWEpsXILMYFlhgKxTUzSjP5mwPqapuGGaMwgIPea0auHtIecWyzqTXmxWL1b8NIzY1cQ
+         DEMWgigHwodOf6Vo42wN1dfcKwIvwQJ36zlfT+vpGwfwS0WgWHAYtZ7QLWw5IvaGLcsm
+         Nc8MQ6updeM0Nsg3zeM6VPKzRLHWScACsl1BzmIJTeiulrgNXGzX7EWg4UFpqpSRkVXa
+         zjSgLGMNHsWc+wB/VOaOkCmhC1fF1DUzbL/2rRQKffJiOyGX3VU9veQ8B/wNpstOaPfI
+         Kl0Q==
+X-Gm-Message-State: APjAAAX7IUZQwhwqTF5XuLEA7cUNtbpWnEqs9oyQfHLyEBWR5lke9OXD
+	yc0iiv6MjJFR9OQsiETHGOzz5LGVjU4Ihv8t3asGun8cpnFUHtMghqrnsfCGVLF7P4kadjbDb+I
+	wWjyNxup4OkI=
+X-Received: by 2002:a17:90b:8d7:: with SMTP id ds23mr4268283pjb.141.1568195169015;
+        Wed, 11 Sep 2019 02:46:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLp2sZfcawkJJYszjOJIQ4z7kr7IN7Q37DCMo9yfe4m+hzrzukPqOTG4qN8IJMbHZpOAm2IA==
+X-Received: by 2002:a17:90b:8d7:: with SMTP id ds23mr4268232pjb.141.1568195168646;
+        Wed, 11 Sep 2019 02:46:08 -0700 (PDT)
+Received: from xz-x1.redhat.com ([209.132.188.80])
+        by smtp.gmail.com with ESMTPSA id j7sm21610436pfi.96.2019.09.11.02.46.02
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 11 Sep 2019 02:23:50 -0700 (PDT)
-Date: Wed, 11 Sep 2019 05:23:40 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>,
-	Alexander Duyck <alexander.duyck@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org,
-	kvm list <kvm@vger.kernel.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	Oscar Salvador <osalvador@suse.de>,
-	Yang Zhang <yang.zhang.wz@gmail.com>,
-	Pankaj Gupta <pagupta@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Nitesh Narayan Lal <nitesh@redhat.com>,
-	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
-	"Wang, Wei W" <wei.w.wang@intel.com>,
-	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [virtio-dev] Re: [PATCH v9 0/8] stg mail -e --version=v9 \
-Message-ID: <20190911051819-mutt-send-email-mst@kernel.org>
-References: <20190907172225.10910.34302.stgit@localhost.localdomain>
- <20190910124209.GY2063@dhcp22.suse.cz>
- <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
- <20190910144713.GF2063@dhcp22.suse.cz>
- <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
- <20190910161818.GF2797@work-vm>
- <f74117db-225d-92cb-9476-22c0f752659d@redhat.com>
+        Wed, 11 Sep 2019 02:46:07 -0700 (PDT)
+From: Peter Xu <peterx@redhat.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: Peter Xu <peterx@redhat.com>,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: [PATCH v3.1 7/7] mm/gup: Allow VM_FAULT_RETRY for multiple times
+Date: Wed, 11 Sep 2019 17:45:55 +0800
+Message-Id: <20190911094555.9180-1-peterx@redhat.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190911071007.20077-8-peterx@redhat.com>
+References: 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f74117db-225d-92cb-9476-22c0f752659d@redhat.com>
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 10, 2019 at 06:22:37PM +0200, David Hildenbrand wrote:
-> On 10.09.19 18:18, Dr. David Alan Gilbert wrote:
-> > * Alexander Duyck (alexander.duyck@gmail.com) wrote:
-> >> On Tue, Sep 10, 2019 at 7:47 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >>>
-> >>> On Tue 10-09-19 07:42:43, Alexander Duyck wrote:
-> >>>> On Tue, Sep 10, 2019 at 5:42 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >>>>>
-> >>>>> I wanted to review "mm: Introduce Reported pages" just realize that I
-> >>>>> have no clue on what is going on so returned to the cover and it didn't
-> >>>>> really help much. I am completely unfamiliar with virtio so please bear
-> >>>>> with me.
-> >>>>>
-> >>>>> On Sat 07-09-19 10:25:03, Alexander Duyck wrote:
-> >>>>> [...]
-> >>>>>> This series provides an asynchronous means of reporting to a hypervisor
-> >>>>>> that a guest page is no longer in use and can have the data associated
-> >>>>>> with it dropped. To do this I have implemented functionality that allows
-> >>>>>> for what I am referring to as unused page reporting
-> >>>>>>
-> >>>>>> The functionality for this is fairly simple. When enabled it will allocate
-> >>>>>> statistics to track the number of reported pages in a given free area.
-> >>>>>> When the number of free pages exceeds this value plus a high water value,
-> >>>>>> currently 32, it will begin performing page reporting which consists of
-> >>>>>> pulling pages off of free list and placing them into a scatter list. The
-> >>>>>> scatterlist is then given to the page reporting device and it will perform
-> >>>>>> the required action to make the pages "reported", in the case of
-> >>>>>> virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> >>>>>> and as such they are forced out of the guest. After this they are placed
-> >>>>>> back on the free list,
-> >>>>>
-> >>>>> And here I am reallly lost because "forced out of the guest" makes me
-> >>>>> feel that those pages are no longer usable by the guest. So how come you
-> >>>>> can add them back to the free list. I suspect understanding this part
-> >>>>> will allow me to understand why we have to mark those pages and prevent
-> >>>>> merging.
-> >>>>
-> >>>> Basically as the paragraph above mentions "forced out of the guest"
-> >>>> really is just the hypervisor calling MADV_DONTNEED on the page in
-> >>>> question. So the behavior is the same as any userspace application
-> >>>> that calls MADV_DONTNEED where the contents are no longer accessible
-> >>>> from userspace and attempting to access them will result in a fault
-> >>>> and the page being populated with a zero fill on-demand page, or a
-> >>>> copy of the file contents if the memory is file backed.
-> >>>
-> >>> As I've said I have no idea about virt so this doesn't really tell me
-> >>> much. Does that mean that if somebody allocates such a page and tries to
-> >>> access it then virt will handle a fault and bring it back?
-> >>
-> >> Actually I am probably describing too much as the MADV_DONTNEED is the
-> >> hypervisor behavior in response to the virtio-balloon notification. A
-> >> more thorough explanation of it can be found by just running "man
-> >> madvise", probably best just to leave it at that since I am probably
-> >> confusing things by describing hypervisor behavior in a kernel patch
-> >> set.
-> >>
-> >> For the most part all the page reporting really does is provide a way
-> >> to incrementally identify unused regions of memory in the buddy
-> >> allocator. That in turn is used by virtio-balloon in a polling thread
-> >> to report to the hypervisor what pages are not in use so that it can
-> >> make a decision on what to do with the pages now that it knows they
-> >> are unused.
-> >>
-> >> All this is providing is just a report and it is optional if the
-> >> hypervisor will act on it or not. If the hypervisor takes some sort of
-> >> action on the page, then the expectation is that the hypervisor will
-> >> use some sort of mechanism such as a page fault to discover when the
-> >> page is used again.
-> > 
-> > OK, that's interestingly different (but OK) from some other schemes that
-> > hav ebeen described which *require* the guest to somehow indicate the
-> > page is in use before starting to use the page again.
-> > 
-> 
-> virtio-balloon also has a mode where the guest would not have to
-> indicate to the host before re-using a page. Only
-> VIRTIO_BALLOON_F_MUST_TELL_HOST enforces this. So it's not completely new.
+This is the gup counterpart of the change that allows the
+VM_FAULT_RETRY to happen for more than once.  One thing to mention is
+that we must check the fatal signal here before retry because the GUP
+can be interrupted by that, otherwise we can loop forever.
 
-VIRTIO_BALLOON_F_MUST_TELL_HOST is a bit different.
-When it's not set, guest still must tell host about
-pages in use, it just can batch these notifications
-sending them possibly after page has been used.
-So even with VIRTIO_BALLOON_F_MUST_TELL_HOST off you don't
-skip the notification.
+Signed-off-by: Peter Xu <peterx@redhat.com>
+---
+ mm/gup.c     | 25 ++++++++++++++++++++-----
+ mm/hugetlb.c |  6 ++++--
+ 2 files changed, 24 insertions(+), 7 deletions(-)
 
+diff --git a/mm/gup.c b/mm/gup.c
+index eddbb95dcb8f..4b9413ee7b23 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -644,7 +644,10 @@ static int faultin_page(struct task_struct *tsk, str=
+uct vm_area_struct *vma,
+ 	if (*flags & FOLL_NOWAIT)
+ 		fault_flags |=3D FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+ 	if (*flags & FOLL_TRIED) {
+-		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
++		/*
++		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
++		 * can co-exist
++		 */
+ 		fault_flags |=3D FAULT_FLAG_TRIED;
+ 	}
+=20
+@@ -1059,17 +1062,29 @@ static __always_inline long __get_user_pages_lock=
+ed(struct task_struct *tsk,
+ 		if (likely(pages))
+ 			pages +=3D ret;
+ 		start +=3D ret << PAGE_SHIFT;
++		lock_dropped =3D true;
+=20
++retry:
+ 		/*
+ 		 * Repeat on the address that fired VM_FAULT_RETRY
+-		 * without FAULT_FLAG_ALLOW_RETRY but with
+-		 * FAULT_FLAG_TRIED.
++		 * with both FAULT_FLAG_ALLOW_RETRY and
++		 * FAULT_FLAG_TRIED.  Note that GUP can be interrupted
++		 * by fatal signals, so we need to check it before we
++		 * start trying again otherwise it can loop forever.
+ 		 */
++
++		if (fatal_signal_pending(current))
++			break;
++
+ 		*locked =3D 1;
+-		lock_dropped =3D true;
+ 		down_read(&mm->mmap_sem);
+ 		ret =3D __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
+-				       pages, NULL, NULL);
++				       pages, NULL, locked);
++		if (!*locked) {
++			/* Continue to retry until we succeeded */
++			BUG_ON(ret !=3D 0);
++			goto retry;
++		}
+ 		if (ret !=3D 1) {
+ 			BUG_ON(ret > 1);
+ 			if (!pages_done)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 31c2a6275023..d0c98cff5b0f 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4347,8 +4347,10 @@ long follow_hugetlb_page(struct mm_struct *mm, str=
+uct vm_area_struct *vma,
+ 				fault_flags |=3D FAULT_FLAG_ALLOW_RETRY |
+ 					FAULT_FLAG_RETRY_NOWAIT;
+ 			if (flags & FOLL_TRIED) {
+-				VM_WARN_ON_ONCE(fault_flags &
+-						FAULT_FLAG_ALLOW_RETRY);
++				/*
++				 * Note: FAULT_FLAG_ALLOW_RETRY and
++				 * FAULT_FLAG_TRIED can co-exist
++				 */
+ 				fault_flags |=3D FAULT_FLAG_TRIED;
+ 			}
+ 			ret =3D hugetlb_fault(mm, vma, vaddr, fault_flags);
+--=20
+2.21.0
 
-From hypervisor point of view, this feature is very much like adding
-page to the balloon and immediately taking it out of the balloon again,
-just doing it in one operation.
-
-The main difference is the contents of the page, which matters
-with poisoning: in that case hypervisor is expected to hand
-back page with the poisoning content. Not so with regular
-deflate where page contents is undefined.
-
-Well and also the new interface is optimized for large chunks
-of memory since we'll likely be dealing with such.
-
-> > Dave
-> 
-> 
-> -- 
-> 
-> Thanks,
-> 
-> David / dhildenb
 
