@@ -2,233 +2,215 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA8A5C5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:01:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0358C5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:03:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6147220872
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:01:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="fP8AO1YE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6147220872
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 62130222C2
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:03:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62130222C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF02D6B0005; Wed, 11 Sep 2019 12:01:46 -0400 (EDT)
+	id 0A8F16B0010; Wed, 11 Sep 2019 12:03:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA0BF6B0007; Wed, 11 Sep 2019 12:01:46 -0400 (EDT)
+	id 080D46B0266; Wed, 11 Sep 2019 12:03:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C677D6B0010; Wed, 11 Sep 2019 12:01:46 -0400 (EDT)
+	id E8B156B026B; Wed, 11 Sep 2019 12:03:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0132.hostedemail.com [216.40.44.132])
-	by kanga.kvack.org (Postfix) with ESMTP id A06C26B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:01:46 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0E8431F870
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:01:46 +0000 (UTC)
-X-FDA: 75923105412.05.crib38_66a8de8bce556
-X-HE-Tag: crib38_66a8de8bce556
-X-Filterd-Recvd-Size: 7746
-Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:01:45 +0000 (UTC)
-Received: by mail-qt1-f193.google.com with SMTP id c17so6528647qtv.9
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:01:45 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=SzFYnOnqYRRD6oxfohm7GaTRApau1VSO8et7sdvAxw4=;
-        b=fP8AO1YEJfmo1iSSlsVCCw128xF/ewA8VemLrD++gV3EuoRdYfWj5LGmMLdu19lK4s
-         9zlJY92ZHUnz8AH9KmdUzzjMuRJkhMtseQEihRbLApkujfj9Oacj8sSEv0S9bp5m5L2P
-         0s0HfThhl6kHvvwdsCAzApVOD5G+ChCuptHjBZjkPs/npao4zDC+Uk+EQGQ7BXiP8NFk
-         zZuMrvwi5ek2GUs/E7YBQJsP8kx9aDaANfBUgpE23o4kmuy2S/lBVl52ydKaTkzFcbvk
-         cnNRSTf2/N88bVMUqK/e3TinHy4A7UR1PGtMx2yWphZeeekzfos9ZbSMyrUX84rCLBNX
-         16rg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=SzFYnOnqYRRD6oxfohm7GaTRApau1VSO8et7sdvAxw4=;
-        b=l+lGcVoYUSUVsvv4pSZ6uXsnJIxfZF4EbxpinDtkDGrIqNeHBiV1Q/XEkq9L19CKoo
-         Q4vuxrk2z/fdae8AnQMVbA2Wukfau/IjwhlH8RDnr+KIET6VqbUVxDFFbQoy9z3VH8AD
-         VMU0cv9hFeGzMlUnKX0qG7POwy/r9DiN4ZuL7lcHuSGJWtPKRUNlqMXBM/3fqTv5u9vt
-         15n0SgFgdb5BUTmGW9xzy4llgAQaZ4UHihkhzr6gkb9lHuUcb+0GHNpet3QkBYd3xVEX
-         7zJEHBoUAZh+LiYvpOJTkMbyHb+V/RLfqqgFj3beDl0R+u7/tVbmVNktoDkG+P4D5u1i
-         nH0Q==
-X-Gm-Message-State: APjAAAVhBztLlYyiuX3xoX7V404nHFINdt6pbTbYSqCVC/Vrgto4QJSv
-	qsj38Un4pCRD+5aFUXmESVahyg==
-X-Google-Smtp-Source: APXvYqyPRa3MTbsa/Kmfswg0Bvkx67oWrfiDmXUWdRKwYuZ+uMqrlFSoglXlepuG5gVaVEYCQcG8yg==
-X-Received: by 2002:ac8:546:: with SMTP id c6mr11563196qth.151.1568217704576;
-        Wed, 11 Sep 2019 09:01:44 -0700 (PDT)
-Received: from [192.168.1.153] (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id l22sm8529363qtp.8.2019.09.11.09.01.43
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Sep 2019 09:01:44 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
-Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
- PMD
-From: Qian Cai <cai@lca.pw>
-In-Reply-To: <20190911150537.19527-6-longman@redhat.com>
-Date: Wed, 11 Sep 2019 12:01:42 -0400
-Cc: Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>,
- Will Deacon <will.deacon@arm.com>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-kernel@vger.kernel.org,
- linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org,
- Davidlohr Bueso <dave@stgolabs.net>
+Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
+	by kanga.kvack.org (Postfix) with ESMTP id BEBBE6B0010
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:03:03 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 4FDB58243763
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:03:03 +0000 (UTC)
+X-FDA: 75923108646.16.art94_71db355ecee5a
+X-HE-Tag: art94_71db355ecee5a
+X-Filterd-Recvd-Size: 8874
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:03:02 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E2CEE883BA;
+	Wed, 11 Sep 2019 16:03:00 +0000 (UTC)
+Received: from [10.36.116.137] (ovpn-116-137.ams2.redhat.com [10.36.116.137])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2AC1B60C05;
+	Wed, 11 Sep 2019 16:02:46 +0000 (UTC)
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>,
+ virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+ linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Nitesh Narayan Lal <nitesh@redhat.com>, Rik van Riel <riel@surriel.com>,
+ lcapitulino@redhat.com, "Wang, Wei W" <wei.w.wang@intel.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+ Paolo Bonzini <pbonzini@redhat.com>, Dan Williams
+ <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+References: <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz>
+ <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+ <20190911080804-mutt-send-email-mst@kernel.org>
+ <20190911121941.GU4023@dhcp22.suse.cz> <20190911122526.GV4023@dhcp22.suse.cz>
+ <4748a572-57b3-31da-0dde-30138e550c3a@redhat.com>
+ <20190911125413.GY4023@dhcp22.suse.cz>
+ <736594d6-b9ae-ddb9-2b96-85648728ef33@redhat.com>
+ <20190911132002.GA4023@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <6b4451e9-7f62-bb84-1604-a4aebc907766@redhat.com>
+Date: Wed, 11 Sep 2019 18:02:46 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <20190911132002.GA4023@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 11 Sep 2019 16:03:01 +0000 (UTC)
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <B97932F4-7A2D-4265-9BB2-BF6E19B45DB7@lca.pw>
-References: <20190911150537.19527-1-longman@redhat.com>
- <20190911150537.19527-6-longman@redhat.com>
-To: Waiman Long <longman@redhat.com>
-X-Mailer: Apple Mail (2.3445.104.11)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>> Something slightly similar is being performed by Nitesh's patch set. O=
+n
+>> every free of a certain granularity, he records it in the bitmap. Thes=
+e
+>> bits are "hints of free pages".
+>>
+>> A thread then walks over the bitmap and tries to allocate the "hints".
+>> If the pages were already reused, the bit is silently cleared.
+>>
+>> Instead of allocating/freeing, we could only try to isolate the
+>> pageblock, then test if free. (One of the usual issues to work around =
+is
+>> MAX_ORDER-1 crossing pageblocks, that might need special care)
+>=20
+> OK, cool that I have reinvented the wheel ;). Allocation is indeed not
+> necessary as long as pages are isolated because nobody will allocate
+> them.
 
+It's always good if you come to the same conclusion ;)
 
-> On Sep 11, 2019, at 11:05 AM, Waiman Long <longman@redhat.com> wrote:
+> =20
+>> I think you should have a look at the rough idea of Nitesh's patch set
+>> to see if something like that is going into a better direction. The
+>> bitmap part is in place to do bulk reporting and avoid duplicate repor=
+ts.
 >=20
-> When allocating a large amount of static hugepages (~500-1500GB) on a
-> system with large number of CPUs (4, 8 or even 16 sockets), =
-performance
-> degradation (random multi-second delays) was observed when thousands
-> of processes are trying to fault in the data into the huge pages. The
-> likelihood of the delay increases with the number of sockets and hence
-> the CPUs a system has.  This only happens in the initial setup phase
-> and will be gone after all the necessary data are faulted in.
->=20
-> These random delays, however, are deemed unacceptable. The cause of
-> that delay is the long wait time in acquiring the mmap_sem when trying
-> to share the huge PMDs.
->=20
-> To remove the unacceptable delays, we have to limit the amount of wait
-> time on the mmap_sem. So the new down_write_timedlock() function is
-> used to acquire the write lock on the mmap_sem with a timeout value of
-> 10ms which should not cause a perceivable delay. If timeout happens,
-> the task will abandon its effort to share the PMD and allocate its own
-> copy instead.
->=20
-> When too many timeouts happens (threshold currently set at 256), the
-> system may be too large for PMD sharing to be useful without undue =
-delay.
-> So the sharing will be disabled in this case.
->=20
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
-> include/linux/fs.h |  7 +++++++
-> mm/hugetlb.c       | 24 +++++++++++++++++++++---
-> 2 files changed, 28 insertions(+), 3 deletions(-)
->=20
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 997a530ff4e9..e9d3ad465a6b 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -40,6 +40,7 @@
-> #include <linux/fs_types.h>
-> #include <linux/build_bug.h>
-> #include <linux/stddef.h>
-> +#include <linux/ktime.h>
->=20
-> #include <asm/byteorder.h>
-> #include <uapi/linux/fs.h>
-> @@ -519,6 +520,12 @@ static inline void i_mmap_lock_write(struct =
-address_space *mapping)
-> 	down_write(&mapping->i_mmap_rwsem);
-> }
->=20
-> +static inline bool i_mmap_timedlock_write(struct address_space =
-*mapping,
-> +					 ktime_t timeout)
-> +{
-> +	return down_write_timedlock(&mapping->i_mmap_rwsem, timeout);
-> +}
-> +
-> static inline void i_mmap_unlock_write(struct address_space *mapping)
-> {
-> 	up_write(&mapping->i_mmap_rwsem);
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 6d7296dd11b8..445af661ae29 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct =
-vm_area_struct *vma,
-> 	}
-> }
->=20
-> +#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
-> +
-> /*
->  * Search for a shareable pmd page for hugetlb. In any case calls =
-pmd_alloc()
->  * and returns the corresponding pte. While this is not necessary for =
-the
-> @@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, =
-unsigned long addr, pud_t *pud)
-> 	pte_t *spte =3D NULL;
-> 	pte_t *pte;
-> 	spinlock_t *ptl;
-> +	static atomic_t timeout_cnt;
->=20
-> -	if (!vma_shareable(vma, addr))
-> -		return (pte_t *)pmd_alloc(mm, pud, addr);
-> +	/*
-> +	 * Don't share if it is not sharable or locking attempt timed =
-out
-> +	 * after 10ms. After 256 timeouts, PMD sharing will be =
-permanently
-> +	 * disabled as it is just too slow.
+> Let's see how much time I can find for that in my endless inbox whack a=
+ mole.
 
-It looks like this kind of policy interacts with kernel debug options =
-like KASAN (which is going to slow the system down
-anyway) could introduce tricky issues due to different timings on a =
-debug kernel.
+Can totally understand - it's only a single patch.
 
-> +	 */
-> +	if (!vma_shareable(vma, addr) ||
-> +	   (atomic_read(&timeout_cnt) >=3D PMD_SHARE_DISABLE_THRESHOLD))
-> +		goto out_no_share;
-> +
-> +	if (!i_mmap_timedlock_write(mapping, ms_to_ktime(10))) {
-> +		if (atomic_inc_return(&timeout_cnt) =3D=3D
-> +		    PMD_SHARE_DISABLE_THRESHOLD)
-> +			pr_info("Hugetlbfs PMD sharing disabled because =
-of timeouts!\n");
-> +		goto out_no_share;
-> +	}
+> =20
+>> I think main points we want (and what I am missing from callback idea
+>> being discussed) are
+>> 1. Do bulk reporting only when a certain threshold is reached
 >=20
-> -	i_mmap_lock_write(mapping);
-> 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-> 		if (svma =3D=3D vma)
-> 			continue;
-> @@ -4806,6 +4821,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, =
-unsigned long addr, pud_t *pud)
-> 	pte =3D (pte_t *)pmd_alloc(mm, pud, addr);
-> 	i_mmap_unlock_write(mapping);
-> 	return pte;
-> +
-> +out_no_share:
-> +	return (pte_t *)pmd_alloc(mm, pud, addr);
-> }
->=20
-> /*
-> --=20
-> 2.18.1
->=20
->=20
+> Is a time based approach too coarse?
 
+Usually that's then another parameter to fine tune, something to avoid
+when just reporting continuously. I wouldn't say it's a no go, but at
+least I would prefer right now to do it continuously.
+
+>=20
+>> 2. Report only bigger granularities (especially, avoid THP splits in t=
+he
+>> hypervisor - >=3D 2MB proofed to be effective)
+>=20
+> the callback has supported order based scan in some of its iteration.
+
+Missed that. But yeah, the other points are more important :)
+
+>=20
+>> 3. Avoid reporting what has just been reported.
+>=20
+> Is the overhead of checking a pfn range in a bitmask that much of an
+> overhead to really care?
+
+It's all about remembering what has already been reported. Nitesh solved
+that via the bitmap. So he does exactly that. If we can optimize the
+bitmap out - perfect - but I don't see an easy way to do that :)
+
+>=20
+>> 4. Continuously report, not the "one time report everything" approach.
+>=20
+> So you mean the allocator reporting this rather than an external code t=
+o
+> poll right? I do not know, how much this is nice to have than must have=
+?
+
+I guess it is debatable - but I don't consider this one of the
+fundamental issues. How to identify what to report and remember what has
+already been reported is the main issue. Polling vs. notification is
+just the cherry on top - IMHO.
+
+--=20
+
+Thanks,
+
+David / dhildenb
 
