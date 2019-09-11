@@ -6,211 +6,306 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D91CC5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:00:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DBE1ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:05:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E36E20863
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:00:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E36E20863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
+	by mail.kernel.org (Postfix) with ESMTP id 2FCD0206CD
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:05:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FCD0206CD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC4006B0005; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
+	id BD4556B0005; Wed, 11 Sep 2019 10:05:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C74726B0006; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
+	id B86BE6B0006; Wed, 11 Sep 2019 10:05:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B3BB66B0007; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
+	id A74146B0007; Wed, 11 Sep 2019 10:05:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0173.hostedemail.com [216.40.44.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FE4A6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 45B9F180AD801
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:59:59 +0000 (UTC)
-X-FDA: 75922798518.09.nest10_39fd94484bc2f
-X-HE-Tag: nest10_39fd94484bc2f
-X-Filterd-Recvd-Size: 8678
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:59:58 +0000 (UTC)
-Received: (qmail 18897 invoked from network); 11 Sep 2019 15:59:56 +0200
-X-Fcrdns: No
-Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
-  (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Wed, 11 Sep 2019 15:59:56 +0200
-Subject: Re: lot of MemAvailable but falling cache and raising PSI
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
- cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
- Vlastimil Babka <vbabka@suse.cz>
-References: <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
- <20190910082919.GL2063@dhcp22.suse.cz>
- <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
- <20190910090241.GM2063@dhcp22.suse.cz>
- <743a047e-a46f-32fa-1fe4-a9bd8f09ed87@profihost.ag>
- <20190910110741.GR2063@dhcp22.suse.cz>
- <364d4c2e-9c9a-d8b3-43a8-aa17cccae9c7@profihost.ag>
- <20190910125756.GB2063@dhcp22.suse.cz>
- <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
- <b1fe902f-fce6-1aa9-f371-ceffdad85968@profihost.ag>
- <20190910132418.GC2063@dhcp22.suse.cz>
- <d07620d9-4967-40fe-fa0f-be51f2459dc5@profihost.ag>
- <5f960e74-1f44-9a0a-58a6-dcb64aa71612@profihost.ag>
-Message-ID: <289fbe71-0472-520f-64e2-b6d07ced5436@profihost.ag>
-Date: Wed, 11 Sep 2019 15:59:56 +0200
+Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
+	by kanga.kvack.org (Postfix) with ESMTP id 86B936B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:05:11 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 33E83815A
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:05:11 +0000 (UTC)
+X-FDA: 75922811622.03.metal79_67456143a772f
+X-HE-Tag: metal79_67456143a772f
+X-Filterd-Recvd-Size: 13142
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:05:09 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F223DC08EC17;
+	Wed, 11 Sep 2019 14:05:07 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0E9C0601A3;
+	Wed, 11 Sep 2019 14:03:56 +0000 (UTC)
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+To: Michal Hocko <mhocko@kernel.org>, David Hildenbrand <david@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>,
+ virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+ linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+ "Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli
+ <aarcange@redhat.com>, ying.huang@intel.com,
+ Paolo Bonzini <pbonzini@redhat.com>, Dan Williams
+ <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+References: <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz>
+ <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+ <20190911080804-mutt-send-email-mst@kernel.org>
+ <20190911121941.GU4023@dhcp22.suse.cz> <20190911122526.GV4023@dhcp22.suse.cz>
+ <4748a572-57b3-31da-0dde-30138e550c3a@redhat.com>
+ <20190911125413.GY4023@dhcp22.suse.cz>
+ <736594d6-b9ae-ddb9-2b96-85648728ef33@redhat.com>
+ <20190911132002.GA4023@dhcp22.suse.cz>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <7a83df34-3d0b-31c9-6b6d-aea62024a7dd@redhat.com>
+Date: Wed, 11 Sep 2019 10:03:52 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <5f960e74-1f44-9a0a-58a6-dcb64aa71612@profihost.ag>
+In-Reply-To: <20190911132002.GA4023@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
-X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 11 Sep 2019 14:05:08 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-HI,
 
-i've now tried v5.2.14 but that one died with - i don't know which
-version to try... now
+On 9/11/19 9:20 AM, Michal Hocko wrote:
+> On Wed 11-09-19 15:03:39, David Hildenbrand wrote:
+>> On 11.09.19 14:54, Michal Hocko wrote:
+>>> On Wed 11-09-19 14:42:41, David Hildenbrand wrote:
+>>>> On 11.09.19 14:25, Michal Hocko wrote:
+>>>>> On Wed 11-09-19 14:19:41, Michal Hocko wrote:
+>>>>>> On Wed 11-09-19 08:08:38, Michael S. Tsirkin wrote:
+>>>>>>> On Wed, Sep 11, 2019 at 01:36:19PM +0200, Michal Hocko wrote:
+>>>>>>>> On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
+>>>>>>>> [...]
+>>>>>>>>> We don't put any limitations on the allocator other then that i=
+t needs to
+>>>>>>>>> clean up the metadata on allocation, and that it cannot allocat=
+e a page
+>>>>>>>>> that is in the process of being reported since we pulled it fro=
+m the
+>>>>>>>>> free_list. If the page is a "Reported" page then it decrements =
+the
+>>>>>>>>> reported_pages count for the free_area and makes sure the page =
+doesn't
+>>>>>>>>> exist in the "Boundary" array pointer value, if it does it move=
+s the
+>>>>>>>>> "Boundary" since it is pulling the page.
+>>>>>>>> This is still a non-trivial limitation on the page allocation fr=
+om an
+>>>>>>>> external code IMHO. I cannot give any explicit reason why an ord=
+ering on
+>>>>>>>> the free list might matter (well except for page shuffling which=
+ uses it
+>>>>>>>> to make physical memory pattern allocation more random) but the
+>>>>>>>> architecture seems hacky and dubious to be honest. It shoulds li=
+ke the
+>>>>>>>> whole interface has been developed around a very particular and =
+single
+>>>>>>>> purpose optimization.
+>>>>>>>>
+>>>>>>>> I remember that there was an attempt to report free memory that =
+provided
+>>>>>>>> a callback mechanism [1], which was much less intrusive to the i=
+nternals
+>>>>>>>> of the allocator yet it should provide a similar functionality. =
+Did you
+>>>>>>>> see that approach? How does this compares to it? Or am I complet=
+ely off
+>>>>>>>> when comparing them?
+>>>>>>>>
+>>>>>>>> [1] mostly likely not the latest version of the patchset
+>>>>>>>> http://lkml.kernel.org/r/1502940416-42944-5-git-send-email-wei.w=
+=2Ewang@intel.com
+>>>>>>> Linus nacked that one. He thinks invoking callbacks with lots of
+>>>>>>> internal mm locks is too fragile.
+>>>>>> I would be really curious how much he would be happy about injecti=
+ng
+>>>>>> other restrictions on the allocator like this patch proposes. This=
+ is
+>>>>>> more intrusive as it has a higher maintenance cost longterm IMHO.
+>>>>> Btw. I do agree that callbacks with internal mm locks are not great=
 
-2019-09-11 15:41:09     ------------[ cut here ]------------
-2019-09-11 15:41:09     kernel BUG at mm/page-writeback.c:2655!
-2019-09-11 15:41:09     invalid opcode: 0000 [#1] SMP PTI
-2019-09-11 15:41:09     CPU: 4 PID: 466 Comm: kworker/u24:6 Not tainted
-5.2.14 #1
-2019-09-11 15:41:09     Hardware name: Supermicro Super Server/X10SRi-F,
-BIOS 1.0b 04/21/2015
-2019-09-11 15:41:09     Workqueue: btrfs-delalloc btrfs_delalloc_helper
-[btrfs]
-2019-09-11 15:41:09     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
-2019-09-11 15:41:09     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
-00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
-5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
-d2 48 8b
-2019-09-11 15:41:09     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
-2019-09-11 15:41:09     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
-0000000000000000
-2019-09-11 15:41:09     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
-ffffe660525b3140
-2019-09-11 15:41:09     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
-000000000002de18
-2019-09-11 15:41:09     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
-0000000000000000
-2019-09-11 15:41:09     R13: 0000000000000001 R14: 0000000000000000 R15:
-ffffbd4b8d2f3d08
-2019-09-11 15:41:09     FS: 0000000000000000(0000)
-GS:ffff9ade3f900000(0000) knlGS:0000000000000000
-2019-09-11 15:41:09     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-2019-09-11 15:41:09     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
-00000000001606e0
-2019-09-11 15:41:09     Call Trace:
-2019-09-11 15:41:09     __process_pages_contig+0x270/0x360 [btrfs]
-2019-09-11 15:41:09     submit_compressed_extents+0x39d/0x460 [btrfs]
-2019-09-11 15:41:09     normal_work_helper+0x20f/0x320
-[btrfs]process_one_work+0x18b/0x380worker_thread+0x4f/0x3a0
-2019-09-11 15:41:09     ? rescuer_thread+0x330/0x330kthread+0xf8/0x130
-2019-09-11 15:41:09     ?
-kthread_create_worker_on_cpu+0x70/0x70ret_from_fork+0x35/0x40
-2019-09-11 15:41:09     Modules linked in: netconsole xt_tcpudp xt_owner
-xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_multiport
-ipt_REJECT nf_reject_ipv4 xt_set iptable_filter bpfilter fuse
-ip_set_hash_net ip_set nfnetlink 8021q garp bonding sb_edac
-x86_pkg_temp_thermal coretemp kvm_intel ast kvm ttm drm_kms_helper
-irqbypass crc32_pclmul drm fb_sys_fops syscopyarea lpc_ich sysfillrect
-ghash_clmulni_intel sysimgblt mfd_core sg wmi ipmi_si ipmi_devintf
-ipmi_msghandler button ip_tables x_tables btrfs zstd_decompress
-zstd_compress raid10 raid456 async_raid6_recov async_memcpy async_pq
-async_xor async_tx xor usbhid raid6_pq raid1 raid0 multipath linear
-md_mod sd_mod xhci_pci ehci_pci igb xhci_hcd ehci_hcd i2c_algo_bit
-i2c_i801 ahci ptp i2c_core usbcore libahci usb_common pps_core megaraid_sas
-2019-09-11 15:41:09     ---[ end trace d9a3f99c047dc8bf ]---
-2019-09-11 15:41:10     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
-2019-09-11 15:41:10     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
-00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
-5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
-d2 48 8b
-2019-09-11 15:41:10     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
-2019-09-11 15:41:10     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
-0000000000000000
-2019-09-11 15:41:10     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
-ffffe660525b3140
-2019-09-11 15:41:10     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
-000000000002de18
-2019-09-11 15:41:10     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
-0000000000000000
-2019-09-11 15:41:10     R13: 0000000000000001 R14: 0000000000000000 R15:
-ffffbd4b8d2f3d08
-2019-09-11 15:41:10     FS: 0000000000000000(0000)
-GS:ffff9ade3f900000(0000) knlGS:0000000000000000
-2019-09-11 15:41:10     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-2019-09-11 15:41:10     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
-00000000001606e0
-2019-09-11 15:41:10     Kernel panic - not syncing: Fatal exception
-2019-09-11 15:41:10     Kernel Offset: 0x1a000000 from
-0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
-2019-09-11 15:41:10     Rebooting in 20 seconds..
-2019-09-11 15:41:29     ACPI MEMORY or I/O RESET_REG.
+>>>>> either. We do have a model for that in mmu_notifiers and it is some=
+thing
+>>>>> I do consider PITA, on the other hand it is mostly sleepable part o=
+f the
+>>>>> interface which makes it the real pain. The above callback mechanis=
+m was
+>>>>> explicitly documented with restrictions and that the context is
+>>>>> essentially atomic with no access to particular struct pages and no=
 
-Stefan
-Am 11.09.19 um 08:24 schrieb Stefan Priebe - Profihost AG:
-> Hi Michal,
-> 
-> Am 11.09.19 um 08:12 schrieb Stefan Priebe - Profihost AG:
->> Hi Michal,
->> Am 10.09.19 um 15:24 schrieb Michal Hocko:
->>> On Tue 10-09-19 15:14:45, Stefan Priebe - Profihost AG wrote:
->>>> Am 10.09.19 um 15:05 schrieb Stefan Priebe - Profihost AG:
+>>>>> expensive operations possible. So in the end I've considered it
+>>>>> acceptably painful. Not that I want to override Linus' nack but if
+>>>>> virtualization usecases really require some form of reporting and n=
+o
+>>>>> other way to do that push people to invent even more interesting
+>>>>> approaches then we should simply give them/you something reasonable=
+
+>>>>> and least intrusive to our internals.
 >>>>>
->>>>> Am 10.09.19 um 14:57 schrieb Michal Hocko:
->>>>>> On Tue 10-09-19 14:45:37, Stefan Priebe - Profihost AG wrote:
->>>>>>> Hello Michal,
->>>>>>>
->>>>>>> ok this might take a long time. Attached you'll find a graph from a
->>>>>>> fresh boot what happens over time (here 17 August to 30 August). Memory
->>>>>>> Usage decreases as well as cache but slowly and only over time and days.
->>>>>>>
->>>>>>> So it might take 2-3 weeks running Kernel 5.3 to see what happens.
->>>>>>
->>>>>> No problem. Just make sure to collect the requested data from the time
->>>>>> you see the actual problem. Btw. you try my very dumb scriplets to get
->>>>>> an idea of how much memory gets reclaimed due to THP.
->>>>>
->>>>> You mean your sed and sort on top of the trace file? No i did not with
->>>>> the current 5.3 kernel do you think it will show anything interesting?
->>>>> Which line shows me how much memory gets reclaimed due to THP?
+>>>> The issue with "[PATCH v14 4/5] mm: support reporting free page bloc=
+ks"
+>>>>  is that it cannot really handle the use case we have here if I am n=
+ot
+>>>> wrong. While a page is getting processed by the hypervisor (e.g.
+>>>> MADV_DONTNEED), it must not get reused.
+>>> What prevents to use the callback to get a list of pfn ranges to work=
+ on
+>>> and then use something like start_isolate_page_range on the collected=
+
+>>> pfn ranges to make sure nobody steals pages from under your feet, do
+>>> your thing and drop the isolated state afterwards.
 >>>
->>> Please re-read http://lkml.kernel.org/r/20190910082919.GL2063@dhcp22.suse.cz
->>> Each command has a commented output. If you see nunmber of reclaimed
->>> pages to be large for GFP_TRANSHUGE then you are seeing a similar
->>> problem.
+>>> I am saying somethig like because you wouldn't really want a generic
+>>> has_unmovable_pages but rather
+>>>                 if (!page_ref_count(page)) {
+>>>                         if (PageBuddy(page))
+>>>                                 iter +=3D (1 << page_order(page)) - 1=
+;
+>>>                         continue;
+>>>                 }
+>>> subset of it.
 >>>
->>>> Is something like a kernel memory leak possible? Or wouldn't this end up
->>>> in having a lot of free memory which doesn't seem usable.
->>>
->>> I would be really surprised if this was the case.
->>>
->>>> I also wonder why a reclaim takes place when there is enough memory.
->>>
->>> This is not clear yet and it might be a bug that has been fixed since
->>> 4.18. That's why we need to see whether the same is pattern is happening
->>> with 5.3 as well.
-> 
-> but except from the btrfs problem the memory consumption looks far
-> better than before.
-> 
-> Running 4.19.X:
-> after about 12h cache starts to drop from 30G to 24G
-> 
-> Running 5.3-rc8:
-> after about 24h cache is still constant at nearly 30G
-> 
-> Greets,
-> Stefan
-> 
+>> Something slightly similar is being performed by Nitesh's patch set. O=
+n
+>> every free of a certain granularity, he records it in the bitmap. Thes=
+e
+>> bits are "hints of free pages".
+>>
+>> A thread then walks over the bitmap and tries to allocate the "hints".=
+
+>> If the pages were already reused, the bit is silently cleared.
+>>
+>> Instead of allocating/freeing, we could only try to isolate the
+>> pageblock, then test if free. (One of the usual issues to work around =
+is
+>> MAX_ORDER-1 crossing pageblocks, that might need special care)
+> OK, cool that I have reinvented the wheel ;). Allocation is indeed not
+> necessary as long as pages are isolated because nobody will allocate
+> them.
+> =20
+>> I think you should have a look at the rough idea of Nitesh's patch set=
+
+>> to see if something like that is going into a better direction. The
+>> bitmap part is in place to do bulk reporting and avoid duplicate repor=
+ts.
+> Let's see how much time I can find for that in my endless inbox whack a=
+ mole.
+> =20
+>> I think main points we want (and what I am missing from callback idea
+>> being discussed) are
+>> 1. Do bulk reporting only when a certain threshold is reached
+> Is a time based approach too coarse?
+
+I haven't looked into it yet. One situation which I would definitely
+want to avoid is to unnecessary invoke bitmap scans when there are not
+sufficient free pages available in the zone.
+I can take a look at it if required.
+
+
+>
+>> 2. Report only bigger granularities (especially, avoid THP splits in t=
+he
+>> hypervisor - >=3D 2MB proofed to be effective)
+> the callback has supported order based scan in some of its iteration.
+>
+>> 3. Avoid reporting what has just been reported.
+> Is the overhead of checking a pfn range in a bitmask that much of an
+> overhead to really care?
+
+In most of the cases No. Similar to Alexander I was also running will-it-=
+scale/
+page_fault1 to analyze the performance impact of the patch series and hav=
+en't
+noticed any significant degradation.
+In some specific cases, we may see noticeable degradation due to the scan=
+ning
+overhead.
+
+>
+>> 4. Continuously report, not the "one time report everything" approach.=
+
+> So you mean the allocator reporting this rather than an external code t=
+o
+> poll right? I do not know, how much this is nice to have than must have=
+?
+
+Not sure if I understood the question completely.
+But yes in my case any workload which is allocating and freeing pages wil=
+l end
+up initiating reporting requests based on the number of free pages in the=
+ zone.
+
+--=20
+Thanks
+Nitesh
+
 
