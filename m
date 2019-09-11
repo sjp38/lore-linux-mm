@@ -2,168 +2,135 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BA97C49ED6
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:34:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 333B3C5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:57:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 074602085B
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:34:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 074602085B
+	by mail.kernel.org (Postfix) with ESMTP id D2ABC20863
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:57:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2ABC20863
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CF036B0007; Wed, 11 Sep 2019 12:34:44 -0400 (EDT)
+	id 38F606B0005; Wed, 11 Sep 2019 12:57:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87EBD6B0008; Wed, 11 Sep 2019 12:34:44 -0400 (EDT)
+	id 33DE66B0006; Wed, 11 Sep 2019 12:57:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 747046B000C; Wed, 11 Sep 2019 12:34:44 -0400 (EDT)
+	id 254876B0007; Wed, 11 Sep 2019 12:57:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0222.hostedemail.com [216.40.44.222])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6876B0007
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:34:44 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id BBFB81B65F
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:34:43 +0000 (UTC)
-X-FDA: 75923188446.21.ants62_636f8021d701c
-X-HE-Tag: ants62_636f8021d701c
-X-Filterd-Recvd-Size: 5720
+Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 045C76B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:56:59 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id AB0C6180AD802
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:56:59 +0000 (UTC)
+X-FDA: 75923244558.06.ring66_2cdeef5bc949
+X-HE-Tag: ring66_2cdeef5bc949
+X-Filterd-Recvd-Size: 4983
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:34:43 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:56:59 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C20FC8A218D;
-	Wed, 11 Sep 2019 16:34:41 +0000 (UTC)
-Received: from llong.remote.csb (ovpn-123-234.rdu2.redhat.com [10.10.123.234])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 80D705C207;
-	Wed, 11 Sep 2019 16:34:38 +0000 (UTC)
-Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
- PMD
-To: Qian Cai <cai@lca.pw>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>,
- Will Deacon <will.deacon@arm.com>, Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>, linux-kernel@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- Davidlohr Bueso <dave@stgolabs.net>
-References: <20190911150537.19527-1-longman@redhat.com>
- <20190911150537.19527-6-longman@redhat.com>
- <B97932F4-7A2D-4265-9BB2-BF6E19B45DB7@lca.pw>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <1a8e6c0a-6ba6-d71f-974e-f8a9c623c25b@redhat.com>
-Date: Wed, 11 Sep 2019 17:34:37 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+	by mx1.redhat.com (Postfix) with ESMTPS id 3947030832E9;
+	Wed, 11 Sep 2019 16:56:58 +0000 (UTC)
+Received: from [10.10.125.194] (ovpn-125-194.rdu2.redhat.com [10.10.125.194])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 36AEA10018F8;
+	Wed, 11 Sep 2019 16:56:56 +0000 (UTC)
+Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
+To: Martin Raiber <martin@urbackup.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+ "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <20190909162804.5694-1-mchristi@redhat.com>
+ <5D76995B.1010507@redhat.com>
+ <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
+ <0102016d1f7af966-334f093b-2a62-4baa-9678-8d90d5fba6d9-000000@eu-west-1.amazonses.com>
+From: Mike Christie <mchristi@redhat.com>
+Message-ID: <5D792758.2060706@redhat.com>
+Date: Wed, 11 Sep 2019 11:56:56 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101
+ Thunderbird/38.6.0
 MIME-Version: 1.0
-In-Reply-To: <B97932F4-7A2D-4265-9BB2-BF6E19B45DB7@lca.pw>
+In-Reply-To: <0102016d1f7af966-334f093b-2a62-4baa-9678-8d90d5fba6d9-000000@eu-west-1.amazonses.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.69]); Wed, 11 Sep 2019 16:34:41 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 11 Sep 2019 16:56:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/11/19 5:01 PM, Qian Cai wrote:
->
->> On Sep 11, 2019, at 11:05 AM, Waiman Long <longman@redhat.com> wrote:
+On 09/11/2019 03:40 AM, Martin Raiber wrote:
+> On 10.09.2019 10:35 Damien Le Moal wrote:
+>> Mike,
 >>
->> When allocating a large amount of static hugepages (~500-1500GB) on a
->> system with large number of CPUs (4, 8 or even 16 sockets), performance
->> degradation (random multi-second delays) was observed when thousands
->> of processes are trying to fault in the data into the huge pages. The
->> likelihood of the delay increases with the number of sockets and hence
->> the CPUs a system has.  This only happens in the initial setup phase
->> and will be gone after all the necessary data are faulted in.
+>> On 2019/09/09 19:26, Mike Christie wrote:
+>>> Forgot to cc linux-mm.
+>>>
+>>> On 09/09/2019 11:28 AM, Mike Christie wrote:
+>>>> There are several storage drivers like dm-multipath, iscsi, and nbd that
+>>>> have userspace components that can run in the IO path. For example,
+>>>> iscsi and nbd's userspace deamons may need to recreate a socket and/or
+>>>> send IO on it, and dm-multipath's daemon multipathd may need to send IO
+>>>> to figure out the state of paths and re-set them up.
+>>>>
+>>>> In the kernel these drivers have access to GFP_NOIO/GFP_NOFS and the
+>>>> memalloc_*_save/restore functions to control the allocation behavior,
+>>>> but for userspace we would end up hitting a allocation that ended up
+>>>> writing data back to the same device we are trying to allocate for.
+>>>>
+>>>> This patch allows the userspace deamon to set the PF_MEMALLOC* flags
+>>>> through procfs. It currently only supports PF_MEMALLOC_NOIO, but
+>>>> depending on what other drivers and userspace file systems need, for
+>>>> the final version I can add the other flags for that file or do a file
+>>>> per flag or just do a memalloc_noio file.
+>> Awesome. That probably will be the perfect solution for the problem we hit with
+>> tcmu-runner a while back (please see this thread:
+>> https://www.spinics.net/lists/linux-fsdevel/msg148912.html).
 >>
->> These random delays, however, are deemed unacceptable. The cause of
->> that delay is the long wait time in acquiring the mmap_sem when trying
->> to share the huge PMDs.
+>> I think we definitely need nofs as well for dealing with cases where the backend
+>> storage for the user daemon is a file.
 >>
->> To remove the unacceptable delays, we have to limit the amount of wait
->> time on the mmap_sem. So the new down_write_timedlock() function is
->> used to acquire the write lock on the mmap_sem with a timeout value of
->> 10ms which should not cause a perceivable delay. If timeout happens,
->> the task will abandon its effort to share the PMD and allocate its own
->> copy instead.
+>> I will give this patch a try as soon as possible (I am traveling currently).
 >>
->> When too many timeouts happens (threshold currently set at 256), the
->> system may be too large for PMD sharing to be useful without undue delay.
->> So the sharing will be disabled in this case.
->>
->> Signed-off-by: Waiman Long <longman@redhat.com>
->> ---
->> include/linux/fs.h |  7 +++++++
->> mm/hugetlb.c       | 24 +++++++++++++++++++++---
->> 2 files changed, 28 insertions(+), 3 deletions(-)
->>
->> diff --git a/include/linux/fs.h b/include/linux/fs.h
->> index 997a530ff4e9..e9d3ad465a6b 100644
->> --- a/include/linux/fs.h
->> +++ b/include/linux/fs.h
->> @@ -40,6 +40,7 @@
->> #include <linux/fs_types.h>
->> #include <linux/build_bug.h>
->> #include <linux/stddef.h>
->> +#include <linux/ktime.h>
->>
->> #include <asm/byteorder.h>
->> #include <uapi/linux/fs.h>
->> @@ -519,6 +520,12 @@ static inline void i_mmap_lock_write(struct address_space *mapping)
->> 	down_write(&mapping->i_mmap_rwsem);
->> }
->>
->> +static inline bool i_mmap_timedlock_write(struct address_space *mapping,
->> +					 ktime_t timeout)
->> +{
->> +	return down_write_timedlock(&mapping->i_mmap_rwsem, timeout);
->> +}
->> +
->> static inline void i_mmap_unlock_write(struct address_space *mapping)
->> {
->> 	up_write(&mapping->i_mmap_rwsem);
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 6d7296dd11b8..445af661ae29 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
->> 	}
->> }
->>
->> +#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
->> +
->> /*
->>  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
->>  * and returns the corresponding pte. While this is not necessary for the
->> @@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->> 	pte_t *spte = NULL;
->> 	pte_t *pte;
->> 	spinlock_t *ptl;
->> +	static atomic_t timeout_cnt;
->>
->> -	if (!vma_shareable(vma, addr))
->> -		return (pte_t *)pmd_alloc(mm, pud, addr);
->> +	/*
->> +	 * Don't share if it is not sharable or locking attempt timed out
->> +	 * after 10ms. After 256 timeouts, PMD sharing will be permanently
->> +	 * disabled as it is just too slow.
-> It looks like this kind of policy interacts with kernel debug options like KASAN (which is going to slow the system down
-> anyway) could introduce tricky issues due to different timings on a debug kernel.
+>> Best regards.
+> 
+> I had issues with this as well, and work on this is appreciated! In my
+> case it is a loop block device on a fuse file system.
+> Setting PF_LESS_THROTTLE was the one that helped the most, though, so
+> add an option for that as well? I set this via prctl() for the thread
+> calling it (was easiest to add to).
+> 
+> Sorry, I have no idea about the current rationale, but wouldn't it be
+> better to have a way to mask a set of block devices/file systems not to
+> write-back to in a thread. So in my case I'd specify that the fuse
+> daemon threads cannot write-back to the file system and loop device
+> running on top of the fuse file system, while all other block
+> devices/file systems can be write-back to (causing less swapping/OOM
+> issues).
 
-With respect to lockdep, down_write_timedlock() works like a trylock. So
-a lot of checking will be skipped. Also the lockdep code won't be run
-until the lock is acquired. So its execution time has no effect on the
-timeout.
+I'm not sure I understood you.
 
-Cheers,
-Longman
+The storage daemons I mentioned normally kick off N threads per M
+devices. The threads handle duties like IO and error handling for those
+devices. Those threads would set the flag, so those IO/error-handler
+related operations do not end up writing back to them. So it works
+similar to how storage drivers work in the kernel where iscsi_tcp has an
+xmit thread and that does memalloc_noreclaim_save. Only the threads for
+those specific devices being would set the flag.
+
+In your case, it sounds like you have a thread/threads that would
+operate on multiple devices and some need the behavior and some do not.
+Is that right?
+
 
 
