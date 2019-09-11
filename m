@@ -2,176 +2,162 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B0F9ECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01493C5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:12:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D45D5207FC
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D45D5207FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AB1EE2087E
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:12:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lephetGi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB1EE2087E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 824486B0273; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
+	id 451326B0275; Wed, 11 Sep 2019 11:12:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DC636B0274; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
+	id 402536B0276; Wed, 11 Sep 2019 11:12:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EC336B0275; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
+	id 2EFFC6B0277; Wed, 11 Sep 2019 11:12:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0197.hostedemail.com [216.40.44.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CB706B0273
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:06:31 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 0092352CC
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:30 +0000 (UTC)
-X-FDA: 75922966182.10.books00_38d62b28b6706
-X-HE-Tag: books00_38d62b28b6706
-X-Filterd-Recvd-Size: 5405
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:30 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 6C9BB300DA3A;
-	Wed, 11 Sep 2019 15:06:29 +0000 (UTC)
-Received: from llong.com (ovpn-125-196.rdu2.redhat.com [10.10.125.196])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id CCD7D5D9E2;
-	Wed, 11 Sep 2019 15:06:22 +0000 (UTC)
-From: Waiman Long <longman@redhat.com>
-To: Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Davidlohr Bueso <dave@stgolabs.net>,
-	Waiman Long <longman@redhat.com>
-Subject: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge PMD
-Date: Wed, 11 Sep 2019 16:05:37 +0100
-Message-Id: <20190911150537.19527-6-longman@redhat.com>
-In-Reply-To: <20190911150537.19527-1-longman@redhat.com>
-References: <20190911150537.19527-1-longman@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 11 Sep 2019 15:06:29 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0039.hostedemail.com [216.40.44.39])
+	by kanga.kvack.org (Postfix) with ESMTP id 099836B0275
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:12:17 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8A90D181AC9C6
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:12:16 +0000 (UTC)
+X-FDA: 75922980672.11.river85_6b1675a4dda49
+X-HE-Tag: river85_6b1675a4dda49
+X-Filterd-Recvd-Size: 7303
+Received: from mail-io1-f68.google.com (mail-io1-f68.google.com [209.85.166.68])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:12:15 +0000 (UTC)
+Received: by mail-io1-f68.google.com with SMTP id h144so46550729iof.7
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:12:15 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=hO/NYETIaCmxDsOv4YSewpLm6NfP264tWt7Tht5PRVc=;
+        b=lephetGiRU0WJPYILZnpGeGY8fb67wSei8lpY0AzUmFYLYYZLCPr2QCdLVrZ3t9KqF
+         VYRvj37vfpGu+yiAbV118YM/11MJeQt43ZHMr3XUooHwIgnEZAXkXmpwJZe97JfITjzm
+         gMkhtrmUNbgtvpotn3Ps3YURVWTZw7d5jQoeB8ZqiFHPBQqOwktFsJKGPVQ2MvFqy7XC
+         5wf7Cu3g32jyh6iKTGq2us71dxbfV5t0Qws2k9A6k0wStA2mODqcmOUdxF/R5Li9wADS
+         PvwkDiEhtOuMIXiFo6eXN/M7r0UwnDWyHgSEi7TkB+U4O5S/iRH2R5EaQb7C+0VOL4OT
+         CYnQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=hO/NYETIaCmxDsOv4YSewpLm6NfP264tWt7Tht5PRVc=;
+        b=EaeAaqe7gN9DolbbNl0o8I6XUvRYtI/TPJflpFPB2vaOfh+w2FupK4jJxlF+xWBY+u
+         mdWZO56G9zeNj3jkEsXIkKJDGVjaTQgRq009xS+mL0hSfPR+BS9fUT0r3KnDG2IJlP+p
+         S57sZCwwPX5q96l1RbJgFUdY5eGfpMwof19Y5IyveFfUk+WDKG0rBpOrHlNqgAfrY3Oq
+         EDHiLefK26eOoH1qSEvEnI+uV6StwkzU8zkLe6v3cj92MnLSVOFKEBaAYXVqH5n5pOAA
+         H5Ni5XBcfqhUpdLE0V7zP7k3+iAS3rzC7BlpY1TV8RY/AxISNU31t1Y+kvenJQiZ2sPX
+         i80w==
+X-Gm-Message-State: APjAAAWNJnagiP12pLLoxv2CqpXSaX1mxZds+Xv9hR0JZTlrPtr7EEnH
+	94zPTWN+2LAmKJs32ce3ReBMzuwRy+VCvkyPiX0=
+X-Google-Smtp-Source: APXvYqywFmqrX2zinHSJDKlW9JocoMGeJEpO0ksqi5JSiUqBmD89WL+vrXm3nKABzAcwsgWbhHFEtI94/Tj9EgUXE88=
+X-Received: by 2002:a5d:8b47:: with SMTP id c7mr28072146iot.42.1568214734894;
+ Wed, 11 Sep 2019 08:12:14 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz> <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz> <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz> <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+In-Reply-To: <20190911113619.GP4023@dhcp22.suse.cz>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 11 Sep 2019 08:12:03 -0700
+Message-ID: <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, virtio-dev@lists.oasis-open.org, 
+	kvm list <kvm@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, 
+	Catalin Marinas <catalin.marinas@arm.com>, David Hildenbrand <david@redhat.com>, 
+	Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>, 
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org, 
+	linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitesh Narayan Lal <nitesh@redhat.com>, 
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com, 
+	"Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, 
+	Paolo Bonzini <pbonzini@redhat.com>, Dan Williams <dan.j.williams@intel.com>, 
+	Fengguang Wu <fengguang.wu@intel.com>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When allocating a large amount of static hugepages (~500-1500GB) on a
-system with large number of CPUs (4, 8 or even 16 sockets), performance
-degradation (random multi-second delays) was observed when thousands
-of processes are trying to fault in the data into the huge pages. The
-likelihood of the delay increases with the number of sockets and hence
-the CPUs a system has.  This only happens in the initial setup phase
-and will be gone after all the necessary data are faulted in.
+On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
+> [...]
+> > We don't put any limitations on the allocator other then that it needs to
+> > clean up the metadata on allocation, and that it cannot allocate a page
+> > that is in the process of being reported since we pulled it from the
+> > free_list. If the page is a "Reported" page then it decrements the
+> > reported_pages count for the free_area and makes sure the page doesn't
+> > exist in the "Boundary" array pointer value, if it does it moves the
+> > "Boundary" since it is pulling the page.
+>
+> This is still a non-trivial limitation on the page allocation from an
+> external code IMHO. I cannot give any explicit reason why an ordering on
+> the free list might matter (well except for page shuffling which uses it
+> to make physical memory pattern allocation more random) but the
+> architecture seems hacky and dubious to be honest. It shoulds like the
+> whole interface has been developed around a very particular and single
+> purpose optimization.
 
-These random delays, however, are deemed unacceptable. The cause of
-that delay is the long wait time in acquiring the mmap_sem when trying
-to share the huge PMDs.
+How is this any different then the code that moves a page that will
+likely be merged to the tail though?
 
-To remove the unacceptable delays, we have to limit the amount of wait
-time on the mmap_sem. So the new down_write_timedlock() function is
-used to acquire the write lock on the mmap_sem with a timeout value of
-10ms which should not cause a perceivable delay. If timeout happens,
-the task will abandon its effort to share the PMD and allocate its own
-copy instead.
+In our case the "Reported" page is likely going to be much more
+expensive to allocate and use then a standard page because it will be
+faulted back in. In such a case wouldn't it make sense for us to want
+to keep the pages that don't require faults ahead of those pages in
+the free_list so that they are more likely to be allocated? All we are
+doing with the boundary list is preventing still resident pages from
+being deferred behind pages that would require a page fault to get
+access to.
 
-When too many timeouts happens (threshold currently set at 256), the
-system may be too large for PMD sharing to be useful without undue delay.
-So the sharing will be disabled in this case.
+> I remember that there was an attempt to report free memory that provided
+> a callback mechanism [1], which was much less intrusive to the internals
+> of the allocator yet it should provide a similar functionality. Did you
+> see that approach? How does this compares to it? Or am I completely off
+> when comparing them?
+>
+> [1] mostly likely not the latest version of the patchset
+> http://lkml.kernel.org/r/1502940416-42944-5-git-send-email-wei.w.wang@intel.com
 
-Signed-off-by: Waiman Long <longman@redhat.com>
----
- include/linux/fs.h |  7 +++++++
- mm/hugetlb.c       | 24 +++++++++++++++++++++---
- 2 files changed, 28 insertions(+), 3 deletions(-)
+There have been a few comparisons between this patch set and the ones
+from Wei Wang. In regards to the one you are pointing to the main
+difference is that I am not permanently locking memory. Basically what
+happens is that the iterator will take the lock, pull a few pages,
+release the lock while reporting them, and then take the lock to
+return those pages, grab some more, and repeat.
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 997a530ff4e9..e9d3ad465a6b 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -40,6 +40,7 @@
- #include <linux/fs_types.h>
- #include <linux/build_bug.h>
- #include <linux/stddef.h>
-+#include <linux/ktime.h>
- 
- #include <asm/byteorder.h>
- #include <uapi/linux/fs.h>
-@@ -519,6 +520,12 @@ static inline void i_mmap_lock_write(struct address_space *mapping)
- 	down_write(&mapping->i_mmap_rwsem);
- }
- 
-+static inline bool i_mmap_timedlock_write(struct address_space *mapping,
-+					 ktime_t timeout)
-+{
-+	return down_write_timedlock(&mapping->i_mmap_rwsem, timeout);
-+}
-+
- static inline void i_mmap_unlock_write(struct address_space *mapping)
- {
- 	up_write(&mapping->i_mmap_rwsem);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6d7296dd11b8..445af661ae29 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
- 	}
- }
- 
-+#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
-+
- /*
-  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
-  * and returns the corresponding pte. While this is not necessary for the
-@@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	pte_t *spte = NULL;
- 	pte_t *pte;
- 	spinlock_t *ptl;
-+	static atomic_t timeout_cnt;
- 
--	if (!vma_shareable(vma, addr))
--		return (pte_t *)pmd_alloc(mm, pud, addr);
-+	/*
-+	 * Don't share if it is not sharable or locking attempt timed out
-+	 * after 10ms. After 256 timeouts, PMD sharing will be permanently
-+	 * disabled as it is just too slow.
-+	 */
-+	if (!vma_shareable(vma, addr) ||
-+	   (atomic_read(&timeout_cnt) >= PMD_SHARE_DISABLE_THRESHOLD))
-+		goto out_no_share;
-+
-+	if (!i_mmap_timedlock_write(mapping, ms_to_ktime(10))) {
-+		if (atomic_inc_return(&timeout_cnt) ==
-+		    PMD_SHARE_DISABLE_THRESHOLD)
-+			pr_info("Hugetlbfs PMD sharing disabled because of timeouts!\n");
-+		goto out_no_share;
-+	}
- 
--	i_mmap_lock_write(mapping);
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-@@ -4806,6 +4821,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
- 	i_mmap_unlock_write(mapping);
- 	return pte;
-+
-+out_no_share:
-+	return (pte_t *)pmd_alloc(mm, pud, addr);
- }
- 
- /*
--- 
-2.18.1
+I was actually influenced somewhat by the suggestions that patchset
+received, specifically I believe it resembles something like what was
+suggested by Linus in response to v35 of that patch set:
+https://lore.kernel.org/linux-mm/CA+55aFzqj8wxXnHAdUTiOomipgFONVbqKMjL_tfk7e5ar1FziQ@mail.gmail.com/
 
+Basically where the feature Wei Wang was working on differs from this
+patch set is that I need this to run continually, his only needed to
+run periodically as he was just trying to identify free pages at a
+fixed point in time. My goal is to identify pages that have been freed
+since the last time I reported them. To do that I need a flag in the
+page to identify those pages, and an iterator in the form of a
+boundary pointer so that I can incrementally walk through the list
+without losing track of freed pages.
 
