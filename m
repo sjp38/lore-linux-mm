@@ -2,113 +2,145 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F01CC49ED6
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:37:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8041C49ED6
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:44:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E30F20CC7
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:37:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="nWlWY+dA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E30F20CC7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 778502053B
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:44:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 778502053B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D1C046B0008; Wed, 11 Sep 2019 10:37:46 -0400 (EDT)
+	id 06D4D6B000D; Wed, 11 Sep 2019 10:44:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CCD466B000A; Wed, 11 Sep 2019 10:37:46 -0400 (EDT)
+	id 01E506B000E; Wed, 11 Sep 2019 10:44:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE39D6B000C; Wed, 11 Sep 2019 10:37:46 -0400 (EDT)
+	id E2AAE6B0010; Wed, 11 Sep 2019 10:44:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0098.hostedemail.com [216.40.44.98])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D88D6B0008
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:37:46 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 364A619B3F
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:37:46 +0000 (UTC)
-X-FDA: 75922893732.14.frogs93_60df48db7e326
-X-HE-Tag: frogs93_60df48db7e326
-X-Filterd-Recvd-Size: 3547
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:37:45 +0000 (UTC)
-Received: from X1 (110.8.30.213.rev.vodafone.pt [213.30.8.110])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C90A32053B;
-	Wed, 11 Sep 2019 14:37:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1568212664;
-	bh=1fczKAAqSGjDH9qf3eCyH0kGN2ggp27wOT47W+oQbtE=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=nWlWY+dAVzcqLF6822O67BEu6DZSELxK0ypBc4Thosu+kucgLcO/tbHvMQv81D6dm
-	 r/i7x3BEXb/FmQm3o2lQ8QiBxKF2to5xds4voBkuA268lJwuR0CzcoA/E2mWA2b1sO
-	 RloOpE8n4Y45ROxaZKYW4XFD7YyrWCYo1cQG5Y7k=
-Date: Wed, 11 Sep 2019 07:37:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Johannes Weiner
- <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, LKML
- <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrey
- Ryabinin <aryabinin@virtuozzo.com>, Thomas Lindroth
- <thomas.lindroth@gmail.com>, Tetsuo Handa
- <penguin-kernel@i-love.sakura.ne.jp>
-Subject: Re: [PATCH] memcg, kmem: do not fail __GFP_NOFAIL charges
-Message-Id: <20190911073740.b5c40cd47ea845884e25e265@linux-foundation.org>
-In-Reply-To: <20190911120002.GQ4023@dhcp22.suse.cz>
-References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
-	<20190906125608.32129-1-mhocko@kernel.org>
-	<CALvZod5w72jH8fJSFRaw7wgQTnzF6nb=+St-sSXVGSiG6Bs3Lg@mail.gmail.com>
-	<20190909112245.GH27159@dhcp22.suse.cz>
-	<20190911120002.GQ4023@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
+	by kanga.kvack.org (Postfix) with ESMTP id BF14E6B000D
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:44:55 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 63E5A8243770
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:44:55 +0000 (UTC)
+X-FDA: 75922911750.23.back08_dd3308ff9444
+X-HE-Tag: back08_dd3308ff9444
+X-Filterd-Recvd-Size: 4688
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 14:44:54 +0000 (UTC)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8BEipBP140002
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:44:54 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uy0caxadf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:44:52 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 11 Sep 2019 15:42:38 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 11 Sep 2019 15:42:36 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8BEgZPu53477490
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 11 Sep 2019 14:42:35 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 70FECAE059;
+	Wed, 11 Sep 2019 14:42:35 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 737ADAE056;
+	Wed, 11 Sep 2019 14:42:34 +0000 (GMT)
+Received: from linux.ibm.com (unknown [9.148.207.74])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 11 Sep 2019 14:42:34 +0000 (GMT)
+Date: Wed, 11 Sep 2019 15:42:31 +0100
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Cao jin <caoj.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/memblock: fix typo in memblock doc
+References: <20190911030856.18010-1-caoj.fnst@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190911030856.18010-1-caoj.fnst@cn.fujitsu.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19091114-0016-0000-0000-000002AA0E49
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19091114-0017-0000-0000-0000330A9B22
+Message-Id: <20190911144230.GB6429@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-11_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909110138
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Sep 2019 14:00:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Mon 09-09-19 13:22:45, Michal Hocko wrote:
-> > On Fri 06-09-19 11:24:55, Shakeel Butt wrote:
-> [...]
-> > > I wonder what has changed since
-> > > <http://lkml.kernel.org/r/20180525185501.82098-1-shakeelb@google.com/>.
-> > 
-> > I have completely forgot about that one. It seems that we have just
-> > repeated the same discussion again. This time we have a poor user who
-> > actually enabled the kmem limit.
-> > 
-> > I guess there was no real objection to the change back then. The primary
-> > discussion revolved around the fact that the accounting will stay broken
-> > even when this particular part was fixed. Considering this leads to easy
-> > to trigger crash (with the limit enabled) then I guess we should just
-> > make it less broken and backport to stable trees and have a serious
-> > discussion about discontinuing of the limit. Start by simply failing to
-> > set any limit in the current upstream kernels.
+On Wed, Sep 11, 2019 at 11:08:56AM +0800, Cao jin wrote:
+> elaboarte -> elaborate
+> architecure -> architecture
+> compltes -> completes
 > 
-> Any more concerns/objections to the patch? I can add a reference to your
-> earlier post Shakeel if you want or to credit you the way you prefer.
+> Signed-off-by: Cao jin <caoj.fnst@cn.fujitsu.com>
+> ---
+>  mm/memblock.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> Also are there any objections to start deprecating process of kmem
-> limit? I would see it in two stages
-> - 1st warn in the kernel log
-> 	pr_warn("kmem.limit_in_bytes is deprecated and will be removed.
-> 	        "Please report your usecase to linux-mm@kvack.org if you "
-> 		"depend on this functionality."
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 7d4f61ae666a..0d0f92003d18 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -83,16 +83,16 @@
+>   * Note, that both API variants use implict assumptions about allowed
+>   * memory ranges and the fallback methods. Consult the documentation
+>   * of :c:func:`memblock_alloc_internal` and
+> - * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
+> + * :c:func:`memblock_alloc_range_nid` functions for more elaborate
 
-pr_warn_once() :)
+While on it, could you please replace the
+:c:func:`memblock_alloc_range_nid` construct with
+memblock_alloc_range_nid()?
 
-> - 2nd fail any write to kmem.limit_in_bytes
-> - 3rd remove the control file completely
+And that would be really great to see all the :c:func:`foo` changed to
+foo().
 
-Sounds good to me.
+>   * description.
+>   *
+>   * As the system boot progresses, the architecture specific
+>   * :c:func:`mem_init` function frees all the memory to the buddy page
+>   * allocator.
+>   *
+> - * Unless an architecure enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
+> + * Unless an architecture enables %CONFIG_ARCH_KEEP_MEMBLOCK, the
+>   * memblock data structures will be discarded after the system
+> - * initialization compltes.
+> + * initialization completes.
+>   */
+>  
+>  #ifndef CONFIG_NEED_MULTIPLE_NODES
+> -- 
+> 2.21.0
+> 
+> 
+> 
+
+-- 
+Sincerely yours,
+Mike.
+
 
