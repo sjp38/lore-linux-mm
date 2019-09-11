@@ -2,124 +2,146 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37CC6ECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:22:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 786BCECDE2C
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 08:20:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03FE8206CD
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:22:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03FE8206CD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id 3DA022168B
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 08:20:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lzzM8L2D"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DA022168B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F5936B0007; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
+	id 9CB836B0005; Wed, 11 Sep 2019 04:20:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A5DA6B0008; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
+	id 97B316B0006; Wed, 11 Sep 2019 04:20:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E2E56B000A; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
+	id 869066B0007; Wed, 11 Sep 2019 04:20:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD626B0007
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1A546180AD802
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:22:26 +0000 (UTC)
-X-FDA: 75921796692.20.elbow56_4f60734af2d44
-X-HE-Tag: elbow56_4f60734af2d44
-X-Filterd-Recvd-Size: 3807
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp [114.179.232.162])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:22:25 +0000 (UTC)
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x8B7MKAk020343
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Wed, 11 Sep 2019 16:22:20 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8B7MK2T021862;
-	Wed, 11 Sep 2019 16:22:20 +0900
-Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8B7MDR1021065;
-	Wed, 11 Sep 2019 16:22:20 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.147] [10.38.151.147]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-936117; Wed, 11 Sep 2019 16:21:14 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC19GP.gisp.nec.co.jp ([10.38.151.147]) with mapi id 14.03.0439.000; Wed,
- 11 Sep 2019 16:21:13 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: "osalvador@suse.de" <osalvador@suse.de>
-CC: "mhocko@kernel.org" <mhocko@kernel.org>,
-        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 00/10] Hwpoison soft-offline rework
-Thread-Topic: [PATCH 00/10] Hwpoison soft-offline rework
-Thread-Index: AQHVZ8LTy7PIWQBirkyAnAoCBs9f5aclXX4AgAAOxICAAAOJAIAADMoA
-Date: Wed, 11 Sep 2019 07:21:12 +0000
-Message-ID: <20190911072112.GA12499@hori.linux.bs1.fc.nec.co.jp>
-References: <20190910103016.14290-1-osalvador@suse.de>
- <20190911052956.GA9729@hori.linux.bs1.fc.nec.co.jp>
- <20190911062246.GA31960@hori.linux.bs1.fc.nec.co.jp>
- <59dce1bc205b10f67f17cf9d2e1e7a04@suse.de>
-In-Reply-To: <59dce1bc205b10f67f17cf9d2e1e7a04@suse.de>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.150]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <80CDEFCDA81BC34D9226C8BC8FBFE853@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0145.hostedemail.com [216.40.44.145])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FBFC6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 04:20:04 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id E5FBA180AD802
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:20:03 +0000 (UTC)
+X-FDA: 75921941886.02.edge16_7abece33c26
+X-HE-Tag: edge16_7abece33c26
+X-Filterd-Recvd-Size: 5635
+Received: from mail-wm1-f68.google.com (mail-wm1-f68.google.com [209.85.128.68])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:20:03 +0000 (UTC)
+Received: by mail-wm1-f68.google.com with SMTP id t9so2359064wmi.5
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 01:20:03 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=73Mk7Z9yNYBR9L0eb9oAsrN33Ivf779654SN9226Yx0=;
+        b=lzzM8L2DKputz7E8BnA9+EcELiqTMUGOY69T7jjCa9uf+uWvwuzpYYhL8Nv5LJzUtX
+         pslPCUzteUedVsAO7Uh+akynz719MT5rU3CXAGnZCX0ho9qVu76a27TAVjsgM+zyeS0A
+         ksacMXfdU7LVCHgRBpm9gajfZbu7oGrLchB/8Y3McmIxN2Ul3PI2FPJ6afqOio//N9LI
+         ta5N/T+t0ETYEJ3C2risxGC6eu0pHf9Q4eQXPLAVzrsLwff2DyzqLQjOsshK+m9pnUg8
+         AU6Bi9iICYiPINavXSkRjPjWy0lqtq5O3QvUmqqLA1ovJHhVXc3YwX7OtEYjLY+gIZdo
+         OoQQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=73Mk7Z9yNYBR9L0eb9oAsrN33Ivf779654SN9226Yx0=;
+        b=gCXYa3kMqVg3UpEftPLTidmTj3eDtVZzGx6uPlbKNPN82hwVUJ0hEftysTf7qK3B36
+         HGpeLSaJF9UI7zLXZEAG5CStqPgyGhPdR9vCX7g1gJCXWCHF2mRuCfxCP5nULZOJG+u2
+         6XU9tElXeCBuvy0ItOLbk61EiMuwpKe3heohQOlZ+emYz3BnOtOkFJXrZWhte4dUGF/2
+         tQtX5M3umFr7QCXFJtTZ9idicjjAJhdQrzxAiht9HWf5lHVtAdHtLoLJC8esKVJO6bwv
+         CJrhzzh4du9018g3AWFE2MxzdCOhCmMmRTKEkChZWnF+x6gCf+93B0LSjSApgLKoDfyy
+         gNMw==
+X-Gm-Message-State: APjAAAUoQeoXmzD4nXYbprPIrhx5MY/wxF98x3sbd5+pIvEcUjCLN2/N
+	wE6IHoxrIigWAcbfuOrUo49LMQ==
+X-Google-Smtp-Source: APXvYqwuImgeWs/pa+4thE+4R4gw3Ydri3nAjPDaSD8LYzbWB31nR0x1yXh0fLg4sEsBe7+K+ixaIg==
+X-Received: by 2002:a7b:c752:: with SMTP id w18mr2765612wmk.63.1568189997578;
+        Wed, 11 Sep 2019 01:19:57 -0700 (PDT)
+Received: from ziepe.ca ([148.69.85.38])
+        by smtp.gmail.com with ESMTPSA id a13sm36163114wrf.73.2019.09.11.01.19.56
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 11 Sep 2019 01:19:56 -0700 (PDT)
+Received: from jgg by jggl.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1i7xr1-0002Mq-Vn; Wed, 11 Sep 2019 05:19:55 -0300
+Date: Wed, 11 Sep 2019 05:19:55 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system
+ file object
+Message-ID: <20190911081955.GA9070@ziepe.ca>
+References: <20190812130039.GD24457@ziepe.ca>
+ <20190812172826.GA19746@iweiny-DESK2.sc.intel.com>
+ <20190812175615.GI24457@ziepe.ca>
+ <20190812211537.GE20634@iweiny-DESK2.sc.intel.com>
+ <20190813114842.GB29508@ziepe.ca>
+ <20190813174142.GB11882@iweiny-DESK2.sc.intel.com>
+ <20190813180022.GF29508@ziepe.ca>
+ <20190813203858.GA12695@iweiny-DESK2.sc.intel.com>
+ <20190814122308.GB13770@ziepe.ca>
+ <20190904222549.GC31319@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190904222549.GC31319@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 11, 2019 at 08:35:26AM +0200, osalvador@suse.de wrote:
-> On 2019-09-11 08:22, Naoya Horiguchi wrote:
-> > I found another panic ...
->=20
-> Hi Naoya,
->=20
-> Thanks for giving it a try. Are these testcase public?
-> I will definetely take a look and try to solve these cases.
+On Wed, Sep 04, 2019 at 03:25:50PM -0700, Ira Weiny wrote:
+> On Wed, Aug 14, 2019 at 09:23:08AM -0300, Jason Gunthorpe wrote:
+> > On Tue, Aug 13, 2019 at 01:38:59PM -0700, Ira Weiny wrote:
+> > > On Tue, Aug 13, 2019 at 03:00:22PM -0300, Jason Gunthorpe wrote:
+> > > > On Tue, Aug 13, 2019 at 10:41:42AM -0700, Ira Weiny wrote:
+> > > > 
+> > > > > And I was pretty sure uverbs_destroy_ufile_hw() would take care of (or ensure
+> > > > > that some other thread is) destroying all the MR's we have associated with this
+> > > > > FD.
+> > > > 
+> > > > fd's can't be revoked, so destroy_ufile_hw() can't touch them. It
+> > > > deletes any underlying HW resources, but the FD persists.
+> > > 
+> > > I misspoke.  I should have said associated with this "context".  And of course
+> > > uverbs_destroy_ufile_hw() does not touch the FD.  What I mean is that the
+> > > struct file which had file_pins hanging off of it would be getting its file
+> > > pins destroyed by uverbs_destroy_ufile_hw().  Therefore we don't need the FD
+> > > after uverbs_destroy_ufile_hw() is done.
+> > > 
+> > > But since it does not block it may be that the struct file is gone before the
+> > > MR is actually destroyed.  Which means I think the GUP code would blow up in
+> > > that case...  :-(
+> > 
+> > Oh, yes, that is true, you also can't rely on the struct file living
+> > longer than the HW objects either, that isn't how the lifetime model
+> > works.
+> 
+> Reviewing all these old threads...  And this made me think.  While the HW
+> objects may out live the struct file.
+> 
+> They _are_ going away in a finite amount of time right?  It is not like they
+> could be held forever right?
 
-It's available on https://github.com/Naoya-Horiguchi/mm_regression.
-The README is a bit obsolete (sorry about that ...,) but you can run
-the testcase like below:
+Yes, at least until they become shared between FDs
 
-  $ git clone https://github.com/Naoya-Horiguchi/mm_regression
-  $ cd mm_regression
-  mm_regression $ git clone https://github.com/Naoya-Horiguchi/test_core=20
-  mm_regression $ make
-  // you might need to install some dependencies like numa library and mce-=
-inject tool
-  mm_regression $ make update_recipes
-
-To run the single testcase, run the commands like below:
-
-  mm_regression $ RECIPEFILES=3Dcases/page_migration/hugetlb_migratepages_a=
-llocate1_noovercommit.auto2 bash run.sh
-  mm_regression $ RECIPEFILES=3Dcases/cases/mce_ksm_soft-offline_avoid_acce=
-ss.auto2 bash run.sh
- =20
-You can run a set of many testcases with the commands like below:
-
-  mm_regression $ RECIPEFILES=3Dcases/cases/mce_ksm_* bash run.sh
-  // run all ksm related testcases. I reproduced the panic with this comman=
-d.
-
-  mm_regression $ run_class=3Dsimple bash run.sh
-  // run the set of minimum testcases I run for each releases.
-
-Hopefully this will help you.
-
-Thanks,
-Naoya Horiguchi=
-
+Jason
 
