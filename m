@@ -1,216 +1,388 @@
-Return-Path: <SRS0=JR82=XF=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-17.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
+	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CC77C49ED7
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 23:32:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1935BC49ED9
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 01:10:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8CA721D7D
-	for <linux-mm@archiver.kernel.org>; Tue, 10 Sep 2019 23:32:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 94CC22171F
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 01:10:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="e/SIH2or"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8CA721D7D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BSOQ/u91"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94CC22171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9359A6B0269; Tue, 10 Sep 2019 19:32:16 -0400 (EDT)
+	id EB7696B0005; Tue, 10 Sep 2019 21:10:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E6366B026A; Tue, 10 Sep 2019 19:32:16 -0400 (EDT)
+	id E404F6B0006; Tue, 10 Sep 2019 21:10:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7ADDA6B026B; Tue, 10 Sep 2019 19:32:16 -0400 (EDT)
+	id CDFD56B0007; Tue, 10 Sep 2019 21:10:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0219.hostedemail.com [216.40.44.219])
-	by kanga.kvack.org (Postfix) with ESMTP id 566146B0269
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 19:32:16 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id E67C1180AD801
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 23:32:15 +0000 (UTC)
-X-FDA: 75920611830.19.fire40_30d2c256eb44f
-X-HE-Tag: fire40_30d2c256eb44f
-X-Filterd-Recvd-Size: 8977
-Received: from mail-ua1-f74.google.com (mail-ua1-f74.google.com [209.85.222.74])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 23:32:15 +0000 (UTC)
-Received: by mail-ua1-f74.google.com with SMTP id 13so3251820uag.22
-        for <linux-mm@kvack.org>; Tue, 10 Sep 2019 16:32:15 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0015.hostedemail.com [216.40.44.15])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F5C36B0005
+	for <linux-mm@kvack.org>; Tue, 10 Sep 2019 21:10:16 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 309B98243768
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 01:10:16 +0000 (UTC)
+X-FDA: 75920858832.03.line87_1f5d743ccd33d
+X-HE-Tag: line87_1f5d743ccd33d
+X-Filterd-Recvd-Size: 14303
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 01:10:15 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id r12so12610153pfh.1
+        for <linux-mm@kvack.org>; Tue, 10 Sep 2019 18:10:15 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=0LEswebCuXlUeK7tPzkfS93LgBHF3BU/v1A9gg1d3Jc=;
-        b=e/SIH2orKqbKFX2gNfzSIzJVtzBFf5hXWjn5Vfz22L9QA5QFdedJKt3j7w0PpInHbz
-         lVvPgETr0Jbfwbj6JUht/BSUXmoNajeGGPi8S9SsZus3IZtAJvMZ6uxAJDkOd/TRCrWE
-         lJgntTxvOrHowSOhvclAmpFpHElnVn+5t1nNi2tzuO8BHw8B4izIfpv0AddmccrMionV
-         u0BppCYSZfZS5SULW9vxvdunM4/nsrQ+G9B5srifEofG4anGR2hLcTooY1boiv+RKIoW
-         bbiAxpTi+HUuTdp9NjxvSK9uWVWE1aO3FACG8wRiq/gx4HABAyUpGEWgMCtr5wL6gDke
-         d3Bg==
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=ESLG1t6IreprN3RkgGIaM4Lu+h+CB2JumPRW4tm4Exo=;
+        b=BSOQ/u91jh54LUC0H1dXoOioyZkLhI20WMwYU2psrg8kKoICo0yeyNZyUQt6rzjder
+         DipA0Pg2A0n9OMtpze6Iuf2EXLxwwPAxzBHc6MK2ubUgpdJ8N2T/KL6OQS7oGo0nKEy4
+         BJObBC13qHFF0k4ppmrhI4ddOoH7EWEqUCJsAjbBIIsqwTYUKmt8FUX81k3+BvdidUei
+         TLudA2g58dKcRnmHgId+CbRermXt7kE9UXEbVSXAI5wsxuyM9gZKCholmo3aTNzv54U2
+         zGJlb9gnd8LflECwAmHPd+MytLqNZWxjoRHGlUjYKhD4twp2tedKM5Rsytg7d/qFeiu3
+         sGYw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:in-reply-to:message-id:mime-version
-         :references:subject:from:to:cc;
-        bh=0LEswebCuXlUeK7tPzkfS93LgBHF3BU/v1A9gg1d3Jc=;
-        b=WnYjj95O96Ysc0/kShhujO4vjsIVto+vwqVVHoPkw8M/0D954hfcI7IOowBwY2vHGa
-         h5s464CV8bsyFK5VxCSWwyaSfdbwXPERQ8wpxSmeiotPAUZmULsiE6GbUQ8EA2qtFBZJ
-         P13DDHxCFZObIyorGD9imuMoReibBX/ht6SnbN39PukgPiRuA/aW6PERDgKi1Z4hkjFC
-         As11tAYldwhyseoeobxcG25e/F+HIX0t0bfCP0Qh4VI3pT29R2HPZlnoO3EqsYd8qUD8
-         radXsALyFsfYEcYFxjNvsIPJlTgFzOZq1F+1hdiwhQRVsVqssS1ZWiaaVQeIsPw729bz
-         JFgQ==
-X-Gm-Message-State: APjAAAUENmCAd13Zhss5UN3UY4cR050BkSQ9Cni6kZ4t7wX65zr85353
-	86NzoKHt+tE5ZhgFymcpheHhkQSfstXKCPY+dA==
-X-Google-Smtp-Source: APXvYqy/3Zn8sqmETM/JAH7hp9TufhpKQ3F/v7pZaXngfOyH7O21D7gnsKHl66KuXfAx3PVnCWkls5tzRe2Ask7GvQ==
-X-Received: by 2002:ac5:c7d3:: with SMTP id e19mr7511087vkn.60.1568158334638;
- Tue, 10 Sep 2019 16:32:14 -0700 (PDT)
-Date: Tue, 10 Sep 2019 16:31:46 -0700
-In-Reply-To: <20190910233146.206080-1-almasrymina@google.com>
-Message-Id: <20190910233146.206080-10-almasrymina@google.com>
-Mime-Version: 1.0
-References: <20190910233146.206080-1-almasrymina@google.com>
-X-Mailer: git-send-email 2.23.0.162.g0b9fbb3734-goog
-Subject: [PATCH v4 9/9] hugetlb_cgroup: Add hugetlb_cgroup reservation docs
-From: Mina Almasry <almasrymina@google.com>
-To: mike.kravetz@oracle.com
-Cc: shuah@kernel.org, almasrymina@google.com, rientjes@google.com, 
-	shakeelb@google.com, gthelen@google.com, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org, cgroups@vger.kernel.org, 
-	aneesh.kumar@linux.vnet.ibm.com, mkoutny@suse.com, 
-	Hillf Danton <hdanton@sina.com>
-Content-Type: text/plain; charset="UTF-8"
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:content-transfer-encoding
+         :in-reply-to:user-agent;
+        bh=ESLG1t6IreprN3RkgGIaM4Lu+h+CB2JumPRW4tm4Exo=;
+        b=rD68a9DSaQXj9sSFKGvA/7d0vcpcCoeUU/h1+Ie7vgW03x7diSToYZxIBkJ8BEMkAw
+         Gd0bnHnbYkOsQCIaRhAVRho+QVlxbEcO1LooAxsFDrUniBVoBOaykic/8qN6QO6T1Z2Q
+         sNydV+WDjiyVIpCREbtcbxGoLU85EeBWQne2K9CP3XI58aYHq6SGrL+JGGgXg1YUifo5
+         eWzVpZR9AQVi9qhK20ZU4bQxKvAwhHFnyb6Tk/Nnbtwh4n9X/CVOsPpqnFJhh1/zvsqU
+         UJuxmJnLE4tHHMHQ66OupiZ0x0JF4KwucG5eq1HZB74/cnCEnFCuQE9nmL5RtN9LwHsJ
+         tFDg==
+X-Gm-Message-State: APjAAAUKKGAgLbjbDHxID8x0A1GnKVXC5CRWQLSCWPZ9aOB3EPTEPpW0
+	iRFXBLdSp6fAt6F9bOSTXAY=
+X-Google-Smtp-Source: APXvYqzMlNjnumil4089/9G8uPqoaC1MxhFNFaUHMsfqpe5cc4iNVywNJfCAkgwHYwb8enPKrEh0Gg==
+X-Received: by 2002:a62:5ac1:: with SMTP id o184mr38187912pfb.67.1568164214174;
+        Tue, 10 Sep 2019 18:10:14 -0700 (PDT)
+Received: from localhost ([110.70.15.70])
+        by smtp.gmail.com with ESMTPSA id u16sm18945653pgm.83.2019.09.10.18.10.12
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 10 Sep 2019 18:10:13 -0700 (PDT)
+Date: Wed, 11 Sep 2019 10:10:08 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Qian Cai <cai@lca.pw>
+Cc: Petr Mladek <pmladek@suse.com>, Steven Rostedt <rostedt@goodmis.org>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will@kernel.org>,
+	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+	Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	Peter Zijlstra <peterz@infradead.org>,
+	Waiman Long <longman@redhat.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Theodore Ts'o <tytso@mit.edu>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: page_alloc.shuffle=1 + CONFIG_PROVE_LOCKING=y = arm64 hang
+Message-ID: <20190911011008.GA4420@jagdpanzerIV>
+References: <1566509603.5576.10.camel@lca.pw>
+ <1567717680.5576.104.camel@lca.pw>
+ <1568128954.5576.129.camel@lca.pw>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1568128954.5576.129.camel@lca.pw>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add docs for how to use hugetlb_cgroup reservations, and their behavior.
+Cc-ing Ted, Arnd, Greg
 
-Signed-off-by: Mina Almasry <almasrymina@google.com>
-Acked-by: Hillf Danton <hdanton@sina.com>
+On (09/10/19 11:22), Qian Cai wrote:
+> [ 1078.283869][T43784] -> #3 (&(&port->lock)->rlock){-.-.}:
+> [ 1078.291350][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5c8/0xbb=
+0
+> [ 1078.296394][T43784]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x154/0x428
+> [ 1078.301266][T43784]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock_irqsave+0x=
+80/0xa0
+> [ 1078.306831][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_port_tty_get+0x28/0x6=
+8
+> [ 1078.311873][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_port_default_wakeup+0=
+x20/0x40
+> [ 1078.317523][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_port_tty_wakeup+0x38/=
+0x48
+> [ 1078.322827][T43784]=A0=A0=A0=A0=A0=A0=A0=A0uart_write_wakeup+0x2c/0x=
+50
+> [ 1078.327956][T43784]=A0=A0=A0=A0=A0=A0=A0=A0pl011_tx_chars+0x240/0x26=
+0
+> [ 1078.332999][T43784]=A0=A0=A0=A0=A0=A0=A0=A0pl011_start_tx+0x24/0xa8
+> [ 1078.337868][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__uart_start+0x90/0xa0
+> [ 1078.342563][T43784]=A0=A0=A0=A0=A0=A0=A0=A0uart_write+0x15c/0x2c8
+> [ 1078.347261][T43784]=A0=A0=A0=A0=A0=A0=A0=A0do_output_char+0x1c8/0x2b=
+0
+> [ 1078.352304][T43784]=A0=A0=A0=A0=A0=A0=A0=A0n_tty_write+0x300/0x668
+> [ 1078.357087][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_write+0x2e8/0x430
+> [ 1078.361696][T43784]=A0=A0=A0=A0=A0=A0=A0=A0redirected_tty_write+0xcc=
+/0xe8
+> [ 1078.367086][T43784]=A0=A0=A0=A0=A0=A0=A0=A0do_iter_write+0x228/0x270
+> [ 1078.372041][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vfs_writev+0x10c/0x1c8
+> [ 1078.376735][T43784]=A0=A0=A0=A0=A0=A0=A0=A0do_writev+0xdc/0x180
+> [ 1078.381257][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__arm64_sys_writev+0x50/0=
+x60
+> [ 1078.386476][T43784]=A0=A0=A0=A0=A0=A0=A0=A0el0_svc_handler+0x11c/0x1=
+f0
+> [ 1078.391606][T43784]=A0=A0=A0=A0=A0=A0=A0=A0el0_svc+0x8/0xc
+> [ 1078.395691][T43784]=A0
+
+uart_port->lock  ->  tty_port->lock
+
+This thing along is already a bit suspicious. We re-enter tty
+here: tty -> uart -> serial -> tty
+
+And we re-enter tty under uart_port->lock.
+
+> [ 1078.395691][T43784] -> #2 (&port_lock_key){-.-.}:
+> [ 1078.402561][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5c8/0xbb=
+0
+> [ 1078.407604][T43784]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x154/0x428
+> [ 1078.412474][T43784]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock+0x68/0x88
+> [ 1078.417343][T43784]=A0=A0=A0=A0=A0=A0=A0=A0pl011_console_write+0x2ac=
+/0x318
+> [ 1078.422820][T43784]=A0=A0=A0=A0=A0=A0=A0=A0console_unlock+0x3c4/0x89=
+8
+> [ 1078.427863][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_emit+0x2d4/0x460
+> [ 1078.432732][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_default+0x48/0x58
+> [ 1078.437688][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_func+0x194/0x250
+> [ 1078.442557][T43784]=A0=A0=A0=A0=A0=A0=A0=A0printk+0xbc/0xec
+> [ 1078.446732][T43784]=A0=A0=A0=A0=A0=A0=A0=A0register_console+0x4a8/0x=
+580
+> [ 1078.451947][T43784]=A0=A0=A0=A0=A0=A0=A0=A0uart_add_one_port+0x748/0=
+x878
+> [ 1078.457250][T43784]=A0=A0=A0=A0=A0=A0=A0=A0pl011_register_port+0x98/=
+0x128
+> [ 1078.462639][T43784]=A0=A0=A0=A0=A0=A0=A0=A0sbsa_uart_probe+0x398/0x4=
+80
+> [ 1078.467772][T43784]=A0=A0=A0=A0=A0=A0=A0=A0platform_drv_probe+0x70/0=
+x108
+> [ 1078.473075][T43784]=A0=A0=A0=A0=A0=A0=A0=A0really_probe+0x15c/0x5d8
+> [ 1078.477944][T43784]=A0=A0=A0=A0=A0=A0=A0=A0driver_probe_device+0x94/=
+0x1d0
+> [ 1078.483335][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__device_attach_driver+0x=
+11c/0x1a8
+> [ 1078.489072][T43784]=A0=A0=A0=A0=A0=A0=A0=A0bus_for_each_drv+0xf8/0x1=
+58
+> [ 1078.494201][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__device_attach+0x164/0x2=
+40
+> [ 1078.499331][T43784]=A0=A0=A0=A0=A0=A0=A0=A0device_initial_probe+0x24=
+/0x30
+> [ 1078.504721][T43784]=A0=A0=A0=A0=A0=A0=A0=A0bus_probe_device+0xf0/0x1=
+00
+> [ 1078.509850][T43784]=A0=A0=A0=A0=A0=A0=A0=A0device_add+0x63c/0x960
+> [ 1078.514546][T43784]=A0=A0=A0=A0=A0=A0=A0=A0platform_device_add+0x1ac=
+/0x3b8
+> [ 1078.520023][T43784]=A0=A0=A0=A0=A0=A0=A0=A0platform_device_register_=
+full+0x1fc/0x290
+> [ 1078.526373][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_create_platform_devi=
+ce.part.0+0x264/0x3a8
+> [ 1078.533152][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_create_platform_devi=
+ce+0x68/0x80
+> [ 1078.539150][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_default_enumeration+=
+0x34/0x78
+> [ 1078.544887][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_bus_attach+0x340/0x3=
+b8
+> [ 1078.550015][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_bus_attach+0xf8/0x3b=
+8
+> [ 1078.555057][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_bus_attach+0xf8/0x3b=
+8
+> [ 1078.560099][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_bus_attach+0xf8/0x3b=
+8
+> [ 1078.565142][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_bus_scan+0x9c/0x100
+> [ 1078.570015][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_scan_init+0x16c/0x32=
+0
+> [ 1078.575058][T43784]=A0=A0=A0=A0=A0=A0=A0=A0acpi_init+0x330/0x3b8
+> [ 1078.579666][T43784]=A0=A0=A0=A0=A0=A0=A0=A0do_one_initcall+0x158/0x7=
+ec
+> [ 1078.584797][T43784]=A0=A0=A0=A0=A0=A0=A0=A0kernel_init_freeable+0x9a=
+8/0xa70
+> [ 1078.590360][T43784]=A0=A0=A0=A0=A0=A0=A0=A0kernel_init+0x18/0x138
+> [ 1078.595055][T43784]=A0=A0=A0=A0=A0=A0=A0=A0ret_from_fork+0x10/0x1c
+>
+> [ 1078.599835][T43784] -> #1 (console_owner){-...}:
+> [ 1078.606618][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5c8/0xbb=
+0
+> [ 1078.611661][T43784]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x154/0x428
+> [ 1078.616530][T43784]=A0=A0=A0=A0=A0=A0=A0=A0console_unlock+0x298/0x89=
+8
+> [ 1078.621573][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_emit+0x2d4/0x460
+> [ 1078.626442][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_default+0x48/0x58
+> [ 1078.631398][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_func+0x194/0x250
+> [ 1078.636267][T43784]=A0=A0=A0=A0=A0=A0=A0=A0printk+0xbc/0xec
+> [ 1078.640443][T43784]=A0=A0=A0=A0=A0=A0=A0=A0_warn_unseeded_randomness=
++0xb4/0xd0
+> [ 1078.646267][T43784]=A0=A0=A0=A0=A0=A0=A0=A0get_random_u64+0x4c/0x100
+> [ 1078.651224][T43784]=A0=A0=A0=A0=A0=A0=A0=A0add_to_free_area_random+0=
+x168/0x1a0
+> [ 1078.657047][T43784]=A0=A0=A0=A0=A0=A0=A0=A0free_one_page+0x3dc/0xd08
+> [ 1078.662003][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__free_pages_ok+0x490/0xd=
+00
+> [ 1078.667132][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__free_pages+0xc4/0x118
+> [ 1078.671914][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__free_pages_core+0x2e8/0=
+x428
+> [ 1078.677219][T43784]=A0=A0=A0=A0=A0=A0=A0=A0memblock_free_pages+0xa4/=
+0xec
+> [ 1078.682522][T43784]=A0=A0=A0=A0=A0=A0=A0=A0memblock_free_all+0x264/0=
+x330
+> [ 1078.687825][T43784]=A0=A0=A0=A0=A0=A0=A0=A0mem_init+0x90/0x148
+> [ 1078.692259][T43784]=A0=A0=A0=A0=A0=A0=A0=A0start_kernel+0x368/0x684
+
+zone->lock --> uart_port->lock
+
+Some debugging options/warnings/error print outs/etc introduce
+deadlock patterns.
+
+This adds zone->lock --> uart_port->lock, which then brings in
+uart_port->lock --> tty_port->lock, which in turn brings
+tty_port->lock --> zone->lock.
+
+> [ 1078.697126][T43784] -> #0 (&(&zone->lock)->rlock){-.-.}:
+> [ 1078.704604][T43784]=A0=A0=A0=A0=A0=A0=A0=A0check_prev_add+0x120/0x11=
+38
+> [ 1078.709733][T43784]=A0=A0=A0=A0=A0=A0=A0=A0validate_chain+0x888/0x12=
+70
+> [ 1078.714863][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5c8/0xbb=
+0
+> [ 1078.719906][T43784]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x154/0x428
+> [ 1078.724776][T43784]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock+0x68/0x88
+> [ 1078.729645][T43784]=A0=A0=A0=A0=A0=A0=A0=A0rmqueue_bulk.constprop.21=
++0xb0/0x1218
+> [ 1078.735643][T43784]=A0=A0=A0=A0=A0=A0=A0=A0get_page_from_freelist+0x=
+898/0x24a0
+> [ 1078.741467][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__alloc_pages_nodemask+0x=
+2a8/0x1d08
+> [ 1078.747291][T43784]=A0=A0=A0=A0=A0=A0=A0=A0alloc_pages_current+0xb4/=
+0x150
+> [ 1078.752682][T43784]=A0=A0=A0=A0=A0=A0=A0=A0allocate_slab+0xab8/0x235=
+0
+> [ 1078.757725][T43784]=A0=A0=A0=A0=A0=A0=A0=A0new_slab+0x98/0xc0
+> [ 1078.762073][T43784]=A0=A0=A0=A0=A0=A0=A0=A0___slab_alloc+0x66c/0xa30
+> [ 1078.767029][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__slab_alloc+0x68/0xc8
+> [ 1078.771725][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__kmalloc+0x3d4/0x658
+> [ 1078.776333][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__tty_buffer_request_room=
++0xd4/0x220
+> [ 1078.782244][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_insert_flip_string_fi=
+xed_flag+0x6c/0x128
+> [ 1078.788849][T43784]=A0=A0=A0=A0=A0=A0=A0=A0pty_write+0x98/0x100
+> [ 1078.793370][T43784]=A0=A0=A0=A0=A0=A0=A0=A0n_tty_write+0x2a0/0x668
+> [ 1078.798152][T43784]=A0=A0=A0=A0=A0=A0=A0=A0tty_write+0x2e8/0x430
+> [ 1078.802760][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__vfs_write+0x5c/0xb0
+> [ 1078.807368][T43784]=A0=A0=A0=A0=A0=A0=A0=A0vfs_write+0xf0/0x230
+> [ 1078.811890][T43784]=A0=A0=A0=A0=A0=A0=A0=A0ksys_write+0xd4/0x180
+> [ 1078.816498][T43784]=A0=A0=A0=A0=A0=A0=A0=A0__arm64_sys_write+0x4c/0x=
+60
+> [ 1078.821627][T43784]=A0=A0=A0=A0=A0=A0=A0=A0el0_svc_handler+0x11c/0x1=
+f0
+> [ 1078.826756][T43784]=A0=A0=A0=A0=A0=A0=A0=A0el0_svc+0x8/0xc
+
+tty_port->lock --> zone->lock
+
+> [ 1078.830842][T43784] other info that might help us debug this:
+> [ 1078.830842][T43784]=A0
+> [ 1078.840918][T43784] Chain exists of:
+> [ 1078.840918][T43784]=A0=A0=A0&(&zone->lock)->rlock --> &port_lock_key=
+ --> &(&port-> >lock)->rlock
+> [ 1078.840918][T43784]=A0
+> [ 1078.854731][T43784]=A0=A0Possible unsafe locking scenario:
+> [ 1078.854731][T43784]=A0
+> [ 1078.862029][T43784]=A0=A0=A0=A0=A0=A0=A0=A0CPU0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0CPU1
+> [ 1078.867243][T43784]=A0=A0=A0=A0=A0=A0=A0=A0----=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0----
+> [ 1078.872457][T43784]=A0=A0=A0lock(&(&port->lock)->rlock);
+> [ 1078.877238][T43784]=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0lock(&port_lock_key);
+> [ 1078.883929][T43784]=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0lock(&(&port->lock)->rlock);
+> [ 1078.891228][T43784]=A0=A0=A0lock(&(&zone->lock)->rlock);
+> [ 1078.896010][T43784]=A0
+> [ 1078.896010][T43784]=A0=A0*** DEADLOCK ***
+[..]
+> [ 1078.980932][T43784]=A0=A0dump_backtrace+0x0/0x228
+> [ 1078.985279][T43784]=A0=A0show_stack+0x24/0x30
+> [ 1078.989282][T43784]=A0=A0dump_stack+0xe8/0x13c
+> [ 1078.993370][T43784]=A0=A0print_circular_bug+0x334/0x3d8
+> [ 1078.998240][T43784]=A0=A0check_noncircular+0x268/0x310
+> [ 1079.003022][T43784]=A0=A0check_prev_add+0x120/0x1138
+> [ 1079.007631][T43784]=A0=A0validate_chain+0x888/0x1270
+> [ 1079.012241][T43784]=A0=A0__lock_acquire+0x5c8/0xbb0
+> [ 1079.016763][T43784]=A0=A0lock_acquire+0x154/0x428
+> [ 1079.021111][T43784]=A0=A0_raw_spin_lock+0x68/0x88
+> [ 1079.025460][T43784]=A0=A0rmqueue_bulk.constprop.21+0xb0/0x1218
+> [ 1079.030937][T43784]=A0=A0get_page_from_freelist+0x898/0x24a0
+> [ 1079.036240][T43784]=A0=A0__alloc_pages_nodemask+0x2a8/0x1d08
+> [ 1079.041542][T43784]=A0=A0alloc_pages_current+0xb4/0x150
+> [ 1079.046412][T43784]=A0=A0allocate_slab+0xab8/0x2350
+> [ 1079.050934][T43784]=A0=A0new_slab+0x98/0xc0
+> [ 1079.054761][T43784]=A0=A0___slab_alloc+0x66c/0xa30
+> [ 1079.059196][T43784]=A0=A0__slab_alloc+0x68/0xc8
+> [ 1079.063371][T43784]=A0=A0__kmalloc+0x3d4/0x658
+> [ 1079.067458][T43784]=A0=A0__tty_buffer_request_room+0xd4/0x220
+> [ 1079.072847][T43784]=A0=A0tty_insert_flip_string_fixed_flag+0x6c/0x12=
+8
+> [ 1079.078932][T43784]=A0=A0pty_write+0x98/0x100
+> [ 1079.082932][T43784]=A0=A0n_tty_write+0x2a0/0x668
+> [ 1079.087193][T43784]=A0=A0tty_write+0x2e8/0x430
+> [ 1079.091280][T43784]=A0=A0__vfs_write+0x5c/0xb0
+> [ 1079.095367][T43784]=A0=A0vfs_write+0xf0/0x230
+> [ 1079.099368][T43784]=A0=A0ksys_write+0xd4/0x180
+> [ 1079.103455][T43784]=A0=A0__arm64_sys_write+0x4c/0x60
+> [ 1079.108064][T43784]=A0=A0el0_svc_handler+0x11c/0x1f0
+> [ 1079.112672][T43784]=A0=A0el0_svc+0x8/0xc
+
+tty_port->lock --> zone->lock
+
+For instance, I don't really like the re-entrant tty, at least not
+under uart_port->lock. This, maybe, can be one of the solutions.
+
+Another one, a quick and dirty one, (and so many people will blame
+me for this) would be to break zone->{printk}->uart chain...
+
+Something like this
+
 ---
- .../admin-guide/cgroup-v1/hugetlb.rst         | 84 ++++++++++++++++---
- 1 file changed, 73 insertions(+), 11 deletions(-)
 
-diff --git a/Documentation/admin-guide/cgroup-v1/hugetlb.rst b/Documentation/admin-guide/cgroup-v1/hugetlb.rst
-index a3902aa253a96..cc6eb859fc722 100644
---- a/Documentation/admin-guide/cgroup-v1/hugetlb.rst
-+++ b/Documentation/admin-guide/cgroup-v1/hugetlb.rst
-@@ -2,13 +2,6 @@
- HugeTLB Controller
- ==================
+ drivers/char/random.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
--The HugeTLB controller allows to limit the HugeTLB usage per control group and
--enforces the controller limit during page fault. Since HugeTLB doesn't
--support page reclaim, enforcing the limit at page fault time implies that,
--the application will get SIGBUS signal if it tries to access HugeTLB pages
--beyond its limit. This requires the application to know beforehand how much
--HugeTLB pages it would require for its use.
--
- HugeTLB controller can be created by first mounting the cgroup filesystem.
-
- # mount -t cgroup -o hugetlb none /sys/fs/cgroup
-@@ -28,10 +21,14 @@ process (bash) into it.
-
- Brief summary of control files::
-
-- hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
-- hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-- hugetlb.<hugepagesize>.usage_in_bytes     # show current usage for "hugepagesize" hugetlb
-- hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
-+ hugetlb.<hugepagesize>.reservation_limit_in_bytes     # set/show limit of "hugepagesize" hugetlb reservations
-+ hugetlb.<hugepagesize>.reservation_max_usage_in_bytes # show max "hugepagesize" hugetlb reservations recorded
-+ hugetlb.<hugepagesize>.reservation_usage_in_bytes     # show current reservations for "hugepagesize" hugetlb
-+ hugetlb.<hugepagesize>.reservation_failcnt            # show the number of allocation failure due to HugeTLB reservation limit
-+ hugetlb.<hugepagesize>.limit_in_bytes                 # set/show limit of "hugepagesize" hugetlb faults
-+ hugetlb.<hugepagesize>.max_usage_in_bytes             # show max "hugepagesize" hugetlb  usage recorded
-+ hugetlb.<hugepagesize>.usage_in_bytes                 # show current usage for "hugepagesize" hugetlb
-+ hugetlb.<hugepagesize>.failcnt                        # show the number of allocation failure due to HugeTLB usage limit
-
- For a system supporting three hugepage sizes (64k, 32M and 1G), the control
- files include::
-@@ -40,11 +37,76 @@ files include::
-   hugetlb.1GB.max_usage_in_bytes
-   hugetlb.1GB.usage_in_bytes
-   hugetlb.1GB.failcnt
-+  hugetlb.1GB.reservation_limit_in_bytes
-+  hugetlb.1GB.reservation_max_usage_in_bytes
-+  hugetlb.1GB.reservation_usage_in_bytes
-+  hugetlb.1GB.reservation_failcnt
-   hugetlb.64KB.limit_in_bytes
-   hugetlb.64KB.max_usage_in_bytes
-   hugetlb.64KB.usage_in_bytes
-   hugetlb.64KB.failcnt
-+  hugetlb.64KB.reservation_limit_in_bytes
-+  hugetlb.64KB.reservation_max_usage_in_bytes
-+  hugetlb.64KB.reservation_usage_in_bytes
-+  hugetlb.64KB.reservation_failcnt
-   hugetlb.32MB.limit_in_bytes
-   hugetlb.32MB.max_usage_in_bytes
-   hugetlb.32MB.usage_in_bytes
-   hugetlb.32MB.failcnt
-+  hugetlb.32MB.reservation_limit_in_bytes
-+  hugetlb.32MB.reservation_max_usage_in_bytes
-+  hugetlb.32MB.reservation_usage_in_bytes
-+  hugetlb.32MB.reservation_failcnt
-+
-+
-+1. Reservation limits
-+
-+The HugeTLB controller allows to limit the HugeTLB reservations per control
-+group and enforces the controller limit at reservation time. Reservation limits
-+are superior to Page fault limits (see section 2), since Reservation limits are
-+enforced at reservation time, and never causes the application to get SIGBUS
-+signal. Instead, if the application is violating its limits, then it gets an
-+error on reservation time, i.e. the mmap or shmget return an error.
-+
-+
-+2. Page fault limits
-+
-+The HugeTLB controller allows to limit the HugeTLB usage (page fault) per
-+control group and enforces the controller limit during page fault. Since HugeTLB
-+doesn't support page reclaim, enforcing the limit at page fault time implies
-+that, the application will get SIGBUS signal if it tries to access HugeTLB
-+pages beyond its limit. This requires the application to know beforehand how
-+much HugeTLB pages it would require for its use.
-+
-+
-+3. Caveats with shared memory
-+
-+a. Charging and uncharging:
-+
-+For shared hugetlb memory, both hugetlb reservation and usage (page faults) are
-+charged to the first task that causes the memory to be reserved or faulted,
-+and all subsequent uses of this reserved or faulted memory is done without
-+charging.
-+
-+Shared hugetlb memory is only uncharged when it is unreseved or deallocated.
-+This is usually when the hugetlbfs file is deleted, and not when the task that
-+caused the reservation or fault has exited.
-+
-+b. Interaction between reservation limit and fault limit.
-+
-+Generally, it's not recommended to set both of the reservation limit and fault
-+limit in a cgroup. For private memory, the fault usage cannot exceed the
-+reservation usage, so if you set both, one of those limits will be useless.
-+
-+For shared memory, a cgroup's fault usage may be greater than its reservation
-+usage, so some care needs to be taken. Consider this example:
-+
-+- Task A reserves 4 pages in a shared hugetlbfs file. Cgroup A will get
-+  4 reservations charged to it and no faults charged to it.
-+- Task B reserves and faults the same 4 pages as Task A. Cgroup B will get no
-+  reservation charge, but will get charged 4 faulted pages. If Cgroup B's limit
-+  is less than 4, then Task B will get a SIGBUS.
-+
-+For the above scenario, it's not recommended for the userspace to set both
-+reservation limits and fault limits, but it is still allowed to in case it sees
-+some use for it.
---
-2.23.0.162.g0b9fbb3734-goog
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+index 9b54cdb301d3..975015857200 100644
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -1687,8 +1687,9 @@ static void _warn_unseeded_randomness(const char *f=
+unc_name, void *caller,
+ 	print_once =3D true;
+ #endif
+ 	if (__ratelimit(&unseeded_warning))
+-		pr_notice("random: %s called from %pS with crng_init=3D%d\n",
+-			  func_name, caller, crng_init);
++		printk_deferred(KERN_NOTICE "random: %s called from %pS "
++				"with crng_init=3D%d\n", func_name, caller,
++				crng_init);
+ }
+=20
+ /*
+@@ -2462,4 +2463,4 @@ void add_bootloader_randomness(const void *buf, uns=
+igned int size)
+ 	else
+ 		add_device_randomness(buf, size);
+ }
+-EXPORT_SYMBOL_GPL(add_bootloader_randomness);
+\ No newline at end of file
++EXPORT_SYMBOL_GPL(add_bootloader_randomness);
 
