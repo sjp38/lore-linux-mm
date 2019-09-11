@@ -2,68 +2,69 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
+X-Spam-Status: No, score=-10.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3C99ECDE27
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:10:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 874DAECDE28
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:10:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B63B6222C0
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:10:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B63B6222C0
+	by mail.kernel.org (Postfix) with ESMTP id 3C2D0222BF
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:10:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C2D0222BF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 481816B0006; Wed, 11 Sep 2019 03:10:26 -0400 (EDT)
+	id DF72C6B0007; Wed, 11 Sep 2019 03:10:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 458EF6B0007; Wed, 11 Sep 2019 03:10:26 -0400 (EDT)
+	id DCEC26B0008; Wed, 11 Sep 2019 03:10:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36EE16B0008; Wed, 11 Sep 2019 03:10:26 -0400 (EDT)
+	id CE4096B000A; Wed, 11 Sep 2019 03:10:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FB16B0006
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 03:10:26 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 61F71181AC9CB
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:25 +0000 (UTC)
-X-FDA: 75921766410.27.trees05_77f1a947a0612
-X-HE-Tag: trees05_77f1a947a0612
-X-Filterd-Recvd-Size: 6527
+Received: from forelay.hostedemail.com (smtprelay0069.hostedemail.com [216.40.44.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2E36B0007
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 03:10:31 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 4AB69180AD80C
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:31 +0000 (UTC)
+X-FDA: 75921766662.10.sack91_78dae4b163419
+X-HE-Tag: sack91_78dae4b163419
+X-Filterd-Recvd-Size: 11206
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:24 +0000 (UTC)
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:30 +0000 (UTC)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id DAE9E7BDD1
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:22 +0000 (UTC)
-Received: by mail-pf1-f199.google.com with SMTP id f2so15009393pfk.13
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 00:10:22 -0700 (PDT)
+	by mx1.redhat.com (Postfix) with ESMTPS id 51F964E93D
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:10:29 +0000 (UTC)
+Received: by mail-pf1-f198.google.com with SMTP id w16so15021508pfj.9
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 00:10:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=Z6bU0DABfNT+bNkpJjwoTv7ZeQvLLitBOUD6BWG7TU8=;
-        b=fsnfiqljKBPVE00W0lGNB2sy4zQWGn6n99QIDyLz+RDQbEAQoYw1OWf/YE06W5SFYS
-         sCUJhh/M6qKoGz90pe7MFiesI8FYUmxWG8FCKkgWiRwWIVUgjWoC9oy4v5lbVKK4/YAM
-         5i7V6tgjW8hcd/dqYj6P+2O+CZAjbmOz9yqv3b4m9m94xUHeXhsivvB2UJbIQ+IQtUq/
-         RZg+yJb9ZOloY5SoklkyRgtfee2DGK4ywqTPvH0LY4sxpR3C5MTmzasc44OrjvK577Dv
-         1XvFZTZreCq8Z+4UPeH43JZxpTGqX3BNvTm6GW8ru18GXg7iSL5R82r0vSiubqL6lhIH
-         A3xw==
-X-Gm-Message-State: APjAAAXPaM5V2Ig0G7UEhhCPk60shxRyp3xCGU0P3iBgo0Gwht4QUMgU
-	fTBHyTn8QmNUb74mHQ6IfmyMPNByw4fJyDhtKjr+pHn+laEkcsJWO1kVyCmYAt7gyOHhQlEEtoM
-	B7xN7C/vv9bI=
-X-Received: by 2002:a63:4a51:: with SMTP id j17mr31549988pgl.284.1568185821863;
-        Wed, 11 Sep 2019 00:10:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyx76ttPQ3MnRNAef1miRs8CQvNZFBrwVZL+gMCq3ehAAxKzSGX55Rh3xVKkY+K8a4Dqpyy8Q==
-X-Received: by 2002:a63:4a51:: with SMTP id j17mr31549958pgl.284.1568185821499;
-        Wed, 11 Sep 2019 00:10:21 -0700 (PDT)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=8UHD8q1/U4+zJWZ0Rga+lE/MalvoU0sZjG3OOCHgurM=;
+        b=ngSUy1rbE2g5TzxgqL//0rf6xc1M9pyHAvvGsrwP/AeWAYa+8L/tHHw9F7y9oeBdfA
+         BQkeBGo3cvyIC163Gt3L4WQb4DfLovuaiNl6vuCSSvN7KpomPNXvL0SfKeRGatUaOdtK
+         w49M0w+4UapmS/u3tGRwdh26NBiPn7pR1fQDggi5FF5U13mkT0SUba/SbPxMqYtYsR+G
+         ufbHrXxPWwQOnYzfrweG6BnEksadfZk4Y044aml6IweBrjHjYUwb9kLMmQDFx4JMtjpS
+         MsDPC3jPGaHqQepBA9ROACSR5S+SYPE3L2JI7KXtQOwzOELEC9bYoiMTJsbf/CN02Tsp
+         iM5A==
+X-Gm-Message-State: APjAAAVGu9OMMPgKFyxOh+NsfS6dq2coUTFEk56SntJWa8C5i9zWjedX
+	8yNu+KvJmjjrnmmuOV6Z/toJCmkGrpnTsnsUaOi/YlT1QfrMcrpuVRqwgdDFXCRN1s2xxAGQqDK
+	kEslH1aK+kSU=
+X-Received: by 2002:a63:36c4:: with SMTP id d187mr5220191pga.262.1568185828290;
+        Wed, 11 Sep 2019 00:10:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygqDcGnNZXvjBdxKGSiB6776Xw6PNFyorhND4rsWkFNwzyhaKjXod9pwhAnCIYE0MjnqA0Fg==
+X-Received: by 2002:a63:36c4:: with SMTP id d187mr5220154pga.262.1568185827979;
+        Wed, 11 Sep 2019 00:10:27 -0700 (PDT)
 Received: from xz-x1.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id j10sm1573091pjn.3.2019.09.11.00.10.15
+        by smtp.gmail.com with ESMTPSA id j10sm1573091pjn.3.2019.09.11.00.10.21
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 11 Sep 2019 00:10:20 -0700 (PDT)
+        Wed, 11 Sep 2019 00:10:27 -0700 (PDT)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -85,10 +86,12 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v3 0/7] mm: Page fault enhancements
-Date: Wed, 11 Sep 2019 15:10:00 +0800
-Message-Id: <20190911071007.20077-1-peterx@redhat.com>
+Subject: [PATCH v3 1/7] mm/gup: Rename "nonblocking" to "locked" where proper
+Date: Wed, 11 Sep 2019 15:10:01 +0800
+Message-Id: <20190911071007.20077-2-peterx@redhat.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190911071007.20077-1-peterx@redhat.com>
+References: <20190911071007.20077-1-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -97,90 +100,210 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-v3:
-- check fatal signals in __get_user_page_locked() [Linus]
-- add r-bs
+There's plenty of places around __get_user_pages() that has a parameter
+"nonblocking" which does not really mean that "it won't block" (because
+it can really block) but instead it shows whether the mmap_sem is
+released by up_read() during the page fault handling mostly when
+VM_FAULT_RETRY is returned.
 
-v2:
-- resent previous version, rebase only
+We have the correct naming in e.g. get_user_pages_locked() or
+get_user_pages_remote() as "locked", however there're still many places
+that are using the "nonblocking" as name.
 
-This series is split out of userfaultfd-wp series to only cover the
-general page fault changes, since it seems to make sense itself.
+Renaming the places to "locked" where proper to better suite the
+functionality of the variable.  While at it, fixing up some of the
+comments accordingly.
 
-Basically it does two things:
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Peter Xu <peterx@redhat.com>
+---
+ mm/gup.c     | 44 +++++++++++++++++++++-----------------------
+ mm/hugetlb.c |  8 ++++----
+ 2 files changed, 25 insertions(+), 27 deletions(-)
 
-  (a) Allows the page fault handlers to be more interactive on not
-      only SIGKILL, but also the rest of userspace signals (especially
-      for user-mode faults), and,
-
-  (b) Allows the page fault retry (VM_FAULT_RETRY) to happen for more
-      than once.
-
-I'm keeping the CC list as in uffd-wp v5, hopefully I'm not sending
-too much spams...
-
-And, instead of writting again the cover letter, I'm just copy-pasting
-my previous link here which has more details on why we do this:
-
-  https://patchwork.kernel.org/cover/10691991/
-
-The major change from that latest version should be that we introduced
-a new page fault flag FAULT_FLAG_INTERRUPTIBLE as suggested by Linus
-[1] to represents that we would like the fault handler to respond to
-non-fatal signals.  Also, we're more careful now on when to do the
-immediate return of the page fault for such signals.  For example, now
-we'll only check against signal_pending() for user-mode page faults
-and we keep the kernel-mode page fault patch untouched for it.  More
-information can be found in separate patches.
-
-The patchset is only lightly tested on x86.
-
-All comments are greatly welcomed.  Thanks,
-
-[1] https://lkml.org/lkml/2019/6/25/1382
-
-Peter Xu (7):
-  mm/gup: Rename "nonblocking" to "locked" where proper
-  mm: Introduce FAULT_FLAG_DEFAULT
-  mm: Introduce FAULT_FLAG_INTERRUPTIBLE
-  mm: Return faster for non-fatal signals in user mode faults
-  userfaultfd: Don't retake mmap_sem to emulate NOPAGE
-  mm: Allow VM_FAULT_RETRY for multiple times
-  mm/gup: Allow VM_FAULT_RETRY for multiple times
-
- arch/alpha/mm/fault.c           |  7 +--
- arch/arc/mm/fault.c             |  8 +++-
- arch/arm/mm/fault.c             | 14 +++---
- arch/arm64/mm/fault.c           | 16 +++----
- arch/hexagon/mm/vm_fault.c      |  6 +--
- arch/ia64/mm/fault.c            |  6 +--
- arch/m68k/mm/fault.c            | 10 ++--
- arch/microblaze/mm/fault.c      |  6 +--
- arch/mips/mm/fault.c            |  6 +--
- arch/nds32/mm/fault.c           | 12 ++---
- arch/nios2/mm/fault.c           |  8 ++--
- arch/openrisc/mm/fault.c        |  6 +--
- arch/parisc/mm/fault.c          |  9 ++--
- arch/powerpc/mm/fault.c         | 10 ++--
- arch/riscv/mm/fault.c           | 12 ++---
- arch/s390/mm/fault.c            | 11 ++---
- arch/sh/mm/fault.c              |  7 ++-
- arch/sparc/mm/fault_32.c        |  5 +-
- arch/sparc/mm/fault_64.c        |  6 +--
- arch/um/kernel/trap.c           |  7 +--
- arch/unicore32/mm/fault.c       | 11 ++---
- arch/x86/mm/fault.c             |  6 +--
- arch/xtensa/mm/fault.c          |  6 +--
- drivers/gpu/drm/ttm/ttm_bo_vm.c | 12 +++--
- fs/userfaultfd.c                | 28 +-----------
- include/linux/mm.h              | 81 +++++++++++++++++++++++++++++----
- include/linux/sched/signal.h    | 12 +++++
- mm/filemap.c                    |  2 +-
- mm/gup.c                        | 69 ++++++++++++++++------------
- mm/hugetlb.c                    | 14 +++---
- mm/shmem.c                      |  2 +-
- 31 files changed, 234 insertions(+), 181 deletions(-)
-
+diff --git a/mm/gup.c b/mm/gup.c
+index 98f13ab37bac..eddbb95dcb8f 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -622,12 +622,12 @@ static int get_gate_page(struct mm_struct *mm, unsi=
+gned long address,
+ }
+=20
+ /*
+- * mmap_sem must be held on entry.  If @nonblocking !=3D NULL and
+- * *@flags does not include FOLL_NOWAIT, the mmap_sem may be released.
+- * If it is, *@nonblocking will be set to 0 and -EBUSY returned.
++ * mmap_sem must be held on entry.  If @locked !=3D NULL and *@flags
++ * does not include FOLL_NOWAIT, the mmap_sem may be released.  If it
++ * is, *@locked will be set to 0 and -EBUSY returned.
+  */
+ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *=
+vma,
+-		unsigned long address, unsigned int *flags, int *nonblocking)
++		unsigned long address, unsigned int *flags, int *locked)
+ {
+ 	unsigned int fault_flags =3D 0;
+ 	vm_fault_t ret;
+@@ -639,7 +639,7 @@ static int faultin_page(struct task_struct *tsk, stru=
+ct vm_area_struct *vma,
+ 		fault_flags |=3D FAULT_FLAG_WRITE;
+ 	if (*flags & FOLL_REMOTE)
+ 		fault_flags |=3D FAULT_FLAG_REMOTE;
+-	if (nonblocking)
++	if (locked)
+ 		fault_flags |=3D FAULT_FLAG_ALLOW_RETRY;
+ 	if (*flags & FOLL_NOWAIT)
+ 		fault_flags |=3D FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+@@ -665,8 +665,8 @@ static int faultin_page(struct task_struct *tsk, stru=
+ct vm_area_struct *vma,
+ 	}
+=20
+ 	if (ret & VM_FAULT_RETRY) {
+-		if (nonblocking && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+-			*nonblocking =3D 0;
++		if (locked && !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
++			*locked =3D 0;
+ 		return -EBUSY;
+ 	}
+=20
+@@ -743,7 +743,7 @@ static int check_vma_flags(struct vm_area_struct *vma=
+, unsigned long gup_flags)
+  *		only intends to ensure the pages are faulted in.
+  * @vmas:	array of pointers to vmas corresponding to each page.
+  *		Or NULL if the caller does not require them.
+- * @nonblocking: whether waiting for disk IO or mmap_sem contention
++ * @locked:     whether we're still with the mmap_sem held
+  *
+  * Returns number of pages pinned. This may be fewer than the number
+  * requested. If nr_pages is 0 or negative, returns 0. If no pages
+@@ -772,13 +772,11 @@ static int check_vma_flags(struct vm_area_struct *v=
+ma, unsigned long gup_flags)
+  * appropriate) must be called after the page is finished with, and
+  * before put_page is called.
+  *
+- * If @nonblocking !=3D NULL, __get_user_pages will not wait for disk IO
+- * or mmap_sem contention, and if waiting is needed to pin all pages,
+- * *@nonblocking will be set to 0.  Further, if @gup_flags does not
+- * include FOLL_NOWAIT, the mmap_sem will be released via up_read() in
+- * this case.
++ * If @locked !=3D NULL, *@locked will be set to 0 when mmap_sem is
++ * released by an up_read().  That can happen if @gup_flags does not
++ * have FOLL_NOWAIT.
+  *
+- * A caller using such a combination of @nonblocking and @gup_flags
++ * A caller using such a combination of @locked and @gup_flags
+  * must therefore hold the mmap_sem for reading only, and recognize
+  * when it's been released.  Otherwise, it must be held for either
+  * reading or writing and will not be released.
+@@ -790,7 +788,7 @@ static int check_vma_flags(struct vm_area_struct *vma=
+, unsigned long gup_flags)
+ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *=
+mm,
+ 		unsigned long start, unsigned long nr_pages,
+ 		unsigned int gup_flags, struct page **pages,
+-		struct vm_area_struct **vmas, int *nonblocking)
++		struct vm_area_struct **vmas, int *locked)
+ {
+ 	long ret =3D 0, i =3D 0;
+ 	struct vm_area_struct *vma =3D NULL;
+@@ -834,7 +832,7 @@ static long __get_user_pages(struct task_struct *tsk,=
+ struct mm_struct *mm,
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i =3D follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+-						gup_flags, nonblocking);
++						gup_flags, locked);
+ 				continue;
+ 			}
+ 		}
+@@ -852,7 +850,7 @@ static long __get_user_pages(struct task_struct *tsk,=
+ struct mm_struct *mm,
+ 		page =3D follow_page_mask(vma, start, foll_flags, &ctx);
+ 		if (!page) {
+ 			ret =3D faultin_page(tsk, vma, start, &foll_flags,
+-					nonblocking);
++					   locked);
+ 			switch (ret) {
+ 			case 0:
+ 				goto retry;
+@@ -1178,7 +1176,7 @@ EXPORT_SYMBOL(get_user_pages_remote);
+  * @vma:   target vma
+  * @start: start address
+  * @end:   end address
+- * @nonblocking:
++ * @locked: whether the mmap_sem is still held
+  *
+  * This takes care of mlocking the pages too if VM_LOCKED is set.
+  *
+@@ -1186,14 +1184,14 @@ EXPORT_SYMBOL(get_user_pages_remote);
+  *
+  * vma->vm_mm->mmap_sem must be held.
+  *
+- * If @nonblocking is NULL, it may be held for read or write and will
++ * If @locked is NULL, it may be held for read or write and will
+  * be unperturbed.
+  *
+- * If @nonblocking is non-NULL, it must held for read only and may be
+- * released.  If it's released, *@nonblocking will be set to 0.
++ * If @locked is non-NULL, it must held for read only and may be
++ * released.  If it's released, *@locked will be set to 0.
+  */
+ long populate_vma_page_range(struct vm_area_struct *vma,
+-		unsigned long start, unsigned long end, int *nonblocking)
++		unsigned long start, unsigned long end, int *locked)
+ {
+ 	struct mm_struct *mm =3D vma->vm_mm;
+ 	unsigned long nr_pages =3D (end - start) / PAGE_SIZE;
+@@ -1228,7 +1226,7 @@ long populate_vma_page_range(struct vm_area_struct =
+*vma,
+ 	 * not result in a stack expansion that recurses back here.
+ 	 */
+ 	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
+-				NULL, NULL, nonblocking);
++				NULL, NULL, locked);
+ }
+=20
+ /*
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ede7e7f5d1ab..5f816ee42206 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4251,7 +4251,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_=
+mm,
+ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vm=
+a,
+ 			 struct page **pages, struct vm_area_struct **vmas,
+ 			 unsigned long *position, unsigned long *nr_pages,
+-			 long i, unsigned int flags, int *nonblocking)
++			 long i, unsigned int flags, int *locked)
+ {
+ 	unsigned long pfn_offset;
+ 	unsigned long vaddr =3D *position;
+@@ -4322,7 +4322,7 @@ long follow_hugetlb_page(struct mm_struct *mm, stru=
+ct vm_area_struct *vma,
+ 				spin_unlock(ptl);
+ 			if (flags & FOLL_WRITE)
+ 				fault_flags |=3D FAULT_FLAG_WRITE;
+-			if (nonblocking)
++			if (locked)
+ 				fault_flags |=3D FAULT_FLAG_ALLOW_RETRY;
+ 			if (flags & FOLL_NOWAIT)
+ 				fault_flags |=3D FAULT_FLAG_ALLOW_RETRY |
+@@ -4339,9 +4339,9 @@ long follow_hugetlb_page(struct mm_struct *mm, stru=
+ct vm_area_struct *vma,
+ 				break;
+ 			}
+ 			if (ret & VM_FAULT_RETRY) {
+-				if (nonblocking &&
++				if (locked &&
+ 				    !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+-					*nonblocking =3D 0;
++					*locked =3D 0;
+ 				*nr_pages =3D 0;
+ 				/*
+ 				 * VM_FAULT_RETRY must not return an
 --=20
 2.21.0
 
