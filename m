@@ -3,52 +3,59 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13BB3C5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:27:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F5EEC5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:31:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D45602082C
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:27:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D45602082C
+	by mail.kernel.org (Postfix) with ESMTP id 1273D222C1
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:31:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1273D222C1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 833736B0005; Wed, 11 Sep 2019 06:27:27 -0400 (EDT)
+	id 9DE5D6B0005; Wed, 11 Sep 2019 06:31:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E44D6B0006; Wed, 11 Sep 2019 06:27:27 -0400 (EDT)
+	id 9901C6B0006; Wed, 11 Sep 2019 06:31:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FA5F6B0007; Wed, 11 Sep 2019 06:27:27 -0400 (EDT)
+	id 87C836B0007; Wed, 11 Sep 2019 06:31:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0052.hostedemail.com [216.40.44.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F2436B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:27:27 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E2B966D97
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:27:26 +0000 (UTC)
-X-FDA: 75922262892.10.leaf19_5df7437a57063
-X-HE-Tag: leaf19_5df7437a57063
-X-Filterd-Recvd-Size: 5418
+Received: from forelay.hostedemail.com (smtprelay0199.hostedemail.com [216.40.44.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 61C1E6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:31:55 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 0B85183FA
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:31:55 +0000 (UTC)
+X-FDA: 75922274190.01.curve41_8511431f19819
+X-HE-Tag: curve41_8511431f19819
+X-Filterd-Recvd-Size: 7784
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:27:25 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	by imf32.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:31:54 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CF52B10DCCA9;
-	Wed, 11 Sep 2019 10:27:24 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6664518C429A;
+	Wed, 11 Sep 2019 10:31:53 +0000 (UTC)
 Received: from [10.36.117.155] (ovpn-117-155.ams2.redhat.com [10.36.117.155])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7B79160852;
-	Wed, 11 Sep 2019 10:27:23 +0000 (UTC)
-Subject: Re: [PATCH 02/10] mm,madvise: call soft_offline_page() without
- MF_COUNT_INCREASED
-To: Oscar Salvador <osalvador@suse.de>, n-horiguchi@ah.jp.nec.com
-Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190910103016.14290-1-osalvador@suse.de>
- <20190910103016.14290-3-osalvador@suse.de>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BA1F25D6A5;
+	Wed, 11 Sep 2019 10:31:48 +0000 (UTC)
+Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
+To: Catalin Marinas <catalin.marinas@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+ will@kernel.org, mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
+ cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com,
+ mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
+ steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
+ Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
+References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+ <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
+ <20190910161759.GI14442@C02TF0J2HF1T.local>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -95,39 +102,75 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <a2ec3629-3671-cdb4-70e8-2c7e327444e9@redhat.com>
-Date: Wed, 11 Sep 2019 12:27:22 +0200
+Message-ID: <eede2498-b2fa-9905-9020-31337045b00d@redhat.com>
+Date: Wed, 11 Sep 2019 12:31:47 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190910103016.14290-3-osalvador@suse.de>
+In-Reply-To: <20190910161759.GI14442@C02TF0J2HF1T.local>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.64]); Wed, 11 Sep 2019 10:27:24 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.62]); Wed, 11 Sep 2019 10:31:53 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10.09.19 12:30, Oscar Salvador wrote:
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->=20
-> Currently madvise_inject_error() pins the target via get_user_pages_fas=
-t.
-> The call to get_user_pages_fast is only to get the respective page
-> of a given address, but it is the job of the memory-poisoning handler
-> to deal with races, so drop the refcount grabbed by get_user_pages_fast=
-.
->=20
+On 10.09.19 18:17, Catalin Marinas wrote:
+> On Tue, Sep 03, 2019 at 03:15:58PM +0530, Anshuman Khandual wrote:
+>> @@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+>>  void vmemmap_free(unsigned long start, unsigned long end,
+>>  		struct vmem_altmap *altmap)
+>>  {
+>> +#ifdef CONFIG_MEMORY_HOTPLUG
+>> +	/*
+>> +	 * FIXME: We should have called remove_pagetable(start, end, true).
+>> +	 * vmemmap and vmalloc virtual range might share intermediate kernel
+>> +	 * page table entries. Removing vmemmap range page table pages here
+>> +	 * can potentially conflict with a concurrent vmalloc() allocation.
+>> +	 *
+>> +	 * This is primarily because vmalloc() does not take init_mm ptl for
+>> +	 * the entire page table walk and it's modification. Instead it just
+>> +	 * takes the lock while allocating and installing page table pages
+>> +	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
+>> +	 * entry via memory hot remove can cause vmalloc() kernel page table
+>> +	 * walk pointers to be invalid on the fly which can cause corruption
+>> +	 * or worst, a crash.
+>> +	 *
+>> +	 * So free_empty_tables() gets called where vmalloc and vmemmap range
+>> +	 * do not overlap at any intermediate level kernel page table entry.
+>> +	 */
+>> +	unmap_hotplug_range(start, end, true);
+>> +	if (!vmalloc_vmemmap_overlap)
+>> +		free_empty_tables(start, end);
+>> +#endif
+>>  }
+>>  #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+> 
+> I wonder whether we could simply ignore the vmemmap freeing altogether,
+> just leave it around and not unmap it. This way, we could call
+> unmap_kernel_range() for removing the linear map and we save some code.
+> 
+> For the linear map, I think we use just above 2MB of tables for 1GB of
+> memory mapped (worst case with 4KB pages we need 512 pte pages). For
+> vmemmap we'd use slightly above 2MB for a 64GB hotplugged memory. Do we
+> expect such memory to be re-plugged again in the same range? If we do,
+> then I shouldn't even bother with removing the vmmemmap.
+> 
 
-Oh, and another question "it is the job of the memory-poisoning handler"
-- is that already properly implemented? (newbee question =C2=AF\_(=E3=83=84=
-)_/=C2=AF)
+FWIW, I think we should do it cleanly.
 
---=20
+> I don't fully understand the use-case for memory hotremove, so any
+> additional info would be useful to make a decision here.
+> 
+
+Especially in virtual environment, hotremove will be relevant. For
+physical environments - I have no idea how important that is for ARM.
+
+-- 
 
 Thanks,
 
