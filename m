@@ -4,60 +4,51 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66A1EC5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:16:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E87DEC5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:17:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25CC82084D
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:16:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25CC82084D
+	by mail.kernel.org (Postfix) with ESMTP id B8BEB207FC
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:17:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8BEB207FC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B23026B0005; Wed, 11 Sep 2019 06:16:01 -0400 (EDT)
+	id 4E1586B0005; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD3916B0006; Wed, 11 Sep 2019 06:16:01 -0400 (EDT)
+	id 4B9856B0006; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C2A66B0007; Wed, 11 Sep 2019 06:16:01 -0400 (EDT)
+	id 3A7956B0007; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C5266B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:16:01 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 0C97F824376A
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:16:01 +0000 (UTC)
-X-FDA: 75922234122.16.legs23_8bbf92998bf47
-X-HE-Tag: legs23_8bbf92998bf47
-X-Filterd-Recvd-Size: 10075
+Received: from forelay.hostedemail.com (smtprelay0107.hostedemail.com [216.40.44.107])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AE986B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 830BC181AC9C6
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:17:31 +0000 (UTC)
+X-FDA: 75922237902.15.sofa75_75d75709532e
+X-HE-Tag: sofa75_75d75709532e
+X-Filterd-Recvd-Size: 6002
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:16:00 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:17:30 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id EF9DA3001BF1;
-	Wed, 11 Sep 2019 10:15:58 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8753230B8ED2;
+	Wed, 11 Sep 2019 10:17:29 +0000 (UTC)
 Received: from [10.36.117.155] (ovpn-117-155.ams2.redhat.com [10.36.117.155])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 91C4E5D6A5;
-	Wed, 11 Sep 2019 10:15:52 +0000 (UTC)
-Subject: Re: [PATCH v3 3/7] mm: Introduce FAULT_FLAG_INTERRUPTIBLE
-To: Peter Xu <peterx@redhat.com>, linux-mm@kvack.org,
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 33F995C207;
+	Wed, 11 Sep 2019 10:17:28 +0000 (UTC)
+Subject: Re: [PATCH 01/10] mm,hwpoison: cleanup unused PageHuge() check
+To: Oscar Salvador <osalvador@suse.de>, n-horiguchi@ah.jp.nec.com
+Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
- Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>,
- Marty McFadden <mcfadden8@llnl.gov>, Shaohua Li <shli@fb.com>,
- Andrea Arcangeli <aarcange@redhat.com>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- Denis Plotnikov <dplotnikov@virtuozzo.com>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman
- <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>,
- "Dr . David Alan Gilbert" <dgilbert@redhat.com>
-References: <20190911071007.20077-1-peterx@redhat.com>
- <20190911071007.20077-4-peterx@redhat.com>
+References: <20190910103016.14290-1-osalvador@suse.de>
+ <20190910103016.14290-2-osalvador@suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -104,126 +95,52 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <865710d6-8fff-25ea-ef91-7cf31166ac79@redhat.com>
-Date: Wed, 11 Sep 2019 12:15:51 +0200
+Message-ID: <4b22bfc4-d770-a401-f75c-1b35d73d47c3@redhat.com>
+Date: Wed, 11 Sep 2019 12:17:27 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190911071007.20077-4-peterx@redhat.com>
+In-Reply-To: <20190910103016.14290-2-osalvador@suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 11 Sep 2019 10:15:59 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Wed, 11 Sep 2019 10:17:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.09.19 09:10, Peter Xu wrote:
-> handle_userfaultfd() is currently the only one place in the kernel
-> page fault procedures that can respond to non-fatal userspace signals.
-> It was trying to detect such an allowance by checking against USER &
-> KILLABLE flags, which was "un-official".
+On 10.09.19 12:30, Oscar Salvador wrote:
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > 
-> In this patch, we introduced a new flag (FAULT_FLAG_INTERRUPTIBLE) to
-> show that the fault handler allows the fault procedure to respond even
-> to non-fatal signals.  Meanwhile, add this new flag to the default
-> fault flags so that all the page fault handlers can benefit from the
-> new flag.  With that, replacing the userfault check to this one.
+> memory_failure() forks to memory_failure_hugetlb() for hugetlb pages,
+> so a PageHuge() check after the fork should not be necessary.
 > 
-> Since the line is getting even longer, clean up the fault flags a bit
-> too to ease TTY users.
-> 
-> Although we've got a new flag and applied it, we shouldn't have any
-> functional change with this patch so far.
-> 
-> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-> Signed-off-by: Peter Xu <peterx@redhat.com>
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
 > ---
->  fs/userfaultfd.c   |  4 +---
->  include/linux/mm.h | 39 ++++++++++++++++++++++++++++-----------
->  2 files changed, 29 insertions(+), 14 deletions(-)
+>  mm/memory-failure.c | 5 +----
+>  1 file changed, 1 insertion(+), 4 deletions(-)
 > 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index ccbdbd62f0d8..4a8ad2dc2b6f 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -462,9 +462,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
->  	uwq.ctx = ctx;
->  	uwq.waken = false;
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 7ef849da8278..e43b61462fd5 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1353,10 +1353,7 @@ int memory_failure(unsigned long pfn, int flags)
+>  	 * page_remove_rmap() in try_to_unmap_one(). So to determine page status
+>  	 * correctly, we save a copy of the page flags at this time.
+>  	 */
+> -	if (PageHuge(p))
+> -		page_flags = hpage->flags;
+> -	else
+> -		page_flags = p->flags;
+> +	page_flags = p->flags;
 >  
-> -	return_to_userland =
-> -		(vmf->flags & (FAULT_FLAG_USER|FAULT_FLAG_KILLABLE)) ==
-> -		(FAULT_FLAG_USER|FAULT_FLAG_KILLABLE);
-> +	return_to_userland = vmf->flags & FAULT_FLAG_INTERRUPTIBLE;
->  	blocking_state = return_to_userland ? TASK_INTERRUPTIBLE :
->  			 TASK_KILLABLE;
->  
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 57fb5c535f8e..53ec7abb8472 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -383,22 +383,38 @@ extern unsigned int kobjsize(const void *objp);
->   */
->  extern pgprot_t protection_map[16];
->  
-> -#define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
-> -#define FAULT_FLAG_MKWRITE	0x02	/* Fault was mkwrite of existing pte */
-> -#define FAULT_FLAG_ALLOW_RETRY	0x04	/* Retry fault if blocking */
-> -#define FAULT_FLAG_RETRY_NOWAIT	0x08	/* Don't drop mmap_sem and wait when retrying */
-> -#define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
-> -#define FAULT_FLAG_TRIED	0x20	/* Second try */
-> -#define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
-> -#define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
-> -#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
-> +/**
-> + * Fault flag definitions.
-> + *
-> + * @FAULT_FLAG_WRITE: Fault was a write fault.
-> + * @FAULT_FLAG_MKWRITE: Fault was mkwrite of existing PTE.
-> + * @FAULT_FLAG_ALLOW_RETRY: Allow to retry the fault if blocked.
-> + * @FAULT_FLAG_RETRY_NOWAIT: Don't drop mmap_sem and wait when retrying.
-> + * @FAULT_FLAG_KILLABLE: The fault task is in SIGKILL killable region.
-> + * @FAULT_FLAG_TRIED: The fault has been tried once.
-> + * @FAULT_FLAG_USER: The fault originated in userspace.
-> + * @FAULT_FLAG_REMOTE: The fault is not for current task/mm.
-> + * @FAULT_FLAG_INSTRUCTION: The fault was during an instruction fetch.
-> + * @FAULT_FLAG_INTERRUPTIBLE: The fault can be interrupted by non-fatal signals.
-> + */
-> +#define FAULT_FLAG_WRITE			0x01
-> +#define FAULT_FLAG_MKWRITE			0x02
-> +#define FAULT_FLAG_ALLOW_RETRY			0x04
-> +#define FAULT_FLAG_RETRY_NOWAIT			0x08
-> +#define FAULT_FLAG_KILLABLE			0x10
-> +#define FAULT_FLAG_TRIED			0x20
-> +#define FAULT_FLAG_USER				0x40
-> +#define FAULT_FLAG_REMOTE			0x80
-> +#define FAULT_FLAG_INSTRUCTION  		0x100
-> +#define FAULT_FLAG_INTERRUPTIBLE		0x200
->  
->  /*
->   * The default fault flags that should be used by most of the
->   * arch-specific page fault handlers.
->   */
->  #define FAULT_FLAG_DEFAULT  (FAULT_FLAG_ALLOW_RETRY | \
-> -			     FAULT_FLAG_KILLABLE)
-> +			     FAULT_FLAG_KILLABLE | \
-> +			     FAULT_FLAG_INTERRUPTIBLE)
->  
->  #define FAULT_FLAG_TRACE \
->  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
-> @@ -409,7 +425,8 @@ extern pgprot_t protection_map[16];
->  	{ FAULT_FLAG_TRIED,		"TRIED" }, \
->  	{ FAULT_FLAG_USER,		"USER" }, \
->  	{ FAULT_FLAG_REMOTE,		"REMOTE" }, \
-> -	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }
-> +	{ FAULT_FLAG_INSTRUCTION,	"INSTRUCTION" }, \
-> +	{ FAULT_FLAG_INTERRUPTIBLE,	"INTERRUPTIBLE" }
->  
->  /*
->   * vm_fault is filled by the the pagefault handler and passed to the vma's
+>  	/*
+>  	 * unpoison always clear PG_hwpoison inside page lock
 > 
 
 Reviewed-by: David Hildenbrand <david@redhat.com>
