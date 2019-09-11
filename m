@@ -2,161 +2,226 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FORGED_MUA_MOZILLA,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D8B4C49ED6
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 19:21:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E02FC5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 19:43:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 529202085B
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 19:21:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E625F2085B
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 19:43:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=urbackup.org header.i=@urbackup.org header.b="G3nQ1rSy";
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="fM1Ha/RN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 529202085B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=urbackup.org
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="F/E+pdbJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E625F2085B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D80606B0270; Wed, 11 Sep 2019 15:21:38 -0400 (EDT)
+	id 55AC56B0273; Wed, 11 Sep 2019 15:43:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D0A976B0272; Wed, 11 Sep 2019 15:21:38 -0400 (EDT)
+	id 50BD06B0274; Wed, 11 Sep 2019 15:43:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD21A6B0273; Wed, 11 Sep 2019 15:21:38 -0400 (EDT)
+	id 3FAE76B0275; Wed, 11 Sep 2019 15:43:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0230.hostedemail.com [216.40.44.230])
-	by kanga.kvack.org (Postfix) with ESMTP id 96E326B0270
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:21:38 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 3935952B9
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 19:21:38 +0000 (UTC)
-X-FDA: 75923609076.18.ink21_657ea4791e253
-X-HE-Tag: ink21_657ea4791e253
-X-Filterd-Recvd-Size: 6471
-Received: from a4-15.smtp-out.eu-west-1.amazonses.com (a4-15.smtp-out.eu-west-1.amazonses.com [54.240.4.15])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 19:21:37 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ob2ngmaigrjtzxgmrxn2h6b3gszyqty3; d=urbackup.org; t=1568229695;
-	h=Subject:To:References:From:Message-ID:Date:MIME-Version:In-Reply-To:Content-Type:Content-Transfer-Encoding;
-	bh=59uwGM4pJHMCdblcEPt/Fvw4TL4wwHzA/X28KUFue3I=;
-	b=G3nQ1rSyB48pRZdQDv+uufB2Vcs0TLLb5gGL19jiCtLnKCT5K9fUl1vYX7spDjNi
-	k4AbTcBlnfNSWJ1Ak0nue0x7s9NUG3oIuB1F0LztmZYLUo85zQQA5AhOLNPeInvSMEp
-	oGkvnR8RiquJJLrFtyzU/zc6VN7Th+MfoaOmg36E=
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ihchhvubuqgjsxyuhssfvqohv7z3u4hn; d=amazonses.com; t=1568229695;
-	h=Subject:To:References:From:Message-ID:Date:MIME-Version:In-Reply-To:Content-Type:Content-Transfer-Encoding:Feedback-ID;
-	bh=59uwGM4pJHMCdblcEPt/Fvw4TL4wwHzA/X28KUFue3I=;
-	b=fM1Ha/RNmcr1i4oE3mqYGN+X6q7QP1JquVojnQPrmF3YY6BHEP0ham9ft+lnv8YU
-	NaskoVhw3YiBSsfW1H8rHEE4jqPisjhjZsvMc06f4mQfoUdTmVa3WClMVtk/SgAcM56
-	ZZMWDPu+9zbO3GrB51ISKopFRuNq5FfR0bdPAWHc=
-Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
-To: Mike Christie <mchristi@redhat.com>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
- "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>
-References: <20190909162804.5694-1-mchristi@redhat.com>
- <5D76995B.1010507@redhat.com>
- <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
- <0102016d1f7af966-334f093b-2a62-4baa-9678-8d90d5fba6d9-000000@eu-west-1.amazonses.com>
- <5D792758.2060706@redhat.com>
-From: Martin Raiber <martin@urbackup.org>
-Message-ID: <0102016d21c61ec3-4e148e0f-24f5-4e00-a74e-6249653167c7-000000@eu-west-1.amazonses.com>
-Date: Wed, 11 Sep 2019 19:21:35 +0000
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.9.0
-MIME-Version: 1.0
-In-Reply-To: <5D792758.2060706@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-SES-Outgoing: 2019.09.11-54.240.4.15
-Feedback-ID: 1.eu-west-1.zKMZH6MF2g3oUhhjaE2f3oQ8IBjABPbvixQzV8APwT0=:AmazonSES
+Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EFCD6B0273
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:43:04 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id C9FE919B01
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 19:43:03 +0000 (UTC)
+X-FDA: 75923663046.20.art91_8f18e0cbbbe43
+X-HE-Tag: art91_8f18e0cbbbe43
+X-Filterd-Recvd-Size: 7827
+Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 19:43:03 +0000 (UTC)
+Received: by mail-qt1-f193.google.com with SMTP id j10so26720784qtp.8
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:43:03 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=2ZFP/ET73683mUucItfq4m0bSDDy3ddeJPRfTUbNCzY=;
+        b=F/E+pdbJUdtectzMGAX889EbfD+uvoPzdWknjWGrU2IW/P478uxNiNntIC52eaMqHI
+         OikuFaF+/CXQ3+ggRtSe/VC7P7hjt/RxxD+1jGmM9aos260dY3y8bFYpWysulvGFvbKp
+         wJTamap6WyoQnblbLcYiRFCf5ZjMyXLrw5KzQACIMvVJDqL8+m832uu5lHYCLHniK7Cq
+         bCudo8I+6O0+Ss6FJX8SuP8jMh6NT2atv6chpB+NRsyBA7kdQ3EK2hxhFmvPLrNylaez
+         2XzETAVZ2F2w/Bs0iqQ/KQpFO7tbZXsnck+yvBzRH/6tzcGe7rzBsyoLC+y3+nCDGF02
+         kRpw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=2ZFP/ET73683mUucItfq4m0bSDDy3ddeJPRfTUbNCzY=;
+        b=TgM/TYGYYCVvwjLDIFBwzkfazb19CnAuw7oHtthW708g25IMgawXEJ8L8oDIwxZwi3
+         F6Ye2RmBGDtSOn5nqQbKUEzwo1OFPLUkNWI95fAKJBdOobJGDfd9ensglZA9OWcX+gDl
+         gEVJ3Zqp8vYTxzmJKSpwJHw0mAektrTcOWWeUgAEx4BFNkLBwnUVUXHDteRVtUcx2miB
+         RCaE8pnf019mD5BrY0XOLygUb+XdTnnvOnBsfeFBpD6SAUq/cxlDCOiNHHpYBfrNHyPj
+         R8YKuSDkZoSPmNs/7F9ySP8qPTxwXu279IZXKhud6sMydoac2XdC0wFWW0he6ceRWSdh
+         lgew==
+X-Gm-Message-State: APjAAAWt3/Czc9wIFOWuYh4zwFLP14VQvk9Po783L7A2nhLifuXzFry8
+	Q+YFQYv+s1Oy3iEYFFR/EyISog==
+X-Google-Smtp-Source: APXvYqyMP7XfaOeg5LLvUE/BNydmp/CtjUORRyf03puYgED/dSeKx2o6ASaMkBTNwu/NMrzFldyWog==
+X-Received: by 2002:ac8:6704:: with SMTP id e4mr37307655qtp.244.1568230982535;
+        Wed, 11 Sep 2019 12:43:02 -0700 (PDT)
+Received: from [192.168.1.153] (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id h27sm9858623qkl.75.2019.09.11.12.42.55
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Sep 2019 12:42:56 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
+ PMD
+From: Qian Cai <cai@lca.pw>
+In-Reply-To: <1a8e6c0a-6ba6-d71f-974e-f8a9c623c25b@redhat.com>
+Date: Wed, 11 Sep 2019 15:42:54 -0400
+Cc: Peter Zijlstra <peterz@infradead.org>,
+ Ingo Molnar <mingo@redhat.com>,
+ Will Deacon <will.deacon@arm.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ linux-kernel@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org,
+ Davidlohr Bueso <dave@stgolabs.net>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <70714929-2CE3-42F4-BD31-427077C9E24E@lca.pw>
+References: <20190911150537.19527-1-longman@redhat.com>
+ <20190911150537.19527-6-longman@redhat.com>
+ <B97932F4-7A2D-4265-9BB2-BF6E19B45DB7@lca.pw>
+ <1a8e6c0a-6ba6-d71f-974e-f8a9c623c25b@redhat.com>
+To: Waiman Long <longman@redhat.com>
+X-Mailer: Apple Mail (2.3445.104.11)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11.09.2019 18:56 Mike Christie wrote:
-> On 09/11/2019 03:40 AM, Martin Raiber wrote:
->> On 10.09.2019 10:35 Damien Le Moal wrote:
->>> Mike,
->>>
->>> On 2019/09/09 19:26, Mike Christie wrote:
->>>> Forgot to cc linux-mm.
->>>>
->>>> On 09/09/2019 11:28 AM, Mike Christie wrote:
->>>>> There are several storage drivers like dm-multipath, iscsi, and nbd that
->>>>> have userspace components that can run in the IO path. For example,
->>>>> iscsi and nbd's userspace deamons may need to recreate a socket and/or
->>>>> send IO on it, and dm-multipath's daemon multipathd may need to send IO
->>>>> to figure out the state of paths and re-set them up.
->>>>>
->>>>> In the kernel these drivers have access to GFP_NOIO/GFP_NOFS and the
->>>>> memalloc_*_save/restore functions to control the allocation behavior,
->>>>> but for userspace we would end up hitting a allocation that ended up
->>>>> writing data back to the same device we are trying to allocate for.
->>>>>
->>>>> This patch allows the userspace deamon to set the PF_MEMALLOC* flags
->>>>> through procfs. It currently only supports PF_MEMALLOC_NOIO, but
->>>>> depending on what other drivers and userspace file systems need, for
->>>>> the final version I can add the other flags for that file or do a file
->>>>> per flag or just do a memalloc_noio file.
->>> Awesome. That probably will be the perfect solution for the problem we hit with
->>> tcmu-runner a while back (please see this thread:
->>> https://www.spinics.net/lists/linux-fsdevel/msg148912.html).
->>>
->>> I think we definitely need nofs as well for dealing with cases where the backend
->>> storage for the user daemon is a file.
->>>
->>> I will give this patch a try as soon as possible (I am traveling currently).
->>>
->>> Best regards.
->> I had issues with this as well, and work on this is appreciated! In my
->> case it is a loop block device on a fuse file system.
->> Setting PF_LESS_THROTTLE was the one that helped the most, though, so
->> add an option for that as well? I set this via prctl() for the thread
->> calling it (was easiest to add to).
->>
->> Sorry, I have no idea about the current rationale, but wouldn't it be
->> better to have a way to mask a set of block devices/file systems not to
->> write-back to in a thread. So in my case I'd specify that the fuse
->> daemon threads cannot write-back to the file system and loop device
->> running on top of the fuse file system, while all other block
->> devices/file systems can be write-back to (causing less swapping/OOM
->> issues).
-> I'm not sure I understood you.
->
-> The storage daemons I mentioned normally kick off N threads per M
-> devices. The threads handle duties like IO and error handling for those
-> devices. Those threads would set the flag, so those IO/error-handler
-> related operations do not end up writing back to them. So it works
-> similar to how storage drivers work in the kernel where iscsi_tcp has an
-> xmit thread and that does memalloc_noreclaim_save. Only the threads for
-> those specific devices being would set the flag.
->
-> In your case, it sounds like you have a thread/threads that would
-> operate on multiple devices and some need the behavior and some do not.
-> Is that right?
 
-No, sounds the same as your case. As an example think of vdfuse (or
-qemu-nbd locally). You'd have something like
 
-ext4(a) <- loop <- fuse file system <- vdfuse <- disk.vdi container file
-<- ext4(b) <- block device
+> On Sep 11, 2019, at 12:34 PM, Waiman Long <longman@redhat.com> wrote:
+>=20
+> On 9/11/19 5:01 PM, Qian Cai wrote:
+>>=20
+>>> On Sep 11, 2019, at 11:05 AM, Waiman Long <longman@redhat.com> =
+wrote:
+>>>=20
+>>> When allocating a large amount of static hugepages (~500-1500GB) on =
+a
+>>> system with large number of CPUs (4, 8 or even 16 sockets), =
+performance
+>>> degradation (random multi-second delays) was observed when thousands
+>>> of processes are trying to fault in the data into the huge pages. =
+The
+>>> likelihood of the delay increases with the number of sockets and =
+hence
+>>> the CPUs a system has.  This only happens in the initial setup phase
+>>> and will be gone after all the necessary data are faulted in.
+>>>=20
+>>> These random delays, however, are deemed unacceptable. The cause of
+>>> that delay is the long wait time in acquiring the mmap_sem when =
+trying
+>>> to share the huge PMDs.
+>>>=20
+>>> To remove the unacceptable delays, we have to limit the amount of =
+wait
+>>> time on the mmap_sem. So the new down_write_timedlock() function is
+>>> used to acquire the write lock on the mmap_sem with a timeout value =
+of
+>>> 10ms which should not cause a perceivable delay. If timeout happens,
+>>> the task will abandon its effort to share the PMD and allocate its =
+own
+>>> copy instead.
+>>>=20
+>>> When too many timeouts happens (threshold currently set at 256), the
+>>> system may be too large for PMD sharing to be useful without undue =
+delay.
+>>> So the sharing will be disabled in this case.
+>>>=20
+>>> Signed-off-by: Waiman Long <longman@redhat.com>
+>>> ---
+>>> include/linux/fs.h |  7 +++++++
+>>> mm/hugetlb.c       | 24 +++++++++++++++++++++---
+>>> 2 files changed, 28 insertions(+), 3 deletions(-)
+>>>=20
+>>> diff --git a/include/linux/fs.h b/include/linux/fs.h
+>>> index 997a530ff4e9..e9d3ad465a6b 100644
+>>> --- a/include/linux/fs.h
+>>> +++ b/include/linux/fs.h
+>>> @@ -40,6 +40,7 @@
+>>> #include <linux/fs_types.h>
+>>> #include <linux/build_bug.h>
+>>> #include <linux/stddef.h>
+>>> +#include <linux/ktime.h>
+>>>=20
+>>> #include <asm/byteorder.h>
+>>> #include <uapi/linux/fs.h>
+>>> @@ -519,6 +520,12 @@ static inline void i_mmap_lock_write(struct =
+address_space *mapping)
+>>> 	down_write(&mapping->i_mmap_rwsem);
+>>> }
+>>>=20
+>>> +static inline bool i_mmap_timedlock_write(struct address_space =
+*mapping,
+>>> +					 ktime_t timeout)
+>>> +{
+>>> +	return down_write_timedlock(&mapping->i_mmap_rwsem, timeout);
+>>> +}
+>>> +
+>>> static inline void i_mmap_unlock_write(struct address_space =
+*mapping)
+>>> {
+>>> 	up_write(&mapping->i_mmap_rwsem);
+>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>>> index 6d7296dd11b8..445af661ae29 100644
+>>> --- a/mm/hugetlb.c
+>>> +++ b/mm/hugetlb.c
+>>> @@ -4750,6 +4750,8 @@ void =
+adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
+>>> 	}
+>>> }
+>>>=20
+>>> +#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
+>>> +
+>>> /*
+>>> * Search for a shareable pmd page for hugetlb. In any case calls =
+pmd_alloc()
+>>> * and returns the corresponding pte. While this is not necessary for =
+the
+>>> @@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, =
+unsigned long addr, pud_t *pud)
+>>> 	pte_t *spte =3D NULL;
+>>> 	pte_t *pte;
+>>> 	spinlock_t *ptl;
+>>> +	static atomic_t timeout_cnt;
+>>>=20
+>>> -	if (!vma_shareable(vma, addr))
+>>> -		return (pte_t *)pmd_alloc(mm, pud, addr);
+>>> +	/*
+>>> +	 * Don't share if it is not sharable or locking attempt timed =
+out
+>>> +	 * after 10ms. After 256 timeouts, PMD sharing will be =
+permanently
+>>> +	 * disabled as it is just too slow.
+>> It looks like this kind of policy interacts with kernel debug options =
+like KASAN (which is going to slow the system down
+>> anyway) could introduce tricky issues due to different timings on a =
+debug kernel.
+>=20
+> With respect to lockdep, down_write_timedlock() works like a trylock. =
+So
+> a lot of checking will be skipped. Also the lockdep code won't be run
+> until the lock is acquired. So its execution time has no effect on the
+> timeout.
 
-If vdfuse threads cause writeback to ext4(a), you'd get the issue we
-have. Setting PF_LESS_THROTTLE and/or PF_MEMALLOC_NOIO mostly avoids
-this problem, but with only PF_LESS_THROTTLE there are still corner
-cases (I think if ext4(b) slows down suddenly) where it wedges itself
-and the side effect of setting PF_MEMALLOC_NOIO are being discussed...
-The best solution would be, I guess, to have a way for vdfuse to set
-something, such that write-back to ext4(a) isn't allowed from those
-threads, but write-back to ext4(b) (and all other block devices) is. But
-I only have a rough idea of how write-back works, so this is really only
-a guess.
-
+No only lockdep, but also things like KASAN, debug_pagealloc, =
+page_poison, kmemleak, debug
+objects etc that  all going to slow down things in huge_pmd_share(), and =
+make it tricky to get a
+right timeout value for those debug kernels without changing the =
+previous behavior.=
 
