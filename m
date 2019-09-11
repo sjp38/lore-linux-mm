@@ -2,112 +2,89 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FD3AC5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 12:30:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7017CC49ED6
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 12:38:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F53B20872
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 12:30:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F53B20872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 10CB22082C
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 12:38:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="BheTapsZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10CB22082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABF176B0005; Wed, 11 Sep 2019 08:30:29 -0400 (EDT)
+	id 81FA26B0005; Wed, 11 Sep 2019 08:38:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A46F96B0006; Wed, 11 Sep 2019 08:30:29 -0400 (EDT)
+	id 7D0306B0006; Wed, 11 Sep 2019 08:38:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E71D6B000A; Wed, 11 Sep 2019 08:30:29 -0400 (EDT)
+	id 70C7D6B0007; Wed, 11 Sep 2019 08:38:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0127.hostedemail.com [216.40.44.127])
-	by kanga.kvack.org (Postfix) with ESMTP id 64DA36B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:30:29 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 06A001F846
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:30:29 +0000 (UTC)
-X-FDA: 75922572978.18.hall14_40931fc2713d
-X-HE-Tag: hall14_40931fc2713d
-X-Filterd-Recvd-Size: 11163
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:30:27 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 851E818CCF03;
-	Wed, 11 Sep 2019 12:30:26 +0000 (UTC)
-Received: from [10.36.117.155] (ovpn-117-155.ams2.redhat.com [10.36.117.155])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id AEF2F5DD61;
-	Wed, 11 Sep 2019 12:30:04 +0000 (UTC)
-Subject: Re: [RFC][PATCH v12 0/2] mm: Support for page reporting
-To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- virtio-dev@lists.oasis-open.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- dave.hansen@intel.com, mhocko@suse.com, cohuck@redhat.com
-References: <20190812131235.27244-1-nitesh@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <356b752f-7f5c-a6f7-c643-8ffb49c27a67@redhat.com>
-Date: Wed, 11 Sep 2019 14:30:03 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0014.hostedemail.com [216.40.44.14])
+	by kanga.kvack.org (Postfix) with ESMTP id 531716B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:38:05 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id F1EDC180AD802
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:38:04 +0000 (UTC)
+X-FDA: 75922592088.16.light88_4684c16c30c09
+X-HE-Tag: light88_4684c16c30c09
+X-Filterd-Recvd-Size: 3306
+Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:38:04 +0000 (UTC)
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 46T1dj3qf5z9ttBh;
+	Wed, 11 Sep 2019 14:38:01 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=BheTapsZ; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id mYSQiCEUNZcF; Wed, 11 Sep 2019 14:38:01 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 46T1dj2lqhz9ttBL;
+	Wed, 11 Sep 2019 14:38:01 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1568205481; bh=DhX4WED4iVEDvM7Oo6DUrJ7y5zvr1cIiyY6i5byB5xc=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=BheTapsZKTb+mshgPxc5LdW+Rjt6YT+UWBHiyi8BqPZzqijoiF4b8ASoCLfoJqGIo
+	 u2zdN67hu9KFy/D7DmUHWGbYstPxxBodFfJcUcoxDR/bUVxj38gJIOHySRpbnIugt1
+	 PbCeRLYqhEnvNMELqUUbiz0qeDa36xLBGYDo6rOk=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id BB57A8B8BF;
+	Wed, 11 Sep 2019 14:38:02 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id SJCnYKUN_9kO; Wed, 11 Sep 2019 14:38:02 +0200 (CEST)
+Received: from [172.25.230.103] (po15451.idsi0.si.c-s.fr [172.25.230.103])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 945FD8B8A6;
+	Wed, 11 Sep 2019 14:38:02 +0200 (CEST)
+Subject: Re: [PATCH v7 0/5] kasan: support backing vmalloc space with real
+ shadow memory
+To: Daniel Axtens <dja@axtens.net>, kasan-dev@googlegroups.com,
+ linux-mm@kvack.org, x86@kernel.org, aryabinin@virtuozzo.com,
+ glider@google.com, luto@kernel.org, linux-kernel@vger.kernel.org,
+ mark.rutland@arm.com, dvyukov@google.com
+Cc: linuxppc-dev@lists.ozlabs.org, gor@linux.ibm.com
+References: <20190903145536.3390-1-dja@axtens.net>
+ <d43cba17-ef1f-b715-e826-5325432042dd@c-s.fr>
+ <87ftl39izy.fsf@dja-thinkpad.axtens.net>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <f1798d6b-96c5-18a7-3787-2307d0899b59@c-s.fr>
+Date: Wed, 11 Sep 2019 14:38:02 +0200
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.9.0
 MIME-Version: 1.0
-In-Reply-To: <20190812131235.27244-1-nitesh@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.63]); Wed, 11 Sep 2019 12:30:26 +0000 (UTC)
+In-Reply-To: <87ftl39izy.fsf@dja-thinkpad.axtens.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -115,161 +92,24 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.08.19 15:12, Nitesh Narayan Lal wrote:
-> This patch series proposes an efficient mechanism for reporting free me=
-mory
-> from a guest to its hypervisor. It especially enables guests with no pa=
-ge cache
-> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk=
-) to
-> rapidly hand back free memory to the hypervisor.
-> This approach has a minimal impact on the existing core-mm infrastructu=
-re.
+
+
+Le 11/09/2019 =C3=A0 13:20, Daniel Axtens a =C3=A9crit=C2=A0:
+> Hi Christophe,
 >=20
-> This approach tracks all freed pages of the order MAX_ORDER - 2 in bitm=
-aps.
-> A new hook after buddy merging is used to set the bits in the bitmap fo=
-r a freed=20
-> page. Each set bit is cleared after they are processed/checked for
-> re-allocation.
-> Bitmaps are stored on a per-zone basis and are protected by the zone lo=
-ck. A
-> workqueue asynchronously processes the bitmaps as soon as a pre-defined=
- memory
-> threshold is met, trying to isolate and report pages that are still fre=
-e.
-> The isolated pages are stored in a scatterlist and are reported via
-> virtio-balloon, which is responsible for sending batched pages to the
-> hypervisor. Once the hypervisor processed the reporting request, the is=
-olated
-> pages are returned back to the buddy.
-> The thershold which defines the number of pages which will be isolated =
-and
-> reported to the hypervisor at a time is currently hardcoded to 16 in th=
-e guest.
+>> Are any other patches required prior to this series ? I have tried to
+>> apply it on later powerpc/merge branch without success:
 >=20
-> Benefit analysis:
-> Number of 5 GB guests (each touching 4 to 5 GB memory) that can be laun=
-ched on a
-> 15 GB single NUMA system without using swap space in the host.
+> It applies on the latest linux-next. I didn't base it on powerpc/*
+> because it's generic.
 >=20
-> 	    Guest kernel-->	Unmodified		with v12 page reporting
-> 	Number of guests-->	    2				7
->=20
-> Conclusion: In a page-reporting enabled kernel, the guest is able to re=
-port
-> most of its unused memory back to the host. Due to this on the same hos=
-t, I was
-> able to launch 7 guests without touching any swap compared to 2 which w=
-ere
-> launched with an unmodified kernel.
->=20
-> Performance Analysis:
-> In order to measure the performance impact of this patch-series over an
-> unmodified kernel, I am using will-it-scale/page_fault1 on a 30 GB, 24 =
-vcpus
-> single NUMA guest which is affined to a single node in the host. Over s=
-everal
-> runs, I observed that with this patch-series there is a degradation of =
-around
-> 1-3% for certain cases. This degradation could be a result of page-zero=
-ing
-> overhead which comes with every page-fault in the guest.
-> I also tried this test on a 2 NUMA node host running page reporting
-> enabled 60GB guest also having 2 NUMA nodes and 24 vcpus. I observed a =
-similar
-> degradation of around 1-3% in most of the cases.
-> For certain cases, the variability even with an unmodified kernel was a=
-round
-> 4-6% with every fresh boot. I will continue to investigate this further=
- to find
-> the reason behind it.
->=20
-> Ongoing work-items:
-> * I have a working prototype for supporting memory hotplug/hotremove wi=
-th page
->   reporting. However, it still requires more testing and fixes specific=
-ally on
->   the hotremove side.
->   Right now, for any memory hotplug or hotremove request bitmap or its
->   respective fields are not changed. Hence, memory added via hotplug is=
- not
->   tracked in the bitmap. Similarly, removed memory is not reported to t=
-he
->   hypervisor by using an online memory check.=20
-> * I will also have to look into the details about how to handle page po=
-isoning
->   scenarios and test with directly assigned devices.
->=20
->=20
-> Changes from v11:
-> https://lkml.org/lkml/2019/7/10/742
-> * Moved the fields required to manage bitmap of free pages to 'struct z=
-one'.
-> * Replaced the list which was used to hold and report the free pages wi=
-th
->   scatterlist.
-> * Tried to fix the anti-kernel patterns and improve overall code qualit=
-y.
-> * Fixed a few bugs in the code which were reported in the last posting.
-> * Moved to use MADV_DONTNEED from MADV_FREE.
-> * Replaced page hinting in favor of page reporting.
-> * Addressed other comments which I received in the last posting.=09
->=20
->=20
-> Changes from v10:
-> https://lkml.org/lkml/2019/6/3/943
-> * Added logic to take care of multiple NUMA nodes scenarios.
-> * Simplified the logic for reporting isolated pages to the host. (Eg. r=
-eplaced
->   dynamically allocated arrays with static ones, introduced wait event =
-instead
->   of the loop in order to wait for a response from the host)
-> * Added a mutex to prevent race condition when page reporting is enable=
-d by
->   multiple drivers.
-> * Simplified the logic responsible for decrementing free page counter f=
-or each
->   zone.
-> * Simplified code structuring/naming.
-> =20
 
-Some current limitations of this patchset seem to be
+Ok, thanks.
 
-1. Sparse zones eventually wasting memory (1bit per 2MB).
+I backported it to powerpc/merge and I'm testing it on PPC32 with=20
+VMAP_STACK.
 
-As I already set, I consider this in most virtual environments a special
-case (especially a lot of sparsity). You can simply compare the spanned
-vs. present pages and don't allocate a bitmap in case it's too sparse
-("currently unsupported environment"). These pieces won't be considered
-for free page reporting, however free page reporting is a pure
-optimization already either way. We can be smarter in the future (split
-up bitmap into sub-bitmaps ...)
+Got a few challenges but it is working now.
 
-2. Memory hot(un)plug support
-
-Memory hotplug should be easy with the memory hotplug notifier. Resize
-bitmaps after hotplug if required. Hotunplug is tricky, as it depends on
-zone shrinking (shrink bitmaps after offlining). You could scan for
-actually online section manually. But with minor modifications after
-"[PATCH v4 0/8] mm/memory_hotplug: Shrink zones before removing memory",
-at least some cases could also be handled. (sparse handling similar to
-1). Of course, initially, you could also simply not try to shrink the
-bitmap on unplug ...
-
-3. Scanning speed
-
-I have no idea if that is actually an issue. But there are different
-options if it is, for example, a hierarchical bitmap.
-
-
-Besides these, I think there were other review comments that should be
-addressed, but they don't seem to target the concept but rather
-implementation details.
-
---=20
-
-Thanks,
-
-David / dhildenb
+Christophe
 
