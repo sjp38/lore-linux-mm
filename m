@@ -6,146 +6,103 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BD8CECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:00:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED4D1C5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40D6C20863
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:00:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40D6C20863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id BA1D82075C
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 15:06:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA1D82075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CBD4B6B0010; Wed, 11 Sep 2019 11:00:06 -0400 (EDT)
+	id 4C8F36B0269; Wed, 11 Sep 2019 11:06:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C6DA46B0266; Wed, 11 Sep 2019 11:00:06 -0400 (EDT)
+	id 47BD56B026A; Wed, 11 Sep 2019 11:06:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B83466B0269; Wed, 11 Sep 2019 11:00:06 -0400 (EDT)
+	id 390A46B026B; Wed, 11 Sep 2019 11:06:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0155.hostedemail.com [216.40.44.155])
-	by kanga.kvack.org (Postfix) with ESMTP id 907BD6B0010
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:00:06 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 2DF0C1F35D
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:00:06 +0000 (UTC)
-X-FDA: 75922950012.13.board64_cf33e41c533
-X-HE-Tag: board64_cf33e41c533
-X-Filterd-Recvd-Size: 4541
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:00:05 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F3045B81C;
-	Wed, 11 Sep 2019 15:00:02 +0000 (UTC)
-Message-ID: <bf00a6cba91936a89d4495d7f73b874afeac2cb3.camel@suse.de>
-Subject: Re: [PATCH v5 3/4] arm64: use both ZONE_DMA and ZONE_DMA32
-From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: hch@lst.de, wahrenst@gmx.net, marc.zyngier@arm.com, robh+dt@kernel.org, 
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
- linux-riscv@lists.infradead.org, Will Deacon <will@kernel.org>, 
- f.fainelli@gmail.com, robin.murphy@arm.com, linux-kernel@vger.kernel.org, 
- mbrugger@suse.com, linux-rpi-kernel@lists.infradead.org,
- phill@raspberrypi.org,  m.szyprowski@samsung.com
-Date: Wed, 11 Sep 2019 17:00:00 +0200
-In-Reply-To: <20190911143527.GB43864@C02TF0J2HF1T.local>
-References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
-	 <20190909095807.18709-4-nsaenzjulienne@suse.de>
-	 <b0b824bebb9ef13ce746f9914de83126b0386e23.camel@suse.de>
-	 <20190911143527.GB43864@C02TF0J2HF1T.local>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-p7TAQdIbBeJ5BGhbbxNM"
-User-Agent: Evolution 3.32.4 
-MIME-Version: 1.0
+Received: from forelay.hostedemail.com (smtprelay0033.hostedemail.com [216.40.44.33])
+	by kanga.kvack.org (Postfix) with ESMTP id 17F326B0269
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 11:06:09 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id CC78452CB
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:08 +0000 (UTC)
+X-FDA: 75922965216.17.rule61_359d9c7c2d118
+X-HE-Tag: rule61_359d9c7c2d118
+X-Filterd-Recvd-Size: 3283
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 15:06:08 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E2CB510576C6;
+	Wed, 11 Sep 2019 15:06:06 +0000 (UTC)
+Received: from llong.com (ovpn-125-196.rdu2.redhat.com [10.10.125.196])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 848AD1FB;
+	Wed, 11 Sep 2019 15:06:01 +0000 (UTC)
+From: Waiman Long <longman@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Davidlohr Bueso <dave@stgolabs.net>,
+	Waiman Long <longman@redhat.com>
+Subject: [PATCH 0/5] hugetlbfs: Disable PMD sharing for large systems
+Date: Wed, 11 Sep 2019 16:05:32 +0100
+Message-Id: <20190911150537.19527-1-longman@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.64]); Wed, 11 Sep 2019 15:06:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+A customer with large SMP systems (up to 16 sockets) with application
+that uses large amount of static hugepages (~500-1500GB) are experiencing
+random multisecond delays. These delays was caused by the long time it
+took to scan the VMA interval tree with mmap_sem held.
 
---=-p7TAQdIbBeJ5BGhbbxNM
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+To fix this problem while perserving existing behavior as much as
+possible, we need to allow timeout in down_write() and disabling PMD
+sharing when it is taking too long to do so. Since a transaction can
+involving touching multiple huge pages, timing out for each of the huge
+page interactions does not completely solve the problem. So a threshold
+is set to completely disable PMD sharing if too many timeouts happen.
 
-On Wed, 2019-09-11 at 15:35 +0100, Catalin Marinas wrote:
-> On Wed, Sep 11, 2019 at 12:54:38PM +0200, Nicolas Saenz Julienne wrote:
-> > On Mon, 2019-09-09 at 11:58 +0200, Nicolas Saenz Julienne wrote:
-> > >  /*
-> > > - * Return the maximum physical address for ZONE_DMA32 (DMA_BIT_MASK(=
-32)).
-> > > It
-> > > - * currently assumes that for memory starting above 4G, 32-bit devic=
-es
-> > > will
-> > > - * use a DMA offset.
-> > > + * Return the maximum physical address for a zone with a given addre=
-ss
-> > > size
-> > > + * limit. It currently assumes that for memory starting above 4G, 32=
--bit
-> > > + * devices will use a DMA offset.
-> > >   */
-> > > -static phys_addr_t __init max_zone_dma32_phys(void)
-> > > +static phys_addr_t __init max_zone_phys(unsigned int zone_bits)
-> > >  {
-> > >         phys_addr_t offset =3D memblock_start_of_DRAM() & GENMASK_ULL=
-(63,
-> > > 32);
-> > > -       return min(offset + (1ULL << 32), memblock_end_of_DRAM());
-> > > +       return min(offset + (1ULL << zone_bits), memblock_end_of_DRAM=
-());
-> > >  }
-> >=20
-> > while testing other code on top of this series on odd arm64 machines I =
-found
-> > an
-> > issue: when memblock_start_of_DRAM() !=3D 0, max_zone_phys() isn't taki=
-ng into
-> > account the offset to the beginning of memory. This doesn't matter with
-> > zone_bits =3D=3D 32 but it does when zone_bits =3D=3D 30.
->=20
-> I thought about this but I confused myself and the only case I had in
-> mind was an AMD Seattle system with RAM starting at 4GB.
+The first 4 patches of this 5-patch series adds a new
+down_write_timedlock() API which accepts a timeout argument and return
+true is locking is successful or false otherwise. It works more or less
+than a down_write_trylock() but the calling thread may sleep.
 
-I found the issue on a Cavium ThunderX2 server. Oddly enough the memory sta=
-rts
-at 0x802f0000.
+The last patch implements the timeout mechanism as described above. With
+the patched kernel installed, the customer confirmed that the problem
+was gone.
 
-> What we need from this function is that the lowest naturally aligned
-> 2^30 RAM is covered by ZONE_DMA while the rest to 2^32 are ZONE_DMA32.
-> This assumed that devices only capable of 30-bit (or 32-bit), have the
-> top address bits hardwired to be able access the bottom of the memory
-> (and this would be expressed in DT as the DMA offset).
+Waiman Long (5):
+  locking/rwsem: Add down_write_timedlock()
+  locking/rwsem: Enable timeout check when spinning on owner
+  locking/osq: Allow early break from OSQ
+  locking/rwsem: Enable timeout check when staying in the OSQ
+  hugetlbfs: Limit wait time when trying to share huge PMD
 
-Ok, I was testing a fix I wrote under these assumptions...
+ include/linux/fs.h                |   7 ++
+ include/linux/osq_lock.h          |  13 +--
+ include/linux/rwsem.h             |   4 +-
+ kernel/locking/lock_events_list.h |   1 +
+ kernel/locking/mutex.c            |   2 +-
+ kernel/locking/osq_lock.c         |  12 +-
+ kernel/locking/rwsem.c            | 183 +++++++++++++++++++++++++-----
+ mm/hugetlb.c                      |  24 +++-
+ 8 files changed, 201 insertions(+), 45 deletions(-)
 
-> I guess the fix here is to use GENMASK_ULL(63, zone_bits).
-
-...but this is way cleaner than my solution. Thanks!
-
-Regards,
-Nicolas
-
-
---=-p7TAQdIbBeJ5BGhbbxNM
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl15C/AACgkQlfZmHno8
-x/5f8ggAsuyzvV52JP8D4F3gMeBcgMlqN3+DQV47QfnPQoZyacvk5k1N3xUfcbNc
-TnGiLoB3xsPta+yqccbFl2njg+FBjZc2Ja/+Natqxx+ulXxkIsp7eGP+yeWJiiw9
-oUApF6wwL6WYXWn0H+ZoYfwjCFqUDGWuCUYP3K8vHSVytsTmYegU/B+9nvncBfmk
-iF5Ql/Pd/TA0RLKvs2wftE8h889R2JSGWvdVMCIWWtC5qENC2ar2/ITluJ7kTCRX
-9Ekkkh3L8fI6/qgPxKEcC8HuzO4aUTFlpWxxnfUMCd83wzWFWUUdOZ+rcaPpTMN2
-ih1+8l3//QFXzpY5utTMqIWXxeKMKA==
-=r2f7
------END PGP SIGNATURE-----
-
---=-p7TAQdIbBeJ5BGhbbxNM--
+-- 
+2.18.1
 
 
