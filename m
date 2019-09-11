@@ -2,186 +2,124 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CFD40ECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:11:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37CC6ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:22:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F99B2084D
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:11:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F99B2084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 03FE8206CD
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 07:22:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03FE8206CD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A74F6B000E; Wed, 11 Sep 2019 03:11:10 -0400 (EDT)
+	id 9F5936B0007; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 458386B0010; Wed, 11 Sep 2019 03:11:10 -0400 (EDT)
+	id 9A5DA6B0008; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36DF66B0266; Wed, 11 Sep 2019 03:11:10 -0400 (EDT)
+	id 8E2E56B000A; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0041.hostedemail.com [216.40.44.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F1A6B000E
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 03:11:10 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id A9139824CA3F
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:11:09 +0000 (UTC)
-X-FDA: 75921768258.18.foot57_7e7cfeebe4c32
-X-HE-Tag: foot57_7e7cfeebe4c32
-X-Filterd-Recvd-Size: 5913
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:11:09 +0000 (UTC)
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2DA392BF7B
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:11:08 +0000 (UTC)
-Received: by mail-pf1-f200.google.com with SMTP id w126so13725125pfd.22
-        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 00:11:08 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=5V3o75iQXkQgVY+0z1NoQ3FPIfgARTaoPLE+FPdZTuk=;
-        b=JN2+t9H7QpHIeyAh+v36k7yew9aMRzAjoYH/VnLPrcjOjqX3/jRGp7Bn1gqOVZE/Ro
-         2TLpUORItkakBEzFMxWaJfuXRblPligLcVyuTVxMidD015M1VtcH4kXrNJ3ri2OWWKbQ
-         zGXjxmScdn+hUJJHIkO5bSKmREg5KEQJdk85pFqslqqJY6qqNzvYbWyMhVy3iNbPbzs7
-         sWiOphYvrzABDOtDsE223i6e65EqavnpcFN19H+71O4p1BYkv4F9PDQ0RQBSS15RqUum
-         WxlAm1Geqk1ZI7l4ZZhfBM7WARL20G2RjrxSMcdSN/pW+a31PnlhgVb6lQ26LmclLVUk
-         YQUw==
-X-Gm-Message-State: APjAAAX2qAYEHCf7x8vJ5A/22GuIvtHbaFIncGcco0D1UkjzGEBUsgAj
-	IvShiFXxpPeGa5LrUPJdV1thBHxyxE0mf7U+zLdymPL3IOG898BwCoxPqL8UM6bt0UQypCIkh4I
-	O/DTUYxyjIxM=
-X-Received: by 2002:a17:902:ac8d:: with SMTP id h13mr34358542plr.273.1568185867165;
-        Wed, 11 Sep 2019 00:11:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBWqs9OHiqcVYnHixJfPeceFNFutrglNZt9VPFbnaRBihSuzuUiLIbWkefUjaIZNUHaxC65A==
-X-Received: by 2002:a17:902:ac8d:: with SMTP id h13mr34358534plr.273.1568185867006;
-        Wed, 11 Sep 2019 00:11:07 -0700 (PDT)
-Received: from xz-x1.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id j10sm1573091pjn.3.2019.09.11.00.11.00
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 11 Sep 2019 00:11:06 -0700 (PDT)
-From: Peter Xu <peterx@redhat.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	peterx@redhat.com,
-	Martin Cracauer <cracauer@cons.org>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v3 7/7] mm/gup: Allow VM_FAULT_RETRY for multiple times
-Date: Wed, 11 Sep 2019 15:10:07 +0800
-Message-Id: <20190911071007.20077-8-peterx@redhat.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190911071007.20077-1-peterx@redhat.com>
-References: <20190911071007.20077-1-peterx@redhat.com>
-MIME-Version: 1.0
+Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BD626B0007
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 03:22:26 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1A546180AD802
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:22:26 +0000 (UTC)
+X-FDA: 75921796692.20.elbow56_4f60734af2d44
+X-HE-Tag: elbow56_4f60734af2d44
+X-Filterd-Recvd-Size: 3807
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp [114.179.232.162])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 07:22:25 +0000 (UTC)
+Received: from mailgate01.nec.co.jp ([114.179.233.122])
+	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x8B7MKAk020343
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 11 Sep 2019 16:22:20 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8B7MK2T021862;
+	Wed, 11 Sep 2019 16:22:20 +0900
+Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8B7MDR1021065;
+	Wed, 11 Sep 2019 16:22:20 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.147] [10.38.151.147]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-936117; Wed, 11 Sep 2019 16:21:14 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC19GP.gisp.nec.co.jp ([10.38.151.147]) with mapi id 14.03.0439.000; Wed,
+ 11 Sep 2019 16:21:13 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: "osalvador@suse.de" <osalvador@suse.de>
+CC: "mhocko@kernel.org" <mhocko@kernel.org>,
+        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 00/10] Hwpoison soft-offline rework
+Thread-Topic: [PATCH 00/10] Hwpoison soft-offline rework
+Thread-Index: AQHVZ8LTy7PIWQBirkyAnAoCBs9f5aclXX4AgAAOxICAAAOJAIAADMoA
+Date: Wed, 11 Sep 2019 07:21:12 +0000
+Message-ID: <20190911072112.GA12499@hori.linux.bs1.fc.nec.co.jp>
+References: <20190910103016.14290-1-osalvador@suse.de>
+ <20190911052956.GA9729@hori.linux.bs1.fc.nec.co.jp>
+ <20190911062246.GA31960@hori.linux.bs1.fc.nec.co.jp>
+ <59dce1bc205b10f67f17cf9d2e1e7a04@suse.de>
+In-Reply-To: <59dce1bc205b10f67f17cf9d2e1e7a04@suse.de>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.150]
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <80CDEFCDA81BC34D9226C8BC8FBFE853@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is the gup counterpart of the change that allows the
-VM_FAULT_RETRY to happen for more than once.  One thing to mention is
-that we must check the fatal signal here before retry because the GUP
-can be interrupted by that, otherwise we can loop forever.
+On Wed, Sep 11, 2019 at 08:35:26AM +0200, osalvador@suse.de wrote:
+> On 2019-09-11 08:22, Naoya Horiguchi wrote:
+> > I found another panic ...
+>=20
+> Hi Naoya,
+>=20
+> Thanks for giving it a try. Are these testcase public?
+> I will definetely take a look and try to solve these cases.
 
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
- mm/gup.c     | 25 ++++++++++++++++++++-----
- mm/hugetlb.c |  6 ++++--
- 2 files changed, 24 insertions(+), 7 deletions(-)
+It's available on https://github.com/Naoya-Horiguchi/mm_regression.
+The README is a bit obsolete (sorry about that ...,) but you can run
+the testcase like below:
 
-diff --git a/mm/gup.c b/mm/gup.c
-index eddbb95dcb8f..4b9413ee7b23 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -644,7 +644,10 @@ static int faultin_page(struct task_struct *tsk, str=
-uct vm_area_struct *vma,
- 	if (*flags & FOLL_NOWAIT)
- 		fault_flags |=3D FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
- 	if (*flags & FOLL_TRIED) {
--		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-+		/*
-+		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
-+		 * can co-exist
-+		 */
- 		fault_flags |=3D FAULT_FLAG_TRIED;
- 	}
-=20
-@@ -1059,17 +1062,29 @@ static __always_inline long __get_user_pages_lock=
-ed(struct task_struct *tsk,
- 		if (likely(pages))
- 			pages +=3D ret;
- 		start +=3D ret << PAGE_SHIFT;
-+		lock_dropped =3D true;
-=20
-+retry:
- 		/*
- 		 * Repeat on the address that fired VM_FAULT_RETRY
--		 * without FAULT_FLAG_ALLOW_RETRY but with
--		 * FAULT_FLAG_TRIED.
-+		 * with both FAULT_FLAG_ALLOW_RETRY and
-+		 * FAULT_FLAG_TRIED.  Note that GUP can be interrupted
-+		 * by fatal signals, so we need to check it before we
-+		 * start trying again otherwise it can loop forever.
- 		 */
-+
-+		if (fatal_signal_pending(current))
-+			goto out;
-+
- 		*locked =3D 1;
--		lock_dropped =3D true;
- 		down_read(&mm->mmap_sem);
- 		ret =3D __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
--				       pages, NULL, NULL);
-+				       pages, NULL, locked);
-+		if (!*locked) {
-+			/* Continue to retry until we succeeded */
-+			BUG_ON(ret !=3D 0);
-+			goto retry;
-+		}
- 		if (ret !=3D 1) {
- 			BUG_ON(ret > 1);
- 			if (!pages_done)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5f816ee42206..6b9d27925e7a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4328,8 +4328,10 @@ long follow_hugetlb_page(struct mm_struct *mm, str=
-uct vm_area_struct *vma,
- 				fault_flags |=3D FAULT_FLAG_ALLOW_RETRY |
- 					FAULT_FLAG_RETRY_NOWAIT;
- 			if (flags & FOLL_TRIED) {
--				VM_WARN_ON_ONCE(fault_flags &
--						FAULT_FLAG_ALLOW_RETRY);
-+				/*
-+				 * Note: FAULT_FLAG_ALLOW_RETRY and
-+				 * FAULT_FLAG_TRIED can co-exist
-+				 */
- 				fault_flags |=3D FAULT_FLAG_TRIED;
- 			}
- 			ret =3D hugetlb_fault(mm, vma, vaddr, fault_flags);
---=20
-2.21.0
+  $ git clone https://github.com/Naoya-Horiguchi/mm_regression
+  $ cd mm_regression
+  mm_regression $ git clone https://github.com/Naoya-Horiguchi/test_core=20
+  mm_regression $ make
+  // you might need to install some dependencies like numa library and mce-=
+inject tool
+  mm_regression $ make update_recipes
+
+To run the single testcase, run the commands like below:
+
+  mm_regression $ RECIPEFILES=3Dcases/page_migration/hugetlb_migratepages_a=
+llocate1_noovercommit.auto2 bash run.sh
+  mm_regression $ RECIPEFILES=3Dcases/cases/mce_ksm_soft-offline_avoid_acce=
+ss.auto2 bash run.sh
+ =20
+You can run a set of many testcases with the commands like below:
+
+  mm_regression $ RECIPEFILES=3Dcases/cases/mce_ksm_* bash run.sh
+  // run all ksm related testcases. I reproduced the panic with this comman=
+d.
+
+  mm_regression $ run_class=3Dsimple bash run.sh
+  // run the set of minimum testcases I run for each releases.
+
+Hopefully this will help you.
+
+Thanks,
+Naoya Horiguchi=
 
 
