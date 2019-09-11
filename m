@@ -2,115 +2,215 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFC4EC5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 13:52:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D91CC5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:00:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C526206CD
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 13:52:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C526206CD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E36E20863
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 14:00:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E36E20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CC846B0006; Wed, 11 Sep 2019 09:52:57 -0400 (EDT)
+	id CC4006B0005; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17DAF6B0007; Wed, 11 Sep 2019 09:52:57 -0400 (EDT)
+	id C74726B0006; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 093CE6B0008; Wed, 11 Sep 2019 09:52:57 -0400 (EDT)
+	id B3BB66B0007; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0199.hostedemail.com [216.40.44.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3F36B0006
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:52:56 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 4DEEF824CA0B
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:52:56 +0000 (UTC)
-X-FDA: 75922780752.29.waves24_8de45d379e623
-X-HE-Tag: waves24_8de45d379e623
-X-Filterd-Recvd-Size: 2806
-Received: from mail3-165.sinamail.sina.com.cn (mail3-165.sinamail.sina.com.cn [202.108.3.165])
-	by imf04.hostedemail.com (Postfix) with SMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:52:54 +0000 (UTC)
-Received: from unknown (HELO localhost.localdomain)([222.131.67.234])
-	by sina.com with ESMTP
-	id 5D78FC2E0001F1D2; Wed, 11 Sep 2019 21:52:50 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 191039629314
-From: Hillf Danton <hdanton@sina.com>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Mike Christie <mchristi@redhat.com>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>,
-	axboe@kernel.dk,
-	James.Bottomley@HansenPartnership.com,
-	martin.petersen@oracle.com,
-	linux-kernel@vger.kernel.org,
-	linux-scsi@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	Linux-MM <linux-mm@kvack.org>
-Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
-Date: Wed, 11 Sep 2019 21:52:37 +0800
-Message-Id: <20190911135237.11248-1-hdanton@sina.com>
-In-Reply-To: <20190911031348.9648-1-hdanton@sina.com>
-References: <20190911031348.9648-1-hdanton@sina.com>
+Received: from forelay.hostedemail.com (smtprelay0173.hostedemail.com [216.40.44.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FE4A6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:59:59 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 45B9F180AD801
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:59:59 +0000 (UTC)
+X-FDA: 75922798518.09.nest10_39fd94484bc2f
+X-HE-Tag: nest10_39fd94484bc2f
+X-Filterd-Recvd-Size: 8678
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf16.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 13:59:58 +0000 (UTC)
+Received: (qmail 18897 invoked from network); 11 Sep 2019 15:59:56 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Wed, 11 Sep 2019 15:59:56 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+ cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+ Vlastimil Babka <vbabka@suse.cz>
+References: <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
+ <20190910082919.GL2063@dhcp22.suse.cz>
+ <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
+ <20190910090241.GM2063@dhcp22.suse.cz>
+ <743a047e-a46f-32fa-1fe4-a9bd8f09ed87@profihost.ag>
+ <20190910110741.GR2063@dhcp22.suse.cz>
+ <364d4c2e-9c9a-d8b3-43a8-aa17cccae9c7@profihost.ag>
+ <20190910125756.GB2063@dhcp22.suse.cz>
+ <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
+ <b1fe902f-fce6-1aa9-f371-ceffdad85968@profihost.ag>
+ <20190910132418.GC2063@dhcp22.suse.cz>
+ <d07620d9-4967-40fe-fa0f-be51f2459dc5@profihost.ag>
+ <5f960e74-1f44-9a0a-58a6-dcb64aa71612@profihost.ag>
+Message-ID: <289fbe71-0472-520f-64e2-b6d07ced5436@profihost.ag>
+Date: Wed, 11 Sep 2019 15:59:56 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <5f960e74-1f44-9a0a-58a6-dcb64aa71612@profihost.ag>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+HI,
 
-On Wed, 11 Sep 2019 19:07:34 +0900
->=20
-> But I guess that there is a problem.
+i've now tried v5.2.14 but that one died with - i don't know which
+version to try... now
 
-Not a new one. (see commit 7dea19f9ee63)
+2019-09-11 15:41:09     ------------[ cut here ]------------
+2019-09-11 15:41:09     kernel BUG at mm/page-writeback.c:2655!
+2019-09-11 15:41:09     invalid opcode: 0000 [#1] SMP PTI
+2019-09-11 15:41:09     CPU: 4 PID: 466 Comm: kworker/u24:6 Not tainted
+5.2.14 #1
+2019-09-11 15:41:09     Hardware name: Supermicro Super Server/X10SRi-F,
+BIOS 1.0b 04/21/2015
+2019-09-11 15:41:09     Workqueue: btrfs-delalloc btrfs_delalloc_helper
+[btrfs]
+2019-09-11 15:41:09     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
+2019-09-11 15:41:09     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
+00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
+5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
+d2 48 8b
+2019-09-11 15:41:09     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
+2019-09-11 15:41:09     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
+0000000000000000
+2019-09-11 15:41:09     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
+ffffe660525b3140
+2019-09-11 15:41:09     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
+000000000002de18
+2019-09-11 15:41:09     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
+0000000000000000
+2019-09-11 15:41:09     R13: 0000000000000001 R14: 0000000000000000 R15:
+ffffbd4b8d2f3d08
+2019-09-11 15:41:09     FS: 0000000000000000(0000)
+GS:ffff9ade3f900000(0000) knlGS:0000000000000000
+2019-09-11 15:41:09     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+2019-09-11 15:41:09     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
+00000000001606e0
+2019-09-11 15:41:09     Call Trace:
+2019-09-11 15:41:09     __process_pages_contig+0x270/0x360 [btrfs]
+2019-09-11 15:41:09     submit_compressed_extents+0x39d/0x460 [btrfs]
+2019-09-11 15:41:09     normal_work_helper+0x20f/0x320
+[btrfs]process_one_work+0x18b/0x380worker_thread+0x4f/0x3a0
+2019-09-11 15:41:09     ? rescuer_thread+0x330/0x330kthread+0xf8/0x130
+2019-09-11 15:41:09     ?
+kthread_create_worker_on_cpu+0x70/0x70ret_from_fork+0x35/0x40
+2019-09-11 15:41:09     Modules linked in: netconsole xt_tcpudp xt_owner
+xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_multiport
+ipt_REJECT nf_reject_ipv4 xt_set iptable_filter bpfilter fuse
+ip_set_hash_net ip_set nfnetlink 8021q garp bonding sb_edac
+x86_pkg_temp_thermal coretemp kvm_intel ast kvm ttm drm_kms_helper
+irqbypass crc32_pclmul drm fb_sys_fops syscopyarea lpc_ich sysfillrect
+ghash_clmulni_intel sysimgblt mfd_core sg wmi ipmi_si ipmi_devintf
+ipmi_msghandler button ip_tables x_tables btrfs zstd_decompress
+zstd_compress raid10 raid456 async_raid6_recov async_memcpy async_pq
+async_xor async_tx xor usbhid raid6_pq raid1 raid0 multipath linear
+md_mod sd_mod xhci_pci ehci_pci igb xhci_hcd ehci_hcd i2c_algo_bit
+i2c_i801 ahci ptp i2c_core usbcore libahci usb_common pps_core megaraid_sas
+2019-09-11 15:41:09     ---[ end trace d9a3f99c047dc8bf ]---
+2019-09-11 15:41:10     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
+2019-09-11 15:41:10     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
+00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
+5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
+d2 48 8b
+2019-09-11 15:41:10     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
+2019-09-11 15:41:10     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
+0000000000000000
+2019-09-11 15:41:10     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
+ffffe660525b3140
+2019-09-11 15:41:10     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
+000000000002de18
+2019-09-11 15:41:10     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
+0000000000000000
+2019-09-11 15:41:10     R13: 0000000000000001 R14: 0000000000000000 R15:
+ffffbd4b8d2f3d08
+2019-09-11 15:41:10     FS: 0000000000000000(0000)
+GS:ffff9ade3f900000(0000) knlGS:0000000000000000
+2019-09-11 15:41:10     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+2019-09-11 15:41:10     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
+00000000001606e0
+2019-09-11 15:41:10     Kernel panic - not syncing: Fatal exception
+2019-09-11 15:41:10     Kernel Offset: 0x1a000000 from
+0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+2019-09-11 15:41:10     Rebooting in 20 seconds..
+2019-09-11 15:41:29     ACPI MEMORY or I/O RESET_REG.
 
-> Setting PF_MEMALLOC_NOIO causes
-> current_gfp_context() to mask __GFP_IO | __GFP_FS, but the OOM killer c=
-annot
-> be invoked when __GFP_FS is masked. As a result, any userspace thread w=
-hich
-> has PF_MEMALLOC_NOIO cannot invoke the OOM killer.
-
-Correct.
-
-> If the userspace thread
-> which uses PF_MEMALLOC_NOIO is involved in memory reclaiming activities=
-,
-> the memory reclaiming activities won't be able to make forward progress=
- when
-> the userspace thread triggered e.g. a page fault. Can the "userspace co=
-mponents
-> that can run in the IO path" survive without any memory allocation?
-
-Good question.
-
-It can be solved without oom killer involved because user should be
-aware of the risk of PF_MEMALLOC_NOIO if they ask for the convenience.
-OTOH we are able to control any abuse of it as you worry, knowing that
-the combination of __GFP_FS and oom killer can not get more than 50 users
-works done, and we have to pay as much attention as we can to the decisio=
-ns
-they make. In case of PF_MEMALLOC_NOIO, we simply fail the allocation
-rather than killing a random victim.
-
-
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3854,6 +3854,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, un
- 	 * out_of_memory). Once filesystems are ready to handle allocation
- 	 * failures more gracefully we should just bail out here.
- 	 */
-+	if (current->flags & PF_MEMALLOC_NOIO)
-+		goto out;
-=20
- 	/* The OOM killer may not free memory on a specific node */
- 	if (gfp_mask & __GFP_THISNODE)
-
+Stefan
+Am 11.09.19 um 08:24 schrieb Stefan Priebe - Profihost AG:
+> Hi Michal,
+> 
+> Am 11.09.19 um 08:12 schrieb Stefan Priebe - Profihost AG:
+>> Hi Michal,
+>> Am 10.09.19 um 15:24 schrieb Michal Hocko:
+>>> On Tue 10-09-19 15:14:45, Stefan Priebe - Profihost AG wrote:
+>>>> Am 10.09.19 um 15:05 schrieb Stefan Priebe - Profihost AG:
+>>>>>
+>>>>> Am 10.09.19 um 14:57 schrieb Michal Hocko:
+>>>>>> On Tue 10-09-19 14:45:37, Stefan Priebe - Profihost AG wrote:
+>>>>>>> Hello Michal,
+>>>>>>>
+>>>>>>> ok this might take a long time. Attached you'll find a graph from a
+>>>>>>> fresh boot what happens over time (here 17 August to 30 August). Memory
+>>>>>>> Usage decreases as well as cache but slowly and only over time and days.
+>>>>>>>
+>>>>>>> So it might take 2-3 weeks running Kernel 5.3 to see what happens.
+>>>>>>
+>>>>>> No problem. Just make sure to collect the requested data from the time
+>>>>>> you see the actual problem. Btw. you try my very dumb scriplets to get
+>>>>>> an idea of how much memory gets reclaimed due to THP.
+>>>>>
+>>>>> You mean your sed and sort on top of the trace file? No i did not with
+>>>>> the current 5.3 kernel do you think it will show anything interesting?
+>>>>> Which line shows me how much memory gets reclaimed due to THP?
+>>>
+>>> Please re-read http://lkml.kernel.org/r/20190910082919.GL2063@dhcp22.suse.cz
+>>> Each command has a commented output. If you see nunmber of reclaimed
+>>> pages to be large for GFP_TRANSHUGE then you are seeing a similar
+>>> problem.
+>>>
+>>>> Is something like a kernel memory leak possible? Or wouldn't this end up
+>>>> in having a lot of free memory which doesn't seem usable.
+>>>
+>>> I would be really surprised if this was the case.
+>>>
+>>>> I also wonder why a reclaim takes place when there is enough memory.
+>>>
+>>> This is not clear yet and it might be a bug that has been fixed since
+>>> 4.18. That's why we need to see whether the same is pattern is happening
+>>> with 5.3 as well.
+> 
+> but except from the btrfs problem the memory consumption looks far
+> better than before.
+> 
+> Running 4.19.X:
+> after about 12h cache starts to drop from 30G to 24G
+> 
+> Running 5.3-rc8:
+> after about 24h cache is still constant at nearly 30G
+> 
+> Greets,
+> Stefan
+> 
 
