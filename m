@@ -6,42 +6,42 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0358C5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:03:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29C0FC5ACAE
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:09:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62130222C2
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:03:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62130222C2
+	by mail.kernel.org (Postfix) with ESMTP id E3AAC20863
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 16:09:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3AAC20863
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A8F16B0010; Wed, 11 Sep 2019 12:03:04 -0400 (EDT)
+	id 907C96B0010; Wed, 11 Sep 2019 12:09:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 080D46B0266; Wed, 11 Sep 2019 12:03:04 -0400 (EDT)
+	id 892CC6B0266; Wed, 11 Sep 2019 12:09:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8B156B026B; Wed, 11 Sep 2019 12:03:03 -0400 (EDT)
+	id 731AA6B026B; Wed, 11 Sep 2019 12:09:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id BEBBE6B0010
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:03:03 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 4FDB58243763
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:03:03 +0000 (UTC)
-X-FDA: 75923108646.16.art94_71db355ecee5a
-X-HE-Tag: art94_71db355ecee5a
-X-Filterd-Recvd-Size: 8874
+Received: from forelay.hostedemail.com (smtprelay0085.hostedemail.com [216.40.44.85])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C47D6B0010
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 12:09:32 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id DD6F56D68
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:09:31 +0000 (UTC)
+X-FDA: 75923124942.02.spade48_18e9f1ec9b116
+X-HE-Tag: spade48_18e9f1ec9b116
+X-Filterd-Recvd-Size: 7430
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:03:02 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 16:09:31 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E2CEE883BA;
-	Wed, 11 Sep 2019 16:03:00 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8D4583091761;
+	Wed, 11 Sep 2019 16:09:29 +0000 (UTC)
 Received: from [10.36.116.137] (ovpn-116-137.ams2.redhat.com [10.36.116.137])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2AC1B60C05;
-	Wed, 11 Sep 2019 16:02:46 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BFCA55C207;
+	Wed, 11 Sep 2019 16:09:19 +0000 (UTC)
 Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
 To: Michal Hocko <mhocko@kernel.org>
 Cc: "Michael S. Tsirkin" <mst@redhat.com>,
@@ -61,8 +61,7 @@ Cc: "Michael S. Tsirkin" <mst@redhat.com>,
  Paolo Bonzini <pbonzini@redhat.com>, Dan Williams
  <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
  "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-References: <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
- <20190910175213.GD4023@dhcp22.suse.cz>
+References: <20190910175213.GD4023@dhcp22.suse.cz>
  <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
  <20190911113619.GP4023@dhcp22.suse.cz>
  <20190911080804-mutt-send-email-mst@kernel.org>
@@ -70,7 +69,7 @@ References: <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
  <4748a572-57b3-31da-0dde-30138e550c3a@redhat.com>
  <20190911125413.GY4023@dhcp22.suse.cz>
  <736594d6-b9ae-ddb9-2b96-85648728ef33@redhat.com>
- <20190911132002.GA4023@dhcp22.suse.cz>
+ <20190911132002.GA4023@dhcp22.suse.cz> <20190911135100.GC4023@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -117,98 +116,52 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <6b4451e9-7f62-bb84-1604-a4aebc907766@redhat.com>
-Date: Wed, 11 Sep 2019 18:02:46 +0200
+Message-ID: <abea20a0-463c-68c0-e810-2e341d971b30@redhat.com>
+Date: Wed, 11 Sep 2019 18:09:18 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190911132002.GA4023@dhcp22.suse.cz>
+In-Reply-To: <20190911135100.GC4023@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 11 Sep 2019 16:03:01 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 11 Sep 2019 16:09:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> Something slightly similar is being performed by Nitesh's patch set. O=
-n
->> every free of a certain granularity, he records it in the bitmap. Thes=
-e
->> bits are "hints of free pages".
+On 11.09.19 15:51, Michal Hocko wrote:
+> On Wed 11-09-19 15:20:02, Michal Hocko wrote:
+> [...]
+>>> 4. Continuously report, not the "one time report everything" approach.
 >>
->> A thread then walks over the bitmap and tries to allocate the "hints".
->> If the pages were already reused, the bit is silently cleared.
->>
->> Instead of allocating/freeing, we could only try to isolate the
->> pageblock, then test if free. (One of the usual issues to work around =
-is
->> MAX_ORDER-1 crossing pageblocks, that might need special care)
->=20
-> OK, cool that I have reinvented the wheel ;). Allocation is indeed not
-> necessary as long as pages are isolated because nobody will allocate
-> them.
+>> So you mean the allocator reporting this rather than an external code to
+>> poll right? I do not know, how much this is nice to have than must have?
+> 
+> Another idea that I haven't really thought through so it might turned
+> out to be completely bogus but let's try anyway. Your "report everything"
+> just made me look and realize that free_pages_prepare already performs
+> stuff that actually does something similar yet unrelated.
+> 
+> We do report to special page poisoning, zeroying or
+> CONFIG_DEBUG_PAGEALLOC to unmap the address from the kernel address
+> space. This sounds like something fitting your model no?
+> 
 
-It's always good if you come to the same conclusion ;)
+AFAIKS, the poisoning/unmapping is done whenever a page is freed. I
+don't quite see yet how that would help to remember if a page was
+already reported. After reporting the page we would have to switch some
+state (Nitesh: bitmap bit, Alexander: page flag) to identify that.
 
-> =20
->> I think you should have a look at the rough idea of Nitesh's patch set
->> to see if something like that is going into a better direction. The
->> bitmap part is in place to do bulk reporting and avoid duplicate repor=
-ts.
->=20
-> Let's see how much time I can find for that in my endless inbox whack a=
- mole.
+Of course, we could map the page and treat that as "the state" when we
+reported it, but I am not sure that's such a good idea :)
 
-Can totally understand - it's only a single patch.
+As always, I might be very wrong ...
 
-> =20
->> I think main points we want (and what I am missing from callback idea
->> being discussed) are
->> 1. Do bulk reporting only when a certain threshold is reached
->=20
-> Is a time based approach too coarse?
-
-Usually that's then another parameter to fine tune, something to avoid
-when just reporting continuously. I wouldn't say it's a no go, but at
-least I would prefer right now to do it continuously.
-
->=20
->> 2. Report only bigger granularities (especially, avoid THP splits in t=
-he
->> hypervisor - >=3D 2MB proofed to be effective)
->=20
-> the callback has supported order based scan in some of its iteration.
-
-Missed that. But yeah, the other points are more important :)
-
->=20
->> 3. Avoid reporting what has just been reported.
->=20
-> Is the overhead of checking a pfn range in a bitmask that much of an
-> overhead to really care?
-
-It's all about remembering what has already been reported. Nitesh solved
-that via the bitmap. So he does exactly that. If we can optimize the
-bitmap out - perfect - but I don't see an easy way to do that :)
-
->=20
->> 4. Continuously report, not the "one time report everything" approach.
->=20
-> So you mean the allocator reporting this rather than an external code t=
-o
-> poll right? I do not know, how much this is nice to have than must have=
-?
-
-I guess it is debatable - but I don't consider this one of the
-fundamental issues. How to identify what to report and remember what has
-already been reported is the main issue. Polling vs. notification is
-just the cherry on top - IMHO.
-
---=20
+-- 
 
 Thanks,
 
