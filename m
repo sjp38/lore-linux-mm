@@ -2,242 +2,217 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FORGED_MUA_MOZILLA,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64C74ECDE27
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 08:43:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62A08ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:23:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D18721928
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 08:43:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=urbackup.org header.i=@urbackup.org header.b="TLoD1gqx";
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="grYXhPHg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D18721928
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=urbackup.org
+	by mail.kernel.org (Postfix) with ESMTP id F39352089F
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 09:23:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F39352089F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A56E96B0005; Wed, 11 Sep 2019 04:43:05 -0400 (EDT)
+	id 63FBF6B0005; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DFBB6B0006; Wed, 11 Sep 2019 04:43:05 -0400 (EDT)
+	id 5F15D6B0006; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 87FDB6B0007; Wed, 11 Sep 2019 04:43:05 -0400 (EDT)
+	id 4E0E16B0007; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0226.hostedemail.com [216.40.44.226])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E84E6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 04:43:05 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 02FFC181AC9BF
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:43:05 +0000 (UTC)
-X-FDA: 75921999930.21.hot33_37e6af6750b60
-X-HE-Tag: hot33_37e6af6750b60
-X-Filterd-Recvd-Size: 8517
-Received: from a4-15.smtp-out.eu-west-1.amazonses.com (a4-15.smtp-out.eu-west-1.amazonses.com [54.240.4.15])
-	by imf32.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 08:43:03 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ob2ngmaigrjtzxgmrxn2h6b3gszyqty3; d=urbackup.org; t=1568191382;
-	h=Subject:To:References:From:Message-ID:Date:MIME-Version:In-Reply-To:Content-Type:Content-Transfer-Encoding;
-	bh=qQV7uqEq2fVv9oREM0bMzbb0KcjU3d8iebg1LaeyBTc=;
-	b=TLoD1gqxxP7r6utL/9OtMw8yUySe+K7y4cLzzPu6J8sE1TtJ0MiB2y01znctz8F7
-	6BRID5yGQaZi1TPVDhRv3V1HRf2mBj16mhs23GeN+tG6ZiLBpKfH0jHCYSrJ+MJTcZW
-	Dmzqh9DJzKRRgdoOD/1qYH68u5ASBCYg9GvzWNPc=
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ihchhvubuqgjsxyuhssfvqohv7z3u4hn; d=amazonses.com; t=1568191382;
-	h=Subject:To:References:From:Message-ID:Date:MIME-Version:In-Reply-To:Content-Type:Content-Transfer-Encoding:Feedback-ID;
-	bh=qQV7uqEq2fVv9oREM0bMzbb0KcjU3d8iebg1LaeyBTc=;
-	b=grYXhPHgGJgLXTMb/as/jG6VbPuWhQEA6kIWj49qooBq6W+2PKnfZm6ywbXqXUF0
-	gs7utbsvGgT/M+hGfW7vmH0Z2yU+kX3fol3NWnWplSFVoXnrwO9/dFWsVLAVvwv0p8y
-	bHfYoEw7ZsgXQUIVE++Jhaoxt+atkYX96OeudsW0=
-Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
-To: Damien Le Moal <Damien.LeMoal@wdc.com>,
- Mike Christie <mchristi@redhat.com>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
- "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>
-References: <20190909162804.5694-1-mchristi@redhat.com>
- <5D76995B.1010507@redhat.com>
- <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
-From: Martin Raiber <martin@urbackup.org>
-Message-ID: <0102016d1f7d8136-cb7bca70-0509-4a29-b687-5b93a36e3fec-000000@eu-west-1.amazonses.com>
-Date: Wed, 11 Sep 2019 08:43:02 +0000
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.9.0
+Received: from forelay.hostedemail.com (smtprelay0122.hostedemail.com [216.40.44.122])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DCAC6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 05:23:55 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id CB9C9211BB
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:54 +0000 (UTC)
+X-FDA: 75922102788.18.trail83_7957a8468b35a
+X-HE-Tag: trail83_7957a8468b35a
+X-Filterd-Recvd-Size: 9391
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:53 +0000 (UTC)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 34EED2CD811
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 09:23:52 +0000 (UTC)
+Received: by mail-qk1-f200.google.com with SMTP id 11so24284893qkh.15
+        for <linux-mm@kvack.org>; Wed, 11 Sep 2019 02:23:52 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to;
+        bh=mYSD9hRnX/6v3ywsydqfkpFUdOIKRrBI76zwVnPyG4o=;
+        b=qUAdtbQSntn57LYH1iD1pw8sNfqq0nZ3xhMekfbkTdN5HE6mkwg3CK8eDGj0ZYZFsE
+         fpCSjSQu1k4prDJfIQTWBpo+TmR1gFPYsAtNQfx0luoqUHexsJe7KtS0rCQYbOVoWIrP
+         NABYVOhmo/biExtmKWEdKQF6jqB+z42hnZB1T0CkeYIMOsLQqnrP6UGGNZZ3VWHpASsj
+         iVsXt94J/yGE7ORMyjgfxZFG3rb4b+Ga5yI9YQciHrygbBl0ODKtiG1KKwCXR+Umg67V
+         6YoPgZZ/di1EfMKzjGy8p2Gq70CO5RLWfEText+EgOkLQBOpvDdzQfcaP8QIdEn36Uuf
+         x3fg==
+X-Gm-Message-State: APjAAAW5NhzKXD6WavMMUux+IwJLv75n4m6bv32gX6cngq+xg67NmOC6
+	silnB8VSkrVl2QuBGBpbwTS22CPCU6r0ZprW1gn+WXaAI5HbQcZvUiN1q0Hd3KueBgbFUqx9jHU
+	l5s3UjPU8830=
+X-Received: by 2002:a37:a503:: with SMTP id o3mr33610731qke.115.1568193831418;
+        Wed, 11 Sep 2019 02:23:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz8QR5cKcd/uXRYlQ318mPxE6jSP+97aQIMCCQ/RUZeDP873f/PJ5B1bFEAkiTG92ijMAd8cg==
+X-Received: by 2002:a37:a503:: with SMTP id o3mr33610704qke.115.1568193831205;
+        Wed, 11 Sep 2019 02:23:51 -0700 (PDT)
+Received: from redhat.com ([80.74.107.118])
+        by smtp.gmail.com with ESMTPSA id r13sm5657063qkm.48.2019.09.11.02.23.43
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 11 Sep 2019 02:23:50 -0700 (PDT)
+Date: Wed, 11 Sep 2019 05:23:40 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>,
+	Alexander Duyck <alexander.duyck@gmail.com>,
+	Michal Hocko <mhocko@kernel.org>, virtio-dev@lists.oasis-open.org,
+	kvm list <kvm@vger.kernel.org>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+	"Wang, Wei W" <wei.w.wang@intel.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [virtio-dev] Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+Message-ID: <20190911051819-mutt-send-email-mst@kernel.org>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz>
+ <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz>
+ <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910161818.GF2797@work-vm>
+ <f74117db-225d-92cb-9476-22c0f752659d@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-SES-Outgoing: 2019.09.11-54.240.4.15
-Feedback-ID: 1.eu-west-1.zKMZH6MF2g3oUhhjaE2f3oQ8IBjABPbvixQzV8APwT0=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f74117db-225d-92cb-9476-22c0f752659d@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10.09.2019 10:35 Damien Le Moal wrote:
-> Mike,
->
-> On 2019/09/09 19:26, Mike Christie wrote:
->> Forgot to cc linux-mm.
->>
->> On 09/09/2019 11:28 AM, Mike Christie wrote:
->>> There are several storage drivers like dm-multipath, iscsi, and nbd that
->>> have userspace components that can run in the IO path. For example,
->>> iscsi and nbd's userspace deamons may need to recreate a socket and/or
->>> send IO on it, and dm-multipath's daemon multipathd may need to send IO
->>> to figure out the state of paths and re-set them up.
->>>
->>> In the kernel these drivers have access to GFP_NOIO/GFP_NOFS and the
->>> memalloc_*_save/restore functions to control the allocation behavior,
->>> but for userspace we would end up hitting a allocation that ended up
->>> writing data back to the same device we are trying to allocate for.
->>>
->>> This patch allows the userspace deamon to set the PF_MEMALLOC* flags
->>> through procfs. It currently only supports PF_MEMALLOC_NOIO, but
->>> depending on what other drivers and userspace file systems need, for
->>> the final version I can add the other flags for that file or do a file
->>> per flag or just do a memalloc_noio file.
-> Awesome. That probably will be the perfect solution for the problem we hit with
-> tcmu-runner a while back (please see this thread:
-> https://www.spinics.net/lists/linux-fsdevel/msg148912.html).
->
-> I think we definitely need nofs as well for dealing with cases where the backend
-> storage for the user daemon is a file.
->
-> I will give this patch a try as soon as possible (I am traveling currently).
->
-> Best regards.
-I had issues with this as well, and work on this is appreciated! In my
-case it is a loop block device on a fuse file system.
+On Tue, Sep 10, 2019 at 06:22:37PM +0200, David Hildenbrand wrote:
+> On 10.09.19 18:18, Dr. David Alan Gilbert wrote:
+> > * Alexander Duyck (alexander.duyck@gmail.com) wrote:
+> >> On Tue, Sep 10, 2019 at 7:47 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >>>
+> >>> On Tue 10-09-19 07:42:43, Alexander Duyck wrote:
+> >>>> On Tue, Sep 10, 2019 at 5:42 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >>>>>
+> >>>>> I wanted to review "mm: Introduce Reported pages" just realize that I
+> >>>>> have no clue on what is going on so returned to the cover and it didn't
+> >>>>> really help much. I am completely unfamiliar with virtio so please bear
+> >>>>> with me.
+> >>>>>
+> >>>>> On Sat 07-09-19 10:25:03, Alexander Duyck wrote:
+> >>>>> [...]
+> >>>>>> This series provides an asynchronous means of reporting to a hypervisor
+> >>>>>> that a guest page is no longer in use and can have the data associated
+> >>>>>> with it dropped. To do this I have implemented functionality that allows
+> >>>>>> for what I am referring to as unused page reporting
+> >>>>>>
+> >>>>>> The functionality for this is fairly simple. When enabled it will allocate
+> >>>>>> statistics to track the number of reported pages in a given free area.
+> >>>>>> When the number of free pages exceeds this value plus a high water value,
+> >>>>>> currently 32, it will begin performing page reporting which consists of
+> >>>>>> pulling pages off of free list and placing them into a scatter list. The
+> >>>>>> scatterlist is then given to the page reporting device and it will perform
+> >>>>>> the required action to make the pages "reported", in the case of
+> >>>>>> virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+> >>>>>> and as such they are forced out of the guest. After this they are placed
+> >>>>>> back on the free list,
+> >>>>>
+> >>>>> And here I am reallly lost because "forced out of the guest" makes me
+> >>>>> feel that those pages are no longer usable by the guest. So how come you
+> >>>>> can add them back to the free list. I suspect understanding this part
+> >>>>> will allow me to understand why we have to mark those pages and prevent
+> >>>>> merging.
+> >>>>
+> >>>> Basically as the paragraph above mentions "forced out of the guest"
+> >>>> really is just the hypervisor calling MADV_DONTNEED on the page in
+> >>>> question. So the behavior is the same as any userspace application
+> >>>> that calls MADV_DONTNEED where the contents are no longer accessible
+> >>>> from userspace and attempting to access them will result in a fault
+> >>>> and the page being populated with a zero fill on-demand page, or a
+> >>>> copy of the file contents if the memory is file backed.
+> >>>
+> >>> As I've said I have no idea about virt so this doesn't really tell me
+> >>> much. Does that mean that if somebody allocates such a page and tries to
+> >>> access it then virt will handle a fault and bring it back?
+> >>
+> >> Actually I am probably describing too much as the MADV_DONTNEED is the
+> >> hypervisor behavior in response to the virtio-balloon notification. A
+> >> more thorough explanation of it can be found by just running "man
+> >> madvise", probably best just to leave it at that since I am probably
+> >> confusing things by describing hypervisor behavior in a kernel patch
+> >> set.
+> >>
+> >> For the most part all the page reporting really does is provide a way
+> >> to incrementally identify unused regions of memory in the buddy
+> >> allocator. That in turn is used by virtio-balloon in a polling thread
+> >> to report to the hypervisor what pages are not in use so that it can
+> >> make a decision on what to do with the pages now that it knows they
+> >> are unused.
+> >>
+> >> All this is providing is just a report and it is optional if the
+> >> hypervisor will act on it or not. If the hypervisor takes some sort of
+> >> action on the page, then the expectation is that the hypervisor will
+> >> use some sort of mechanism such as a page fault to discover when the
+> >> page is used again.
+> > 
+> > OK, that's interestingly different (but OK) from some other schemes that
+> > hav ebeen described which *require* the guest to somehow indicate the
+> > page is in use before starting to use the page again.
+> > 
+> 
+> virtio-balloon also has a mode where the guest would not have to
+> indicate to the host before re-using a page. Only
+> VIRTIO_BALLOON_F_MUST_TELL_HOST enforces this. So it's not completely new.
 
-Setting PF_LESS_THROTTLE was the one that helped the most, though, so
-add an option for that as well? I set this via prctl() for the thread
-calling it (was easiest to add to).
+VIRTIO_BALLOON_F_MUST_TELL_HOST is a bit different.
+When it's not set, guest still must tell host about
+pages in use, it just can batch these notifications
+sending them possibly after page has been used.
+So even with VIRTIO_BALLOON_F_MUST_TELL_HOST off you don't
+skip the notification.
 
-Sorry, I have no idea about the current rationale, but wouldn't it be
-better to have a way to mask a set of block devices/file systems not to
-write-back to in a thread. So in my case I'd specify that the fuse
-daemon threads cannot write-back to the file system and loop device
-running on top of the fuse file system, while all other block
-devices/file systems can be write-back to (causing less swapping/OOM
-issues).
 
->
->>> Signed-off-by: Mike Christie <mchristi@redhat.com>
->>> ---
->>>  Documentation/filesystems/proc.txt |  6 ++++
->>>  fs/proc/base.c                     | 53 ++++++++++++++++++++++++++++++
->>>  2 files changed, 59 insertions(+)
->>>
->>> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
->>> index 99ca040e3f90..b5456a61a013 100644
->>> --- a/Documentation/filesystems/proc.txt
->>> +++ b/Documentation/filesystems/proc.txt
->>> @@ -46,6 +46,7 @@ Table of Contents
->>>    3.10  /proc/<pid>/timerslack_ns - Task timerslack value
->>>    3.11	/proc/<pid>/patch_state - Livepatch patch operation state
->>>    3.12	/proc/<pid>/arch_status - Task architecture specific information
->>> +  3.13  /proc/<pid>/memalloc - Control task's memory reclaim behavior
->>>  
->>>    4	Configuring procfs
->>>    4.1	Mount options
->>> @@ -1980,6 +1981,11 @@ Example
->>>   $ cat /proc/6753/arch_status
->>>   AVX512_elapsed_ms:      8
->>>  
->>> +3.13 /proc/<pid>/memalloc - Control task's memory reclaim behavior
->>> +-----------------------------------------------------------------------
->>> +A value of "noio" indicates that when a task allocates memory it will not
->>> +reclaim memory that requires starting phisical IO.
->>> +
->>>  Description
->>>  -----------
->>>  
->>> diff --git a/fs/proc/base.c b/fs/proc/base.c
->>> index ebea9501afb8..c4faa3464602 100644
->>> --- a/fs/proc/base.c
->>> +++ b/fs/proc/base.c
->>> @@ -1223,6 +1223,57 @@ static const struct file_operations proc_oom_score_adj_operations = {
->>>  	.llseek		= default_llseek,
->>>  };
->>>  
->>> +static ssize_t memalloc_read(struct file *file, char __user *buf, size_t count,
->>> +			     loff_t *ppos)
->>> +{
->>> +	struct task_struct *task;
->>> +	ssize_t rc = 0;
->>> +
->>> +	task = get_proc_task(file_inode(file));
->>> +	if (!task)
->>> +		return -ESRCH;
->>> +
->>> +	if (task->flags & PF_MEMALLOC_NOIO)
->>> +		rc = simple_read_from_buffer(buf, count, ppos, "noio", 4);
->>> +	put_task_struct(task);
->>> +	return rc;
->>> +}
->>> +
->>> +static ssize_t memalloc_write(struct file *file, const char __user *buf,
->>> +			      size_t count, loff_t *ppos)
->>> +{
->>> +	struct task_struct *task;
->>> +	char buffer[5];
->>> +	int rc = count;
->>> +
->>> +	memset(buffer, 0, sizeof(buffer));
->>> +	if (count != sizeof(buffer) - 1)
->>> +		return -EINVAL;
->>> +
->>> +	if (copy_from_user(buffer, buf, count))
->>> +		return -EFAULT;
->>> +	buffer[count] = '\0';
->>> +
->>> +	task = get_proc_task(file_inode(file));
->>> +	if (!task)
->>> +		return -ESRCH;
->>> +
->>> +	if (!strcmp(buffer, "noio")) {
->>> +		task->flags |= PF_MEMALLOC_NOIO;
->>> +	} else {
->>> +		rc = -EINVAL;
->>> +	}
->>> +
->>> +	put_task_struct(task);
->>> +	return rc;
->>> +}
->>> +
->>> +static const struct file_operations proc_memalloc_operations = {
->>> +	.read		= memalloc_read,
->>> +	.write		= memalloc_write,
->>> +	.llseek		= default_llseek,
->>> +};
->>> +
->>>  #ifdef CONFIG_AUDIT
->>>  #define TMPBUFLEN 11
->>>  static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
->>> @@ -3097,6 +3148,7 @@ static const struct pid_entry tgid_base_stuff[] = {
->>>  #ifdef CONFIG_PROC_PID_ARCH_STATUS
->>>  	ONE("arch_status", S_IRUGO, proc_pid_arch_status),
->>>  #endif
->>> +	REG("memalloc", S_IRUGO|S_IWUSR, proc_memalloc_operations),
->>>  };
->>>  
->>>  static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
->>> @@ -3487,6 +3539,7 @@ static const struct pid_entry tid_base_stuff[] = {
->>>  #ifdef CONFIG_PROC_PID_ARCH_STATUS
->>>  	ONE("arch_status", S_IRUGO, proc_pid_arch_status),
->>>  #endif
->>> +	REG("memalloc", S_IRUGO|S_IWUSR, proc_memalloc_operations),
->>>  };
->>>  
->>>  static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
->>>
->>
->
+From hypervisor point of view, this feature is very much like adding
+page to the balloon and immediately taking it out of the balloon again,
+just doing it in one operation.
 
+The main difference is the contents of the page, which matters
+with poisoning: in that case hypervisor is expected to hand
+back page with the poisoning content. Not so with regular
+deflate where page contents is undefined.
+
+Well and also the new interface is optimized for large chunks
+of memory since we'll likely be dealing with such.
+
+> > Dave
+> 
+> 
+> -- 
+> 
+> Thanks,
+> 
+> David / dhildenb
 
