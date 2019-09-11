@@ -2,215 +2,333 @@ Return-Path: <SRS0=IwQ2=XG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19690ECDE20
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 06:27:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 44E54ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 06:35:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A47A320693
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 06:27:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="Vv9CIr4I"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A47A320693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id C95B921D79
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 06:35:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C95B921D79
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 406186B0008; Wed, 11 Sep 2019 02:27:19 -0400 (EDT)
+	id 2C6366B0007; Wed, 11 Sep 2019 02:35:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B5B46B000A; Wed, 11 Sep 2019 02:27:19 -0400 (EDT)
+	id 27F356B0008; Wed, 11 Sep 2019 02:35:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27CC56B000C; Wed, 11 Sep 2019 02:27:19 -0400 (EDT)
+	id 18CBE6B000A; Wed, 11 Sep 2019 02:35:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0083.hostedemail.com [216.40.44.83])
-	by kanga.kvack.org (Postfix) with ESMTP id 010426B0008
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 02:27:18 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 8D692824376C
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:27:18 +0000 (UTC)
-X-FDA: 75921657756.26.cakes94_22a0bb9890a4c
-X-HE-Tag: cakes94_22a0bb9890a4c
-X-Filterd-Recvd-Size: 8510
-Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:27:17 +0000 (UTC)
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 46SsPv54XQz9tyFD;
-	Wed, 11 Sep 2019 08:27:15 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=Vv9CIr4I; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id w1BPK-Y6gRxf; Wed, 11 Sep 2019 08:27:15 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 46SsPv3ylWz9tyFB;
-	Wed, 11 Sep 2019 08:27:15 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1568183235; bh=8DN7IMEU4e9mFBvwAi2QoWhd7U2FAikrDh/bbqIdhac=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=Vv9CIr4IP2LFKoqy15lJ9ZwdjXq3x3GJe4tXa0mej7ZPo0cfF5oAB2N2IAEdyD9Vc
-	 pgNn3NPMUWjsK5WPsfz8PPmC2/zS14Q5INeHVDGY2qiLANAPhSyd/kkzX4ux6gKytp
-	 4ZozOq0N07ZTMiQEgS/zJBpeph/xXjwutI4JwPis=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 6F62D8B7CA;
-	Wed, 11 Sep 2019 08:27:16 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id haPxXK31oHYl; Wed, 11 Sep 2019 08:27:16 +0200 (CEST)
-Received: from pc16032vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.230.103])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 1FCC38B74C;
-	Wed, 11 Sep 2019 08:27:16 +0200 (CEST)
-Subject: Re: [PATCH v7 0/5] kasan: support backing vmalloc space with real
- shadow memory
-To: Daniel Axtens <dja@axtens.net>, kasan-dev@googlegroups.com,
- linux-mm@kvack.org, x86@kernel.org, aryabinin@virtuozzo.com,
- glider@google.com, luto@kernel.org, linux-kernel@vger.kernel.org,
- mark.rutland@arm.com, dvyukov@google.com
-Cc: linuxppc-dev@lists.ozlabs.org, gor@linux.ibm.com
-References: <20190903145536.3390-1-dja@axtens.net>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <d43cba17-ef1f-b715-e826-5325432042dd@c-s.fr>
-Date: Wed, 11 Sep 2019 06:27:15 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.7.0
+Received: from forelay.hostedemail.com (smtprelay0180.hostedemail.com [216.40.44.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E55066B0007
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 02:35:28 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8C950181AC9C9
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:35:28 +0000 (UTC)
+X-FDA: 75921678336.02.mask04_69f091504ee45
+X-HE-Tag: mask04_69f091504ee45
+X-Filterd-Recvd-Size: 11950
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:35:27 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 742D0AC8C;
+	Wed, 11 Sep 2019 06:35:26 +0000 (UTC)
 MIME-Version: 1.0
-In-Reply-To: <20190903145536.3390-1-dja@axtens.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8;
+ format=flowed
+Date: Wed, 11 Sep 2019 08:35:26 +0200
+From: osalvador@suse.de
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 00/10] Hwpoison soft-offline rework
+In-Reply-To: <20190911062246.GA31960@hori.linux.bs1.fc.nec.co.jp>
+References: <20190910103016.14290-1-osalvador@suse.de>
+ <20190911052956.GA9729@hori.linux.bs1.fc.nec.co.jp>
+ <20190911062246.GA31960@hori.linux.bs1.fc.nec.co.jp>
+Message-ID: <59dce1bc205b10f67f17cf9d2e1e7a04@suse.de>
+X-Sender: osalvador@suse.de
+User-Agent: Roundcube Webmail
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Daniel,
+On 2019-09-11 08:22, Naoya Horiguchi wrote:
+> I found another panic ...
 
-Are any other patches required prior to this series ? I have tried to 
-apply it on later powerpc/merge branch without success:
+Hi Naoya,
 
+Thanks for giving it a try. Are these testcase public?
+I will definetely take a look and try to solve these cases.
 
-[root@localhost linux-powerpc]# git am 
-/root/Downloads/kasan-support-backing-vmalloc-space-with-real-shadow-memory\(1\).patch 
+Thanks!
+>=20
+> This testcase is testing the corner case where hugepage migration fails
+> by allocation failure on destination numa node which is caused by the
+> condition that all remaining free hugetlb are reserved.
+>=20
+>   [ 2610.711713] =3D=3D=3D> testcase
+> 'page_migration/hugetlb_madv_soft_reserve_noovercommit.auto2' start
+>   [ 2610.995836] bash (15807): drop_caches: 3
+>   [ 2612.596154] Soft offlining pfn 0x1d000 at process virtual address
+> 0x700000000000
+>   [ 2612.910245] bash (15807): drop_caches: 3
+>   [ 2613.099769] page:fffff4ba40740000 refcount:1 mapcount:-128
+> mapping:0000000000000000 index:0x0
+>   [ 2613.102099] flags: 0xfffe000800000(hwpoison)
+>   [ 2613.103424] raw: 000fffe000800000 ffff9c953ffd5af8
+> fffff4ba40e78008 0000000000000000
+>   [ 2613.105817] raw: 0000000000000000 0000000000000009
+> 00000001ffffff7f 0000000000000000
+>   [ 2613.107703] page dumped because: VM_BUG_ON_PAGE(page_count(buddy)=20
+> !=3D 0)
+>   [ 2613.109485] ------------[ cut here ]------------
+>   [ 2613.110834] kernel BUG at mm/page_alloc.c:821!
+>   [ 2613.112015] invalid opcode: 0000 [#1] SMP PTI
+>   [ 2613.113245] CPU: 0 PID: 16195 Comm: sysctl Not tainted
+> 5.3.0-rc8-v5.3-rc8-190911-1025-00010-ga436dbce8674+ #18
+>   [ 2613.115982] Hardware name: QEMU Standard PC (i440FX + PIIX,
+> 1996), BIOS 1.12.0-2.fc30 04/01/2014
+>   [ 2613.118495] RIP: 0010:free_one_page+0x5f1/0x610
+>   [ 2613.119803] Code: 09 7e 81 49 8d b4 17 c0 00 00 00 8b 14 24 48 89
+> ef e8 83 75 00 00 e9 16 fe ff ff 48 c7 c6 c0 2b 0d 82 4c 89 e7 e8 9f
+> c3 fd ff <0f> 0b 48 c7 c6 c0 2b 0d 82 e8 91 c3 fd ff 0f 0b 66 66 2e 0f
+> 1f 84
+>   [ 2613.124751] RSP: 0018:ffffac7442727ca8 EFLAGS: 00010046
+>   [ 2613.126224] RAX: 000000000000003b RBX: 0000000000000009 RCX:
+> 0000000000000006
+>   [ 2613.128261] RDX: 0000000000000000 RSI: 0000000000000000 RDI:
+> ffffffff820d1814
+>   [ 2613.130299] RBP: fffff4ba40748000 R08: 0000000000000710 R09:
+> 000000000000004a
+>   [ 2613.132082] R10: 0000000000000000 R11: ffffac7442727b20 R12:
+> fffff4ba40740000
+>   [ 2613.133821] R13: 000000000001d200 R14: 0000000000000000 R15:
+> ffff9c953ffd5680
+>   [ 2613.135769] FS:  00007fbf2e6cb900(0000) GS:ffff9c953da00000(0000)
+> knlGS:0000000000000000
+>   [ 2613.138077] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   [ 2613.139721] CR2: 000055eef99d4d38 CR3: 000000007cb50000 CR4:
+> 00000000001406f0
+>   [ 2613.141747] Call Trace:
+>   [ 2613.142472]  __free_pages_ok+0x175/0x4e0
+>   [ 2613.143454]  free_pool_huge_page+0xec/0x100
+>   [ 2613.144500]  __nr_hugepages_store_common+0x173/0x2e0
+>   [ 2613.145968]  ? __do_proc_doulongvec_minmax+0x3ae/0x440
+>   [ 2613.147444]  hugetlb_sysctl_handler_common+0xad/0xc0
+>   [ 2613.148867]  proc_sys_call_handler+0x1a5/0x1c0
+>   [ 2613.150104]  vfs_write+0xa5/0x1a0
+>   [ 2613.151081]  ksys_write+0x59/0xd0
+>   [ 2613.152052]  do_syscall_64+0x5f/0x1a0
+>   [ 2613.153071]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>   [ 2613.154327] RIP: 0033:0x7fbf2eb01ed8
+>=20
+>=20
+> On Wed, Sep 11, 2019 at 05:29:56AM +0000, Horiguchi Naoya(=E5=A0=80=E5=8F=
+=A3 =E7=9B=B4=E4=B9=9F) wrote:
+>> Hi Oscar,
+>>=20
+>> Thank you for your working on this.
+>>=20
+>> My testing shows the following error:
+>>=20
+>>   [ 1926.932435] =3D=3D=3D> testcase=20
+>> 'mce_ksm_soft-offline_avoid_access.auto2' start
+>>   [ 1927.155321] bash (15853): drop_caches: 3
+>>   [ 1929.019094] page:ffffe5c384c4cd40 refcount:1 mapcount:0=20
+>> mapping:0000000000000003 index:0x700000001
+>>   [ 1929.021586] anon
+>>   [ 1929.021588] flags:=20
+>> 0x57ffe00088000e(referenced|uptodate|dirty|swapbacked|hwpoison)
+>>   [ 1929.024289] raw: 0057ffe00088000e dead000000000100=20
+>> dead000000000122 0000000000000003
+>>   [ 1929.026611] raw: 0000000700000001 0000000000000000=20
+>> 00000000ffffffff 0000000000000000
+>>   [ 1929.028760] page dumped because:=20
+>> VM_BUG_ON_PAGE(page_ref_count(page))
+>>   [ 1929.030559] ------------[ cut here ]------------
+>>   [ 1929.031684] kernel BUG at mm/internal.h:73!
+>>   [ 1929.032738] invalid opcode: 0000 [#1] SMP PTI
+>>   [ 1929.033941] CPU: 3 PID: 16052 Comm: mceinj.sh Not tainted=20
+>> 5.3.0-rc8-v5.3-rc8-190911-1025-00010-ga436dbce8674+ #18
+>>   [ 1929.037137] Hardware name: QEMU Standard PC (i440FX + PIIX,=20
+>> 1996), BIOS 1.12.0-2.fc30 04/01/2014
+>>   [ 1929.040066] RIP: 0010:page_set_poison+0xf9/0x160
+>>   [ 1929.041665] Code: 63 02 7f 31 c0 5b 5d 41 5c c3 48 c7 c6 d0 d1 0c=
+=20
+>> b0 48 89 df e8 88 bb f8 ff 0f 0b 48 c7 c6 f0 2a 0d b0 48 89 df e8 77=20
+>> bb f8 ff <0f> 0b 48 8b 45 00 48 c1 e8 33 83 e0 07 83 f8 04 75 89 48 8b=
+=20
+>> 45 08
+>>   [ 1929.047773] RSP: 0018:ffffb4fb8a73bde0 EFLAGS: 00010246
+>>   [ 1929.049511] RAX: 0000000000000039 RBX: ffffe5c384c4cd40 RCX:=20
+>> 0000000000000000
+>>   [ 1929.051870] RDX: 0000000000000000 RSI: 0000000000000000 RDI:=20
+>> ffffffffb00d1814
+>>   [ 1929.054238] RBP: ffffe5c384c4cd40 R08: 0000000000000596 R09:=20
+>> 0000000000000048
+>>   [ 1929.056599] R10: 0000000000000000 R11: ffffb4fb8a73bc58 R12:=20
+>> 0000000000000000
+>>   [ 1929.058986] R13: ffffb4fb8a73be10 R14: 0000000000131335 R15:=20
+>> 0000000000000001
+>>   [ 1929.061366] FS:  00007fc9e208d740(0000) GS:ffff9fa9bdb00000(0000)=
+=20
+>> knlGS:0000000000000000
+>>   [ 1929.063842] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>   [ 1929.065429] CR2: 000055946c05d192 CR3: 00000001365f2000 CR4:=20
+>> 00000000001406e0
+>>   [ 1929.067373] Call Trace:
+>>   [ 1929.068094]  soft_offline_page+0x2be/0x600
+>>   [ 1929.069246]  soft_offline_page_store+0xdf/0x110
+>>   [ 1929.070510]  kernfs_fop_write+0x116/0x190
+>>   [ 1929.071618]  vfs_write+0xa5/0x1a0
+>>   [ 1929.072614]  ksys_write+0x59/0xd0
+>>   [ 1929.073548]  do_syscall_64+0x5f/0x1a0
+>>   [ 1929.074554]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>>   [ 1929.075957] RIP: 0033:0x7fc9e217ded8
+>>=20
+>> It seems that soft-offlining on ksm pages is affected by this=20
+>> changeset.
+>> Could you try to handle this?
+>>=20
+>> - Naoya
+>>=20
+>> On Tue, Sep 10, 2019 at 12:30:06PM +0200, Oscar Salvador wrote:
+>> >
+>> > This patchset was based on Naoya's hwpoison rework [1], so thanks to=
+ him
+>> > for the initial work.
+>> >
+>> > This patchset aims to fix some issues laying in soft-offline handlin=
+g,
+>> > but it also takes the chance and takes some further steps to perform
+>> > cleanups and some refactoring as well.
+>> >
+>> >  - Motivation:
+>> >
+>> >    A customer and I were facing an issue where poisoned pages we ret=
+urned
+>> >    back to user-space after having offlined them properly.
+>> >    This was only seend under some memory stress + soft offlining pag=
+es.
+>> >    After some anaylsis, it became clear that the problem was that
+>> >    when kcompactd kicked in to migrate pages over, compaction_alloc
+>> >    callback was handing poisoned pages to the migrate routine.
+>> >    Once this page was later on fault in, __do_page_fault returned
+>> >    VM_FAULT_HWPOISON making the process being killed.
+>> >
+>> >    All this could happen because isolate_freepages_block and
+>> >    fast_isolate_freepages just check for the page to be PageBuddy,
+>> >    and since 1) poisoned pages can be part of a higher order page
+>> >    and 2) poisoned pages are also Page Buddy, they can sneak in easi=
+ly.
+>> >
+>> >    I also saw some problem with swap pages, but I suspected to be th=
+e
+>> >    same sort of problem, so I did not follow that trace.
+>> >
+>> >    The full explanation can be see in [2].
+>> >
+>> >  - Approach:
+>> >
+>> >    The taken approach is to not let poisoned pages hit neither
+>> >    pcplists nor buddy freelists.
+>> >    This is achieved by:
+>> >
+>> > In-use pages:
+>> >
+>> >    * Normal pages
+>> >
+>> >    1) do not release the last reference count after the
+>> >       invalidation/migration of the page.
+>> >    2) the page is being handed to page_set_poison, which does:
+>> >       2a) sets PageHWPoison flag
+>> >       2b) calls put_page (only to be able to call __page_cache_relea=
+se)
+>> >           Since poisoned pages are skipped in free_pages_prepare,
+>> >           this put_page is safe.
+>> >       2c) Sets the refcount to 1
+>> >
+>> >    * Hugetlb pages
+>> >
+>> >    1) Hand the page to page_set_poison after migration
+>> >    2) page_set_poison does:
+>> >       2a) Calls dissolve_free_huge_page
+>> >       2b) If ranged to be dissolved contains poisoned pages,
+>> >           we free the rangeas order-0 pages (as we do with gigantic =
+hugetlb page),
+>> >           so free_pages_prepare will skip them accordingly.
+>> >       2c) Sets the refcount to 1
+>> >
+>> > Free pages:
+>> >
+>> >    * Normal pages:
+>> >
+>> >    1) Take the page off the buddy freelist
+>> >    2) Set PageHWPoison flag and set refcount to 1
+>> >
+>> >    * Hugetlb pages
+>> >
+>> >    1) Try to allocate a new hugetlb page to the pool
+>> >    2) Take off the pool the poisoned hugetlb
+>> >
+>> >
+>> > With this patchset, I no longer see the issues I faced before.
+>> >
+>> > Note:
+>> > I presented this as RFC to open discussion of the taken aproach.
+>> > I think that furthers cleanups and refactors could be made, but I wo=
+uld
+>> > like to get some insight of the taken approach before touching more
+>> > code.
+>> >
+>> > Thanks
+>> >
+>> > [1] https://lore.kernel.org/linux-mm/1541746035-13408-1-git-send-ema=
+il-n-horiguchi@ah.jp.nec.com/
+>> > [2] https://lore.kernel.org/linux-mm/20190826104144.GA7849@linux/T/#=
+u
+>> >
+>> > Naoya Horiguchi (5):
+>> >   mm,hwpoison: cleanup unused PageHuge() check
+>> >   mm,madvise: call soft_offline_page() without MF_COUNT_INCREASED
+>> >   mm,hwpoison-inject: don't pin for hwpoison_filter
+>> >   mm,hwpoison: remove MF_COUNT_INCREASED
+>> >   mm: remove flag argument from soft offline functions
+>> >
+>> > Oscar Salvador (5):
+>> >   mm,hwpoison: Unify THP handling for hard and soft offline
+>> >   mm,hwpoison: Rework soft offline for in-use pages
+>> >   mm,hwpoison: Refactor soft_offline_huge_page and __soft_offline_pa=
+ge
+>> >   mm,hwpoison: Rework soft offline for free pages
+>> >   mm,hwpoison: Use hugetlb_replace_page to replace free hugetlb page=
+s
+>> >
+>> >  drivers/base/memory.c      |   2 +-
+>> >  include/linux/mm.h         |   9 +-
+>> >  include/linux/page-flags.h |   5 -
+>> >  mm/hugetlb.c               |  51 +++++++-
+>> >  mm/hwpoison-inject.c       |  18 +--
+>> >  mm/madvise.c               |  25 ++--
+>> >  mm/memory-failure.c        | 319 +++++++++++++++++++++-------------=
+-----------
+>> >  mm/migrate.c               |  11 +-
+>> >  mm/page_alloc.c            |  62 +++++++--
+>> >  9 files changed, 267 insertions(+), 235 deletions(-)
+>> >
+>> > --
+>> > 2.12.3
+>> >
+>> >
+>>=20
 
-Applying: kasan: support backing vmalloc space with real shadow memory
-.git/rebase-apply/patch:389: trailing whitespace.
-  *                 (1)      (2)      (3)
-error: patch failed: lib/Kconfig.kasan:142
-error: lib/Kconfig.kasan: patch does not apply
-Patch failed at 0001 kasan: support backing vmalloc space with real 
-shadow memory
-The copy of the patch that failed is found in: .git/rebase-apply/patch
-When you have resolved this problem, run "git am --continue".
-If you prefer to skip this patch, run "git am --skip" instead.
-To restore the original branch and stop patching, run "git am --abort".
-
-
-[root@localhost linux-powerpc]# git am -3 
-/root/Downloads/kasan-support-backing-vmalloc-space-with-real-shadow-memory\(1\).patch 
-
-Applying: kasan: support backing vmalloc space with real shadow memory
-error: sha1 information is lacking or useless (include/linux/vmalloc.h).
-error: could not build fake ancestor
-Patch failed at 0001 kasan: support backing vmalloc space with real 
-shadow memory
-The copy of the patch that failed is found in: .git/rebase-apply/patch
-When you have resolved this problem, run "git am --continue".
-If you prefer to skip this patch, run "git am --skip" instead.
-To restore the original branch and stop patching, run "git am --abort".
-
-
-Christophe
-
-On 09/03/2019 02:55 PM, Daniel Axtens wrote:
-> Currently, vmalloc space is backed by the early shadow page. This
-> means that kasan is incompatible with VMAP_STACK.
-> 
-> This series provides a mechanism to back vmalloc space with real,
-> dynamically allocated memory. I have only wired up x86, because that's
-> the only currently supported arch I can work with easily, but it's
-> very easy to wire up other architectures, and it appears that there is
-> some work-in-progress code to do this on arm64 and s390.
-> 
-> This has been discussed before in the context of VMAP_STACK:
->   - https://bugzilla.kernel.org/show_bug.cgi?id=202009
->   - https://lkml.org/lkml/2018/7/22/198
->   - https://lkml.org/lkml/2019/7/19/822
-> 
-> In terms of implementation details:
-> 
-> Most mappings in vmalloc space are small, requiring less than a full
-> page of shadow space. Allocating a full shadow page per mapping would
-> therefore be wasteful. Furthermore, to ensure that different mappings
-> use different shadow pages, mappings would have to be aligned to
-> KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
-> 
-> Instead, share backing space across multiple mappings. Allocate a
-> backing page when a mapping in vmalloc space uses a particular page of
-> the shadow region. This page can be shared by other vmalloc mappings
-> later on.
-> 
-> We hook in to the vmap infrastructure to lazily clean up unused shadow
-> memory.
-> 
-> 
-> v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.net/
-> v2: https://lore.kernel.org/linux-mm/20190729142108.23343-1-dja@axtens.net/
->   Address review comments:
->   - Patch 1: use kasan_unpoison_shadow's built-in handling of
->              ranges that do not align to a full shadow byte
->   - Patch 3: prepopulate pgds rather than faulting things in
-> v3: https://lore.kernel.org/linux-mm/20190731071550.31814-1-dja@axtens.net/
->   Address comments from Mark Rutland:
->   - kasan_populate_vmalloc is a better name
->   - handle concurrency correctly
->   - various nits and cleanups
->   - relax module alignment in KASAN_VMALLOC case
-> v4: https://lore.kernel.org/linux-mm/20190815001636.12235-1-dja@axtens.net/
->   Changes to patch 1 only:
->   - Integrate Mark's rework, thanks Mark!
->   - handle the case where kasan_populate_shadow might fail
->   - poision shadow on free, allowing the alloc path to just
->       unpoision memory that it uses
-> v5: https://lore.kernel.org/linux-mm/20190830003821.10737-1-dja@axtens.net/
->   Address comments from Christophe Leroy:
->   - Fix some issues with my descriptions in commit messages and docs
->   - Dynamically free unused shadow pages by hooking into the vmap book-keeping
->   - Split out the test into a separate patch
->   - Optional patch to track the number of pages allocated
->   - minor checkpatch cleanups
-> v6: https://lore.kernel.org/linux-mm/20190902112028.23773-1-dja@axtens.net/
->   Properly guard freeing pages in patch 1, drop debugging code.
-> v7: Add a TLB flush on freeing, thanks Mark Rutland.
->      Explain more clearly how I think freeing is concurrency-safe.
-> 
-> Daniel Axtens (5):
->    kasan: support backing vmalloc space with real shadow memory
->    kasan: add test for vmalloc
->    fork: support VMAP_STACK with KASAN_VMALLOC
->    x86/kasan: support KASAN_VMALLOC
->    kasan debug: track pages allocated for vmalloc shadow
-> 
->   Documentation/dev-tools/kasan.rst |  63 ++++++++
->   arch/Kconfig                      |   9 +-
->   arch/x86/Kconfig                  |   1 +
->   arch/x86/mm/kasan_init_64.c       |  60 ++++++++
->   include/linux/kasan.h             |  31 ++++
->   include/linux/moduleloader.h      |   2 +-
->   include/linux/vmalloc.h           |  12 ++
->   kernel/fork.c                     |   4 +
->   lib/Kconfig.kasan                 |  16 +++
->   lib/test_kasan.c                  |  26 ++++
->   mm/kasan/common.c                 | 230 ++++++++++++++++++++++++++++++
->   mm/kasan/generic_report.c         |   3 +
->   mm/kasan/kasan.h                  |   1 +
->   mm/vmalloc.c                      |  45 +++++-
->   14 files changed, 497 insertions(+), 6 deletions(-)
-> 
 
