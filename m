@@ -4,51 +4,51 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E87DEC5ACAE
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:17:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2452ECDE20
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:23:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8BEB207FC
-	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:17:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8BEB207FC
+	by mail.kernel.org (Postfix) with ESMTP id A3DBF2082C
+	for <linux-mm@archiver.kernel.org>; Wed, 11 Sep 2019 10:23:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3DBF2082C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4E1586B0005; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
+	id 3CAC46B0005; Wed, 11 Sep 2019 06:23:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B9856B0006; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
+	id 37BAB6B0006; Wed, 11 Sep 2019 06:23:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A7956B0007; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
+	id 269786B0007; Wed, 11 Sep 2019 06:23:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0107.hostedemail.com [216.40.44.107])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE986B0005
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:17:32 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 830BC181AC9C6
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:17:31 +0000 (UTC)
-X-FDA: 75922237902.15.sofa75_75d75709532e
-X-HE-Tag: sofa75_75d75709532e
-X-Filterd-Recvd-Size: 6002
+Received: from forelay.hostedemail.com (smtprelay0144.hostedemail.com [216.40.44.144])
+	by kanga.kvack.org (Postfix) with ESMTP id 012926B0005
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 06:23:28 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 9AF108128
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:23:28 +0000 (UTC)
+X-FDA: 75922252896.07.wren08_3b5fd680de549
+X-HE-Tag: wren08_3b5fd680de549
+X-Filterd-Recvd-Size: 7812
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:17:30 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 10:23:27 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8753230B8ED2;
-	Wed, 11 Sep 2019 10:17:29 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id DF97B302C060;
+	Wed, 11 Sep 2019 10:23:26 +0000 (UTC)
 Received: from [10.36.117.155] (ovpn-117-155.ams2.redhat.com [10.36.117.155])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 33F995C207;
-	Wed, 11 Sep 2019 10:17:28 +0000 (UTC)
-Subject: Re: [PATCH 01/10] mm,hwpoison: cleanup unused PageHuge() check
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 85D126012E;
+	Wed, 11 Sep 2019 10:23:25 +0000 (UTC)
+Subject: Re: [PATCH 02/10] mm,madvise: call soft_offline_page() without
+ MF_COUNT_INCREASED
 To: Oscar Salvador <osalvador@suse.de>, n-horiguchi@ah.jp.nec.com
 Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org
 References: <20190910103016.14290-1-osalvador@suse.de>
- <20190910103016.14290-2-osalvador@suse.de>
+ <20190910103016.14290-3-osalvador@suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -95,17 +95,17 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <4b22bfc4-d770-a401-f75c-1b35d73d47c3@redhat.com>
-Date: Wed, 11 Sep 2019 12:17:27 +0200
+Message-ID: <c17c8bac-c443-046f-e622-78ed713517c9@redhat.com>
+Date: Wed, 11 Sep 2019 12:23:24 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190910103016.14290-2-osalvador@suse.de>
+In-Reply-To: <20190910103016.14290-3-osalvador@suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Wed, 11 Sep 2019 10:17:29 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 11 Sep 2019 10:23:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -115,35 +115,86 @@ List-ID: <linux-mm.kvack.org>
 On 10.09.19 12:30, Oscar Salvador wrote:
 > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > 
-> memory_failure() forks to memory_failure_hugetlb() for hugetlb pages,
-> so a PageHuge() check after the fork should not be necessary.
+> Currently madvise_inject_error() pins the target via get_user_pages_fast.
+> The call to get_user_pages_fast is only to get the respective page
+> of a given address, but it is the job of the memory-poisoning handler
+> to deal with races, so drop the refcount grabbed by get_user_pages_fast.
 > 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 > ---
->  mm/memory-failure.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
+>  mm/madvise.c | 25 +++++++++++--------------
+>  1 file changed, 11 insertions(+), 14 deletions(-)
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 7ef849da8278..e43b61462fd5 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1353,10 +1353,7 @@ int memory_failure(unsigned long pfn, int flags)
->  	 * page_remove_rmap() in try_to_unmap_one(). So to determine page status
->  	 * correctly, we save a copy of the page flags at this time.
->  	 */
-> -	if (PageHuge(p))
-> -		page_flags = hpage->flags;
-> -	else
-> -		page_flags = p->flags;
-> +	page_flags = p->flags;
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 6e023414f5c1..fbe6d402232c 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -883,6 +883,16 @@ static int madvise_inject_error(int behavior,
+>  		ret = get_user_pages_fast(start, 1, 0, &page);
+>  		if (ret != 1)
+>  			return ret;
+> +		/*
+> +		 * The get_user_pages_fast() is just to get the pfn of the
+> +		 * given address, and the refcount has nothing to do with
+> +		 * what we try to test, so it should be released immediately.
+> +		 * This is racy but it's intended because the real hardware
+> +		 * errors could happen at any moment and memory error handlers
+> +		 * must properly handle the race.
+> +		 */
+> +		put_page(page);
+> +
+
+I wonder if it would be clearer to do that after the page has been fully
+used  - e.g. after getting the pfn and the order (and then e.g.,
+symbolically setting the page pointer to 0).
+
+I guess the important part of this patch is to not have an elevated
+refcount while calling soft_offline_page().
+
+>  		pfn = page_to_pfn(page);
 >  
->  	/*
->  	 * unpoison always clear PG_hwpoison inside page lock
+>  		/*
+> @@ -892,16 +902,11 @@ static int madvise_inject_error(int behavior,
+>  		 */
+>  		order = compound_order(compound_head(page));
+>  
+> -		if (PageHWPoison(page)) {
+> -			put_page(page);
+> -			continue;
+> -		}
+
+This change is not reflected in the changelog. I would have expected
+that only the put_page() would go. If this should go completely, I
+suggest a separate patch.
+
+> -
+>  		if (behavior == MADV_SOFT_OFFLINE) {
+>  			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+>  					pfn, start);
+>  
+> -			ret = soft_offline_page(page, MF_COUNT_INCREASED);
+> +			ret = soft_offline_page(page, 0);
+>  			if (ret)
+>  				return ret;
+>  			continue;
+> @@ -909,14 +914,6 @@ static int madvise_inject_error(int behavior,
+>  
+>  		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
+>  				pfn, start);
+> -
+> -		/*
+> -		 * Drop the page reference taken by get_user_pages_fast(). In
+> -		 * the absence of MF_COUNT_INCREASED the memory_failure()
+> -		 * routine is responsible for pinning the page to prevent it
+> -		 * from being released back to the page allocator.
+> -		 */
+> -		put_page(page);
+>  		ret = memory_failure(pfn, 0);
+>  		if (ret)
+>  			return ret;
 > 
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
 
