@@ -2,159 +2,329 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8934ECDE20
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 03:11:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BECFC49ED6
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 03:22:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7658F206CD
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 03:11:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7658F206CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D768521479
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 03:22:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D768521479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 20F7A6B0003; Wed, 11 Sep 2019 23:11:23 -0400 (EDT)
+	id 785F96B0003; Wed, 11 Sep 2019 23:22:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 19AEE6B0005; Wed, 11 Sep 2019 23:11:23 -0400 (EDT)
+	id 6A6976B0005; Wed, 11 Sep 2019 23:22:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 062216B0006; Wed, 11 Sep 2019 23:11:22 -0400 (EDT)
+	id 563736B0006; Wed, 11 Sep 2019 23:22:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0095.hostedemail.com [216.40.44.95])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F7A6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 23:11:22 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 7BDE081F5
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:11:22 +0000 (UTC)
-X-FDA: 75924792804.15.nest05_80524149c2b0c
-X-HE-Tag: nest05_80524149c2b0c
-X-Filterd-Recvd-Size: 4145
-Received: from mga01.intel.com (mga01.intel.com [192.55.52.88])
-	by imf05.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:11:21 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Sep 2019 20:11:20 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,492,1559545200"; 
-   d="scan'208";a="179224490"
-Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
-  by orsmga008.jf.intel.com with ESMTP; 11 Sep 2019 20:11:18 -0700
-Date: Thu, 12 Sep 2019 11:10:58 +0800
-From: Wei Yang <richardw.yang@linux.intel.com>
-To: Wei Yang <richardw.yang@linux.intel.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/mmap.c: rb_parent is not necessary in __vma_link_list
-Message-ID: <20190912031058.GC25169@richard>
-Reply-To: Wei Yang <richardw.yang@linux.intel.com>
-References: <20190813032656.16625-1-richardw.yang@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190813032656.16625-1-richardw.yang@linux.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Received: from forelay.hostedemail.com (smtprelay0220.hostedemail.com [216.40.44.220])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E30E6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Sep 2019 23:22:01 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D366F8E4A
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:22:00 +0000 (UTC)
+X-FDA: 75924819600.23.boat59_4b9f2c024ae07
+X-HE-Tag: boat59_4b9f2c024ae07
+X-Filterd-Recvd-Size: 10074
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com [115.124.30.130])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:21:59 +0000 (UTC)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=teawaterz@linux.alibaba.com;NM=1;PH=DS;RN=26;SR=0;TI=SMTPD_---0Tc71FcL_1568258502;
+Received: from localhost(mailfrom:teawaterz@linux.alibaba.com fp:SMTPD_---0Tc71FcL_1568258502)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 12 Sep 2019 11:21:52 +0800
+From: Hui Zhu <teawaterz@linux.alibaba.com>
+To: sjenning@redhat.com,
+	ddstreet@ieee.org,
+	akpm@linux-foundation.org,
+	mhocko@suse.com,
+	willy@infradead.org,
+	chris@chris-wilson.co.uk,
+	hannes@cmpxchg.org,
+	ziqian.lzq@antfin.com,
+	osandov@fb.com,
+	ying.huang@intel.com,
+	aryabinin@virtuozzo.com,
+	vovoy@chromium.org,
+	richard.weiyang@gmail.com,
+	jgg@ziepe.ca,
+	dan.j.williams@intel.com,
+	rppt@linux.ibm.com,
+	jglisse@redhat.com,
+	b.zolnierkie@samsung.com,
+	axboe@kernel.dk,
+	dennis@kernel.org,
+	josef@toxicpanda.com,
+	tj@kernel.org,
+	oleg@redhat.com,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: Hui Zhu <teawaterz@linux.alibaba.com>
+Subject: [PATCH] zswap: Add CONFIG_ZSWAP_IO_SWITCH
+Date: Thu, 12 Sep 2019 11:21:30 +0800
+Message-Id: <1568258490-25359-1-git-send-email-teawaterz@linux.alibaba.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 11:26:56AM +0800, Wei Yang wrote:
->Now we use rb_parent to get next, while this is not necessary.
->
->When prev is NULL, this means vma should be the first element in the
->list. Then next should be current first one (mm->mmap), no matter
->whether we have parent or not.
->
->After removing it, the code shows the beauty of symmetry.
->
->Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+I use zswap to handle the swap IO issue in a VM that uses a swap file.
+This VM has 4G memory and 2 CPUs.  And I set up 4G swap in /swapfile.
+This is test script:
+cat 1.sh
+./usemem --sleep 3600 -M -a -n 1 $((3 * 1024 * 1024 * 1024)) &
+sleep 10
+echo 1 > /proc/sys/vm/drop_caches
+./usemem -S -f /test2 $((2 * 1024 * 1024 * 1024)) &
+while [ True ]; do ./usemem -a -n 1 $((1 * 1024 * 1024 * 1024)); done
 
-Ping~
+Without ZSWAP:
+echo 100 > /proc/sys/vm/swappiness
+swapon /swapfile
+sh 1.sh
+...
+...
+1207959552 bytes / 2076479 usecs = 568100 KB/s
+61088 usecs to free memory
+1207959552 bytes / 2035439 usecs = 579554 KB/s
+55073 usecs to free memory
+2415919104 bytes / 24054408 usecs = 98081 KB/s
+3741 usecs to free memory
+1207959552 bytes / 1954371 usecs = 603594 KB/s
+53161 usecs to free memory
+...
+...
 
->---
-> mm/internal.h | 2 +-
-> mm/mmap.c     | 2 +-
-> mm/nommu.c    | 2 +-
-> mm/util.c     | 8 ++------
-> 4 files changed, 5 insertions(+), 9 deletions(-)
->
->diff --git a/mm/internal.h b/mm/internal.h
->index e32390802fd3..41a49574acc3 100644
->--- a/mm/internal.h
->+++ b/mm/internal.h
->@@ -290,7 +290,7 @@ static inline bool is_data_mapping(vm_flags_t flags)
-> 
-> /* mm/util.c */
-> void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
->-		struct vm_area_struct *prev, struct rb_node *rb_parent);
->+		struct vm_area_struct *prev);
-> 
-> #ifdef CONFIG_MMU
-> extern long populate_vma_page_range(struct vm_area_struct *vma,
->diff --git a/mm/mmap.c b/mm/mmap.c
->index f7ed0afb994c..b8072630766f 100644
->--- a/mm/mmap.c
->+++ b/mm/mmap.c
->@@ -632,7 +632,7 @@ __vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
-> 	struct vm_area_struct *prev, struct rb_node **rb_link,
-> 	struct rb_node *rb_parent)
-> {
->-	__vma_link_list(mm, vma, prev, rb_parent);
->+	__vma_link_list(mm, vma, prev);
-> 	__vma_link_rb(mm, vma, rb_link, rb_parent);
-> }
-> 
->diff --git a/mm/nommu.c b/mm/nommu.c
->index fed1b6e9c89b..12a66fbeb988 100644
->--- a/mm/nommu.c
->+++ b/mm/nommu.c
->@@ -637,7 +637,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
-> 	if (rb_prev)
-> 		prev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
-> 
->-	__vma_link_list(mm, vma, prev, parent);
->+	__vma_link_list(mm, vma, prev);
-> }
-> 
-> /*
->diff --git a/mm/util.c b/mm/util.c
->index e6351a80f248..80632db29247 100644
->--- a/mm/util.c
->+++ b/mm/util.c
->@@ -264,7 +264,7 @@ void *memdup_user_nul(const void __user *src, size_t len)
-> EXPORT_SYMBOL(memdup_user_nul);
-> 
-> void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
->-		struct vm_area_struct *prev, struct rb_node *rb_parent)
->+		struct vm_area_struct *prev)
-> {
-> 	struct vm_area_struct *next;
-> 
->@@ -273,12 +273,8 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
-> 		next = prev->vm_next;
-> 		prev->vm_next = vma;
-> 	} else {
->+		next = mm->mmap;
-> 		mm->mmap = vma;
->-		if (rb_parent)
->-			next = rb_entry(rb_parent,
->-					struct vm_area_struct, vm_rb);
->-		else
->-			next = NULL;
-> 	}
-> 	vma->vm_next = next;
-> 	if (next)
->-- 
->2.17.1
+With ZSWAP:
+echo 100 > /proc/sys/vm/swappiness
+swapon /swapfile
+echo lz4 > /sys/module/zswap/parameters/compressor
+echo zsmalloc > /sys/module/zswap/parameters/zpool
+echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
+echo 20 > /sys/module/zswap/parameters/max_pool_percent
+echo 1 > /sys/module/zswap/parameters/enabled
+sh 1.sh
+1207959552 bytes / 3619283 usecs = 325934 KB/s
+194825 usecs to free memory
+1207959552 bytes / 3439563 usecs = 342964 KB/s
+218419 usecs to free memory
+2415919104 bytes / 19508762 usecs = 120935 KB/s
+5632 usecs to free memory
+1207959552 bytes / 3329369 usecs = 354315 KB/s
+179764 usecs to free memory
 
+The normal io speed is increased from 98081 KB/s to 120935 KB/s.
+But I found 2 issues of zswap in this machine:
+1. Because the disk of VM has the file cache in the host layer,
+   so normal swap speed is higher than with zswap.
+2. Because zswap need allocates memory to store the compressed pages,
+   it will make memory capacity worse.
+For example:
+Command "./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))" request 7G memory
+from this machine.
+It will work OK without zswap but got OOM when zswap is opened.
+
+This commit adds CONFIG_ZSWAP_IO_SWITCH that try to handle the issues
+and let zswap keep save IO.
+It add two parameters read_in_flight_limit and write_in_flight_limit to
+zswap.
+In zswap_frontswap_store, pages will be stored to zswap only when
+the IO in flight number of swap device is bigger than
+zswap_read_in_flight_limit or zswap_write_in_flight_limit
+when zswap is enabled.
+Then the zswap just work when the IO in flight number of swap device
+is low.
+
+This is the test result:
+echo 100 > /proc/sys/vm/swappiness
+swapon /swapfile
+echo lz4 > /sys/module/zswap/parameters/compressor
+echo zsmalloc > /sys/module/zswap/parameters/zpool
+echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
+echo 20 > /sys/module/zswap/parameters/max_pool_percent
+echo 1 > /sys/module/zswap/parameters/enabled
+echo 3 > /sys/module/zswap/parameters/read_in_flight_limit
+echo 50 > /sys/module/zswap/parameters/write_in_flight_limit
+sh 1.sh
+...
+1207959552 bytes / 2320861 usecs = 508280 KB/s
+106164 usecs to free memory
+1207959552 bytes / 2343916 usecs = 503280 KB/s
+79386 usecs to free memory
+2415919104 bytes / 20136015 usecs = 117167 KB/s
+4411 usecs to free memory
+1207959552 bytes / 1833403 usecs = 643419 KB/s
+70452 usecs to free memory
+...
+killall usemem
+./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))
+8455716864 bytes / 14457505 usecs = 571159 KB/s
+365961 usecs to free memory
+
+Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+---
+ include/linux/swap.h |  3 +++
+ mm/Kconfig           | 11 +++++++++++
+ mm/page_io.c         | 16 +++++++++++++++
+ mm/zswap.c           | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 85 insertions(+)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index de2c67a..82b621f 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -389,6 +389,9 @@ extern void end_swap_bio_write(struct bio *bio);
+ extern int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 	bio_end_io_t end_write_func);
+ extern int swap_set_page_dirty(struct page *page);
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++extern void swap_io_in_flight(struct page *page, unsigned int inflight[2]);
++#endif
+ 
+ int add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+ 		unsigned long nr_pages, sector_t start_block);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 56cec63..d077e51 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -546,6 +546,17 @@ config ZSWAP
+ 	  they have not be fully explored on the large set of potential
+ 	  configurations and workloads that exist.
+ 
++config ZSWAP_IO_SWITCH
++	bool "Compressed cache for swap pages according to the IO status"
++	depends on ZSWAP
++	def_bool n
++	help
++	  Add two parameters read_in_flight_limit and write_in_flight_limit to
++	  ZSWAP.  When ZSWAP is enabled, pages will be stored to zswap only
++	  when the IO in flight number of swap device is bigger than
++	  zswap_read_in_flight_limit or zswap_write_in_flight_limit.
++	  If unsure, say "n".
++
+ config ZPOOL
+ 	tristate "Common API for compressed memory storage"
+ 	help
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 24ee600..e66b050 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -434,3 +434,19 @@ int swap_set_page_dirty(struct page *page)
+ 		return __set_page_dirty_no_writeback(page);
+ 	}
+ }
++
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++void swap_io_in_flight(struct page *page, unsigned int inflight[2])
++{
++	struct swap_info_struct *sis = page_swap_info(page);
++
++	if (!sis->bdev) {
++		inflight[0] = 0;
++		inflight[1] = 0;
++		return;
++	}
++
++	part_in_flight_rw(bdev_get_queue(sis->bdev), sis->bdev->bd_part,
++					  inflight);
++}
++#endif
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 0e22744..1255645 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -62,6 +62,13 @@ static u64 zswap_reject_compress_poor;
+ static u64 zswap_reject_alloc_fail;
+ /* Store failed because the entry metadata could not be allocated (rare) */
+ static u64 zswap_reject_kmemcache_fail;
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++/* Store failed because zswap_read_in_flight_limit or
++ * zswap_write_in_flight_limit is bigger than IO in flight number of
++ * swap device
++ */
++static u64 zswap_reject_io;
++#endif
+ /* Duplicate store was encountered (rare) */
+ static u64 zswap_duplicate_entry;
+ 
+@@ -114,6 +121,22 @@ static bool zswap_same_filled_pages_enabled = true;
+ module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_enabled,
+ 		   bool, 0644);
+ 
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++/* zswap will not try to store the page if zswap_read_in_flight_limit is
++ * bigger than IO read in flight number of swap device
++ */
++static unsigned int zswap_read_in_flight_limit;
++module_param_named(read_in_flight_limit, zswap_read_in_flight_limit,
++		   uint, 0644);
++
++/* zswap will not try to store the page if zswap_write_in_flight_limit is
++ * bigger than IO write in flight number of swap device
++ */
++static unsigned int zswap_write_in_flight_limit;
++module_param_named(write_in_flight_limit, zswap_write_in_flight_limit,
++		   uint, 0644);
++#endif
++
+ /*********************************
+ * data structures
+ **********************************/
+@@ -1009,6 +1032,34 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 		goto reject;
+ 	}
+ 
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++	if (zswap_read_in_flight_limit || zswap_write_in_flight_limit) {
++		unsigned int inflight[2];
++		bool should_swap = false;
++
++		swap_io_in_flight(page, inflight);
++
++		if (zswap_write_in_flight_limit &&
++			inflight[1] < zswap_write_in_flight_limit)
++			should_swap = true;
++
++		if (zswap_read_in_flight_limit &&
++			(should_swap ||
++			 (!should_swap && !zswap_write_in_flight_limit))) {
++			if (inflight[0] < zswap_read_in_flight_limit)
++				should_swap = true;
++			else
++				should_swap = false;
++		}
++
++		if (should_swap) {
++			zswap_reject_io++;
++			ret = -EIO;
++			goto reject;
++		}
++	}
++#endif
++
+ 	/* reclaim space if needed */
+ 	if (zswap_is_full()) {
+ 		zswap_pool_limit_hit++;
+@@ -1264,6 +1315,10 @@ static int __init zswap_debugfs_init(void)
+ 			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+ 	debugfs_create_u64("reject_compress_poor", 0444,
+ 			   zswap_debugfs_root, &zswap_reject_compress_poor);
++#ifdef CONFIG_ZSWAP_IO_SWITCH
++	debugfs_create_u64("reject_io", 0444,
++			   zswap_debugfs_root, &zswap_reject_io);
++#endif
+ 	debugfs_create_u64("written_back_pages", 0444,
+ 			   zswap_debugfs_root, &zswap_written_back_pages);
+ 	debugfs_create_u64("duplicate_entry", 0444,
 -- 
-Wei Yang
-Help you, Help me
+2.7.4
+
 
