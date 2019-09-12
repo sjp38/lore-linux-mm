@@ -2,268 +2,260 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1558C4CEC6
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:42:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91285C4CEC5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:44:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55AA020830
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:42:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="rF17s6tJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55AA020830
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 50016206A5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:44:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50016206A5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E382D6B0005; Thu, 12 Sep 2019 10:42:30 -0400 (EDT)
+	id 006446B0005; Thu, 12 Sep 2019 10:44:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC1B76B0006; Thu, 12 Sep 2019 10:42:30 -0400 (EDT)
+	id EF7FC6B0006; Thu, 12 Sep 2019 10:44:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C88F76B0007; Thu, 12 Sep 2019 10:42:30 -0400 (EDT)
+	id DE79E6B0007; Thu, 12 Sep 2019 10:44:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
-	by kanga.kvack.org (Postfix) with ESMTP id A16086B0005
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:42:30 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 3FCD8180AD806
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:42:30 +0000 (UTC)
-X-FDA: 75926534460.26.clam05_32e157c7d8933
-X-HE-Tag: clam05_32e157c7d8933
-X-Filterd-Recvd-Size: 10018
-Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:42:29 +0000 (UTC)
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 46ThLp3CQXz9typD;
-	Thu, 12 Sep 2019 16:42:26 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=rF17s6tJ; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id CVQlmJ3AEH2k; Thu, 12 Sep 2019 16:42:26 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 46ThLp1t53z9typC;
-	Thu, 12 Sep 2019 16:42:26 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1568299346; bh=otnUrb4pzuxU7Yp0+QroZ8OVT4O1umudoLeJqQl5wZo=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=rF17s6tJhq8MvFO5HaHkJAy0j4vJJMc9gH1QsIdlkc0uGkrBFzY6mm7WqD7gp6Y2w
-	 pDwud6FagAuEx2hmyDZDo1d1qU6dEAs2y6kNIO4poGfjfz3+JYPoadusOPxMP4DNCT
-	 uG/GxTT9Ndmwpf9KkQmrv+QnUdDjo6qRIVZu/AVs=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id C98AA8B940;
-	Thu, 12 Sep 2019 16:42:27 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id 67GVoWa0YCuH; Thu, 12 Sep 2019 16:42:27 +0200 (CEST)
-Received: from [192.168.4.90] (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id A5BBC8B933;
-	Thu, 12 Sep 2019 16:42:25 +0200 (CEST)
-Subject: Re: [PATCH V2 0/2] mm/debug: Add tests for architecture exported page
- table helpers
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Vlastimil Babka <vbabka@suse.cz>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Dan Williams <dan.j.williams@intel.com>,
- Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>, Mark Brown <broonie@kernel.org>,
- Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Matthew Wilcox <willy@infradead.org>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- "David S. Miller" <davem@davemloft.net>, Vineet Gupta <vgupta@synopsys.com>,
- James Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>,
- Ralf Baechle <ralf@linux-mips.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- Mike Kravetz <mike.kravetz@oracle.com>, linux-snps-arc@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1568268173-31302-1-git-send-email-anshuman.khandual@arm.com>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <527edfce-c986-de4c-e286-34a70f6a2790@c-s.fr>
-Date: Thu, 12 Sep 2019 16:42:25 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.9.0
+Received: from forelay.hostedemail.com (smtprelay0098.hostedemail.com [216.40.44.98])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F026B0005
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:44:28 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 553A5824376C
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:44:28 +0000 (UTC)
+X-FDA: 75926539416.28.alley62_441649e933160
+X-HE-Tag: alley62_441649e933160
+X-Filterd-Recvd-Size: 9220
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:44:27 +0000 (UTC)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8CEghO6171498;
+	Thu, 12 Sep 2019 10:44:21 -0400
+Received: from pps.reinject (localhost [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2uyptmkc9x-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 10:44:21 -0400
+Received: from m0098416.ppops.net (m0098416.ppops.net [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x8CEgkJi171841;
+	Thu, 12 Sep 2019 10:44:21 -0400
+Received: from ppma03wdc.us.ibm.com (ba.79.3fa9.ip4.static.sl-reverse.com [169.63.121.186])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2uyptmkc9n-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 10:44:21 -0400
+Received: from pps.filterd (ppma03wdc.us.ibm.com [127.0.0.1])
+	by ppma03wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8CEKCS5007268;
+	Thu, 12 Sep 2019 14:44:20 GMT
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by ppma03wdc.us.ibm.com with ESMTP id 2uy87jxbwx-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 14:44:20 +0000
+Received: from b01ledav002.gho.pok.ibm.com (b01ledav002.gho.pok.ibm.com [9.57.199.107])
+	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8CEiKEX54854024
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 12 Sep 2019 14:44:20 GMT
+Received: from b01ledav002.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 339CA124053;
+	Thu, 12 Sep 2019 14:44:20 +0000 (GMT)
+Received: from b01ledav002.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B9BDF124052;
+	Thu, 12 Sep 2019 14:44:17 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.199.32.243])
+	by b01ledav002.gho.pok.ibm.com (Postfix) with ESMTP;
+	Thu, 12 Sep 2019 14:44:17 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Laurent Dufour <ldufour@linux.ibm.com>, mpe@ellerman.id.au,
+        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/3] powperc/mm: read TLB Block Invalidate Characteristics
+In-Reply-To: <20190830120712.22971-3-ldufour@linux.ibm.com>
+References: <20190830120712.22971-1-ldufour@linux.ibm.com> <20190830120712.22971-3-ldufour@linux.ibm.com>
+Date: Thu, 12 Sep 2019 20:14:15 +0530
+Message-ID: <87impxshfk.fsf@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1568268173-31302-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-12_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909120151
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Laurent Dufour <ldufour@linux.ibm.com> writes:
 
-I didn't get patch 1 of this series, and it is not on linuxppc-dev=20
-patchwork either. Can you resend ?
+> The PAPR document specifies the TLB Block Invalidate Characteristics which
+> is telling which couple base page size / page size is supported by the
+> H_BLOCK_REMOVE hcall.
+>
+> A new set of feature is added to the mmu_psize_def structure to record per
+> base page size which page size is supported by H_BLOCK_REMOVE.
+>
+> A new init service is added to read the characteristics. The size of the
+> buffer is set to twice the number of known page size, plus 10 bytes to
+> ensure we have enough place.
+>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+> ---
+>  arch/powerpc/include/asm/book3s/64/mmu.h |   3 +
+>  arch/powerpc/platforms/pseries/lpar.c    | 107 +++++++++++++++++++++++
+>  2 files changed, 110 insertions(+)
+>
+> diff --git a/arch/powerpc/include/asm/book3s/64/mmu.h b/arch/powerpc/include/asm/book3s/64/mmu.h
+> index 23b83d3593e2..675895dfe39f 100644
+> --- a/arch/powerpc/include/asm/book3s/64/mmu.h
+> +++ b/arch/powerpc/include/asm/book3s/64/mmu.h
+> @@ -12,11 +12,14 @@
+>   *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
+>   *            directly to a slbmte "vsid" value
+>   *    penc  : is the HPTE encoding mask for the "LP" field:
+> + *    hblk  : H_BLOCK_REMOVE supported block size for this page size in
+> + *            segment who's base page size is that page size.
+>   *
+>   */
+>  struct mmu_psize_def {
+>  	unsigned int	shift;	/* number of bits */
+>  	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
+> +	int		hblk[MMU_PAGE_COUNT];	/* H_BLOCK_REMOVE support */
+>  	unsigned int	tlbiel;	/* tlbiel supported for that page size */
+>  	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
+>  	union {
+> diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
+> index 4f76e5f30c97..375e19b3cf53 100644
+> --- a/arch/powerpc/platforms/pseries/lpar.c
+> +++ b/arch/powerpc/platforms/pseries/lpar.c
+> @@ -1311,6 +1311,113 @@ static void do_block_remove(unsigned long number, struct ppc64_tlb_batch *batch,
+>  		(void)call_block_remove(pix, param, true);
+>  }
+>  
+> +static inline void __init set_hblk_bloc_size(int bpsize, int psize,
+> +					     unsigned int block_size)
+> +{
+> +	struct mmu_psize_def *def = &mmu_psize_defs[bpsize];
+> +
+> +	if (block_size > def->hblk[psize])
+> +		def->hblk[psize] = block_size;
+> +}
+> +
+> +static inline void __init check_lp_set_hblk(unsigned int lp,
+> +					    unsigned int block_size)
+> +{
+> +	unsigned int bpsize, psize;
+> +
+> +
+> +	/* First, check the L bit, if not set, this means 4K */
+> +	if ((lp & 0x80) == 0) {
+> +		set_hblk_bloc_size(MMU_PAGE_4K, MMU_PAGE_4K, block_size);
+> +		return;
+> +	}
+> +
+> +	/* PAPR says to look at bits 2-7 (0 = MSB) */
+> +	lp &= 0x3f;
+> +	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++) {
+> +		struct mmu_psize_def *def =  &mmu_psize_defs[bpsize];
+> +
+> +		for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+> +			if (def->penc[psize] == lp) {
+> +				set_hblk_bloc_size(bpsize, psize, block_size);
+> +				return;
+> +			}
+> +		}
+> +	}
+> +}
+> +
+> +#define SPLPAR_TLB_BIC_TOKEN		50
+> +#define SPLPAR_TLB_BIC_MAXLENGTH	(MMU_PAGE_COUNT*2 + 10)
+> +static int __init read_tlbbi_characteristics(void)
+> +{
+> +	int call_status;
+> +	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
+> +	int len, idx, bpsize;
+> +
+> +	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE)) {
+> +		pr_info("H_BLOCK_REMOVE is not supported");
+> +		return 0;
+> +	}
+> +
+> +	memset(local_buffer, 0, SPLPAR_TLB_BIC_MAXLENGTH);
+> +
+> +	spin_lock(&rtas_data_buf_lock);
+> +	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
+> +	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+> +				NULL,
+> +				SPLPAR_TLB_BIC_TOKEN,
+> +				__pa(rtas_data_buf),
+> +				RTAS_DATA_BUF_SIZE);
+> +	memcpy(local_buffer, rtas_data_buf, SPLPAR_TLB_BIC_MAXLENGTH);
+> +	local_buffer[SPLPAR_TLB_BIC_MAXLENGTH - 1] = '\0';
+> +	spin_unlock(&rtas_data_buf_lock);
+> +
+> +	if (call_status != 0) {
+> +		pr_warn("%s %s Error calling get-system-parameter (0x%x)\n",
+> +			__FILE__, __func__, call_status);
+> +		return 0;
+> +	}
+> +
+> +	/*
+> +	 * The first two (2) bytes of the data in the buffer are the length of
+> +	 * the returned data, not counting these first two (2) bytes.
+> +	 */
+> +	len = local_buffer[0] * 256 + local_buffer[1] + 2;
+> +	if (len >= SPLPAR_TLB_BIC_MAXLENGTH) {
+> +		pr_warn("%s too large returned buffer %d", __func__, len);
+> +		return 0;
+> +	}
+> +
+> +	idx = 2;
+> +	while (idx < len) {
+> +		unsigned int block_size = local_buffer[idx++];
+> +		unsigned int npsize;
+> +
+> +		if (!block_size)
+> +			break;
+> +
+> +		block_size = 1 << block_size;
+> +		if (block_size != 8)
+> +			/* We only support 8 bytes size TLB invalidate buffer */
+> +			pr_warn("Unsupported H_BLOCK_REMOVE block size : %d\n",
+> +				block_size);
 
-Thanks
-Christophe
+Should we skip setting block size if we find block_size != 8? Also can
+we avoid doing that pr_warn in loop and only warn if we don't find
+block_size 8 in the invalidate characteristics array? 
 
-Le 12/09/2019 =C3=A0 08:02, Anshuman Khandual a =C3=A9crit=C2=A0:
-> This series adds a test validation for architecture exported page table
-> helpers. Patch in the series adds basic transformation tests at various
-> levels of the page table. Before that it exports gigantic page allocati=
-on
-> function from HugeTLB.
->=20
-> This test was originally suggested by Catalin during arm64 THP migratio=
-n
-> RFC discussion earlier. Going forward it can include more specific test=
-s
-> with respect to various generic MM functions like THP, HugeTLB etc and
-> platform specific tests.
->=20
-> https://lore.kernel.org/linux-mm/20190628102003.GA56463@arrakis.emea.ar=
-m.com/
->=20
-> Testing:
->=20
-> Successfully build and boot tested on both arm64 and x86 platforms with=
-out
-> any test failing. Only build tested on some other platforms.
->=20
-> But I would really appreciate if folks can help validate this test on o=
-ther
-> platforms and report back problems. All suggestions, comments and input=
-s
-> welcome. Thank you.
->=20
-> Changes in V2:
->=20
-> - Fixed small typo error in MODULE_DESCRIPTION()
-> - Fixed m64k build problems for lvalue concerns in pmd_xxx_tests()
-> - Fixed dynamic page table level folding problems on x86 as per Kirril
-> - Fixed second pointers during pxx_populate_tests() per Kirill and Gera=
-ld
-> - Allocate and free pte table with pte_alloc_one/pte_free per Kirill
-> - Modified pxx_clear_tests() to accommodate s390 lower 12 bits situatio=
-n
-> - Changed RANDOM_NZVALUE value from 0xbe to 0xff
-> - Changed allocation, usage, free sequence for saved_ptep
-> - Renamed VMA_FLAGS as VMFLAGS
-> - Implemented a new method for random vaddr generation
-> - Implemented some other cleanups
-> - Dropped extern reference to mm_alloc()
-> - Created and exported new alloc_gigantic_page_order()
-> - Dropped the custom allocator and used new alloc_gigantic_page_order()
->=20
-> Changes in V1:
->=20
-> https://lore.kernel.org/linux-mm/1567497706-8649-1-git-send-email-anshu=
-man.khandual@arm.com/
->=20
-> - Added fallback mechanism for PMD aligned memory allocation failure
->=20
-> Changes in RFC V2:
->=20
-> https://lore.kernel.org/linux-mm/1565335998-22553-1-git-send-email-ansh=
-uman.khandual@arm.com/T/#u
->=20
-> - Moved test module and it's config from lib/ to mm/
-> - Renamed config TEST_ARCH_PGTABLE as DEBUG_ARCH_PGTABLE_TEST
-> - Renamed file from test_arch_pgtable.c to arch_pgtable_test.c
-> - Added relevant MODULE_DESCRIPTION() and MODULE_AUTHOR() details
-> - Dropped loadable module config option
-> - Basic tests now use memory blocks with required size and alignment
-> - PUD aligned memory block gets allocated with alloc_contig_range()
-> - If PUD aligned memory could not be allocated it falls back on PMD ali=
-gned
->    memory block from page allocator and pud_* tests are skipped
-> - Clear and populate tests now operate on real in memory page table ent=
-ries
-> - Dummy mm_struct gets allocated with mm_alloc()
-> - Dummy page table entries get allocated with [pud|pmd|pte]_alloc_[map]=
-()
-> - Simplified [p4d|pgd]_basic_tests(), now has random values in the entr=
-ies
->=20
-> Original RFC V1:
->=20
-> https://lore.kernel.org/linux-mm/1564037723-26676-1-git-send-email-ansh=
-uman.khandual@arm.com/
->=20
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Mark Brown <broonie@kernel.org>
-> Cc: Steven Price <Steven.Price@arm.com>
-> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Sri Krishna chowdary <schowdary@nvidia.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Russell King - ARM Linux <linux@armlinux.org.uk>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Vineet Gupta <vgupta@synopsys.com>
-> Cc: James Hogan <jhogan@kernel.org>
-> Cc: Paul Burton <paul.burton@mips.com>
-> Cc: Ralf Baechle <ralf@linux-mips.org>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: linux-snps-arc@lists.infradead.org
-> Cc: linux-mips@vger.kernel.org
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Cc: sparclinux@vger.kernel.org
-> Cc: x86@kernel.org
-> Cc: linux-kernel@vger.kernel.org
->=20
-> Anshuman Khandual (2):
->    mm/hugetlb: Make alloc_gigantic_page() available for general use
->    mm/pgtable/debug: Add test validating architecture page table helper=
-s
->=20
->   arch/x86/include/asm/pgtable_64_types.h |   2 +
->   include/linux/hugetlb.h                 |   9 +
->   mm/Kconfig.debug                        |  14 +
->   mm/Makefile                             |   1 +
->   mm/arch_pgtable_test.c                  | 429 +++++++++++++++++++++++=
-+
->   mm/hugetlb.c                            |  24 +-
->   6 files changed, 477 insertions(+), 2 deletions(-)
->   create mode 100644 mm/arch_pgtable_test.c
->=20
+> +
+> +		for (npsize = local_buffer[idx++];  npsize > 0; npsize--)
+> +			check_lp_set_hblk((unsigned int) local_buffer[idx++],
+> +					  block_size);
+> +	}
+> +
+> +	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
+> +		for (idx = 0; idx < MMU_PAGE_COUNT; idx++)
+> +			if (mmu_psize_defs[bpsize].hblk[idx])
+> +				pr_info("H_BLOCK_REMOVE supports base psize:%d psize:%d block size:%d",
+> +					bpsize, idx,
+> +					mmu_psize_defs[bpsize].hblk[idx]);
+> +
+> +	return 0;
+> +}
+> +machine_arch_initcall(pseries, read_tlbbi_characteristics);
+> +
+>  /*
+>   * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
+>   * lock.
+> -- 
+> 2.23.0
 
