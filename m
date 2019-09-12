@@ -2,351 +2,438 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_2 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54195C4CEC6
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:02:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A69F7C47404
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:05:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3E5120856
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:02:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D3B82075C
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:05:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="X9BwuCAM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3E5120856
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="PHMbwRLU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D3B82075C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8483A6B0005; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
+	id EFBDC6B0005; Thu, 12 Sep 2019 08:05:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F81A6B0006; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
+	id EADAF6B0006; Thu, 12 Sep 2019 08:05:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6E7286B0007; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
+	id D9AA06B0007; Thu, 12 Sep 2019 08:05:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E97D6B0005
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E36A1181AC9BA
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:02:55 +0000 (UTC)
-X-FDA: 75926132310.08.fact51_70caaba29ff10
-X-HE-Tag: fact51_70caaba29ff10
-X-Filterd-Recvd-Size: 12780
-Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:02:54 +0000 (UTC)
-Received: by mail-qk1-f194.google.com with SMTP id w2so1314471qkf.2
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:02:54 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0174.hostedemail.com [216.40.44.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A8F9E6B0005
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:05:46 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 248BC1E09D
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:05:46 +0000 (UTC)
+X-FDA: 75926139492.07.food30_8999a373d3a19
+X-HE-Tag: food30_8999a373d3a19
+X-Filterd-Recvd-Size: 15788
+Received: from mail-qk1-f195.google.com (mail-qk1-f195.google.com [209.85.222.195])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:05:45 +0000 (UTC)
+Received: by mail-qk1-f195.google.com with SMTP id w2so1323207qkf.2
+        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:05:45 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=lca.pw; s=google;
-        h=message-id:subject:from:to:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=NJ+V9WdH/Mr55CbE+4tCVIXroMyvqDzfmVNb8fYQdC4=;
-        b=X9BwuCAMyL0HkIMHQZTrYkcKYoxesQQBc03dGTAerff++yYqnueCFUG+9R5d+jXfsD
-         ILAnkSwukAjd9PMBWa9h1go0l+VstSm5Hci3nDYtrAlFN5FC8VzMhHh/wM1ypkfVi7I5
-         xC2NQpOkaZGRGDDblnEmqtsCDwJjKPhPf1gxSpyhFJAfAnHkZToO0QVL3o7qmb6yq3kl
-         /fPKJ36uZKtumx4PMe051elYi1fZr6YsGFpQtmalR3a03is+1tETesXYb8nLmi7YOgWT
-         YbiZACAjO9JVtxcJOF8Fl8Vh+s/Y/AMgZMpVqQHjcJCPht1J5olzVhZ4edarhiUmbZFX
-         4ajw==
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=mJZnkAph4eWPg2JY0OJg1uyo+AB/rygpeOgbYnQYg+A=;
+        b=PHMbwRLUajgsxYGoU2VYPXeI6AnW1Z99q+4x3xNofXmvNs2ljAvg8S8jwF1DFzSSF5
+         Dcxr5sZwDvNX9Ns/vcb0/H/v3n97nWNWMw9vTpeIwzhAI5ASHki3wI+CEsm2IJ0BoYZQ
+         zY9QRBEUB48oaEXi+RIa+6xM2GU8qYbXrju78nCHFhcO+HayZ09qXAapbw+mkeUbFdQO
+         39xwEsHgeKydQ7TQ3C9OI4Xxpvdr8RL0KILDuEdxjTkqaXdEIWhfMRPp23ML7yeQWGyJ
+         rtuPDLKGeWVIVBQsYz8evpr/rZgdUxirJVLg2jNrOYgUTVajfWUoNsLDnEpidyBWxXkO
+         2VjQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:date:in-reply-to
+        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=NJ+V9WdH/Mr55CbE+4tCVIXroMyvqDzfmVNb8fYQdC4=;
-        b=gQKa16vU15+0rN6Tok/3mtNE0sDH1OmayJ+f5XBZ8NuWyIH5iOd4v8nvf3NBwgvuFR
-         bXOesjt/oWgtNxzpSC8RN/G5KpApGXWwMp0mPfrE2F5AebmOQTgNRWY886vtuUrbLZEb
-         LZS+gaKnjxCS0rW5piZPf4PE8NU0v9Df/p3Q8J4poTk2xVzwdWr0tqkV3lG+7grWFvb4
-         5mQ5pm2dg50GyGC3ZxX4KTlpQyam1Wmf2j5IignipFMVUA2/QFP5S7eNKed0//3BIR6S
-         SzEmj0UHLKwykge6nRIsRWKefHQ+mH4S65LEmsrqKUJPH+jDVCDCvj+DChmrNtBxw2Rt
-         aptw==
-X-Gm-Message-State: APjAAAUlNBlwB4fNKxnNOxsp2JwxswV3KuV2WzSOdgUbyyhAKAFKQgkz
-	ZXblpnbk4kc3U0kS/sSE+S+1/A==
-X-Google-Smtp-Source: APXvYqxW3gfyTl86Ie7fIUSZxIf33R/kZjhqzOjknmiTByk8wlOSZatDorFjLent8xT63ngd7QqDdQ==
-X-Received: by 2002:a05:620a:7c8:: with SMTP id 8mr1592111qkb.299.1568289774048;
-        Thu, 12 Sep 2019 05:02:54 -0700 (PDT)
+        bh=mJZnkAph4eWPg2JY0OJg1uyo+AB/rygpeOgbYnQYg+A=;
+        b=k4hfeuc19SEolQh4rKEE3zfXqeIec26plvLUtRW1MVzTjWDsRowUQmrWGtCa3+Cwbm
+         bca3wZ1K8+b6T7njgnbB2nT6Uu4+SQMLMzA8clJe0Ga0f25TvDTp7cRcS/ims4JISroM
+         Q2XKBcBbJxCgwyTLFmnrLA2meTdmQYLxaOX3kdw+HhSd4ekUwbTXzuFSqyxa6C/tqSD+
+         Ck5RXWCtkpy7o3USL5SRHpY08ZCVIWfxTPB2X0LbHYT5AbcVdEzYgcFFY9OlpSHYqDMz
+         wxyJsxW40LeIRKmtBtLrnmeLvsRPKJw/YId1/k+33oAc11fk9UrrT2YuFY9/VWilQF8O
+         /xow==
+X-Gm-Message-State: APjAAAVikuuMnTvMj89g8+E0UvWbVwoWpmzb9NpEeL4wG3IwfHx9finQ
+	G6t41akQVncbh/Oxl4SKgM1/ZA==
+X-Google-Smtp-Source: APXvYqzaQLexeJeISLu9NzxSj57E5Jb6rNfGitOWIjOeff65L1JgwmcD9OC+HHkRsZ7m0eytDZsaxA==
+X-Received: by 2002:a37:7941:: with SMTP id u62mr37782509qkc.179.1568289944615;
+        Thu, 12 Sep 2019 05:05:44 -0700 (PDT)
 Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id a72sm12098951qkg.77.2019.09.12.05.02.51
+        by smtp.gmail.com with ESMTPSA id z20sm11802903qtu.91.2019.09.12.05.05.42
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Sep 2019 05:02:53 -0700 (PDT)
-Message-ID: <1568289769.5576.138.camel@lca.pw>
-Subject: Re: [PATCH] zswap: Add CONFIG_ZSWAP_IO_SWITCH
+        Thu, 12 Sep 2019 05:05:43 -0700 (PDT)
+Message-ID: <1568289941.5576.140.camel@lca.pw>
+Subject: Re: page_alloc.shuffle=1 + CONFIG_PROVE_LOCKING=y = arm64 hang
 From: Qian Cai <cai@lca.pw>
-To: Hui Zhu <teawaterz@linux.alibaba.com>, sjenning@redhat.com, 
- ddstreet@ieee.org, akpm@linux-foundation.org, mhocko@suse.com,
- willy@infradead.org,  chris@chris-wilson.co.uk, hannes@cmpxchg.org,
- ziqian.lzq@antfin.com,  osandov@fb.com, ying.huang@intel.com,
- aryabinin@virtuozzo.com, vovoy@chromium.org,  richard.weiyang@gmail.com,
- jgg@ziepe.ca, dan.j.williams@intel.com,  rppt@linux.ibm.com,
- jglisse@redhat.com, b.zolnierkie@samsung.com, axboe@kernel.dk, 
- dennis@kernel.org, josef@toxicpanda.com, tj@kernel.org, oleg@redhat.com, 
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Date: Thu, 12 Sep 2019 08:02:49 -0400
-In-Reply-To: <1568258490-25359-1-git-send-email-teawaterz@linux.alibaba.com>
-References: <1568258490-25359-1-git-send-email-teawaterz@linux.alibaba.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Petr Mladek <pmladek@suse.com>, Steven Rostedt <rostedt@goodmis.org>, 
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>,
+ Dan Williams <dan.j.williams@intel.com>,  linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org,  linux-arm-kernel@lists.infradead.org, Peter
+ Zijlstra <peterz@infradead.org>,  Waiman Long <longman@redhat.com>, Thomas
+ Gleixner <tglx@linutronix.de>, Theodore Ts'o <tytso@mit.edu>,  Arnd
+ Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Date: Thu, 12 Sep 2019 08:05:41 -0400
+In-Reply-To: <20190911011008.GA4420@jagdpanzerIV>
+References: <1566509603.5576.10.camel@lca.pw>
+	 <1567717680.5576.104.camel@lca.pw> <1568128954.5576.129.camel@lca.pw>
+	 <20190911011008.GA4420@jagdpanzerIV>
 Content-Type: text/plain; charset="UTF-8"
 X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-09-12 at 11:21 +0800, Hui Zhu wrote:
-> I use zswap to handle the swap IO issue in a VM that uses a swap file.
-> This VM has 4G memory and 2 CPUs.  And I set up 4G swap in /swapfile.
-> This is test script:
-> cat 1.sh
-> ./usemem --sleep 3600 -M -a -n 1 $((3 * 1024 * 1024 * 1024)) &
-> sleep 10
-> echo 1 > /proc/sys/vm/drop_caches
-> ./usemem -S -f /test2 $((2 * 1024 * 1024 * 1024)) &
-> while [ True ]; do ./usemem -a -n 1 $((1 * 1024 * 1024 * 1024)); done
-> 
-> Without ZSWAP:
-> echo 100 > /proc/sys/vm/swappiness
-> swapon /swapfile
-> sh 1.sh
-> ...
-> ...
-> 1207959552 bytes / 2076479 usecs = 568100 KB/s
-> 61088 usecs to free memory
-> 1207959552 bytes / 2035439 usecs = 579554 KB/s
-> 55073 usecs to free memory
-> 2415919104 bytes / 24054408 usecs = 98081 KB/s
-> 3741 usecs to free memory
-> 1207959552 bytes / 1954371 usecs = 603594 KB/s
-> 53161 usecs to free memory
-> ...
-> ...
-> 
-> With ZSWAP:
-> echo 100 > /proc/sys/vm/swappiness
-> swapon /swapfile
-> echo lz4 > /sys/module/zswap/parameters/compressor
-> echo zsmalloc > /sys/module/zswap/parameters/zpool
-> echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
-> echo 20 > /sys/module/zswap/parameters/max_pool_percent
-> echo 1 > /sys/module/zswap/parameters/enabled
-> sh 1.sh
-> 1207959552 bytes / 3619283 usecs = 325934 KB/s
-> 194825 usecs to free memory
-> 1207959552 bytes / 3439563 usecs = 342964 KB/s
-> 218419 usecs to free memory
-> 2415919104 bytes / 19508762 usecs = 120935 KB/s
-> 5632 usecs to free memory
-> 1207959552 bytes / 3329369 usecs = 354315 KB/s
-> 179764 usecs to free memory
-> 
-> The normal io speed is increased from 98081 KB/s to 120935 KB/s.
-> But I found 2 issues of zswap in this machine:
-> 1. Because the disk of VM has the file cache in the host layer,
->    so normal swap speed is higher than with zswap.
-> 2. Because zswap need allocates memory to store the compressed pages,
->    it will make memory capacity worse.
-> For example:
-> Command "./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))" request 7G memory
-> from this machine.
-> It will work OK without zswap but got OOM when zswap is opened.
-> 
-> This commit adds CONFIG_ZSWAP_IO_SWITCH that try to handle the issues
-> and let zswap keep save IO.
-> It add two parameters read_in_flight_limit and write_in_flight_limit to
-> zswap.
-> In zswap_frontswap_store, pages will be stored to zswap only when
-> the IO in flight number of swap device is bigger than
-> zswap_read_in_flight_limit or zswap_write_in_flight_limit
-> when zswap is enabled.
-> Then the zswap just work when the IO in flight number of swap device
-> is low.
-
-There isn't sufficient information for users to decide when they should enable
-this kconfig. Also, It describes your specific workload, but not clear to me how
-this benefit other people's workloads in general.
-
-> 
-> This is the test result:
-> echo 100 > /proc/sys/vm/swappiness
-> swapon /swapfile
-> echo lz4 > /sys/module/zswap/parameters/compressor
-> echo zsmalloc > /sys/module/zswap/parameters/zpool
-> echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
-> echo 20 > /sys/module/zswap/parameters/max_pool_percent
-> echo 1 > /sys/module/zswap/parameters/enabled
-> echo 3 > /sys/module/zswap/parameters/read_in_flight_limit
-> echo 50 > /sys/module/zswap/parameters/write_in_flight_limit
-> sh 1.sh
-> ...
-> 1207959552 bytes / 2320861 usecs = 508280 KB/s
-> 106164 usecs to free memory
-> 1207959552 bytes / 2343916 usecs = 503280 KB/s
-> 79386 usecs to free memory
-> 2415919104 bytes / 20136015 usecs = 117167 KB/s
-> 4411 usecs to free memory
-> 1207959552 bytes / 1833403 usecs = 643419 KB/s
-> 70452 usecs to free memory
-> ...
-> killall usemem
-> ./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))
-> 8455716864 bytes / 14457505 usecs = 571159 KB/s
-> 365961 usecs to free memory
-> 
-> Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+On Wed, 2019-09-11 at 10:10 +0900, Sergey Senozhatsky wrote:
+> Cc-ing Ted, Arnd, Greg
+>=20
+> On (09/10/19 11:22), Qian Cai wrote:
+> > [ 1078.283869][T43784] -> #3 (&(&port->lock)->rlock){-.-.}:
+> > [ 1078.291350][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__lock_acquire+0x5c8/0xbb0
+> > [ 1078.296394][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+lock_acquire+0x154/0x428
+> > [ 1078.301266][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+_raw_spin_lock_irqsave+0x80/0xa0
+> > [ 1078.306831][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_port_tty_get+0x28/0x68
+> > [ 1078.311873][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_port_default_wakeup+0x20/0x40
+> > [ 1078.317523][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_port_tty_wakeup+0x38/0x48
+> > [ 1078.322827][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+uart_write_wakeup+0x2c/0x50
+> > [ 1078.327956][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+pl011_tx_chars+0x240/0x260
+> > [ 1078.332999][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+pl011_start_tx+0x24/0xa8
+> > [ 1078.337868][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__uart_start+0x90/0xa0
+> > [ 1078.342563][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+uart_write+0x15c/0x2c8
+> > [ 1078.347261][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+do_output_char+0x1c8/0x2b0
+> > [ 1078.352304][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+n_tty_write+0x300/0x668
+> > [ 1078.357087][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_write+0x2e8/0x430
+> > [ 1078.361696][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+redirected_tty_write+0xcc/0xe8
+> > [ 1078.367086][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+do_iter_write+0x228/0x270
+> > [ 1078.372041][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vfs_writev+0x10c/0x1c8
+> > [ 1078.376735][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+do_writev+0xdc/0x180
+> > [ 1078.381257][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__arm64_sys_writev+0x50/0x60
+> > [ 1078.386476][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+el0_svc_handler+0x11c/0x1f0
+> > [ 1078.391606][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+el0_svc+0x8/0xc
+> > [ 1078.395691][T43784]=C2=A0
+>=20
+> uart_port->lock  ->  tty_port->lock
+>=20
+> This thing along is already a bit suspicious. We re-enter tty
+> here: tty -> uart -> serial -> tty
+>=20
+> And we re-enter tty under uart_port->lock.
+>=20
+> > [ 1078.395691][T43784] -> #2 (&port_lock_key){-.-.}:
+> > [ 1078.402561][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__lock_acquire+0x5c8/0xbb0
+> > [ 1078.407604][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+lock_acquire+0x154/0x428
+> > [ 1078.412474][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+_raw_spin_lock+0x68/0x88
+> > [ 1078.417343][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+pl011_console_write+0x2ac/0x318
+> > [ 1078.422820][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+console_unlock+0x3c4/0x898
+> > [ 1078.427863][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_emit+0x2d4/0x460
+> > [ 1078.432732][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_default+0x48/0x58
+> > [ 1078.437688][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_func+0x194/0x250
+> > [ 1078.442557][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+printk+0xbc/0xec
+> > [ 1078.446732][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+register_console+0x4a8/0x580
+> > [ 1078.451947][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+uart_add_one_port+0x748/0x878
+> > [ 1078.457250][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+pl011_register_port+0x98/0x128
+> > [ 1078.462639][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+sbsa_uart_probe+0x398/0x480
+> > [ 1078.467772][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+platform_drv_probe+0x70/0x108
+> > [ 1078.473075][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+really_probe+0x15c/0x5d8
+> > [ 1078.477944][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+driver_probe_device+0x94/0x1d0
+> > [ 1078.483335][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__device_attach_driver+0x11c/0x1a8
+> > [ 1078.489072][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+bus_for_each_drv+0xf8/0x158
+> > [ 1078.494201][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__device_attach+0x164/0x240
+> > [ 1078.499331][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+device_initial_probe+0x24/0x30
+> > [ 1078.504721][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+bus_probe_device+0xf0/0x100
+> > [ 1078.509850][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+device_add+0x63c/0x960
+> > [ 1078.514546][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+platform_device_add+0x1ac/0x3b8
+> > [ 1078.520023][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+platform_device_register_full+0x1fc/0x290
+> > [ 1078.526373][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_create_platform_device.part.0+0x264/0x3a8
+> > [ 1078.533152][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_create_platform_device+0x68/0x80
+> > [ 1078.539150][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_default_enumeration+0x34/0x78
+> > [ 1078.544887][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_bus_attach+0x340/0x3b8
+> > [ 1078.550015][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_bus_attach+0xf8/0x3b8
+> > [ 1078.555057][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_bus_attach+0xf8/0x3b8
+> > [ 1078.560099][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_bus_attach+0xf8/0x3b8
+> > [ 1078.565142][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_bus_scan+0x9c/0x100
+> > [ 1078.570015][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_scan_init+0x16c/0x320
+> > [ 1078.575058][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+acpi_init+0x330/0x3b8
+> > [ 1078.579666][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+do_one_initcall+0x158/0x7ec
+> > [ 1078.584797][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+kernel_init_freeable+0x9a8/0xa70
+> > [ 1078.590360][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+kernel_init+0x18/0x138
+> > [ 1078.595055][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+ret_from_fork+0x10/0x1c
+> >=20
+> > [ 1078.599835][T43784] -> #1 (console_owner){-...}:
+> > [ 1078.606618][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__lock_acquire+0x5c8/0xbb0
+> > [ 1078.611661][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+lock_acquire+0x154/0x428
+> > [ 1078.616530][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+console_unlock+0x298/0x898
+> > [ 1078.621573][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_emit+0x2d4/0x460
+> > [ 1078.626442][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_default+0x48/0x58
+> > [ 1078.631398][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vprintk_func+0x194/0x250
+> > [ 1078.636267][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+printk+0xbc/0xec
+> > [ 1078.640443][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+_warn_unseeded_randomness+0xb4/0xd0
+> > [ 1078.646267][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+get_random_u64+0x4c/0x100
+> > [ 1078.651224][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+add_to_free_area_random+0x168/0x1a0
+> > [ 1078.657047][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+free_one_page+0x3dc/0xd08
+> > [ 1078.662003][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__free_pages_ok+0x490/0xd00
+> > [ 1078.667132][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__free_pages+0xc4/0x118
+> > [ 1078.671914][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__free_pages_core+0x2e8/0x428
+> > [ 1078.677219][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+memblock_free_pages+0xa4/0xec
+> > [ 1078.682522][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+memblock_free_all+0x264/0x330
+> > [ 1078.687825][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+mem_init+0x90/0x148
+> > [ 1078.692259][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+start_kernel+0x368/0x684
+>=20
+> zone->lock --> uart_port->lock
+>=20
+> Some debugging options/warnings/error print outs/etc introduce
+> deadlock patterns.
+>=20
+> This adds zone->lock --> uart_port->lock, which then brings in
+> uart_port->lock --> tty_port->lock, which in turn brings
+> tty_port->lock --> zone->lock.
+>=20
+> > [ 1078.697126][T43784] -> #0 (&(&zone->lock)->rlock){-.-.}:
+> > [ 1078.704604][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+check_prev_add+0x120/0x1138
+> > [ 1078.709733][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+validate_chain+0x888/0x1270
+> > [ 1078.714863][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__lock_acquire+0x5c8/0xbb0
+> > [ 1078.719906][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+lock_acquire+0x154/0x428
+> > [ 1078.724776][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+_raw_spin_lock+0x68/0x88
+> > [ 1078.729645][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+rmqueue_bulk.constprop.21+0xb0/0x1218
+> > [ 1078.735643][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+get_page_from_freelist+0x898/0x24a0
+> > [ 1078.741467][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__alloc_pages_nodemask+0x2a8/0x1d08
+> > [ 1078.747291][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+alloc_pages_current+0xb4/0x150
+> > [ 1078.752682][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+allocate_slab+0xab8/0x2350
+> > [ 1078.757725][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+new_slab+0x98/0xc0
+> > [ 1078.762073][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+___slab_alloc+0x66c/0xa30
+> > [ 1078.767029][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__slab_alloc+0x68/0xc8
+> > [ 1078.771725][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__kmalloc+0x3d4/0x658
+> > [ 1078.776333][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__tty_buffer_request_room+0xd4/0x220
+> > [ 1078.782244][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_insert_flip_string_fixed_flag+0x6c/0x128
+> > [ 1078.788849][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+pty_write+0x98/0x100
+> > [ 1078.793370][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+n_tty_write+0x2a0/0x668
+> > [ 1078.798152][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+tty_write+0x2e8/0x430
+> > [ 1078.802760][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__vfs_write+0x5c/0xb0
+> > [ 1078.807368][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+vfs_write+0xf0/0x230
+> > [ 1078.811890][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+ksys_write+0xd4/0x180
+> > [ 1078.816498][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+__arm64_sys_write+0x4c/0x60
+> > [ 1078.821627][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+el0_svc_handler+0x11c/0x1f0
+> > [ 1078.826756][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+el0_svc+0x8/0xc
+>=20
+> tty_port->lock --> zone->lock
+>=20
+> > [ 1078.830842][T43784] other info that might help us debug this:
+> > [ 1078.830842][T43784]=C2=A0
+> > [ 1078.840918][T43784] Chain exists of:
+> > [ 1078.840918][T43784]=C2=A0=C2=A0=C2=A0&(&zone->lock)->rlock --> &po=
+rt_lock_key --> &(&port-> >lock)->rlock
+> > [ 1078.840918][T43784]=C2=A0
+> > [ 1078.854731][T43784]=C2=A0=C2=A0Possible unsafe locking scenario:
+> > [ 1078.854731][T43784]=C2=A0
+> > [ 1078.862029][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+CPU0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0CPU1
+> > [ 1078.867243][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+----=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0----
+> > [ 1078.872457][T43784]=C2=A0=C2=A0=C2=A0lock(&(&port->lock)->rlock);
+> > [ 1078.877238][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0lock=
+(&port_lock_key);
+> > [ 1078.883929][T43784]=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0lock=
+(&(&port->lock)->rlock);
+> > [ 1078.891228][T43784]=C2=A0=C2=A0=C2=A0lock(&(&zone->lock)->rlock);
+> > [ 1078.896010][T43784]=C2=A0
+> > [ 1078.896010][T43784]=C2=A0=C2=A0*** DEADLOCK ***
+>=20
+> [..]
+> > [ 1078.980932][T43784]=C2=A0=C2=A0dump_backtrace+0x0/0x228
+> > [ 1078.985279][T43784]=C2=A0=C2=A0show_stack+0x24/0x30
+> > [ 1078.989282][T43784]=C2=A0=C2=A0dump_stack+0xe8/0x13c
+> > [ 1078.993370][T43784]=C2=A0=C2=A0print_circular_bug+0x334/0x3d8
+> > [ 1078.998240][T43784]=C2=A0=C2=A0check_noncircular+0x268/0x310
+> > [ 1079.003022][T43784]=C2=A0=C2=A0check_prev_add+0x120/0x1138
+> > [ 1079.007631][T43784]=C2=A0=C2=A0validate_chain+0x888/0x1270
+> > [ 1079.012241][T43784]=C2=A0=C2=A0__lock_acquire+0x5c8/0xbb0
+> > [ 1079.016763][T43784]=C2=A0=C2=A0lock_acquire+0x154/0x428
+> > [ 1079.021111][T43784]=C2=A0=C2=A0_raw_spin_lock+0x68/0x88
+> > [ 1079.025460][T43784]=C2=A0=C2=A0rmqueue_bulk.constprop.21+0xb0/0x12=
+18
+> > [ 1079.030937][T43784]=C2=A0=C2=A0get_page_from_freelist+0x898/0x24a0
+> > [ 1079.036240][T43784]=C2=A0=C2=A0__alloc_pages_nodemask+0x2a8/0x1d08
+> > [ 1079.041542][T43784]=C2=A0=C2=A0alloc_pages_current+0xb4/0x150
+> > [ 1079.046412][T43784]=C2=A0=C2=A0allocate_slab+0xab8/0x2350
+> > [ 1079.050934][T43784]=C2=A0=C2=A0new_slab+0x98/0xc0
+> > [ 1079.054761][T43784]=C2=A0=C2=A0___slab_alloc+0x66c/0xa30
+> > [ 1079.059196][T43784]=C2=A0=C2=A0__slab_alloc+0x68/0xc8
+> > [ 1079.063371][T43784]=C2=A0=C2=A0__kmalloc+0x3d4/0x658
+> > [ 1079.067458][T43784]=C2=A0=C2=A0__tty_buffer_request_room+0xd4/0x22=
+0
+> > [ 1079.072847][T43784]=C2=A0=C2=A0tty_insert_flip_string_fixed_flag+0=
+x6c/0x128
+> > [ 1079.078932][T43784]=C2=A0=C2=A0pty_write+0x98/0x100
+> > [ 1079.082932][T43784]=C2=A0=C2=A0n_tty_write+0x2a0/0x668
+> > [ 1079.087193][T43784]=C2=A0=C2=A0tty_write+0x2e8/0x430
+> > [ 1079.091280][T43784]=C2=A0=C2=A0__vfs_write+0x5c/0xb0
+> > [ 1079.095367][T43784]=C2=A0=C2=A0vfs_write+0xf0/0x230
+> > [ 1079.099368][T43784]=C2=A0=C2=A0ksys_write+0xd4/0x180
+> > [ 1079.103455][T43784]=C2=A0=C2=A0__arm64_sys_write+0x4c/0x60
+> > [ 1079.108064][T43784]=C2=A0=C2=A0el0_svc_handler+0x11c/0x1f0
+> > [ 1079.112672][T43784]=C2=A0=C2=A0el0_svc+0x8/0xc
+>=20
+> tty_port->lock --> zone->lock
+>=20
+> For instance, I don't really like the re-entrant tty, at least not
+> under uart_port->lock. This, maybe, can be one of the solutions.
+>=20
+> Another one, a quick and dirty one, (and so many people will blame
+> me for this) would be to break zone->{printk}->uart chain...
+>=20
+> Something like this
+>=20
 > ---
->  include/linux/swap.h |  3 +++
->  mm/Kconfig           | 11 +++++++++++
->  mm/page_io.c         | 16 +++++++++++++++
->  mm/zswap.c           | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 85 insertions(+)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index de2c67a..82b621f 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -389,6 +389,9 @@ extern void end_swap_bio_write(struct bio *bio);
->  extern int __swap_writepage(struct page *page, struct writeback_control *wbc,
->  	bio_end_io_t end_write_func);
->  extern int swap_set_page_dirty(struct page *page);
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +extern void swap_io_in_flight(struct page *page, unsigned int inflight[2]);
-> +#endif
->  
->  int add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
->  		unsigned long nr_pages, sector_t start_block);
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 56cec63..d077e51 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -546,6 +546,17 @@ config ZSWAP
->  	  they have not be fully explored on the large set of potential
->  	  configurations and workloads that exist.
->  
-> +config ZSWAP_IO_SWITCH
-> +	bool "Compressed cache for swap pages according to the IO status"
-> +	depends on ZSWAP
-> +	def_bool n
-> +	help
-> +	  Add two parameters read_in_flight_limit and write_in_flight_limit to
-> +	  ZSWAP.  When ZSWAP is enabled, pages will be stored to zswap only
-> +	  when the IO in flight number of swap device is bigger than
-> +	  zswap_read_in_flight_limit or zswap_write_in_flight_limit.
-> +	  If unsure, say "n".
-> +
->  config ZPOOL
->  	tristate "Common API for compressed memory storage"
->  	help
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 24ee600..e66b050 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -434,3 +434,19 @@ int swap_set_page_dirty(struct page *page)
->  		return __set_page_dirty_no_writeback(page);
->  	}
+>=20
+>  drivers/char/random.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+>=20
+> diff --git a/drivers/char/random.c b/drivers/char/random.c
+> index 9b54cdb301d3..975015857200 100644
+> --- a/drivers/char/random.c
+> +++ b/drivers/char/random.c
+> @@ -1687,8 +1687,9 @@ static void _warn_unseeded_randomness(const char =
+*func_name, void *caller,
+>  	print_once =3D true;
+>  #endif
+>  	if (__ratelimit(&unseeded_warning))
+> -		pr_notice("random: %s called from %pS with crng_init=3D%d\n",
+> -			  func_name, caller, crng_init);
+> +		printk_deferred(KERN_NOTICE "random: %s called from %pS "
+> +				"with crng_init=3D%d\n", func_name, caller,
+> +				crng_init);
 >  }
-> +
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +void swap_io_in_flight(struct page *page, unsigned int inflight[2])
-> +{
-> +	struct swap_info_struct *sis = page_swap_info(page);
-> +
-> +	if (!sis->bdev) {
-> +		inflight[0] = 0;
-> +		inflight[1] = 0;
-> +		return;
-> +	}
-> +
-> +	part_in_flight_rw(bdev_get_queue(sis->bdev), sis->bdev->bd_part,
-> +					  inflight);
-> +}
-> +#endif
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 0e22744..1255645 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -62,6 +62,13 @@ static u64 zswap_reject_compress_poor;
->  static u64 zswap_reject_alloc_fail;
->  /* Store failed because the entry metadata could not be allocated (rare) */
->  static u64 zswap_reject_kmemcache_fail;
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +/* Store failed because zswap_read_in_flight_limit or
-> + * zswap_write_in_flight_limit is bigger than IO in flight number of
-> + * swap device
-> + */
-> +static u64 zswap_reject_io;
-> +#endif
->  /* Duplicate store was encountered (rare) */
->  static u64 zswap_duplicate_entry;
->  
-> @@ -114,6 +121,22 @@ static bool zswap_same_filled_pages_enabled = true;
->  module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_enabled,
->  		   bool, 0644);
->  
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +/* zswap will not try to store the page if zswap_read_in_flight_limit is
-> + * bigger than IO read in flight number of swap device
-> + */
-> +static unsigned int zswap_read_in_flight_limit;
-> +module_param_named(read_in_flight_limit, zswap_read_in_flight_limit,
-> +		   uint, 0644);
-> +
-> +/* zswap will not try to store the page if zswap_write_in_flight_limit is
-> + * bigger than IO write in flight number of swap device
-> + */
-> +static unsigned int zswap_write_in_flight_limit;
-> +module_param_named(write_in_flight_limit, zswap_write_in_flight_limit,
-> +		   uint, 0644);
-> +#endif
-> +
->  /*********************************
->  * data structures
->  **********************************/
-> @@ -1009,6 +1032,34 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->  		goto reject;
->  	}
->  
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +	if (zswap_read_in_flight_limit || zswap_write_in_flight_limit) {
-> +		unsigned int inflight[2];
-> +		bool should_swap = false;
-> +
-> +		swap_io_in_flight(page, inflight);
-> +
-> +		if (zswap_write_in_flight_limit &&
-> +			inflight[1] < zswap_write_in_flight_limit)
-> +			should_swap = true;
-> +
-> +		if (zswap_read_in_flight_limit &&
-> +			(should_swap ||
-> +			 (!should_swap && !zswap_write_in_flight_limit))) {
-> +			if (inflight[0] < zswap_read_in_flight_limit)
-> +				should_swap = true;
-> +			else
-> +				should_swap = false;
-> +		}
-> +
-> +		if (should_swap) {
-> +			zswap_reject_io++;
-> +			ret = -EIO;
-> +			goto reject;
-> +		}
-> +	}
-> +#endif
-> +
->  	/* reclaim space if needed */
->  	if (zswap_is_full()) {
->  		zswap_pool_limit_hit++;
-> @@ -1264,6 +1315,10 @@ static int __init zswap_debugfs_init(void)
->  			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
->  	debugfs_create_u64("reject_compress_poor", 0444,
->  			   zswap_debugfs_root, &zswap_reject_compress_poor);
-> +#ifdef CONFIG_ZSWAP_IO_SWITCH
-> +	debugfs_create_u64("reject_io", 0444,
-> +			   zswap_debugfs_root, &zswap_reject_io);
-> +#endif
->  	debugfs_create_u64("written_back_pages", 0444,
->  			   zswap_debugfs_root, &zswap_written_back_pages);
->  	debugfs_create_u64("duplicate_entry", 0444,
+> =20
+>  /*
+> @@ -2462,4 +2463,4 @@ void add_bootloader_randomness(const void *buf, u=
+nsigned int size)
+>  	else
+>  		add_device_randomness(buf, size);
+>  }
+> -EXPORT_SYMBOL_GPL(add_bootloader_randomness);
+> \ No newline at end of file
+> +EXPORT_SYMBOL_GPL(add_bootloader_randomness);
+
+This will also fix the hang.
+
+Sergey, do you plan to submit this Ted?
 
