@@ -2,159 +2,139 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C35BC5ACAE
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:06:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ABADC5ACAE
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:19:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6AC12208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:06:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AC12208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 365B220663
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:19:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 365B220663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D39AD6B0003; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
+	id B5BF86B0003; Thu, 12 Sep 2019 05:19:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE9996B0005; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
+	id AE3F56B0005; Thu, 12 Sep 2019 05:19:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD81F6B0006; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
+	id 9AB196B0006; Thu, 12 Sep 2019 05:19:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BAE26B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 30154180AD802
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:06:26 +0000 (UTC)
-X-FDA: 75925687572.24.chalk30_1af43e0a1f507
-X-HE-Tag: chalk30_1af43e0a1f507
-X-Filterd-Recvd-Size: 5559
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf34.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:06:25 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 882FB18C4272;
-	Thu, 12 Sep 2019 09:06:23 +0000 (UTC)
-Received: from llong.remote.csb (ovpn-120-238.rdu2.redhat.com [10.10.120.238])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B31CA600C4;
-	Thu, 12 Sep 2019 09:06:18 +0000 (UTC)
-Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
- PMD
-To: Mike Kravetz <mike.kravetz@oracle.com>,
- Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>,
- Will Deacon <will.deacon@arm.com>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>
-References: <20190911150537.19527-1-longman@redhat.com>
- <20190911150537.19527-6-longman@redhat.com>
- <ae7edcb8-74e5-037c-17e7-01b3cf9320af@oracle.com>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <b7d7d109-03cf-d750-3a56-a95837998372@redhat.com>
-Date: Thu, 12 Sep 2019 10:06:14 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0030.hostedemail.com [216.40.44.30])
+	by kanga.kvack.org (Postfix) with ESMTP id 735A56B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:19:30 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 232628243765
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:19:30 +0000 (UTC)
+X-FDA: 75925720500.14.coat84_8d1909ebe3301
+X-HE-Tag: coat84_8d1909ebe3301
+X-Filterd-Recvd-Size: 5239
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:19:29 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 6E344B61F;
+	Thu, 12 Sep 2019 09:19:27 +0000 (UTC)
+Date: Thu, 12 Sep 2019 11:19:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+	"Wang, Wei W" <wei.w.wang@intel.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+Message-ID: <20190912091925.GM4023@dhcp22.suse.cz>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz>
+ <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz>
+ <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz>
+ <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+ <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <ae7edcb8-74e5-037c-17e7-01b3cf9320af@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.62]); Thu, 12 Sep 2019 09:06:23 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/12/19 4:26 AM, Mike Kravetz wrote:
-> On 9/11/19 8:05 AM, Waiman Long wrote:
->> When allocating a large amount of static hugepages (~500-1500GB) on a
->> system with large number of CPUs (4, 8 or even 16 sockets), performance
->> degradation (random multi-second delays) was observed when thousands
->> of processes are trying to fault in the data into the huge pages. The
->> likelihood of the delay increases with the number of sockets and hence
->> the CPUs a system has.  This only happens in the initial setup phase
->> and will be gone after all the necessary data are faulted in.
->>
->> These random delays, however, are deemed unacceptable. The cause of
->> that delay is the long wait time in acquiring the mmap_sem when trying
->> to share the huge PMDs.
->>
->> To remove the unacceptable delays, we have to limit the amount of wait
->> time on the mmap_sem. So the new down_write_timedlock() function is
->> used to acquire the write lock on the mmap_sem with a timeout value of
->> 10ms which should not cause a perceivable delay. If timeout happens,
->> the task will abandon its effort to share the PMD and allocate its own
->> copy instead.
->>
-> <snip>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 6d7296dd11b8..445af661ae29 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
->>  	}
->>  }
->>  
->> +#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
->> +
->>  /*
->>   * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
->>   * and returns the corresponding pte. While this is not necessary for the
->> @@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->>  	pte_t *spte = NULL;
->>  	pte_t *pte;
->>  	spinlock_t *ptl;
->> +	static atomic_t timeout_cnt;
->>  
->> -	if (!vma_shareable(vma, addr))
->> -		return (pte_t *)pmd_alloc(mm, pud, addr);
->> +	/*
->> +	 * Don't share if it is not sharable or locking attempt timed out
->> +	 * after 10ms. After 256 timeouts, PMD sharing will be permanently
->> +	 * disabled as it is just too slow.
->> +	 */
->> +	if (!vma_shareable(vma, addr) ||
->> +	   (atomic_read(&timeout_cnt) >= PMD_SHARE_DISABLE_THRESHOLD))
->> +		goto out_no_share;
->> +
->> +	if (!i_mmap_timedlock_write(mapping, ms_to_ktime(10))) {
->> +		if (atomic_inc_return(&timeout_cnt) ==
->> +		    PMD_SHARE_DISABLE_THRESHOLD)
->> +			pr_info("Hugetlbfs PMD sharing disabled because of timeouts!\n");
->> +		goto out_no_share;
->> +	}
->>  
->> -	i_mmap_lock_write(mapping);
-> All this got me wondering if we really need to take i_mmap_rwsem in write
-> mode here.  We are not changing the tree, only traversing it looking for
-> a suitable vma.
->
-> Unless I am missing something, the hugetlb code only ever takes the semaphore
-> in write mode; never read.  Could this have been the result of changing the
-> tree semaphore to read/write?  Instead of analyzing all the code, the easiest
-> and safest thing would have been to take all accesses in write mode.
->
-> I can investigate more, but wanted to ask the question in case someone already
-> knows.
->
-> At one time, I thought it was safe to acquire the semaphore in read mode for
-> huge_pmd_share, but write mode for huge_pmd_unshare.  See commit b43a99900559.
-> This was reverted along with another patch for other reasons.
->
-> If we change change from write to read mode, this may have significant impact
-> on the stalls.
+On Wed 11-09-19 08:12:03, Alexander Duyck wrote:
+> On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
+> > [...]
+> > > We don't put any limitations on the allocator other then that it needs to
+> > > clean up the metadata on allocation, and that it cannot allocate a page
+> > > that is in the process of being reported since we pulled it from the
+> > > free_list. If the page is a "Reported" page then it decrements the
+> > > reported_pages count for the free_area and makes sure the page doesn't
+> > > exist in the "Boundary" array pointer value, if it does it moves the
+> > > "Boundary" since it is pulling the page.
+> >
+> > This is still a non-trivial limitation on the page allocation from an
+> > external code IMHO. I cannot give any explicit reason why an ordering on
+> > the free list might matter (well except for page shuffling which uses it
+> > to make physical memory pattern allocation more random) but the
+> > architecture seems hacky and dubious to be honest. It shoulds like the
+> > whole interface has been developed around a very particular and single
+> > purpose optimization.
+> 
+> How is this any different then the code that moves a page that will
+> likely be merged to the tail though?
 
-If we can take the rwsem in read mode, that should solve the problem
-AFAICS. As I don't have a full understanding of the history of that
-code, I didn't try to do that in my patch.
+I guess you are referring to the page shuffling. If that is the case
+then this is an integral part of the allocator for a reason and it is
+very well obvious in the code including the consequences. I do not
+really like an idea of hiding similar constrains behind a generic
+looking feature which is completely detached from the allocator and so
+any future change of the allocator might subtly break it.
 
-Cheers,
-Longman
+> In our case the "Reported" page is likely going to be much more
+> expensive to allocate and use then a standard page because it will be
+> faulted back in. In such a case wouldn't it make sense for us to want
+> to keep the pages that don't require faults ahead of those pages in
+> the free_list so that they are more likely to be allocated?
 
+OK, I was suspecting this would pop out. And this is exactly why I
+didn't like an idea of an external code imposing a non obvious constrains
+to the allocator. You simply cannot count with any ordering with the
+page allocator. We used to distinguish cache hot/cold pages in the past
+and pushed pages to the specific end of the free list but that has been
+removed. There are other potential changes like that possible. Shuffling
+is a good recent example.
+
+Anyway I am not a maintainer of this code. I would really like to hear
+opinions from Mel and Vlastimil here (now CCed - the thread starts
+http://lkml.kernel.org/r/20190907172225.10910.34302.stgit@localhost.localdomain.
+-- 
+Michal Hocko
+SUSE Labs
 
