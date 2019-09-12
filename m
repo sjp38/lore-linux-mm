@@ -2,211 +2,168 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 098A5C4CEC5
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:52:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 877CAC4CEC6
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:22:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC5F620644
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:52:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="Xve/r2+a"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC5F620644
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 57CF62084D
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:22:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57CF62084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52A1E6B000A; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
+	id C8E976B0003; Thu, 12 Sep 2019 12:22:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B3EC6B000C; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
+	id C3F916B0006; Thu, 12 Sep 2019 12:22:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32D406B000D; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
+	id B2E6B6B0007; Thu, 12 Sep 2019 12:22:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0226.hostedemail.com [216.40.44.226])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BEC46B000A
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
+	by kanga.kvack.org (Postfix) with ESMTP id 917C96B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:22:12 -0400 (EDT)
 Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 859BF1A4D4
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:52:33 +0000 (UTC)
-X-FDA: 75926710986.13.coast32_507203d54af17
-X-HE-Tag: coast32_507203d54af17
-X-Filterd-Recvd-Size: 8056
-Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf03.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:52:32 +0000 (UTC)
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 46Tjvd4mf5z9v01v;
-	Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=Xve/r2+a; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id A0Kfupm1sMQP; Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 46Tjvd3M1wzB09bN;
-	Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1568303549; bh=8yNeYzD4hyXGy/cp3pkfdaOEeCFKo8dkfUfa1uQQNdw=;
-	h=Subject:From:To:Cc:References:Date:In-Reply-To:From;
-	b=Xve/r2+abfDHfuK0WIskaBB17UKxFk/oCvwXkkUF5Yo4BLlxGU81bDiG5ke88fbye
-	 BE8P5FDH9S654EK1eo6Y8b6n1X7xstmolnKTrzECKOGoc5E7ZdJ0fsFaCrbfijNknG
-	 8RziH8EmMIWjiObqTYaXwtz8qoLghxzrvqE5L7qA=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 6ED6B8B945;
-	Thu, 12 Sep 2019 17:52:30 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id pajkW6Q7ywER; Thu, 12 Sep 2019 17:52:30 +0200 (CEST)
-Received: from [192.168.4.90] (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 812188B941;
-	Thu, 12 Sep 2019 17:52:22 +0200 (CEST)
-Subject: Re: [PATCH V2 2/2] mm/pgtable/debug: Add test validating architecture
- page table helpers
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
-Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
- linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
- James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
- Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
- Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
- Dan Williams <dan.j.williams@intel.com>, linux-s390@vger.kernel.org,
- Jason Gunthorpe <jgg@ziepe.ca>, x86@kernel.org,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Vlastimil Babka <vbabka@suse.cz>, linux-snps-arc@lists.infradead.org,
- Kees Cook <keescook@chromium.org>, Mark Brown <broonie@kernel.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- Thomas Gleixner <tglx@linutronix.de>,
- Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- linux-arm-kernel@lists.infradead.org,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mips@vger.kernel.org,
- Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
- Paul Burton <paul.burton@mips.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Vineet Gupta <vgupta@synopsys.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>
-References: <1568268173-31302-1-git-send-email-anshuman.khandual@arm.com>
- <1568268173-31302-3-git-send-email-anshuman.khandual@arm.com>
- <4cf31ca9-39e4-87e4-7eef-a6f3f0ea7576@c-s.fr>
- <31aa6043-3b11-a936-bf35-6ed84bff9304@c-s.fr>
-Message-ID: <600a7c62-eea9-e26f-f7cf-f2103b7c228c@c-s.fr>
-Date: Thu, 12 Sep 2019 17:52:21 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.9.0
+	by forelay05.hostedemail.com (Postfix) with SMTP id CC127181AC9B4
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:22:11 +0000 (UTC)
+X-FDA: 75926785662.13.crate01_3021979cbd632
+X-HE-Tag: crate01_3021979cbd632
+X-Filterd-Recvd-Size: 6996
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:22:10 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9F80F883BA;
+	Thu, 12 Sep 2019 16:22:09 +0000 (UTC)
+Received: from [10.10.125.97] (ovpn-125-97.rdu2.redhat.com [10.10.125.97])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BF0335D704;
+	Thu, 12 Sep 2019 16:22:08 +0000 (UTC)
+Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
+To: Martin Raiber <martin@urbackup.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
+ "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <20190909162804.5694-1-mchristi@redhat.com>
+ <5D76995B.1010507@redhat.com>
+ <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
+ <0102016d1f7af966-334f093b-2a62-4baa-9678-8d90d5fba6d9-000000@eu-west-1.amazonses.com>
+ <5D792758.2060706@redhat.com>
+ <0102016d21c61ec3-4e148e0f-24f5-4e00-a74e-6249653167c7-000000@eu-west-1.amazonses.com>
+From: Mike Christie <mchristi@redhat.com>
+Message-ID: <5D7A70B0.9010407@redhat.com>
+Date: Thu, 12 Sep 2019 11:22:08 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101
+ Thunderbird/38.6.0
 MIME-Version: 1.0
-In-Reply-To: <31aa6043-3b11-a936-bf35-6ed84bff9304@c-s.fr>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <0102016d21c61ec3-4e148e0f-24f5-4e00-a74e-6249653167c7-000000@eu-west-1.amazonses.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 12 Sep 2019 16:22:09 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-Le 12/09/2019 =C3=A0 17:36, Christophe Leroy a =C3=A9crit=C2=A0:
->=20
->=20
-> Le 12/09/2019 =C3=A0 17:00, Christophe Leroy a =C3=A9crit=C2=A0:
->>
->>
->> On 09/12/2019 06:02 AM, Anshuman Khandual wrote:
->>> This adds a test module which will validate architecture page table=20
->>> helpers
->>> and accessors regarding compliance with generic MM semantics=20
->>> expectations.
->>> This will help various architectures in validating changes to the=20
->>> existing
->>> page table helpers or addition of new ones.
+On 09/11/2019 02:21 PM, Martin Raiber wrote:
+> On 11.09.2019 18:56 Mike Christie wrote:
+>> On 09/11/2019 03:40 AM, Martin Raiber wrote:
+>>> On 10.09.2019 10:35 Damien Le Moal wrote:
+>>>> Mike,
+>>>>
+>>>> On 2019/09/09 19:26, Mike Christie wrote:
+>>>>> Forgot to cc linux-mm.
+>>>>>
+>>>>> On 09/09/2019 11:28 AM, Mike Christie wrote:
+>>>>>> There are several storage drivers like dm-multipath, iscsi, and nbd that
+>>>>>> have userspace components that can run in the IO path. For example,
+>>>>>> iscsi and nbd's userspace deamons may need to recreate a socket and/or
+>>>>>> send IO on it, and dm-multipath's daemon multipathd may need to send IO
+>>>>>> to figure out the state of paths and re-set them up.
+>>>>>>
+>>>>>> In the kernel these drivers have access to GFP_NOIO/GFP_NOFS and the
+>>>>>> memalloc_*_save/restore functions to control the allocation behavior,
+>>>>>> but for userspace we would end up hitting a allocation that ended up
+>>>>>> writing data back to the same device we are trying to allocate for.
+>>>>>>
+>>>>>> This patch allows the userspace deamon to set the PF_MEMALLOC* flags
+>>>>>> through procfs. It currently only supports PF_MEMALLOC_NOIO, but
+>>>>>> depending on what other drivers and userspace file systems need, for
+>>>>>> the final version I can add the other flags for that file or do a file
+>>>>>> per flag or just do a memalloc_noio file.
+>>>> Awesome. That probably will be the perfect solution for the problem we hit with
+>>>> tcmu-runner a while back (please see this thread:
+>>>> https://www.spinics.net/lists/linux-fsdevel/msg148912.html).
+>>>>
+>>>> I think we definitely need nofs as well for dealing with cases where the backend
+>>>> storage for the user daemon is a file.
+>>>>
+>>>> I will give this patch a try as soon as possible (I am traveling currently).
+>>>>
+>>>> Best regards.
+>>> I had issues with this as well, and work on this is appreciated! In my
+>>> case it is a loop block device on a fuse file system.
+>>> Setting PF_LESS_THROTTLE was the one that helped the most, though, so
+>>> add an option for that as well? I set this via prctl() for the thread
+>>> calling it (was easiest to add to).
 >>>
->>> Test page table and memory pages creating it's entries at various=20
->>> level are
->>> all allocated from system memory with required alignments. If memory=20
->>> pages
->>> with required size and alignment could not be allocated, then all=20
->>> depending
->>> individual tests are skipped.
+>>> Sorry, I have no idea about the current rationale, but wouldn't it be
+>>> better to have a way to mask a set of block devices/file systems not to
+>>> write-back to in a thread. So in my case I'd specify that the fuse
+>>> daemon threads cannot write-back to the file system and loop device
+>>> running on top of the fuse file system, while all other block
+>>> devices/file systems can be write-back to (causing less swapping/OOM
+>>> issues).
+>> I'm not sure I understood you.
 >>
->> Build failure on powerpc book3s/32. This is because asm/highmem.h is=20
->> missing. It can't be included from asm/book3s/32/pgtable.h because it=20
->> creates circular dependency. So it has to be included from=20
->> mm/arch_pgtable_test.c
->=20
-> In fact it is <linux/highmem.h> that needs to be added, adding=20
-> <asm/highmem.h> directly provokes build failure at link time.
->=20
+>> The storage daemons I mentioned normally kick off N threads per M
+>> devices. The threads handle duties like IO and error handling for those
+>> devices. Those threads would set the flag, so those IO/error-handler
+>> related operations do not end up writing back to them. So it works
+>> similar to how storage drivers work in the kernel where iscsi_tcp has an
+>> xmit thread and that does memalloc_noreclaim_save. Only the threads for
+>> those specific devices being would set the flag.
+>>
+>> In your case, it sounds like you have a thread/threads that would
+>> operate on multiple devices and some need the behavior and some do not.
+>> Is that right?
+> 
+> No, sounds the same as your case. As an example think of vdfuse (or
+> qemu-nbd locally). You'd have something like
+> 
+> ext4(a) <- loop <- fuse file system <- vdfuse <- disk.vdi container file
+> <- ext4(b) <- block device
+> 
+> If vdfuse threads cause writeback to ext4(a), you'd get the issue we
+> have. Setting PF_LESS_THROTTLE and/or PF_MEMALLOC_NOIO mostly avoids
+> this problem, but with only PF_LESS_THROTTLE there are still corner
+> cases (I think if ext4(b) slows down suddenly) where it wedges itself
+> and the side effect of setting PF_MEMALLOC_NOIO are being discussed...
+> The best solution would be, I guess, to have a way for vdfuse to set
+> something, such that write-back to ext4(a) isn't allowed from those
+> threads, but write-back to ext4(b) (and all other block devices) is. But
+> I only have a rough idea of how write-back works, so this is really only
+> a guess.
 
-I get the following failure,
+I see now.
 
-[    0.704685] ------------[ cut here ]------------
-[    0.709239] initcall arch_pgtable_tests_init+0x0/0x228 returned with=20
-preemption imbalance
-[    0.717539] WARNING: CPU: 0 PID: 1 at init/main.c:952=20
-do_one_initcall+0x18c/0x1d4
-[    0.724922] CPU: 0 PID: 1 Comm: swapper Not tainted=20
-5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty #2307
-[    0.734070] NIP:  c070e674 LR: c070e674 CTR: c001292c
-[    0.739084] REGS: df4a5dd0 TRAP: 0700   Not tainted=20
-(5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty)
-[    0.747975] MSR:  00029032 <EE,ME,IR,DR,RI>  CR: 28000222  XER: 000000=
-00
-[    0.754628]
-[    0.754628] GPR00: c070e674 df4a5e88 df4a0000 0000004e 0000000a=20
-00000000 000000ca 38207265
-[    0.754628] GPR08: 00001032 00000800 00000000 00000000 22000422=20
-00000000 c0004a7c 00000000
-[    0.754628] GPR16: 00000000 00000000 00000000 00000000 00000000=20
-c0810000 c0800000 c0816f30
-[    0.754628] GPR24: c070dc20 c074702c 00000006 0000009c 00000000=20
-c0724494 c074e140 00000000
-[    0.789339] NIP [c070e674] do_one_initcall+0x18c/0x1d4
-[    0.794435] LR [c070e674] do_one_initcall+0x18c/0x1d4
-[    0.799437] Call Trace:
-[    0.801867] [df4a5e88] [c070e674] do_one_initcall+0x18c/0x1d4=20
-(unreliable)
-[    0.808694] [df4a5ee8] [c070e8c0] kernel_init_freeable+0x204/0x2dc
-[    0.814830] [df4a5f28] [c0004a94] kernel_init+0x18/0x110
-[    0.820107] [df4a5f38] [c00122ac] ret_from_kernel_thread+0x14/0x1c
-[    0.826220] Instruction dump:
-[    0.829161] 4beb1069 7d2000a6 61298000 7d200124 89210008 2f890000=20
-41be0048 3c60c06a
-[    0.836849] 38a10008 7fa4eb78 3863cacc 4b915115 <0fe00000> 4800002c=20
-81220070 712a0004
-[    0.844723] ---[ end trace 969d686308d40b33 ]---
+Initially, would it be ok to keep it simple and keep the existing kernel
+behavior? For your example, is the PF_MEMALLOC_NOIO use in loop today
+causing a lot of swap/oom issues? For iscsi_tcp and nbd their memalloc
+and GFP_NOIO use is not.
 
-Then starting init fails:
-
-[    3.894074] Run /init as init process
-[    3.898403] Failed to execute /init (error -14)
-[    3.903009] Run /sbin/init as init process
-[    3.907172] Run /etc/init as init process
-[    3.911251] Run /bin/init as init process
-[    3.915513] Run /bin/sh as init process
-[    3.919471] Starting init: /bin/sh exists but couldn't execute it=20
-(error -14)
-[    3.926732] Kernel panic - not syncing: No working init found.  Try=20
-passing init=3D option to kernel. See Linux=20
-Documentation/admin-guide/init.rst for guidance.
-[    3.940864] CPU: 0 PID: 1 Comm: init Tainted: G        W=20
-5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty #2307
-[    3.951165] Call Trace:
-[    3.953617] [df4a5ec8] [c002392c] panic+0x12c/0x320 (unreliable)
-[    3.959621] [df4a5f28] [c0004b8c] rootfs_mount+0x0/0x2c
-[    3.964849] [df4a5f38] [c00122ac] ret_from_kernel_thread+0x14/0x1c
-
-
-Christophe
+The problem for the storage driver daemons I mentioned in the patch is
+that they are at the bottom of the stack and they do not know what is
+going to be added above them plus it can change, so we will have to walk
+the storage device stack while IO is running and allocations are trying
+to execute. It looks like I will end up having to insert extra
+locking/refcounts into multiple layers, and I am not sure if the extra
+complexity is going to be worth it if we are not seeing problems from
+existing kernel users.
 
