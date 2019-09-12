@@ -2,143 +2,159 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E353ECDE20
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 08:37:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C35BC5ACAE
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:06:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1B93208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 08:37:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1B93208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6AC12208C2
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 09:06:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AC12208C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D0886B0003; Thu, 12 Sep 2019 04:37:48 -0400 (EDT)
+	id D39AD6B0003; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A8A76B0005; Thu, 12 Sep 2019 04:37:48 -0400 (EDT)
+	id CE9996B0005; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BE206B0006; Thu, 12 Sep 2019 04:37:48 -0400 (EDT)
+	id BD81F6B0006; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0231.hostedemail.com [216.40.44.231])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A0856B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 04:37:48 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id DEEB1181AC9AE
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:37:47 +0000 (UTC)
-X-FDA: 75925615374.01.dress32_43f1f6518a35f
-X-HE-Tag: dress32_43f1f6518a35f
-X-Filterd-Recvd-Size: 5472
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:37:46 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BB8C01000;
-	Thu, 12 Sep 2019 01:37:45 -0700 (PDT)
-Received: from [10.162.41.127] (p8cg001049571a15.blr.arm.com [10.162.41.127])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6006D3F71F;
-	Thu, 12 Sep 2019 01:37:39 -0700 (PDT)
-Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
- will@kernel.org, mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
- david@redhat.com, cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com,
- mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
- steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
- Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
-References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
- <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
- <20190910161759.GI14442@C02TF0J2HF1T.local>
- <9a7a82cd-77d0-bcab-3028-7be0599b0a10@arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <93dc87f9-b0e5-140c-fb6c-1fa3d438381f@arm.com>
-Date: Thu, 12 Sep 2019 14:07:49 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BAE26B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:06:26 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 30154180AD802
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:06:26 +0000 (UTC)
+X-FDA: 75925687572.24.chalk30_1af43e0a1f507
+X-HE-Tag: chalk30_1af43e0a1f507
+X-Filterd-Recvd-Size: 5559
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 09:06:25 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 882FB18C4272;
+	Thu, 12 Sep 2019 09:06:23 +0000 (UTC)
+Received: from llong.remote.csb (ovpn-120-238.rdu2.redhat.com [10.10.120.238])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B31CA600C4;
+	Thu, 12 Sep 2019 09:06:18 +0000 (UTC)
+Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
+ PMD
+To: Mike Kravetz <mike.kravetz@oracle.com>,
+ Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>,
+ Will Deacon <will.deacon@arm.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>
+References: <20190911150537.19527-1-longman@redhat.com>
+ <20190911150537.19527-6-longman@redhat.com>
+ <ae7edcb8-74e5-037c-17e7-01b3cf9320af@oracle.com>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <b7d7d109-03cf-d750-3a56-a95837998372@redhat.com>
+Date: Thu, 12 Sep 2019 10:06:14 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <9a7a82cd-77d0-bcab-3028-7be0599b0a10@arm.com>
+In-Reply-To: <ae7edcb8-74e5-037c-17e7-01b3cf9320af@oracle.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.62]); Thu, 12 Sep 2019 09:06:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 9/12/19 4:26 AM, Mike Kravetz wrote:
+> On 9/11/19 8:05 AM, Waiman Long wrote:
+>> When allocating a large amount of static hugepages (~500-1500GB) on a
+>> system with large number of CPUs (4, 8 or even 16 sockets), performance
+>> degradation (random multi-second delays) was observed when thousands
+>> of processes are trying to fault in the data into the huge pages. The
+>> likelihood of the delay increases with the number of sockets and hence
+>> the CPUs a system has.  This only happens in the initial setup phase
+>> and will be gone after all the necessary data are faulted in.
+>>
+>> These random delays, however, are deemed unacceptable. The cause of
+>> that delay is the long wait time in acquiring the mmap_sem when trying
+>> to share the huge PMDs.
+>>
+>> To remove the unacceptable delays, we have to limit the amount of wait
+>> time on the mmap_sem. So the new down_write_timedlock() function is
+>> used to acquire the write lock on the mmap_sem with a timeout value of
+>> 10ms which should not cause a perceivable delay. If timeout happens,
+>> the task will abandon its effort to share the PMD and allocate its own
+>> copy instead.
+>>
+> <snip>
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 6d7296dd11b8..445af661ae29 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -4750,6 +4750,8 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
+>>  	}
+>>  }
+>>  
+>> +#define PMD_SHARE_DISABLE_THRESHOLD	(1 << 8)
+>> +
+>>  /*
+>>   * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
+>>   * and returns the corresponding pte. While this is not necessary for the
+>> @@ -4770,11 +4772,24 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>>  	pte_t *spte = NULL;
+>>  	pte_t *pte;
+>>  	spinlock_t *ptl;
+>> +	static atomic_t timeout_cnt;
+>>  
+>> -	if (!vma_shareable(vma, addr))
+>> -		return (pte_t *)pmd_alloc(mm, pud, addr);
+>> +	/*
+>> +	 * Don't share if it is not sharable or locking attempt timed out
+>> +	 * after 10ms. After 256 timeouts, PMD sharing will be permanently
+>> +	 * disabled as it is just too slow.
+>> +	 */
+>> +	if (!vma_shareable(vma, addr) ||
+>> +	   (atomic_read(&timeout_cnt) >= PMD_SHARE_DISABLE_THRESHOLD))
+>> +		goto out_no_share;
+>> +
+>> +	if (!i_mmap_timedlock_write(mapping, ms_to_ktime(10))) {
+>> +		if (atomic_inc_return(&timeout_cnt) ==
+>> +		    PMD_SHARE_DISABLE_THRESHOLD)
+>> +			pr_info("Hugetlbfs PMD sharing disabled because of timeouts!\n");
+>> +		goto out_no_share;
+>> +	}
+>>  
+>> -	i_mmap_lock_write(mapping);
+> All this got me wondering if we really need to take i_mmap_rwsem in write
+> mode here.  We are not changing the tree, only traversing it looking for
+> a suitable vma.
+>
+> Unless I am missing something, the hugetlb code only ever takes the semaphore
+> in write mode; never read.  Could this have been the result of changing the
+> tree semaphore to read/write?  Instead of analyzing all the code, the easiest
+> and safest thing would have been to take all accesses in write mode.
+>
+> I can investigate more, but wanted to ask the question in case someone already
+> knows.
+>
+> At one time, I thought it was safe to acquire the semaphore in read mode for
+> huge_pmd_share, but write mode for huge_pmd_unshare.  See commit b43a99900559.
+> This was reverted along with another patch for other reasons.
+>
+> If we change change from write to read mode, this may have significant impact
+> on the stalls.
 
+If we can take the rwsem in read mode, that should solve the problem
+AFAICS. As I don't have a full understanding of the history of that
+code, I didn't try to do that in my patch.
 
-On 09/12/2019 09:58 AM, Anshuman Khandual wrote:
-> 
-> On 09/10/2019 09:47 PM, Catalin Marinas wrote:
->> On Tue, Sep 03, 2019 at 03:15:58PM +0530, Anshuman Khandual wrote:
->>> @@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
->>>  void vmemmap_free(unsigned long start, unsigned long end,
->>>  		struct vmem_altmap *altmap)
->>>  {
->>> +#ifdef CONFIG_MEMORY_HOTPLUG
->>> +	/*
->>> +	 * FIXME: We should have called remove_pagetable(start, end, true).
->>> +	 * vmemmap and vmalloc virtual range might share intermediate kernel
->>> +	 * page table entries. Removing vmemmap range page table pages here
->>> +	 * can potentially conflict with a concurrent vmalloc() allocation.
->>> +	 *
->>> +	 * This is primarily because vmalloc() does not take init_mm ptl for
->>> +	 * the entire page table walk and it's modification. Instead it just
->>> +	 * takes the lock while allocating and installing page table pages
->>> +	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
->>> +	 * entry via memory hot remove can cause vmalloc() kernel page table
->>> +	 * walk pointers to be invalid on the fly which can cause corruption
->>> +	 * or worst, a crash.
->>> +	 *
->>> +	 * So free_empty_tables() gets called where vmalloc and vmemmap range
->>> +	 * do not overlap at any intermediate level kernel page table entry.
->>> +	 */
->>> +	unmap_hotplug_range(start, end, true);
->>> +	if (!vmalloc_vmemmap_overlap)
->>> +		free_empty_tables(start, end);
->>> +#endif
->>>  }
->>>  #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
-> Hello Catalin,
-> 
->> I wonder whether we could simply ignore the vmemmap freeing altogether,
->> just leave it around and not unmap it. This way, we could call
-> This would have been an option (even if we just ignore for a moment that
-> it might not be the cleanest possible method) if present memory hot remove
-> scenarios involved just system RAM of comparable sizes.
-> 
-> But with persistent memory which will be plugged in as ZONE_DEVICE might
-> ask for a vmem_atlamp based vmemmap mapping where the backing memory comes
-> from the persistent memory range itself not from existing system RAM. IIRC
-> altmap support was originally added because the amount persistent memory on
-> a system might be order of magnitude higher than that of regular system RAM.
-> During normal memory hot add (without altmap) would have caused great deal
-> of consumption from system RAM just for persistent memory range's vmemmap
-> mapping. In order to avoid such a scenario altmap was created to allocate
-> vmemmap mapping backing memory from the device memory range itself.
-> 
-> In such cases vmemmap must be unmapped and it's backing memory freed up for
-> the complete removal of persistent memory which originally requested for
-> altmap based vmemmap backing.
-> 
-> Just as a reference, the upcoming series which enables altmap support on
-> arm64 tries to allocate vmemmap mapping backing memory from the device range
-> itself during memory hot add and free them up during memory hot remove. Those
-> methods will not be possible if memory hot-remove does not really free up
-> vmemmap backing storage.
-> 
-> https://patchwork.kernel.org/project/linux-mm/list/?series=139299
-> 
+Cheers,
+Longman
 
-Just to add in here. There is an ongoing work which will enable allocating
-memory from the hot-add range itself even for normal system RAM. So this
-might not be specific to ZONE_DEVICE based device/persistent memory alone
-for a long time.
-
-https://lore.kernel.org/lkml/20190725160207.19579-1-osalvador@suse.de/
 
