@@ -2,117 +2,148 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3933AC4CEC5
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:44:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF5B9C4CEC6
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 17:05:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D213A20830
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:44:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="jCafRrJi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D213A20830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id A93102081B
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 17:05:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A93102081B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CC176B0003; Thu, 12 Sep 2019 12:44:00 -0400 (EDT)
+	id 430796B0003; Thu, 12 Sep 2019 13:05:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 355436B0006; Thu, 12 Sep 2019 12:44:00 -0400 (EDT)
+	id 3E0B96B0006; Thu, 12 Sep 2019 13:05:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 21D0B6B0007; Thu, 12 Sep 2019 12:44:00 -0400 (EDT)
+	id 2D0616B0007; Thu, 12 Sep 2019 13:05:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0095.hostedemail.com [216.40.44.95])
-	by kanga.kvack.org (Postfix) with ESMTP id EF3006B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:43:59 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 48D8762E9
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:43:59 +0000 (UTC)
-X-FDA: 75926840598.08.brick14_5cf45c26cb845
-X-HE-Tag: brick14_5cf45c26cb845
-X-Filterd-Recvd-Size: 4241
-Received: from aserp2120.oracle.com (aserp2120.oracle.com [141.146.126.78])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:43:58 +0000 (UTC)
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8CGhdQh088519;
-	Thu, 12 Sep 2019 16:43:49 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=EB/p5338NYK4pzHsk6TBuBlAMNpbEMjQOcbfPa1pTQQ=;
- b=jCafRrJiLWmf9PMwQwF3AQ5GwyOUrMFaTKoak7fyLTjhfpvBEwfryr6f+qpkTtAycMnC
- Ek8O93/PErFd/DhTtMsYJAHFpYqkZRMNVmZa+VqbYyc8455i4rkK6JpQUIMAUJIa1LHF
- DIRRwdujfsNWYrvn9nm0oLWu+LciByGLAyv3yyMki3b96p8VADNpao/k/LFCmxf8wQOE
- cQSXRqJz307e+aoHlIVVeY6AFM62+dwjstXLL9T8DNsn6NIAguH29YeTouKFvcbHQMnD
- ydn/mkbe6plveb4unWpgJOXqELB4KUg+ltQeThuC9RXEIH1NZ73dXIaJLz9IefNnT1e1 iw== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2120.oracle.com with ESMTP id 2uw1jyhnvw-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 12 Sep 2019 16:43:49 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8CGhe1s010201;
-	Thu, 12 Sep 2019 16:43:48 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2uyrdgkbaf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 12 Sep 2019 16:43:48 +0000
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x8CGhSW9018583;
-	Thu, 12 Sep 2019 16:43:28 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 12 Sep 2019 09:43:28 -0700
-Subject: Re: [PATCH 5/5] hugetlbfs: Limit wait time when trying to share huge
- PMD
-To: Waiman Long <longman@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
-        Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>,
-        Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>
-References: <20190911150537.19527-1-longman@redhat.com>
- <20190911150537.19527-6-longman@redhat.com>
- <ae7edcb8-74e5-037c-17e7-01b3cf9320af@oracle.com>
- <b7d7d109-03cf-d750-3a56-a95837998372@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <87ac9e4f-9301-9eb7-e68b-a877e7cf0384@oracle.com>
-Date: Thu, 12 Sep 2019 09:43:27 -0700
+Received: from forelay.hostedemail.com (smtprelay0237.hostedemail.com [216.40.44.237])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED246B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 13:05:29 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 96E9D180AD802
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 17:05:28 +0000 (UTC)
+X-FDA: 75926894736.03.juice12_87081f334541c
+X-HE-Tag: juice12_87081f334541c
+X-Filterd-Recvd-Size: 4427
+Received: from relay.sw.ru (relay.sw.ru [185.231.240.75])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 17:05:27 +0000 (UTC)
+Received: from [172.16.25.5]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1i8SWx-0001JP-U8; Thu, 12 Sep 2019 20:05:16 +0300
+Subject: Re: [PATCH v3] mm/kasan: dump alloc and free stack for page allocator
+To: Vlastimil Babka <vbabka@suse.cz>, Walter Wu <walter-zh.wu@mediatek.com>
+Cc: Qian Cai <cai@lca.pw>, Alexander Potapenko <glider@google.com>,
+ Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
+ <matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Andrey Konovalov <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>,
+ linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com,
+ linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+ linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+References: <20190911083921.4158-1-walter-zh.wu@mediatek.com>
+ <5E358F4B-552C-4542-9655-E01C7B754F14@lca.pw>
+ <c4d2518f-4813-c941-6f47-73897f420517@suse.cz>
+ <1568297308.19040.5.camel@mtksdccf07>
+ <613f9f23-c7f0-871f-fe13-930c35ef3105@suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <79fede05-735b-8477-c273-f34db93fd72b@virtuozzo.com>
+Date: Thu, 12 Sep 2019 20:05:14 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <b7d7d109-03cf-d750-3a56-a95837998372@redhat.com>
+In-Reply-To: <613f9f23-c7f0-871f-fe13-930c35ef3105@suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9378 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=664
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1909120174
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9378 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=710 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1909120174
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/12/19 2:06 AM, Waiman Long wrote:
-> If we can take the rwsem in read mode, that should solve the problem
-> AFAICS. As I don't have a full understanding of the history of that
-> code, I didn't try to do that in my patch.
 
-Do you still have access to an environment that creates the long stalls?
-If so, can you try the simple change of taking the semaphore in read mode
-in huge_pmd_share.
 
--- 
-Mike Kravetz
+On 9/12/19 5:31 PM, Vlastimil Babka wrote:
+> On 9/12/19 4:08 PM, Walter Wu wrote:
+>>
+>>> =C2=A0 extern void __reset_page_owner(struct page *page, unsigned int=
+ order);
+>>> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+>>> index 6c9682ce0254..dc560c7562e8 100644
+>>> --- a/lib/Kconfig.kasan
+>>> +++ b/lib/Kconfig.kasan
+>>> @@ -41,6 +41,8 @@ config KASAN_GENERIC
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select SLUB_DEBUG if SLUB
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select CONSTRUCTORS
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select STACKDEPOT
+>>> +=C2=A0=C2=A0=C2=A0 select PAGE_OWNER
+>>> +=C2=A0=C2=A0=C2=A0 select PAGE_OWNER_FREE_STACK
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 help
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Enables generic KASAN mode=
+.
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 Supported in both GCC and =
+Clang. With GCC it requires version 4.9.2
+>>> @@ -63,6 +65,8 @@ config KASAN_SW_TAGS
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select SLUB_DEBUG if SLUB
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select CONSTRUCTORS
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 select STACKDEPOT
+>>> +=C2=A0=C2=A0=C2=A0 select PAGE_OWNER
+>>> +=C2=A0=C2=A0=C2=A0 select PAGE_OWNER_FREE_STACK
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 help
+>>
+>> What is the difference between PAGE_OWNER+PAGE_OWNER_FREE_STACK and
+>> DEBUG_PAGEALLOC?
+>=20
+> Same memory usage, but debug_pagealloc means also extra checks and rest=
+ricting memory access to freed pages to catch UAF.
+>=20
+>> If you directly enable PAGE_OWNER+PAGE_OWNER_FREE_STACK
+>> PAGE_OWNER_FREE_STACK,don't you think low-memory device to want to use
+>> KASAN?
+>=20
+> OK, so it should be optional? But I think it's enough to distinguish no=
+ PAGE_OWNER at all, and PAGE_OWNER+PAGE_OWNER_FREE_STACK together - I don=
+'t see much point in PAGE_OWNER only for this kind of debugging.
+>=20
+> So how about this? KASAN wouldn't select PAGE_OWNER* but it would be re=
+commended in the help+docs. When PAGE_OWNER and KASAN are selected by use=
+r, PAGE_OWNER_FREE_STACK gets also selected, and both will be also runtim=
+e enabled without explicit page_owner=3Don.
+> I mostly want to avoid another boot-time option for enabling PAGE_OWNER=
+_FREE_STACK.
+> Would that be enough flexibility for low-memory devices vs full-fledged=
+ debugging?
+
+Originally I thought that with you patch users still can disable page_own=
+er via "page_owner=3Doff" boot param.
+But now I realized that this won't work. I think it should work, we shoul=
+d allow users to disable it.
+
+
+
+Or another alternative option (and actually easier one to implement), lea=
+ve PAGE_OWNER as is (no "select"s in Kconfigs)
+Make PAGE_OWNER_FREE_STACK like this:
+
++config PAGE_OWNER_FREE_STACK
++	def_bool KASAN || DEBUG_PAGEALLOC
++	depends on PAGE_OWNER
++
+
+So, users that want alloc/free stack will have to enable CONFIG_PAGE_OWNE=
+R=3Dy and add page_owner=3Don to boot cmdline.
+
+
+Basically the difference between these alternative is whether we enable p=
+age_owner by default or not. But there is always a possibility to disable=
+ it.
+
 
