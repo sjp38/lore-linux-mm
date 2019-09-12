@@ -2,284 +2,283 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E860C4CEC7
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:27:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ED7CC4CEC7
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:32:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 355052084D
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:27:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 355052084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7E05320684
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:32:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=gmx.net header.i=@gmx.net header.b="jI/Y4TBz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E05320684
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gmx.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7BFB6B0005; Thu, 12 Sep 2019 15:27:09 -0400 (EDT)
+	id E97F36B0007; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2CEE6B0006; Thu, 12 Sep 2019 15:27:09 -0400 (EDT)
+	id E47B46B0008; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9444B6B0007; Thu, 12 Sep 2019 15:27:09 -0400 (EDT)
+	id D37836B000A; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
-	by kanga.kvack.org (Postfix) with ESMTP id 88F516B0005
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:27:09 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0109.hostedemail.com [216.40.44.109])
+	by kanga.kvack.org (Postfix) with ESMTP id C93DB6B0007
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
 Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 1B859181AC9AE
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:27:09 +0000 (UTC)
-X-FDA: 75927251778.07.beef20_3e38b19213a14
-X-HE-Tag: beef20_3e38b19213a14
-X-Filterd-Recvd-Size: 9749
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:27:07 +0000 (UTC)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8CJCbdf109712
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:27:06 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2uytcdm3dq-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:27:06 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Thu, 12 Sep 2019 20:27:05 +0100
-Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 12 Sep 2019 20:27:02 +0100
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8CJR1gk47120842
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 12 Sep 2019 19:27:01 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3A5E6A4053;
-	Thu, 12 Sep 2019 19:27:01 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 8C807A4051;
-	Thu, 12 Sep 2019 19:27:00 +0000 (GMT)
-Received: from pomme.local (unknown [9.145.146.20])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Thu, 12 Sep 2019 19:27:00 +0000 (GMT)
-Subject: Re: [PATCH 2/3] powperc/mm: read TLB Block Invalidate Characteristics
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, mpe@ellerman.id.au,
-        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-References: <20190830120712.22971-1-ldufour@linux.ibm.com>
- <20190830120712.22971-3-ldufour@linux.ibm.com> <87impxshfk.fsf@linux.ibm.com>
-From: Laurent Dufour <ldufour@linux.ibm.com>
-Date: Thu, 12 Sep 2019 21:26:59 +0200
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.9.0
+	by forelay03.hostedemail.com (Postfix) with SMTP id 816748243768
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:32:38 +0000 (UTC)
+X-FDA: 75927265596.07.spoon44_6e0f22591f963
+X-HE-Tag: spoon44_6e0f22591f963
+X-Filterd-Recvd-Size: 11522
+Received: from mout.gmx.net (mout.gmx.net [212.227.15.19])
+	by imf06.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:32:36 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=gmx.net;
+	s=badeba3b8450; t=1568316739;
+	bh=ZhGcmu0FL7c6CsiOe5ntOYdJs2XJ0IHkdvvQp/czUYc=;
+	h=X-UI-Sender-Class:Subject:To:Cc:References:From:Date:In-Reply-To;
+	b=jI/Y4TBztwVnqxuv+S8X1nIvO3JWvu6xOm0pD4/HkZbfMYcB1i4ZRBY2CpnhwFtSD
+	 MVf26VPugeMbU0t2q63k1bBGfYYYBiYP9rkuDcOgSE6Khd5ZDEJsgAycpFxldWWYTX
+	 MMspO5ja5XwNZ4hV3FIGIdsXOZTDFOWuD/yIiPHE=
+X-UI-Sender-Class: 01bb95c1-4bf8-414a-932a-4f6e2808ef9c
+Received: from [192.168.1.162] ([37.4.249.90]) by mail.gmx.com (mrgmx002
+ [212.227.17.190]) with ESMTPSA (Nemesis) id 0MIu7d-1i6Yt02Gr3-002Xj2; Thu, 12
+ Sep 2019 21:32:19 +0200
+Subject: Re: [PATCH v5 0/4] Raspberry Pi 4 DMA addressing support
+To: Matthias Brugger <matthias.bgg@gmail.com>,
+ Matthias Brugger <mbrugger@suse.com>, Stefan Wahren <wahrenst@gmx.net>,
+ catalin.marinas@arm.com, marc.zyngier@arm.com, robh+dt@kernel.org,
+ linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+ linux-riscv@lists.infradead.org, hch@lst.de,
+ Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: f.fainelli@gmail.com, robin.murphy@arm.com, linux-kernel@vger.kernel.org,
+ linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
+ will@kernel.org, m.szyprowski@samsung.com
+References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
+ <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+ <3f9af46e-2e1a-771f-57f2-86a53caaf94a@suse.com>
+ <09f82f88-a13a-b441-b723-7bb061a2f1e3@gmail.com>
+From: Stefan Wahren <wahrenst@gmx.net>
+Openpgp: preference=signencrypt
+Autocrypt: addr=stefan.wahren@i2se.com; keydata=
+ xsFNBFt6gBMBEACub/pBevHxbvJefyZG32JINmn2bsEPX25V6fejmyYwmCGKjFtL/DoUMEVH
+ DxCJ47BMXo344fHV1C3AnudgN1BehLoBtLHxmneCzgH3KcPtWW7ptj4GtJv9CQDZy27SKoEP
+ xyaI8CF0ygRxJc72M9I9wmsPZ5bUHsLuYWMqQ7JcRmPs6D8gBkk+8/yngEyNExwxJpR1ylj5
+ bjxWDHyYQvuJ5LzZKuO9LB3lXVsc4bqXEjc6VFuZFCCk/syio/Yhse8N+Qsx7MQagz4wKUkQ
+ QbfXg1VqkTnAivXs42VnIkmu5gzIw/0tRJv50FRhHhxpyKAI8B8nhN8Qvx7MVkPc5vDfd3uG
+ YW47JPhVQBcUwJwNk/49F9eAvg2mtMPFnFORkWURvP+G6FJfm6+CvOv7YfP1uewAi4ln+JO1
+ g+gjVIWl/WJpy0nTipdfeH9dHkgSifQunYcucisMyoRbF955tCgkEY9EMEdY1t8iGDiCgX6s
+ 50LHbi3k453uacpxfQXSaAwPksl8MkCOsv2eEr4INCHYQDyZiclBuuCg8ENbR6AGVtZSPcQb
+ enzSzKRZoO9CaqID+favLiB/dhzmHA+9bgIhmXfvXRLDZze8po1dyt3E1shXiddZPA8NuJVz
+ EIt2lmI6V8pZDpn221rfKjivRQiaos54TgZjjMYI7nnJ7e6xzwARAQABzSlTdGVmYW4gV2Fo
+ cmVuIDxzdGVmYW4ud2FocmVuQGluLXRlY2guY29tPsLBdwQTAQgAIQUCXIdehwIbAwULCQgH
+ AgYVCAkKCwIEFgIDAQIeAQIXgAAKCRCUgewPEZDy2yHTD/9UF7QlDkGxzQ7AaCI6N95iQf8/
+ 1oSUaDNu2Y6IK+DzQpb1TbTOr3VJwwY8a3OWz5NLSOLMWeVxt+osMmlQIGubD3ODZJ8izPlG
+ /JrNt5zSdmN5IA5f3esWWQVKvghZAgTDqdpv+ZHW2EmxnAJ1uLFXXeQd3UZcC5r3/g/vSaMo
+ 9xek3J5mNuDm71lEWsAs/BAcFc+ynLhxwBWBWwsvwR8bHtJ5DOMWvaKuDskpIGFUe/Kb2B+j
+ ravQ3Tn6s/HqJM0cexSHz5pe+0sGvP+t9J7234BFQweFExriey8UIxOr4XAbaabSryYnU/zV
+ H9U1i2AIQZMWJAevCvVgQ/U+NeRhXude9YUmDMDo2sB2VAFEAqiF2QUHPA2m8a7EO3yfL4rM
+ k0iHzLIKvh6/rH8QCY8i3XxTNL9iCLzBWu/NOnCAbS+zlvLZaiSMh5EfuxTtv4PlVdEjf62P
+ +ZHID16gUDwEmazLAMrx666jH5kuUCTVymbL0TvB+6L6ARl8ANyM4ADmkWkpyM22kCuISYAE
+ fQR3uWXZ9YgxaPMqbV+wBrhJg4HaN6C6xTqGv3r4B2aqb77/CVoRJ1Z9cpHCwiOzIaAmvyzP
+ U6MxCDXZ8FgYlT4v23G5imJP2zgX5s+F6ACUJ9UQPD0uTf+J9Da2r+skh/sWOnZ+ycoHNBQv
+ ocZENAHQf87BTQRbeoATARAA2Hd0fsDVK72RLSDHby0OhgDcDlVBM2M+hYYpO3fX1r++shiq
+ PKCHVAsQ5bxe7HmJimHa4KKYs2kv/mlt/CauCJ//pmcycBM7GvwnKzmuXzuAGmVTZC6WR5Lk
+ akFrtHOzVmsEGpNv5Rc9l6HYFpLkbSkVi5SPQZJy+EMgMCFgjrZfVF6yotwE1af7HNtMhNPa
+ LDN1oUKF5j+RyRg5iwJuCDknHjwBQV4pgw2/5vS8A7ZQv2MbW/TLEypKXif78IhgAzXtE2Xr
+ M1n/o6ZH71oRFFKOz42lFdzdrSX0YsqXgHCX5gItLfqzj1psMa9o1eiNTEm1dVQrTqnys0l1
+ 8oalRNswYlQmnYBwpwCkaTHLMHwKfGBbo5dLPEshtVowI6nsgqLTyQHmqHYqUZYIpigmmC3S
+ wBWY1V6ffUEmkqpAACEnL4/gUgn7yQ/5d0seqnAq2pSBHMUUoCcTzEQUWVkiDv3Rk7hTFmhT
+ sMq78xv2XRsXMR6yQhSTPFZCYDUExElEsSo9FWHWr6zHyYcc8qDLFvG9FPhmQuT2s9Blx6gI
+ 323GnEq1lwWPJVzP4jQkJKIAXwFpv+W8CWLqzDWOvdlrDaTaVMscFTeH5W6Uprl65jqFQGMp
+ cRGCs8GCUW13H0IyOtQtwWXA4ny+SL81pviAmaSXU8laKaRu91VOVaF9f4sAEQEAAcLBXwQY
+ AQIACQUCW3qAEwIbDAAKCRCUgewPEZDy2+oXD/9cHHRkBZOfkmSq14Svx062PtU0KV470TSn
+ p/jWoYJnKIw3G0mXIRgrtH2dPwpIgVjsYyRSVMKmSpt5ZrDf9NtTbNWgk8VoLeZzYEo+J3oP
+ qFrTMs3aYYv7e4+JK695YnmQ+mOD9nia915tr5AZj95UfSTlyUmyic1d8ovsf1fP7XCUVRFc
+ RjfNfDF1oL/pDgMP5GZ2OwaTejmyCuHjM8IR1CiavBpYDmBnTYk7Pthy6atWvYl0fy/CqajT
+ Ksx7+p9xziu8ZfVX+iKBCc+He+EDEdGIDhvNZ/IQHfOB2PUXWGS+s9FNTxr/A6nLGXnA9Y6w
+ 93iPdYIwxS7KXLoKJee10DjlzsYsRflFOW0ZOiSihICXiQV1uqM6tzFG9gtRcius5UAthWaO
+ 1OwUSCQmfCOm4fvMIJIA9rxtoS6OqRQciF3crmo0rJCtN2awZfgi8XEif7d6hjv0EKM9XZoi
+ AZYZD+/iLm5TaKWN6oGIti0VjJv8ZZOZOfCb6vqFIkJW+aOu4orTLFMz28aoU3QyWpNC8FFm
+ dYsVua8s6gN1NIa6y3qa/ZB8bA/iky59AEz4iDIRrgUzMEg8Ak7Tfm1KiYeiTtBDCo25BvXj
+ bqsyxkQD1nkRm6FAVzEuOPIe8JuqW2xD9ixGYvjU5hkRgJp3gP5b+cnG3LPqquQ2E6goKUML AQ==
+Message-ID: <2c3e1ef3-0dba-9f79-52e2-314b6b500e14@gmx.net>
+Date: Thu, 12 Sep 2019 21:32:16 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <87impxshfk.fsf@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-X-TM-AS-GCONF: 00
-x-cbid: 19091219-0028-0000-0000-0000039B872E
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19091219-0029-0000-0000-0000245DF3DF
-Message-Id: <468a53a6-a970-5526-8035-eef59dcf48ed@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-12_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1908290000 definitions=main-1909120201
+In-Reply-To: <09f82f88-a13a-b441-b723-7bb061a2f1e3@gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Provags-ID: V03:K1:4xpyVTkM7mBHwer0vBdnpZAda7DcFxOoW0+WuRy4TkEKxMiMlmN
+ M+SKLGRk2tS9dYViahToGsAuTzugZA1kANQsReD+i5epvMF5yCJKTQnEpw161Du5A22hjJO
+ /tPCYSGWzP7L5usVqaK9StT43B9Ji6UAg/HbKQ24E5JuE7RjnynMaQWo4Vq2/RJHXtK+2sQ
+ FDI27EU/NTWzAuJnzDXCA==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:99alYRTSDPY=:xHYjMtKVyHWQ/iK2Vbu/zw
+ hbtkt2FcY47/Q2qHFp3EW1Hh6wmlof1QFS2VO2S3TWU1nKcpaknXTejUIWOQXegczemvl+sbo
+ Hr3OJFJFYbrbO1SxCojU4TCiLJFe5ClVGsB5+aeG2le/iKMupt/KviOzMsV1rbZXeFwHgAR9a
+ VegIQ9fXuiJlxEwTzAkwV1fRpEFK5qw1vu0boThat2McPQsl2GmItBG6dWKieW1JknS3aHW8i
+ xQFMyZcFdYZA0GJjhvj36gSWz4X6p5kw7EfBCaPOYNGEGOoHhIhwmBb4P/Tf0voFe5fSLgwXb
+ jYt4/CIPkzNyMwtP3DjfFcwjBSGrzLsS8zim3WBRB11kHl9wKOZlWS0kMPy/3UY4/i9nwDyVA
+ wh0sPuaspOGNxpfmTyY4J2Nk7+5noqTYF9Y9r8skAezjEFrLccovsFfa/gdK8oHYJjFHnMalP
+ Dj0ceQ3H3cPrgVyW6//xklvzAId6fTUxBsRh+SkYV8wA2OxUPR05ZlYYZygXuaZYAraiPKzPO
+ YteprH6CnN6oo3RKR09URufySBcOcxDDf+VBtlG0GwP8Ifnw5GMxjGandMBm/4jdiHI4UmxVs
+ MnbGytoGcfAVYTZyWgFzmg4GU+nRmJBguuUDqfau8Iih4zsQcBc6ySp2p7PiMICTqXy29eZyK
+ 3l3vMk6+eOW/TCsmpFhlAjAtFpDQsKpughAxlhLweBt5+3NGpDjU2zwQ+w435Aqeqy2Vy//wV
+ 2m9dYSQvO3GuvkxT0aKWK5bt2hV8Lp/rCXcmSVse8QhvngaNPStUm69bsWHyORO5NZnSXUVyy
+ w/PEE51aE7SaTsd+E1l4JV1thpT3is5mLfHpgKizK8gBxBgyogSyJx9iAp/Dc3C1on2II7YVK
+ MJDhokXTYA4bMoZ0KO4OpatAb9dUODb7r/kf+rVSxP0J5VG4oxhxYYJRWvzFElHSJRKPIy9eA
+ 3ji6pSf5iyh2rRCgIjbvG1MFqxuc2Q3GsnR7Pkb7+chasvMpRTLxzngUVT9dYAzyLRx30bgzt
+ n0tgtEOpanEDqP/qxLY1olj7AB9NU09c4ZfWjX7i/U0yk+iHme1Vc8l+KJA9wb+oAI3b/TohN
+ hK+CBEAfSSh1TehAgMucCIhIVaaA/s2OzgAmtICldlxfHpzqAMblTxqxO9zqgzGoPjnKX/1hF
+ 7Iuucsg5UxGOd2vcStwgckss5fTHQnXoXBnr2/SJSgcHAHguVSLC9G/kG5PY5dkvt/3EoEThO
+ ivKLUwHvFHMNOH8XnoDfdP19+SgEJRdl3WbORqgSTMzvGGtvUDrCNWxdmZFM=
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Le 12/09/2019 =C3=A0 16:44, Aneesh Kumar K.V a =C3=A9crit=C2=A0:
-> Laurent Dufour <ldufour@linux.ibm.com> writes:
->=20
->> The PAPR document specifies the TLB Block Invalidate Characteristics w=
-hich
->> is telling which couple base page size / page size is supported by the
->> H_BLOCK_REMOVE hcall.
->>
->> A new set of feature is added to the mmu_psize_def structure to record=
- per
->> base page size which page size is supported by H_BLOCK_REMOVE.
->>
->> A new init service is added to read the characteristics. The size of t=
-he
->> buffer is set to twice the number of known page size, plus 10 bytes to
->> ensure we have enough place.
->>
->> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
->> ---
->>   arch/powerpc/include/asm/book3s/64/mmu.h |   3 +
->>   arch/powerpc/platforms/pseries/lpar.c    | 107 +++++++++++++++++++++=
-++
->>   2 files changed, 110 insertions(+)
->>
->> diff --git a/arch/powerpc/include/asm/book3s/64/mmu.h b/arch/powerpc/i=
-nclude/asm/book3s/64/mmu.h
->> index 23b83d3593e2..675895dfe39f 100644
->> --- a/arch/powerpc/include/asm/book3s/64/mmu.h
->> +++ b/arch/powerpc/include/asm/book3s/64/mmu.h
->> @@ -12,11 +12,14 @@
->>    *    sllp  : is a bit mask with the value of SLB L || LP to be or'e=
-d
->>    *            directly to a slbmte "vsid" value
->>    *    penc  : is the HPTE encoding mask for the "LP" field:
->> + *    hblk  : H_BLOCK_REMOVE supported block size for this page size =
-in
->> + *            segment who's base page size is that page size.
->>    *
->>    */
->>   struct mmu_psize_def {
->>   	unsigned int	shift;	/* number of bits */
->>   	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
->> +	int		hblk[MMU_PAGE_COUNT];	/* H_BLOCK_REMOVE support */
->>   	unsigned int	tlbiel;	/* tlbiel supported for that page size */
->>   	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
->>   	union {
->> diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/plat=
-forms/pseries/lpar.c
->> index 4f76e5f30c97..375e19b3cf53 100644
->> --- a/arch/powerpc/platforms/pseries/lpar.c
->> +++ b/arch/powerpc/platforms/pseries/lpar.c
->> @@ -1311,6 +1311,113 @@ static void do_block_remove(unsigned long numb=
-er, struct ppc64_tlb_batch *batch,
->>   		(void)call_block_remove(pix, param, true);
->>   }
->>  =20
->> +static inline void __init set_hblk_bloc_size(int bpsize, int psize,
->> +					     unsigned int block_size)
->> +{
->> +	struct mmu_psize_def *def =3D &mmu_psize_defs[bpsize];
->> +
->> +	if (block_size > def->hblk[psize])
->> +		def->hblk[psize] =3D block_size;
->> +}
->> +
->> +static inline void __init check_lp_set_hblk(unsigned int lp,
->> +					    unsigned int block_size)
->> +{
->> +	unsigned int bpsize, psize;
->> +
->> +
->> +	/* First, check the L bit, if not set, this means 4K */
->> +	if ((lp & 0x80) =3D=3D 0) {
->> +		set_hblk_bloc_size(MMU_PAGE_4K, MMU_PAGE_4K, block_size);
->> +		return;
->> +	}
->> +
->> +	/* PAPR says to look at bits 2-7 (0 =3D MSB) */
->> +	lp &=3D 0x3f;
->> +	for (bpsize =3D 0; bpsize < MMU_PAGE_COUNT; bpsize++) {
->> +		struct mmu_psize_def *def =3D  &mmu_psize_defs[bpsize];
->> +
->> +		for (psize =3D 0; psize < MMU_PAGE_COUNT; psize++) {
->> +			if (def->penc[psize] =3D=3D lp) {
->> +				set_hblk_bloc_size(bpsize, psize, block_size);
->> +				return;
->> +			}
->> +		}
->> +	}
->> +}
->> +
->> +#define SPLPAR_TLB_BIC_TOKEN		50
->> +#define SPLPAR_TLB_BIC_MAXLENGTH	(MMU_PAGE_COUNT*2 + 10)
->> +static int __init read_tlbbi_characteristics(void)
->> +{
->> +	int call_status;
->> +	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
->> +	int len, idx, bpsize;
->> +
->> +	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE)) {
->> +		pr_info("H_BLOCK_REMOVE is not supported");
->> +		return 0;
->> +	}
->> +
->> +	memset(local_buffer, 0, SPLPAR_TLB_BIC_MAXLENGTH);
->> +
->> +	spin_lock(&rtas_data_buf_lock);
->> +	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
->> +	call_status =3D rtas_call(rtas_token("ibm,get-system-parameter"), 3,=
- 1,
->> +				NULL,
->> +				SPLPAR_TLB_BIC_TOKEN,
->> +				__pa(rtas_data_buf),
->> +				RTAS_DATA_BUF_SIZE);
->> +	memcpy(local_buffer, rtas_data_buf, SPLPAR_TLB_BIC_MAXLENGTH);
->> +	local_buffer[SPLPAR_TLB_BIC_MAXLENGTH - 1] =3D '\0';
->> +	spin_unlock(&rtas_data_buf_lock);
->> +
->> +	if (call_status !=3D 0) {
->> +		pr_warn("%s %s Error calling get-system-parameter (0x%x)\n",
->> +			__FILE__, __func__, call_status);
->> +		return 0;
->> +	}
->> +
->> +	/*
->> +	 * The first two (2) bytes of the data in the buffer are the length =
-of
->> +	 * the returned data, not counting these first two (2) bytes.
->> +	 */
->> +	len =3D local_buffer[0] * 256 + local_buffer[1] + 2;
->> +	if (len >=3D SPLPAR_TLB_BIC_MAXLENGTH) {
->> +		pr_warn("%s too large returned buffer %d", __func__, len);
->> +		return 0;
->> +	}
->> +
->> +	idx =3D 2;
->> +	while (idx < len) {
->> +		unsigned int block_size =3D local_buffer[idx++];
->> +		unsigned int npsize;
->> +
->> +		if (!block_size)
->> +			break;
->> +
->> +		block_size =3D 1 << block_size;
->> +		if (block_size !=3D 8)
->> +			/* We only support 8 bytes size TLB invalidate buffer */
->> +			pr_warn("Unsupported H_BLOCK_REMOVE block size : %d\n",
->> +				block_size);
->=20
-> Should we skip setting block size if we find block_size !=3D 8? Also ca=
-n
-> we avoid doing that pr_warn in loop and only warn if we don't find
-> block_size 8 in the invalidate characteristics array?
 
-My idea here is to fully read and process the data returned by the hcall,=
-=20
-and to put the limitation to 8 when checking before calling H_BLOCK_REMOV=
-E.
-The warning is there because I want it to be displayed once at boot.
+Am 12.09.19 um 19:18 schrieb Matthias Brugger:
+>
+> On 10/09/2019 11:27, Matthias Brugger wrote:
+>>
+>> On 09/09/2019 21:33, Stefan Wahren wrote:
+>>> Hi Nicolas,
+>>>
+>>> Am 09.09.19 um 11:58 schrieb Nicolas Saenz Julienne:
+>>>> Hi all,
+>>>> this series attempts to address some issues we found while bringing =
+up
+>>>> the new Raspberry Pi 4 in arm64 and it's intended to serve as a foll=
+ow
+>>>> up of these discussions:
+>>>> v4: https://lkml.org/lkml/2019/9/6/352
+>>>> v3: https://lkml.org/lkml/2019/9/2/589
+>>>> v2: https://lkml.org/lkml/2019/8/20/767
+>>>> v1: https://lkml.org/lkml/2019/7/31/922
+>>>> RFC: https://lkml.org/lkml/2019/7/17/476
+>>>>
+>>>> The new Raspberry Pi 4 has up to 4GB of memory but most peripherals =
+can
+>>>> only address the first GB: their DMA address range is
+>>>> 0xc0000000-0xfc000000 which is aliased to the first GB of physical
+>>>> memory 0x00000000-0x3c000000. Note that only some peripherals have t=
+hese
+>>>> limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wi=
+der
+>>>> view of the address space by virtue of being hooked up trough a seco=
+nd
+>>>> interconnect.
+>>>>
+>>>> Part of this is solved on arm32 by setting up the machine specific
+>>>> '.dma_zone_size =3D SZ_1G', which takes care of reserving the cohere=
+nt
+>>>> memory area at the right spot. That said no buffer bouncing (needed =
+for
+>>>> dma streaming) is available at the moment, but that's a story for
+>>>> another series.
+>>>>
+>>>> Unfortunately there is no such thing as 'dma_zone_size' in arm64. On=
+ly
+>>>> ZONE_DMA32 is created which is interpreted by dma-direct and the arm=
+64
+>>>> arch code as if all peripherals where be able to address the first 4=
+GB
+>>>> of memory.
+>>>>
+>>>> In the light of this, the series implements the following changes:
+>>>>
+>>>> - Create both DMA zones in arm64, ZONE_DMA will contain the first 1G=
 
->=20
->> +
->> +		for (npsize =3D local_buffer[idx++];  npsize > 0; npsize--)
->> +			check_lp_set_hblk((unsigned int) local_buffer[idx++],
->> +					  block_size);
->> +	}
->> +
->> +	for (bpsize =3D 0; bpsize < MMU_PAGE_COUNT; bpsize++)
->> +		for (idx =3D 0; idx < MMU_PAGE_COUNT; idx++)
->> +			if (mmu_psize_defs[bpsize].hblk[idx])
->> +				pr_info("H_BLOCK_REMOVE supports base psize:%d psize:%d block siz=
-e:%d",
->> +					bpsize, idx,
->> +					mmu_psize_defs[bpsize].hblk[idx]);
->> +
->> +	return 0;
->> +}
->> +machine_arch_initcall(pseries, read_tlbbi_characteristics);
->> +
->>   /*
->>    * Take a spinlock around flushes to avoid bouncing the hypervisor t=
-lbie
->>    * lock.
->> --=20
->> 2.23.0
+>>>>   area and ZONE_DMA32 the rest of the 32 bit addressable memory. So =
+far
+>>>>   the RPi4 is the only arm64 device with such DMA addressing limitat=
+ions
+>>>>   so this hardcoded solution was deemed preferable.
+>>>>
+>>>> - Properly set ARCH_ZONE_DMA_BITS.
+>>>>
+>>>> - Reserve the CMA area in a place suitable for all peripherals.
+>>>>
+>>>> This series has been tested on multiple devices both by checking the=
+
+>>>> zones setup matches the expectations and by double-checking physical=
+
+>>>> addresses on pages allocated on the three relevant areas GFP_DMA,
+>>>> GFP_DMA32, GFP_KERNEL:
+>>>>
+>>>> - On an RPi4 with variations on the ram memory size. But also forcin=
+g
+>>>>   the situation where all three memory zones are nonempty by setting=
+ a 3G
+>>>>   ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA suppo=
+rt.
+>>>>
+>>> i like to test this series on Raspberry Pi 4 and i have some question=
+s
+>>> to get arm64 running:
+>>>
+>>> Do you use U-Boot? Which tree?
+>> If you want to use U-Boot, try v2019.10-rc4, it should have everything=
+ you need
+>> to boot your kernel.
+>>
+> Ok, here is a thing. In the linux kernel we now use bcm2711 as SoC name=
+, but the
+> RPi4 devicetree provided by the FW uses mostly bcm2838.
+
+Do you mean the DTB provided at runtime?
+
+You mean the merged U-Boot changes, doesn't work with my Raspberry Pi
+series?
+
+>  U-Boot in its default
+> config uses the devicetree provided by the FW, mostly because this way =
+you don't
+> have to do anything to find out how many RAM you really have. Secondly =
+because
+> this will allow us, in the near future, to have one U-boot binary for b=
+oth RPi3
+> and RPi4 (and as a side effect one binary for RPi1 and RPi2).
+>
+> Anyway, I found at least, that the following compatibles need to be add=
+ed:
+>
+> "brcm,bcm2838-cprman"
+> "brcm,bcm2838-gpio"
+>
+> Without at least the cprman driver update, you won't see anything.
+>
+> "brcm,bcm2838-rng200" is also a candidate.
+>
+> I also suppose we will need to add "brcm,bcm2838" to
+> arch/arm/mach-bcm/bcm2711.c, but I haven't verified this.
+How about changing this in the downstream kernel? Which is much easier.
+>
+> Regards,
+> Matthias
+>
+>> Regards,
+>> Matthias
+>>
+>>> Are there any config.txt tweaks necessary?
+>>>
+>>>
+>> _______________________________________________
+>> linux-arm-kernel mailing list
+>> linux-arm-kernel@lists.infradead.org
+>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
 
 
