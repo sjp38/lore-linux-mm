@@ -2,152 +2,211 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82D37C4CEC6
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:42:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 098A5C4CEC5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:52:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40FDF214AE
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:42:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40FDF214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BC5F620644
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 15:52:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="Xve/r2+a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC5F620644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BEB916B0007; Thu, 12 Sep 2019 11:42:15 -0400 (EDT)
+	id 52A1E6B000A; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B996C6B0008; Thu, 12 Sep 2019 11:42:15 -0400 (EDT)
+	id 4B3EC6B000C; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A61C56B000A; Thu, 12 Sep 2019 11:42:15 -0400 (EDT)
+	id 32D406B000D; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B16A6B0007
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 11:42:15 -0400 (EDT)
-Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id D24009093
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:42:14 +0000 (UTC)
-X-FDA: 75926684988.01.skate17_87ed17b4d2d12
-X-HE-Tag: skate17_87ed17b4d2d12
-X-Filterd-Recvd-Size: 6637
-Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:42:13 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Sep 2019 08:42:09 -0700
-X-IronPort-AV: E=Sophos;i="5.64,492,1559545200"; 
-   d="scan'208";a="197265089"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga002-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Sep 2019 08:42:08 -0700
-Message-ID: <b84a3916202a67bcf36da0b6f0e833eb3408339a.camel@linux.intel.com>
-Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Michal Hocko <mhocko@kernel.org>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>, 
- "Michael S. Tsirkin" <mst@redhat.com>, Catalin Marinas
- <catalin.marinas@arm.com>, David Hildenbrand <david@redhat.com>, Dave
- Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
- Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>, Andrew
- Morton <akpm@linux-foundation.org>,  will@kernel.org,
- linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
- Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitesh Narayan Lal
- <nitesh@redhat.com>, Rik van Riel <riel@surriel.com>,
- lcapitulino@redhat.com, "Wang, Wei W" <wei.w.wang@intel.com>, Andrea
- Arcangeli <aarcange@redhat.com>,  ying.huang@intel.com, Paolo Bonzini
- <pbonzini@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Fengguang
- Wu <fengguang.wu@intel.com>, "Kirill A. Shutemov"
- <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil
- Babka <vbabka@suse.cz>
-Date: Thu, 12 Sep 2019 08:42:08 -0700
-In-Reply-To: <20190912091925.GM4023@dhcp22.suse.cz>
-References: <20190907172225.10910.34302.stgit@localhost.localdomain>
-	 <20190910124209.GY2063@dhcp22.suse.cz>
-	 <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
-	 <20190910144713.GF2063@dhcp22.suse.cz>
-	 <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
-	 <20190910175213.GD4023@dhcp22.suse.cz>
-	 <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
-	 <20190911113619.GP4023@dhcp22.suse.cz>
-	 <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
-	 <20190912091925.GM4023@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+Received: from forelay.hostedemail.com (smtprelay0226.hostedemail.com [216.40.44.226])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BEC46B000A
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 11:52:34 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 859BF1A4D4
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:52:33 +0000 (UTC)
+X-FDA: 75926710986.13.coast32_507203d54af17
+X-HE-Tag: coast32_507203d54af17
+X-Filterd-Recvd-Size: 8056
+Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:52:32 +0000 (UTC)
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 46Tjvd4mf5z9v01v;
+	Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=Xve/r2+a; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id A0Kfupm1sMQP; Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 46Tjvd3M1wzB09bN;
+	Thu, 12 Sep 2019 17:52:29 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1568303549; bh=8yNeYzD4hyXGy/cp3pkfdaOEeCFKo8dkfUfa1uQQNdw=;
+	h=Subject:From:To:Cc:References:Date:In-Reply-To:From;
+	b=Xve/r2+abfDHfuK0WIskaBB17UKxFk/oCvwXkkUF5Yo4BLlxGU81bDiG5ke88fbye
+	 BE8P5FDH9S654EK1eo6Y8b6n1X7xstmolnKTrzECKOGoc5E7ZdJ0fsFaCrbfijNknG
+	 8RziH8EmMIWjiObqTYaXwtz8qoLghxzrvqE5L7qA=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 6ED6B8B945;
+	Thu, 12 Sep 2019 17:52:30 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id pajkW6Q7ywER; Thu, 12 Sep 2019 17:52:30 +0200 (CEST)
+Received: from [192.168.4.90] (unknown [192.168.4.90])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 812188B941;
+	Thu, 12 Sep 2019 17:52:22 +0200 (CEST)
+Subject: Re: [PATCH V2 2/2] mm/pgtable/debug: Add test validating architecture
+ page table helpers
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
+Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
+ linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
+ James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+ Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
+ Dan Williams <dan.j.williams@intel.com>, linux-s390@vger.kernel.org,
+ Jason Gunthorpe <jgg@ziepe.ca>, x86@kernel.org,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Vlastimil Babka <vbabka@suse.cz>, linux-snps-arc@lists.infradead.org,
+ Kees Cook <keescook@chromium.org>, Mark Brown <broonie@kernel.org>,
+ "Kirill A . Shutemov" <kirill@shutemov.name>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ linux-arm-kernel@lists.infradead.org,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mips@vger.kernel.org,
+ Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
+ Paul Burton <paul.burton@mips.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Vineet Gupta <vgupta@synopsys.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ "David S. Miller" <davem@davemloft.net>
+References: <1568268173-31302-1-git-send-email-anshuman.khandual@arm.com>
+ <1568268173-31302-3-git-send-email-anshuman.khandual@arm.com>
+ <4cf31ca9-39e4-87e4-7eef-a6f3f0ea7576@c-s.fr>
+ <31aa6043-3b11-a936-bf35-6ed84bff9304@c-s.fr>
+Message-ID: <600a7c62-eea9-e26f-f7cf-f2103b7c228c@c-s.fr>
+Date: Thu, 12 Sep 2019 17:52:21 +0200
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.9.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <31aa6043-3b11-a936-bf35-6ed84bff9304@c-s.fr>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-09-12 at 11:19 +0200, Michal Hocko wrote:
-> On Wed 11-09-19 08:12:03, Alexander Duyck wrote:
-> > On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
-> > > [...]
-> > > > We don't put any limitations on the allocator other then that it needs to
-> > > > clean up the metadata on allocation, and that it cannot allocate a page
-> > > > that is in the process of being reported since we pulled it from the
-> > > > free_list. If the page is a "Reported" page then it decrements the
-> > > > reported_pages count for the free_area and makes sure the page doesn't
-> > > > exist in the "Boundary" array pointer value, if it does it moves the
-> > > > "Boundary" since it is pulling the page.
-> > > 
-> > > This is still a non-trivial limitation on the page allocation from an
-> > > external code IMHO. I cannot give any explicit reason why an ordering on
-> > > the free list might matter (well except for page shuffling which uses it
-> > > to make physical memory pattern allocation more random) but the
-> > > architecture seems hacky and dubious to be honest. It shoulds like the
-> > > whole interface has been developed around a very particular and single
-> > > purpose optimization.
-> > 
-> > How is this any different then the code that moves a page that will
-> > likely be merged to the tail though?
-> 
-> I guess you are referring to the page shuffling. If that is the case
-> then this is an integral part of the allocator for a reason and it is
-> very well obvious in the code including the consequences. I do not
-> really like an idea of hiding similar constrains behind a generic
-> looking feature which is completely detached from the allocator and so
-> any future change of the allocator might subtly break it.
-> 
-> > In our case the "Reported" page is likely going to be much more
-> > expensive to allocate and use then a standard page because it will be
-> > faulted back in. In such a case wouldn't it make sense for us to want
-> > to keep the pages that don't require faults ahead of those pages in
-> > the free_list so that they are more likely to be allocated?
-> 
-> OK, I was suspecting this would pop out. And this is exactly why I
-> didn't like an idea of an external code imposing a non obvious constrains
-> to the allocator. You simply cannot count with any ordering with the
-> page allocator. We used to distinguish cache hot/cold pages in the past
-> and pushed pages to the specific end of the free list but that has been
-> removed. There are other potential changes like that possible. Shuffling
-> is a good recent example.
-> 
-> Anyway I am not a maintainer of this code. I would really like to hear
-> opinions from Mel and Vlastimil here (now CCed - the thread starts
-> http://lkml.kernel.org/r/20190907172225.10910.34302.stgit@localhost.localdomain.
 
-One alternative I could do if we are wanting to make things more obvious
-would be to add yet another add_to_free_list_XXX function that would be
-used specifically for reported pages. The only real requirement I have is
-that we have to insert reported pages such that we generate a continuous
-block without interleaving non-reported pages in between. So as long as
-reported pages are always inserted at the boundary/iterator when we are
-actively reporting on a section then I can guarantee the list won't have
-gaps formed.
 
-Also as far as the concerns about this being an external user, one thing I
-can do is break up the headers a bit and define an internal header in mm/
-that defines all the items used by the page allocator, and another in
-include/linux/ that defines what is used by devices when receiving the
-notifications. It would then help to reduce the likelihood of an outside
-entity messing with the page allocator too much.
+Le 12/09/2019 =C3=A0 17:36, Christophe Leroy a =C3=A9crit=C2=A0:
+>=20
+>=20
+> Le 12/09/2019 =C3=A0 17:00, Christophe Leroy a =C3=A9crit=C2=A0:
+>>
+>>
+>> On 09/12/2019 06:02 AM, Anshuman Khandual wrote:
+>>> This adds a test module which will validate architecture page table=20
+>>> helpers
+>>> and accessors regarding compliance with generic MM semantics=20
+>>> expectations.
+>>> This will help various architectures in validating changes to the=20
+>>> existing
+>>> page table helpers or addition of new ones.
+>>>
+>>> Test page table and memory pages creating it's entries at various=20
+>>> level are
+>>> all allocated from system memory with required alignments. If memory=20
+>>> pages
+>>> with required size and alignment could not be allocated, then all=20
+>>> depending
+>>> individual tests are skipped.
+>>
+>> Build failure on powerpc book3s/32. This is because asm/highmem.h is=20
+>> missing. It can't be included from asm/book3s/32/pgtable.h because it=20
+>> creates circular dependency. So it has to be included from=20
+>> mm/arch_pgtable_test.c
+>=20
+> In fact it is <linux/highmem.h> that needs to be added, adding=20
+> <asm/highmem.h> directly provokes build failure at link time.
+>=20
 
+I get the following failure,
+
+[    0.704685] ------------[ cut here ]------------
+[    0.709239] initcall arch_pgtable_tests_init+0x0/0x228 returned with=20
+preemption imbalance
+[    0.717539] WARNING: CPU: 0 PID: 1 at init/main.c:952=20
+do_one_initcall+0x18c/0x1d4
+[    0.724922] CPU: 0 PID: 1 Comm: swapper Not tainted=20
+5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty #2307
+[    0.734070] NIP:  c070e674 LR: c070e674 CTR: c001292c
+[    0.739084] REGS: df4a5dd0 TRAP: 0700   Not tainted=20
+(5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty)
+[    0.747975] MSR:  00029032 <EE,ME,IR,DR,RI>  CR: 28000222  XER: 000000=
+00
+[    0.754628]
+[    0.754628] GPR00: c070e674 df4a5e88 df4a0000 0000004e 0000000a=20
+00000000 000000ca 38207265
+[    0.754628] GPR08: 00001032 00000800 00000000 00000000 22000422=20
+00000000 c0004a7c 00000000
+[    0.754628] GPR16: 00000000 00000000 00000000 00000000 00000000=20
+c0810000 c0800000 c0816f30
+[    0.754628] GPR24: c070dc20 c074702c 00000006 0000009c 00000000=20
+c0724494 c074e140 00000000
+[    0.789339] NIP [c070e674] do_one_initcall+0x18c/0x1d4
+[    0.794435] LR [c070e674] do_one_initcall+0x18c/0x1d4
+[    0.799437] Call Trace:
+[    0.801867] [df4a5e88] [c070e674] do_one_initcall+0x18c/0x1d4=20
+(unreliable)
+[    0.808694] [df4a5ee8] [c070e8c0] kernel_init_freeable+0x204/0x2dc
+[    0.814830] [df4a5f28] [c0004a94] kernel_init+0x18/0x110
+[    0.820107] [df4a5f38] [c00122ac] ret_from_kernel_thread+0x14/0x1c
+[    0.826220] Instruction dump:
+[    0.829161] 4beb1069 7d2000a6 61298000 7d200124 89210008 2f890000=20
+41be0048 3c60c06a
+[    0.836849] 38a10008 7fa4eb78 3863cacc 4b915115 <0fe00000> 4800002c=20
+81220070 712a0004
+[    0.844723] ---[ end trace 969d686308d40b33 ]---
+
+Then starting init fails:
+
+[    3.894074] Run /init as init process
+[    3.898403] Failed to execute /init (error -14)
+[    3.903009] Run /sbin/init as init process
+[    3.907172] Run /etc/init as init process
+[    3.911251] Run /bin/init as init process
+[    3.915513] Run /bin/sh as init process
+[    3.919471] Starting init: /bin/sh exists but couldn't execute it=20
+(error -14)
+[    3.926732] Kernel panic - not syncing: No working init found.  Try=20
+passing init=3D option to kernel. See Linux=20
+Documentation/admin-guide/init.rst for guidance.
+[    3.940864] CPU: 0 PID: 1 Comm: init Tainted: G        W=20
+5.3.0-rc7-s3k-dev-00880-g28fd02a838e5-dirty #2307
+[    3.951165] Call Trace:
+[    3.953617] [df4a5ec8] [c002392c] panic+0x12c/0x320 (unreliable)
+[    3.959621] [df4a5f28] [c0004b8c] rootfs_mount+0x0/0x2c
+[    3.964849] [df4a5f38] [c00122ac] ret_from_kernel_thread+0x14/0x1c
+
+
+Christophe
 
