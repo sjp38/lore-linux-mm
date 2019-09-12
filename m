@@ -6,89 +6,114 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EBB1AC5ACAE
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:06:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64B46C5ACAE
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:24:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A768F20830
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:06:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 19EE4208C2
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:24:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="i0kb28AF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A768F20830
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="rjY82Sy3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19EE4208C2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 569F66B0003; Thu, 12 Sep 2019 06:06:44 -0400 (EDT)
+	id A17E66B0003; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51BAF6B0005; Thu, 12 Sep 2019 06:06:44 -0400 (EDT)
+	id 9C7CA6B0005; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4304C6B0006; Thu, 12 Sep 2019 06:06:44 -0400 (EDT)
+	id 8B6F26B0006; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0224.hostedemail.com [216.40.44.224])
-	by kanga.kvack.org (Postfix) with ESMTP id 226576B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:06:44 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C5465181AC9BA
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:06:43 +0000 (UTC)
-X-FDA: 75925839486.04.coast07_74e174b12ea5d
-X-HE-Tag: coast07_74e174b12ea5d
-X-Filterd-Recvd-Size: 3784
+Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B3F06B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0DD26180AD7C3
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:24:27 +0000 (UTC)
+X-FDA: 75925884174.06.war72_7e18cdb7cbb42
+X-HE-Tag: war72_7e18cdb7cbb42
+X-Filterd-Recvd-Size: 6675
 Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf21.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:06:43 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id v38so23412615edm.7
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:06:42 -0700 (PDT)
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:24:26 +0000 (UTC)
+Received: by mail-ed1-f66.google.com with SMTP id f2so17109096edw.3
+        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:24:26 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=aqH8fHtjT3IC/e5deArdd8oGX2wHZ4L9R7PbYi/ofyE=;
-        b=i0kb28AFynzLDWYc/Md76wO+4Lrr7IrS1+6jbZyJp7B8cHfwzc/YZfeotZo+Pv4uZ7
-         UAKdPDOo0lrmH5R3sOlwBQOxvcLChktxmsEkB+2uTyH+Rq5XfI65O9Z94Z+obWutx07s
-         XzEavAok9ThOFRQDiddgAkrUpPD9vKHfgSV4xMOrhKHaSN0oE7H4Yr4VBAe2HEbZqAnb
-         9KSSc54fY9hiuvthnxGax8VALweMokoc51TtUn2OguvauYy6k4Wf/eRQakDuDca+32zF
-         nVCVZN16xOi5r9rxTqinPAKy8k7PUWvLiCbD79ga6QA+z7+zIgZuSPfhFacnfdsxQf4c
-         9vJQ==
+        bh=+mmfaBX0Np9W/b7Q5MqD32lbNina1cQ/FOr9Xbx+2SA=;
+        b=rjY82Sy3etyc/lURHAAH5Zl+/VTkVL1QfiSGIjGFzaoW/tFRFM+zEYupBdTECALHrG
+         yPnD/zet+9v/0zbzm/E5VjxIC4kHBGoI6fG6y3ZudVWE1Fqr5jUEFHOhmpHGUgJBjFLR
+         Pp4qZYYyCBsVXmvAX8dVxq7xFDjWJd+exfdSoleHOrbAKfryXx1FyZtARD7dR7tAJFzo
+         JrefYLyjWx+Ptmb0NQyHMPY02QIUK5RaU1NoX/BBPIIVc7yZpU9xVdpA7vqiSPpdXXbt
+         d5OJ8VA03djK7lmxCv6oPg+S+/UFNoBoSlbJXwZ5azlQ2uo9F1xXDa4+5x33RZHpoQkO
+         TV/w==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:date:from:to:cc:subject:message-id:references
          :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=aqH8fHtjT3IC/e5deArdd8oGX2wHZ4L9R7PbYi/ofyE=;
-        b=GuIA3V9JU72pEvcTle5ewMW4Cmqg2PWsZDiRDC0UVqLPW11sOvGTb/A72XjCLqPrlS
-         /oWm/pwYSqoO78XbA1OqcZvIkdn8iSsnqNsBy3jBwFQJL86aXpeQ73PAdV6MsRHxpRzb
-         wJY1QGlKrhHJyrDKl0MRbgiCI3PaOX3006+wbp3G4qYw1PjPpbAZNNd4cZ8gKUfjP6uG
-         LYYY/BrwT/ApDnwBoi8uXSjlYliHhWYaI/OILmuVjSKH4+ZE5rWv+EewcCoULl/fosI1
-         HPV8HV0Q5p3rFwa1jffRWknBX45sMnK+mIpB+1OyVY7GZEF9SodRfRnkrl9fgCkj643A
-         9THA==
-X-Gm-Message-State: APjAAAVBdvygKe9DSGmhaxaV2o/laCQ2GoM+ODe1SSaUS9l56ertzJ4y
-	J5C9YMCKoAASxdDp7e/8xH7wcg==
-X-Google-Smtp-Source: APXvYqwr+ZxopPgubxD20LDe8gLP9CjjeqgoPlo0lC+2DPB6zZR0a/xFGp2E99s4bGIqlKqsUOHv2Q==
-X-Received: by 2002:a05:6402:125a:: with SMTP id l26mr4416227edw.95.1568282802039;
-        Thu, 12 Sep 2019 03:06:42 -0700 (PDT)
+        bh=+mmfaBX0Np9W/b7Q5MqD32lbNina1cQ/FOr9Xbx+2SA=;
+        b=Tt9lu7gSLQdknoXHRTANed2OQkjr/uk1hwPbBQZt93/OaUcfWZnvOcouqkpC3F4hPF
+         FpOaSWojhOBq2prJLAcN+LQhAEwr3I1m28EYPrWSe5p7Glwkc/SiE+XyBn4ErO5jnRI5
+         x+Ei37+lck6MxEUygjStLwwJ15JiYcbm7xsXiMKaidIIc3voH6gbX7+lpGFQC4P4H3j7
+         zOyu/CIBULbZipwfKn/6hh2KHlD1T+Rxy4XA2C7h3UZUhT5abEqgnVBUxlwFwhcd+dDr
+         +WZ6ySHaaPwc8e14Nc9SLV2XkEdKZ9oueEe1Q3Hh1l48DsrIF0PasifQ8au6+uRiR0KK
+         67+g==
+X-Gm-Message-State: APjAAAVqfpQN2UOUfXusu3bLRqoL5KW3Vpz3qsHTc4TNLwZzDYbhJ7zD
+	6sJUoDKx+TrdPexZuFsqqn46OA==
+X-Google-Smtp-Source: APXvYqxqQuNiTjkjaC8Hs02PHF+LHAOwtw4KJLDqhBlQ3F6XmLygJAqZUw/cEZVOIq4hY2vxi9be2Q==
+X-Received: by 2002:a50:8961:: with SMTP id f30mr40528236edf.144.1568283865271;
+        Thu, 12 Sep 2019 03:24:25 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id n1sm118790ejc.16.2019.09.12.03.06.41
+        by smtp.gmail.com with ESMTPSA id qt5sm2710889ejb.11.2019.09.12.03.24.24
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Sep 2019 03:06:41 -0700 (PDT)
+        Thu, 12 Sep 2019 03:24:24 -0700 (PDT)
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 68FF0100B4A; Thu, 12 Sep 2019 13:06:42 +0300 (+03)
-Date: Thu, 12 Sep 2019 13:06:42 +0300
+	id 04633100B4A; Thu, 12 Sep 2019 13:24:26 +0300 (+03)
+Date: Thu, 12 Sep 2019 13:24:25 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2 4/4] mm: lock slub page when listing objects
-Message-ID: <20190912100642.57ycbflh5ykcgttu@box>
-References: <20190912004401.jdemtajrspetk3fh@box>
- <20190912023111.219636-1-yuzhao@google.com>
- <20190912023111.219636-4-yuzhao@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+	"Wang, Wei W" <wei.w.wang@intel.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+Message-ID: <20190912102425.wzhhe6ygfgg64sma@box>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz>
+ <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz>
+ <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz>
+ <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+ <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
+ <20190912091925.GM4023@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190912023111.219636-4-yuzhao@google.com>
+In-Reply-To: <20190912091925.GM4023@dhcp22.suse.cz>
 User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -96,15 +121,41 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 11, 2019 at 08:31:11PM -0600, Yu Zhao wrote:
-> Though I have no idea what the side effect of such race would be,
-> apparently we want to prevent the free list from being changed
-> while debugging the objects.
+On Thu, Sep 12, 2019 at 11:19:25AM +0200, Michal Hocko wrote:
+> On Wed 11-09-19 08:12:03, Alexander Duyck wrote:
+> > On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
+> > > [...]
+> > > > We don't put any limitations on the allocator other then that it needs to
+> > > > clean up the metadata on allocation, and that it cannot allocate a page
+> > > > that is in the process of being reported since we pulled it from the
+> > > > free_list. If the page is a "Reported" page then it decrements the
+> > > > reported_pages count for the free_area and makes sure the page doesn't
+> > > > exist in the "Boundary" array pointer value, if it does it moves the
+> > > > "Boundary" since it is pulling the page.
+> > >
+> > > This is still a non-trivial limitation on the page allocation from an
+> > > external code IMHO. I cannot give any explicit reason why an ordering on
+> > > the free list might matter (well except for page shuffling which uses it
+> > > to make physical memory pattern allocation more random) but the
+> > > architecture seems hacky and dubious to be honest. It shoulds like the
+> > > whole interface has been developed around a very particular and single
+> > > purpose optimization.
+> > 
+> > How is this any different then the code that moves a page that will
+> > likely be merged to the tail though?
+> 
+> I guess you are referring to the page shuffling. If that is the case
+> then this is an integral part of the allocator for a reason and it is
+> very well obvious in the code including the consequences. I do not
+> really like an idea of hiding similar constrains behind a generic
+> looking feature which is completely detached from the allocator and so
+> any future change of the allocator might subtly break it.
 
-Codewise looks good to me. But commit message can be better.
-
-Can we repharase it to indicate that slab_lock is required to protect
-page->objects?
+I don't necessary follow why shuffling is more integral to page allocator
+than reporting would be. It's next to shutffle.c under mm/ and integrated
+in a simillar way.
 
 -- 
  Kirill A. Shutemov
