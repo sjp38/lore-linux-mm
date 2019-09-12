@@ -3,184 +3,188 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FAEFC4CEC7
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:27:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0798CC4CEC5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:35:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1FA6920692
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:27:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FA6920692
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id CD146206A5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 16:35:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD146206A5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8E166B0007; Thu, 12 Sep 2019 12:27:34 -0400 (EDT)
+	id 5A6AE6B0007; Thu, 12 Sep 2019 12:35:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3FA76B0008; Thu, 12 Sep 2019 12:27:34 -0400 (EDT)
+	id 5304D6B0008; Thu, 12 Sep 2019 12:35:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 906026B000A; Thu, 12 Sep 2019 12:27:34 -0400 (EDT)
+	id 3F73F6B000A; Thu, 12 Sep 2019 12:35:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
-	by kanga.kvack.org (Postfix) with ESMTP id 6989E6B0007
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:27:34 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 00009181AC9B6
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:27:33 +0000 (UTC)
-X-FDA: 75926799228.11.fly15_5f0f661964715
-X-HE-Tag: fly15_5f0f661964715
-X-Filterd-Recvd-Size: 7598
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:27:33 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 58059C059B7A;
-	Thu, 12 Sep 2019 16:27:32 +0000 (UTC)
-Received: from [10.10.125.97] (ovpn-125-97.rdu2.redhat.com [10.10.125.97])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9CCD55D704;
-	Thu, 12 Sep 2019 16:27:31 +0000 (UTC)
-Subject: Re: [RFC PATCH] Add proc interface to set PF_MEMALLOC flags
-To: Martin Raiber <martin@urbackup.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>,
- "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>
-References: <20190909162804.5694-1-mchristi@redhat.com>
- <5D76995B.1010507@redhat.com>
- <BYAPR04MB5816DABF3C5071D13D823990E7B60@BYAPR04MB5816.namprd04.prod.outlook.com>
- <0102016d1f7af966-334f093b-2a62-4baa-9678-8d90d5fba6d9-000000@eu-west-1.amazonses.com>
- <5D792758.2060706@redhat.com>
- <0102016d21c61ec3-4e148e0f-24f5-4e00-a74e-6249653167c7-000000@eu-west-1.amazonses.com>
- <5D7A70B0.9010407@redhat.com>
-From: Mike Christie <mchristi@redhat.com>
-Message-ID: <5D7A71F3.7040700@redhat.com>
-Date: Thu, 12 Sep 2019 11:27:31 -0500
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101
- Thunderbird/38.6.0
+Received: from forelay.hostedemail.com (smtprelay0060.hostedemail.com [216.40.44.60])
+	by kanga.kvack.org (Postfix) with ESMTP id 18B716B0007
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:35:30 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id A43BF1F204
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:35:29 +0000 (UTC)
+X-FDA: 75926819178.09.land13_12bdb8cd42343
+X-HE-Tag: land13_12bdb8cd42343
+X-Filterd-Recvd-Size: 8112
+Received: from outbound-smtp27.blacknight.com (outbound-smtp27.blacknight.com [81.17.249.195])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:35:28 +0000 (UTC)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp27.blacknight.com (Postfix) with ESMTPS id E6853B8B6F
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 17:35:26 +0100 (IST)
+Received: (qmail 8291 invoked from network); 12 Sep 2019 16:35:26 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.19.210])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 12 Sep 2019 16:35:26 -0000
+Date: Thu, 12 Sep 2019 17:35:25 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+	"Wang, Wei W" <wei.w.wang@intel.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+Message-ID: <20190912163525.GV2739@techsingularity.net>
+References: <20190907172225.10910.34302.stgit@localhost.localdomain>
+ <20190910124209.GY2063@dhcp22.suse.cz>
+ <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
+ <20190910144713.GF2063@dhcp22.suse.cz>
+ <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
+ <20190910175213.GD4023@dhcp22.suse.cz>
+ <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
+ <20190911113619.GP4023@dhcp22.suse.cz>
+ <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
+ <20190912091925.GM4023@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <5D7A70B0.9010407@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 12 Sep 2019 16:27:32 +0000 (UTC)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190912091925.GM4023@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/12/2019 11:22 AM, Mike Christie wrote:
-> On 09/11/2019 02:21 PM, Martin Raiber wrote:
->> On 11.09.2019 18:56 Mike Christie wrote:
->>> On 09/11/2019 03:40 AM, Martin Raiber wrote:
->>>> On 10.09.2019 10:35 Damien Le Moal wrote:
->>>>> Mike,
->>>>>
->>>>> On 2019/09/09 19:26, Mike Christie wrote:
->>>>>> Forgot to cc linux-mm.
->>>>>>
->>>>>> On 09/09/2019 11:28 AM, Mike Christie wrote:
->>>>>>> There are several storage drivers like dm-multipath, iscsi, and nbd that
->>>>>>> have userspace components that can run in the IO path. For example,
->>>>>>> iscsi and nbd's userspace deamons may need to recreate a socket and/or
->>>>>>> send IO on it, and dm-multipath's daemon multipathd may need to send IO
->>>>>>> to figure out the state of paths and re-set them up.
->>>>>>>
->>>>>>> In the kernel these drivers have access to GFP_NOIO/GFP_NOFS and the
->>>>>>> memalloc_*_save/restore functions to control the allocation behavior,
->>>>>>> but for userspace we would end up hitting a allocation that ended up
->>>>>>> writing data back to the same device we are trying to allocate for.
->>>>>>>
->>>>>>> This patch allows the userspace deamon to set the PF_MEMALLOC* flags
->>>>>>> through procfs. It currently only supports PF_MEMALLOC_NOIO, but
->>>>>>> depending on what other drivers and userspace file systems need, for
->>>>>>> the final version I can add the other flags for that file or do a file
->>>>>>> per flag or just do a memalloc_noio file.
->>>>> Awesome. That probably will be the perfect solution for the problem we hit with
->>>>> tcmu-runner a while back (please see this thread:
->>>>> https://www.spinics.net/lists/linux-fsdevel/msg148912.html).
->>>>>
->>>>> I think we definitely need nofs as well for dealing with cases where the backend
->>>>> storage for the user daemon is a file.
->>>>>
->>>>> I will give this patch a try as soon as possible (I am traveling currently).
->>>>>
->>>>> Best regards.
->>>> I had issues with this as well, and work on this is appreciated! In my
->>>> case it is a loop block device on a fuse file system.
->>>> Setting PF_LESS_THROTTLE was the one that helped the most, though, so
->>>> add an option for that as well? I set this via prctl() for the thread
->>>> calling it (was easiest to add to).
->>>>
->>>> Sorry, I have no idea about the current rationale, but wouldn't it be
->>>> better to have a way to mask a set of block devices/file systems not to
->>>> write-back to in a thread. So in my case I'd specify that the fuse
->>>> daemon threads cannot write-back to the file system and loop device
->>>> running on top of the fuse file system, while all other block
->>>> devices/file systems can be write-back to (causing less swapping/OOM
->>>> issues).
->>> I'm not sure I understood you.
->>>
->>> The storage daemons I mentioned normally kick off N threads per M
->>> devices. The threads handle duties like IO and error handling for those
->>> devices. Those threads would set the flag, so those IO/error-handler
->>> related operations do not end up writing back to them. So it works
->>> similar to how storage drivers work in the kernel where iscsi_tcp has an
->>> xmit thread and that does memalloc_noreclaim_save. Only the threads for
->>> those specific devices being would set the flag.
->>>
->>> In your case, it sounds like you have a thread/threads that would
->>> operate on multiple devices and some need the behavior and some do not.
->>> Is that right?
->>
->> No, sounds the same as your case. As an example think of vdfuse (or
->> qemu-nbd locally). You'd have something like
->>
->> ext4(a) <- loop <- fuse file system <- vdfuse <- disk.vdi container file
->> <- ext4(b) <- block device
->>
->> If vdfuse threads cause writeback to ext4(a), you'd get the issue we
->> have. Setting PF_LESS_THROTTLE and/or PF_MEMALLOC_NOIO mostly avoids
->> this problem, but with only PF_LESS_THROTTLE there are still corner
->> cases (I think if ext4(b) slows down suddenly) where it wedges itself
->> and the side effect of setting PF_MEMALLOC_NOIO are being discussed...
->> The best solution would be, I guess, to have a way for vdfuse to set
->> something, such that write-back to ext4(a) isn't allowed from those
->> threads, but write-back to ext4(b) (and all other block devices) is. But
->> I only have a rough idea of how write-back works, so this is really only
->> a guess.
+On Thu, Sep 12, 2019 at 11:19:25AM +0200, Michal Hocko wrote:
+> On Wed 11-09-19 08:12:03, Alexander Duyck wrote:
+> > On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
+> > > [...]
+> > > > We don't put any limitations on the allocator other then that it needs to
+> > > > clean up the metadata on allocation, and that it cannot allocate a page
+> > > > that is in the process of being reported since we pulled it from the
+> > > > free_list. If the page is a "Reported" page then it decrements the
+> > > > reported_pages count for the free_area and makes sure the page doesn't
+> > > > exist in the "Boundary" array pointer value, if it does it moves the
+> > > > "Boundary" since it is pulling the page.
+> > >
+> > > This is still a non-trivial limitation on the page allocation from an
+> > > external code IMHO. I cannot give any explicit reason why an ordering on
+> > > the free list might matter (well except for page shuffling which uses it
+> > > to make physical memory pattern allocation more random) but the
+> > > architecture seems hacky and dubious to be honest. It shoulds like the
+> > > whole interface has been developed around a very particular and single
+> > > purpose optimization.
+> > 
+> > How is this any different then the code that moves a page that will
+> > likely be merged to the tail though?
 > 
-> I see now.
-> 
-> Initially, would it be ok to keep it simple and keep the existing kernel
-> behavior? For your example, is the PF_MEMALLOC_NOIO use in loop today
-
-Or do it in two stages.
-
-1. For devices like mine, we just use the existing behavior where it
-gets set for the thread and is for all devices. We know from iscsi/nbd
-it is already ok from their kernel use. I do not need to add any extra
-locking/complexity to the block, vm, fs code.
-
-2. We can then add the ability to pass in a mount or upper layer block
-device for setups like yours where we already know the topology and it
-isn't going to change.
-
-
-> causing a lot of swap/oom issues? For iscsi_tcp and nbd their memalloc
-> and GFP_NOIO use is not.
-> 
-> The problem for the storage driver daemons I mentioned in the patch is
-> that they are at the bottom of the stack and they do not know what is
-> going to be added above them plus it can change, so we will have to walk
-> the storage device stack while IO is running and allocations are trying
-> to execute. It looks like I will end up having to insert extra
-> locking/refcounts into multiple layers, and I am not sure if the extra
-> complexity is going to be worth it if we are not seeing problems from
-> existing kernel users.
+> I guess you are referring to the page shuffling. If that is the case
+> then this is an integral part of the allocator for a reason and it is
+> very well obvious in the code including the consequences. I do not
+> really like an idea of hiding similar constrains behind a generic
+> looking feature which is completely detached from the allocator and so
+> any future change of the allocator might subtly break it.
 > 
 
+It's not just that, compaction pokes into the free_area information as
+well and directly takes pages from the free list without going through
+the page allocator itself. It assumes that a free page is a free page
+and only takes the zone and migratetype into account.
+
+> > In our case the "Reported" page is likely going to be much more
+> > expensive to allocate and use then a standard page because it will be
+> > faulted back in. In such a case wouldn't it make sense for us to want
+> > to keep the pages that don't require faults ahead of those pages in
+> > the free_list so that they are more likely to be allocated?
+> 
+> OK, I was suspecting this would pop out. And this is exactly why I
+> didn't like an idea of an external code imposing a non obvious constrains
+> to the allocator. You simply cannot count with any ordering with the
+> page allocator.
+
+Indeed not. It can be arbitrary and compaction can interfere with the
+ordering as well. While in theory that could be addressed by always
+going through an interface maintained by the page allocator, it would be
+tricky to test the virtio case in particular.
+
+> We used to distinguish cache hot/cold pages in the past
+> and pushed pages to the specific end of the free list but that has been
+> removed.
+
+That was always best effort too, not a hard guarantee. It was eventually
+removed as the cost of figuring out the ordering exceeded the benefit.
+
+> There are other potential changes like that possible. Shuffling
+> is a good recent example.
+> 
+> Anyway I am not a maintainer of this code. I would really like to hear
+> opinions from Mel and Vlastimil here (now CCed - the thread starts
+> http://lkml.kernel.org/r/20190907172225.10910.34302.stgit@localhost.localdomain.
+
+I worry that poking too much into the internal state of the allocator
+will be fragile long-term. There is the arch alloc/free hooks but they
+are typically about protections only and does not interfere with the
+internal state of the allocator. Compaction pokes in as well but once
+the page is off the free list, the page allocator no longer cares so
+again there is on interference with the internal state. If the state is
+interefered with externally, it becomes unclear what happens if things
+like page merging is deferred in a way the allocator cannot control as
+high-order allocation requests may fail for example. For THP, it would
+not matter but failed allocation reports when pages are on the freelist,
+but unsuitable for allocation because of the reported state, would be
+hard to debug. Similarly, latency issues due to a reported page being
+picked for allocation but requiring communication with the hypervisor
+will be difficult to debug and atomic allocations may fail entirely.
+Finally, if merging was broken for reported/unreported pages, it could
+be a long time before such bugs were fixed.
+
+That's a lot of caveats to optimise communication about unused free
+pages to the allocator. I didn't read the patches particularly carefully
+but it was not clear why a best effort was not made to track free pages
+and if the metadata maintenance for that fills then do exhaustive
+searches for remaining pages. It might be difficult to stabilise that as
+the metadata may overflow again while the exhaustive search takes place.
+Much would depend on the frequency that pages are entering/leaving
+reported state.
+
+-- 
+Mel Gorman
+SUSE Labs
 
