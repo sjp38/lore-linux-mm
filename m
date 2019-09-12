@@ -2,283 +2,152 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ED7CC4CEC7
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:32:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9892DC4CEC6
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 20:15:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E05320684
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 19:32:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=gmx.net header.i=@gmx.net header.b="jI/Y4TBz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E05320684
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gmx.net
+	by mail.kernel.org (Postfix) with ESMTP id 622902084D
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 20:15:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 622902084D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E97F36B0007; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
+	id DB4206B0003; Thu, 12 Sep 2019 16:15:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E47B46B0008; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
+	id D63846B0005; Thu, 12 Sep 2019 16:15:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D37836B000A; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
+	id C79B36B0006; Thu, 12 Sep 2019 16:15:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0109.hostedemail.com [216.40.44.109])
-	by kanga.kvack.org (Postfix) with ESMTP id C93DB6B0007
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 15:32:39 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 816748243768
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:32:38 +0000 (UTC)
-X-FDA: 75927265596.07.spoon44_6e0f22591f963
-X-HE-Tag: spoon44_6e0f22591f963
-X-Filterd-Recvd-Size: 11522
-Received: from mout.gmx.net (mout.gmx.net [212.227.15.19])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:32:36 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=gmx.net;
-	s=badeba3b8450; t=1568316739;
-	bh=ZhGcmu0FL7c6CsiOe5ntOYdJs2XJ0IHkdvvQp/czUYc=;
-	h=X-UI-Sender-Class:Subject:To:Cc:References:From:Date:In-Reply-To;
-	b=jI/Y4TBztwVnqxuv+S8X1nIvO3JWvu6xOm0pD4/HkZbfMYcB1i4ZRBY2CpnhwFtSD
-	 MVf26VPugeMbU0t2q63k1bBGfYYYBiYP9rkuDcOgSE6Khd5ZDEJsgAycpFxldWWYTX
-	 MMspO5ja5XwNZ4hV3FIGIdsXOZTDFOWuD/yIiPHE=
-X-UI-Sender-Class: 01bb95c1-4bf8-414a-932a-4f6e2808ef9c
-Received: from [192.168.1.162] ([37.4.249.90]) by mail.gmx.com (mrgmx002
- [212.227.17.190]) with ESMTPSA (Nemesis) id 0MIu7d-1i6Yt02Gr3-002Xj2; Thu, 12
- Sep 2019 21:32:19 +0200
-Subject: Re: [PATCH v5 0/4] Raspberry Pi 4 DMA addressing support
-To: Matthias Brugger <matthias.bgg@gmail.com>,
- Matthias Brugger <mbrugger@suse.com>, Stefan Wahren <wahrenst@gmx.net>,
- catalin.marinas@arm.com, marc.zyngier@arm.com, robh+dt@kernel.org,
- linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
- linux-riscv@lists.infradead.org, hch@lst.de,
- Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: f.fainelli@gmail.com, robin.murphy@arm.com, linux-kernel@vger.kernel.org,
- linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
- will@kernel.org, m.szyprowski@samsung.com
-References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
- <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
- <3f9af46e-2e1a-771f-57f2-86a53caaf94a@suse.com>
- <09f82f88-a13a-b441-b723-7bb061a2f1e3@gmail.com>
-From: Stefan Wahren <wahrenst@gmx.net>
-Openpgp: preference=signencrypt
-Autocrypt: addr=stefan.wahren@i2se.com; keydata=
- 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 AQ==
-Message-ID: <2c3e1ef3-0dba-9f79-52e2-314b6b500e14@gmx.net>
-Date: Thu, 12 Sep 2019 21:32:16 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A5A56B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 16:15:34 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id CA0853ABF
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 20:15:32 +0000 (UTC)
+X-FDA: 75927373704.23.brake31_302415a12eb2b
+X-HE-Tag: brake31_302415a12eb2b
+X-Filterd-Recvd-Size: 5146
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 20:15:30 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 56D5128;
+	Thu, 12 Sep 2019 13:15:29 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EC1A13F71F;
+	Thu, 12 Sep 2019 13:15:21 -0700 (PDT)
+Date: Thu, 12 Sep 2019 21:15:17 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+	will@kernel.org, mark.rutland@arm.com, mhocko@suse.com,
+	ira.weiny@intel.com, david@redhat.com, cai@lca.pw,
+	logang@deltatee.com, cpandya@codeaurora.org, arunks@codeaurora.org,
+	dan.j.williams@intel.com, mgorman@techsingularity.net,
+	osalvador@suse.de, ard.biesheuvel@arm.com, steve.capper@arm.com,
+	broonie@kernel.org, valentin.schneider@arm.com,
+	Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
+Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
+Message-ID: <20190912201517.GB1068@C02TF0J2HF1T.local>
+References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+ <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <09f82f88-a13a-b441-b723-7bb061a2f1e3@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-X-Provags-ID: V03:K1:4xpyVTkM7mBHwer0vBdnpZAda7DcFxOoW0+WuRy4TkEKxMiMlmN
- M+SKLGRk2tS9dYViahToGsAuTzugZA1kANQsReD+i5epvMF5yCJKTQnEpw161Du5A22hjJO
- /tPCYSGWzP7L5usVqaK9StT43B9Ji6UAg/HbKQ24E5JuE7RjnynMaQWo4Vq2/RJHXtK+2sQ
- FDI27EU/NTWzAuJnzDXCA==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:99alYRTSDPY=:xHYjMtKVyHWQ/iK2Vbu/zw
- hbtkt2FcY47/Q2qHFp3EW1Hh6wmlof1QFS2VO2S3TWU1nKcpaknXTejUIWOQXegczemvl+sbo
- Hr3OJFJFYbrbO1SxCojU4TCiLJFe5ClVGsB5+aeG2le/iKMupt/KviOzMsV1rbZXeFwHgAR9a
- VegIQ9fXuiJlxEwTzAkwV1fRpEFK5qw1vu0boThat2McPQsl2GmItBG6dWKieW1JknS3aHW8i
- xQFMyZcFdYZA0GJjhvj36gSWz4X6p5kw7EfBCaPOYNGEGOoHhIhwmBb4P/Tf0voFe5fSLgwXb
- jYt4/CIPkzNyMwtP3DjfFcwjBSGrzLsS8zim3WBRB11kHl9wKOZlWS0kMPy/3UY4/i9nwDyVA
- wh0sPuaspOGNxpfmTyY4J2Nk7+5noqTYF9Y9r8skAezjEFrLccovsFfa/gdK8oHYJjFHnMalP
- Dj0ceQ3H3cPrgVyW6//xklvzAId6fTUxBsRh+SkYV8wA2OxUPR05ZlYYZygXuaZYAraiPKzPO
- YteprH6CnN6oo3RKR09URufySBcOcxDDf+VBtlG0GwP8Ifnw5GMxjGandMBm/4jdiHI4UmxVs
- MnbGytoGcfAVYTZyWgFzmg4GU+nRmJBguuUDqfau8Iih4zsQcBc6ySp2p7PiMICTqXy29eZyK
- 3l3vMk6+eOW/TCsmpFhlAjAtFpDQsKpughAxlhLweBt5+3NGpDjU2zwQ+w435Aqeqy2Vy//wV
- 2m9dYSQvO3GuvkxT0aKWK5bt2hV8Lp/rCXcmSVse8QhvngaNPStUm69bsWHyORO5NZnSXUVyy
- w/PEE51aE7SaTsd+E1l4JV1thpT3is5mLfHpgKizK8gBxBgyogSyJx9iAp/Dc3C1on2II7YVK
- MJDhokXTYA4bMoZ0KO4OpatAb9dUODb7r/kf+rVSxP0J5VG4oxhxYYJRWvzFElHSJRKPIy9eA
- 3ji6pSf5iyh2rRCgIjbvG1MFqxuc2Q3GsnR7Pkb7+chasvMpRTLxzngUVT9dYAzyLRx30bgzt
- n0tgtEOpanEDqP/qxLY1olj7AB9NU09c4ZfWjX7i/U0yk+iHme1Vc8l+KJA9wb+oAI3b/TohN
- hK+CBEAfSSh1TehAgMucCIhIVaaA/s2OzgAmtICldlxfHpzqAMblTxqxO9zqgzGoPjnKX/1hF
- 7Iuucsg5UxGOd2vcStwgckss5fTHQnXoXBnr2/SJSgcHAHguVSLC9G/kG5PY5dkvt/3EoEThO
- ivKLUwHvFHMNOH8XnoDfdP19+SgEJRdl3WbORqgSTMzvGGtvUDrCNWxdmZFM=
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Anshuman,
 
-Am 12.09.19 um 19:18 schrieb Matthias Brugger:
->
-> On 10/09/2019 11:27, Matthias Brugger wrote:
->>
->> On 09/09/2019 21:33, Stefan Wahren wrote:
->>> Hi Nicolas,
->>>
->>> Am 09.09.19 um 11:58 schrieb Nicolas Saenz Julienne:
->>>> Hi all,
->>>> this series attempts to address some issues we found while bringing =
-up
->>>> the new Raspberry Pi 4 in arm64 and it's intended to serve as a foll=
-ow
->>>> up of these discussions:
->>>> v4: https://lkml.org/lkml/2019/9/6/352
->>>> v3: https://lkml.org/lkml/2019/9/2/589
->>>> v2: https://lkml.org/lkml/2019/8/20/767
->>>> v1: https://lkml.org/lkml/2019/7/31/922
->>>> RFC: https://lkml.org/lkml/2019/7/17/476
->>>>
->>>> The new Raspberry Pi 4 has up to 4GB of memory but most peripherals =
-can
->>>> only address the first GB: their DMA address range is
->>>> 0xc0000000-0xfc000000 which is aliased to the first GB of physical
->>>> memory 0x00000000-0x3c000000. Note that only some peripherals have t=
-hese
->>>> limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wi=
-der
->>>> view of the address space by virtue of being hooked up trough a seco=
-nd
->>>> interconnect.
->>>>
->>>> Part of this is solved on arm32 by setting up the machine specific
->>>> '.dma_zone_size =3D SZ_1G', which takes care of reserving the cohere=
-nt
->>>> memory area at the right spot. That said no buffer bouncing (needed =
-for
->>>> dma streaming) is available at the moment, but that's a story for
->>>> another series.
->>>>
->>>> Unfortunately there is no such thing as 'dma_zone_size' in arm64. On=
-ly
->>>> ZONE_DMA32 is created which is interpreted by dma-direct and the arm=
-64
->>>> arch code as if all peripherals where be able to address the first 4=
-GB
->>>> of memory.
->>>>
->>>> In the light of this, the series implements the following changes:
->>>>
->>>> - Create both DMA zones in arm64, ZONE_DMA will contain the first 1G=
+Thanks for the details on the need for removing the page tables and
+vmemmap backing. Some comments on the code below.
 
->>>>   area and ZONE_DMA32 the rest of the 32 bit addressable memory. So =
-far
->>>>   the RPi4 is the only arm64 device with such DMA addressing limitat=
-ions
->>>>   so this hardcoded solution was deemed preferable.
->>>>
->>>> - Properly set ARCH_ZONE_DMA_BITS.
->>>>
->>>> - Reserve the CMA area in a place suitable for all peripherals.
->>>>
->>>> This series has been tested on multiple devices both by checking the=
+On Tue, Sep 03, 2019 at 03:15:58PM +0530, Anshuman Khandual wrote:
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -60,6 +60,14 @@ static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
+>  
+>  static DEFINE_SPINLOCK(swapper_pgdir_lock);
+>  
+> +/*
+> + * This represents if vmalloc and vmemmap address range overlap with
+> + * each other on an intermediate level kernel page table entry which
+> + * in turn helps in deciding whether empty kernel page table pages
+> + * if any can be freed during memory hotplug operation.
+> + */
+> +static bool vmalloc_vmemmap_overlap;
 
->>>> zones setup matches the expectations and by double-checking physical=
+I'd say just move the static find_vmalloc_vmemmap_overlap() function
+here, the compiler should be sufficiently smart enough to figure out
+that it's just a build-time constant.
 
->>>> addresses on pages allocated on the three relevant areas GFP_DMA,
->>>> GFP_DMA32, GFP_KERNEL:
->>>>
->>>> - On an RPi4 with variations on the ram memory size. But also forcin=
-g
->>>>   the situation where all three memory zones are nonempty by setting=
- a 3G
->>>>   ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA suppo=
-rt.
->>>>
->>> i like to test this series on Raspberry Pi 4 and i have some question=
-s
->>> to get arm64 running:
->>>
->>> Do you use U-Boot? Which tree?
->> If you want to use U-Boot, try v2019.10-rc4, it should have everything=
- you need
->> to boot your kernel.
->>
-> Ok, here is a thing. In the linux kernel we now use bcm2711 as SoC name=
-, but the
-> RPi4 devicetree provided by the FW uses mostly bcm2838.
+> @@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+>  void vmemmap_free(unsigned long start, unsigned long end,
+>  		struct vmem_altmap *altmap)
+>  {
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +	/*
+> +	 * FIXME: We should have called remove_pagetable(start, end, true).
+> +	 * vmemmap and vmalloc virtual range might share intermediate kernel
+> +	 * page table entries. Removing vmemmap range page table pages here
+> +	 * can potentially conflict with a concurrent vmalloc() allocation.
+> +	 *
+> +	 * This is primarily because vmalloc() does not take init_mm ptl for
+> +	 * the entire page table walk and it's modification. Instead it just
+> +	 * takes the lock while allocating and installing page table pages
+> +	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
+> +	 * entry via memory hot remove can cause vmalloc() kernel page table
+> +	 * walk pointers to be invalid on the fly which can cause corruption
+> +	 * or worst, a crash.
+> +	 *
+> +	 * So free_empty_tables() gets called where vmalloc and vmemmap range
+> +	 * do not overlap at any intermediate level kernel page table entry.
+> +	 */
+> +	unmap_hotplug_range(start, end, true);
+> +	if (!vmalloc_vmemmap_overlap)
+> +		free_empty_tables(start, end);
+> +#endif
+>  }
 
-Do you mean the DTB provided at runtime?
+So, I see the risk with overlapping and I guess for some kernel
+configurations (PAGE_SIZE == 64K) we may not be able to avoid it. If we
+can, that's great, otherwise could we rewrite the above functions to
+handle floor and ceiling similar to free_pgd_range()? (I wonder how this
+function works if you called it on init_mm and kernel address range). By
+having the vmemmap start/end information it avoids freeing partially
+filled page table pages.
 
-You mean the merged U-Boot changes, doesn't work with my Raspberry Pi
-series?
+Another question: could we do the page table and the actual vmemmap
+pages freeing in a single pass (sorry if this has been discussed
+before)?
 
->  U-Boot in its default
-> config uses the devicetree provided by the FW, mostly because this way =
-you don't
-> have to do anything to find out how many RAM you really have. Secondly =
-because
-> this will allow us, in the near future, to have one U-boot binary for b=
-oth RPi3
-> and RPi4 (and as a side effect one binary for RPi1 and RPi2).
->
-> Anyway, I found at least, that the following compatibles need to be add=
-ed:
->
-> "brcm,bcm2838-cprman"
-> "brcm,bcm2838-gpio"
->
-> Without at least the cprman driver update, you won't see anything.
->
-> "brcm,bcm2838-rng200" is also a candidate.
->
-> I also suppose we will need to add "brcm,bcm2838" to
-> arch/arm/mach-bcm/bcm2711.c, but I haven't verified this.
-How about changing this in the downstream kernel? Which is much easier.
->
-> Regards,
-> Matthias
->
->> Regards,
->> Matthias
->>
->>> Are there any config.txt tweaks necessary?
->>>
->>>
->> _______________________________________________
->> linux-arm-kernel mailing list
->> linux-arm-kernel@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
->>
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> @@ -1048,10 +1322,18 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> +static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
+> +{
+> +	unsigned long end = start + size;
+> +
+> +	WARN_ON(pgdir != init_mm.pgd);
+> +	remove_pagetable(start, end, false);
+> +}
 
+I think the point I've made previously still stands: you only call
+remove_pagetable() with sparse_vmap == false in this patch. Just remove
+the extra argument and call unmap_hotplug_range() with sparse_vmap ==
+false directly in remove_pagetable().
+
+-- 
+Catalin
 
