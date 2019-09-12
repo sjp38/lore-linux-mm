@@ -2,343 +2,308 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BE587C4CEC6
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 11:41:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94281C4CEC7
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:00:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 530D62075C
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 11:41:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EVX0v2+b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 530D62075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4771020830
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:00:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4771020830
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3E3A6B0003; Thu, 12 Sep 2019 07:41:39 -0400 (EDT)
+	id E8B2A6B0003; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEEC06B0005; Thu, 12 Sep 2019 07:41:39 -0400 (EDT)
+	id E3B9E6B0005; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9DD386B0006; Thu, 12 Sep 2019 07:41:39 -0400 (EDT)
+	id CE54E6B0006; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0234.hostedemail.com [216.40.44.234])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1EE6B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 07:41:39 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id E09F0180AD801
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 11:41:38 +0000 (UTC)
-X-FDA: 75926078676.18.alarm08_487e36b387b56
-X-HE-Tag: alarm08_487e36b387b56
-X-Filterd-Recvd-Size: 16462
-Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com [209.85.214.196])
-	by imf24.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 11:41:38 +0000 (UTC)
-Received: by mail-pl1-f196.google.com with SMTP id d3so11720219plr.1
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 04:41:37 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=7jb+73QIWJBQBvXdpD48OsLrGOfQt35wV5e9eTpixiI=;
-        b=EVX0v2+bwURnn2UjEWN681fGGe4NXW94jt86chvHKSgSIEt1TSXS4cTggD2YmpzmC/
-         eR6Z2JDcHpu8C5tzqNSrOKRh+lWqTHmGLbvMRgkkGJQyrnIh7vfbwQuWt8qiJ7FxvFSr
-         p/1cuuxRIxCTpdqQo7cMK8skyD0Aq9sPyTwXDgDuLE2Y6i2d+pOSt1HfgZb+KXB9Ksyr
-         HUn5ImmpjYDe4yNMZModtFCF0z5rOfVgA5Vmk9AMMrsk6bi6rXEshjN5eOlfd9zKhFIY
-         iqK2410yb9A/l/ZHYWOLsLwKn7vnww1qWOIC55h99Z5Ow3GTVRRjoFRQ/BhVLN2vFk2x
-         ukcw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=7jb+73QIWJBQBvXdpD48OsLrGOfQt35wV5e9eTpixiI=;
-        b=pleBls1f7mxBvUhyoyvuGrYXIc5p0UERxcEw8zydYKnoh80h6bRzJ2hQ3JOJ5B8nVZ
-         XCwpR8UTk4JF8GO8Oy8U00iU2aSqNqcREA3q7sRdmxoY6chU11ImvqHZC2UAKbKIMWP7
-         H6Oh6GbBirbofhf4VU3gF31yXGoSbZvyepsrIuiD/yhaoEHplDm7WlBNJHlVm084sIt/
-         lfeLiPLs5bVU3MVQ+GnTHG6MB5kpy0Xfkd1tNl8ZSAwVTXycASJe8HU+QwjUTNKbVPcf
-         PdsWMGd1ORy4a4nRs4aBa/r7CIkbnnT01yySKurD4DE9JGPAV4RsgoTsd1bUIbcO6P5c
-         qTkQ==
-X-Gm-Message-State: APjAAAVxB+/lTCOZncRyNs7CeD+NEo1ydb+BK4qnKIPnu8h8XP0KjIz3
-	ORfdAKXrZzGTAEDBIGHa/io=
-X-Google-Smtp-Source: APXvYqwkDHPD00AoXL5NQS39oyISQ56yBzkN2xW5YuvUQDSpxLTPMfhAjcshGHszaEgsRppXeZVVJQ==
-X-Received: by 2002:a17:902:bd09:: with SMTP id p9mr34319395pls.28.1568288496935;
-        Thu, 12 Sep 2019 04:41:36 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([117.198.99.29])
-        by smtp.gmail.com with ESMTPSA id w6sm50192995pfj.17.2019.09.12.04.41.29
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Sep 2019 04:41:36 -0700 (PDT)
-Date: Thu, 12 Sep 2019 17:11:27 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Nitin Gupta <nigupta@nvidia.com>
-Cc: "mhocko@kernel.org" <mhocko@kernel.org>,
-	"willy@infradead.org" <willy@infradead.org>,
-	"allison@lohutok.net" <allison@lohutok.net>,
-	"vbabka@suse.cz" <vbabka@suse.cz>,
-	"aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>,
-	"tglx@linutronix.de" <tglx@linutronix.de>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"cai@lca.pw" <cai@lca.pw>,
-	"arunks@codeaurora.org" <arunks@codeaurora.org>,
-	"yuzhao@google.com" <yuzhao@google.com>,
-	"richard.weiyang@gmail.com" <richard.weiyang@gmail.com>,
-	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
-	"khalid.aziz@oracle.com" <khalid.aziz@oracle.com>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>
-Subject: Re: [PATCH] mm: Add callback for defining compaction completion
-Message-ID: <20190912114126.GA4219@bharath12345-Inspiron-5559>
-References: <20190910200756.7143-1-nigupta@nvidia.com>
- <20190910201905.GG4023@dhcp22.suse.cz>
- <MN2PR12MB30229414332206E25B9F3B8BD8B60@MN2PR12MB3022.namprd12.prod.outlook.com>
- <20190911064520.GI4023@dhcp22.suse.cz>
- <4ba8a6810cb481204deae4a7171dded1d8b5e736.camel@nvidia.com>
+Received: from forelay.hostedemail.com (smtprelay0013.hostedemail.com [216.40.44.13])
+	by kanga.kvack.org (Postfix) with ESMTP id ACAA06B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 1AFAF1F209
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:00:53 +0000 (UTC)
+X-FDA: 75926127186.20.angle46_5ef2e47f74c24
+X-HE-Tag: angle46_5ef2e47f74c24
+X-Filterd-Recvd-Size: 12679
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:00:52 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F289E10DCC8F;
+	Thu, 12 Sep 2019 12:00:50 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 75FC05F9C4;
+	Thu, 12 Sep 2019 12:00:46 +0000 (UTC)
+Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
+To: David Hildenbrand <david@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>,
+ virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
+ linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
+ "Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli
+ <aarcange@redhat.com>, ying.huang@intel.com,
+ Paolo Bonzini <pbonzini@redhat.com>, Dan Williams
+ <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+References: <20190911113619.GP4023@dhcp22.suse.cz>
+ <20190911080804-mutt-send-email-mst@kernel.org>
+ <20190911121941.GU4023@dhcp22.suse.cz> <20190911122526.GV4023@dhcp22.suse.cz>
+ <4748a572-57b3-31da-0dde-30138e550c3a@redhat.com>
+ <20190911125413.GY4023@dhcp22.suse.cz>
+ <736594d6-b9ae-ddb9-2b96-85648728ef33@redhat.com>
+ <20190911132002.GA4023@dhcp22.suse.cz> <20190911135100.GC4023@dhcp22.suse.cz>
+ <abea20a0-463c-68c0-e810-2e341d971b30@redhat.com>
+ <20190912071633.GL4023@dhcp22.suse.cz>
+ <ef460202-cebd-c6d2-19f3-e8a82a3d3cbd@redhat.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <880cb776-a5c0-026c-6c50-3d8d3c2bb2df@redhat.com>
+Date: Thu, 12 Sep 2019 08:00:45 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4ba8a6810cb481204deae4a7171dded1d8b5e736.camel@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <ef460202-cebd-c6d2-19f3-e8a82a3d3cbd@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.64]); Thu, 12 Sep 2019 12:00:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Nitin,
-On Wed, Sep 11, 2019 at 10:33:39PM +0000, Nitin Gupta wrote:
-> On Wed, 2019-09-11 at 08:45 +0200, Michal Hocko wrote:
-> > On Tue 10-09-19 22:27:53, Nitin Gupta wrote:
-> > [...]
-> > > > On Tue 10-09-19 13:07:32, Nitin Gupta wrote:
-> > > > > For some applications we need to allocate almost all memory as
-> > > > > hugepages.
-> > > > > However, on a running system, higher order allocations can fail if the
-> > > > > memory is fragmented. Linux kernel currently does on-demand
-> > > > > compaction
-> > > > > as we request more hugepages but this style of compaction incurs very
-> > > > > high latency. Experiments with one-time full memory compaction
-> > > > > (followed by hugepage allocations) shows that kernel is able to
-> > > > > restore a highly fragmented memory state to a fairly compacted memory
-> > > > > state within <1 sec for a 32G system. Such data suggests that a more
-> > > > > proactive compaction can help us allocate a large fraction of memory
-> > > > > as hugepages keeping allocation latencies low.
-> > > > > 
-> > > > > In general, compaction can introduce unexpected latencies for
-> > > > > applications that don't even have strong requirements for contiguous
-> > > > > allocations.
-> > 
-> > Could you expand on this a bit please? Gfp flags allow to express how
-> > much the allocator try and compact for a high order allocations. Hugetlb
-> > allocations tend to require retrying and heavy compaction to succeed and
-> > the success rate tends to be pretty high from my experience.  Why that
-> > is not case in your case?
-> > 
-The link to the driver you send on gitlab is not working :(
-> Yes, I have the same observation: with `GFP_TRANSHUGE |
-> __GFP_RETRY_MAYFAIL` I get very good success rate (~90% of free RAM
-> allocated as hugepages). However, what I'm trying to point out is that this
-> high success rate comes with high allocation latencies (90th percentile
-> latency of 2206us). On the same system, the same high-order allocations
-> which hit the fast path have latency <5us.
-> 
-> > > > > It is also hard to efficiently determine if the current
-> > > > > system state can be easily compacted due to mixing of unmovable
-> > > > > memory. Due to these reasons, automatic background compaction by the
-> > > > > kernel itself is hard to get right in a way which does not hurt
-> > > > > unsuspecting
-> > > > applications or waste CPU cycles.
-> > > > 
-> > > > We do trigger background compaction on a high order pressure from the
-> > > > page allocator by waking up kcompactd. Why is that not sufficient?
-> > > > 
-> > > 
-> > > Whenever kcompactd is woken up, it does just enough work to create
-> > > one free page of the given order (compaction_control.order) or higher.
-> > 
-> > This is an implementation detail IMHO. I am pretty sure we can do a
-> > better auto tuning when there is an indication of a constant flow of
-> > high order requests. This is no different from the memory reclaim in
-> > principle. Just because the kswapd autotuning not fitting with your
-> > particular workload you wouldn't want to export direct reclaim
-> > functionality and call it from a random module. That is just doomed to
-> > fail because different subsystems in control just leads to decisions
-> > going against each other.
-> > 
-> 
-> I don't want to go the route of adding any auto-tuning/perdiction code to
-> control compaction in the kernel. I'm more inclined towards extending
-> existing interfaces to allow compaction behavior to be controlled either
-> from userspace or a kernel driver. Letting a random module control
-> compaction or a root process pumping new tunables from sysfs is the same in
-> principle.
-Do you think a kernel module and root user process have the same
-privileges? You can only export so much info to sysfs to use? Also
-wouldn't this introduce more tunables, per driver tunables to be more
-specific?
-> This patch is in the spirit of simple extension to existing
-> compaction_zone_order() which allows either a kernel driver or userspace
-> (through sysfs) to control compaction.
-> 
-> Also, we should avoid driving hard parallels between reclaim and
-> compaction: the former is often necessary for forward progress while the
-> latter is often an optimization. Since contiguous allocations are mostly
-> optimizations it's good to expose hooks from the kernel that let user
-> (through a driver or userspace) control it using its own heuristics.
-How is compaction an optimization? If I have a memory zone which has
-memory pages more than zone_highwmark and if higher order allocations a
-re failing because the memory is awfully fragmented, We need compaction
-to furthur progress here. I have seen workloads where kswapd won't help
-in progressing furthur because memory is so awfully fragmented.
-The workload I am quoting is the thpscale_workload from Mel Gorman's mmtests
-workloads.
-> 
-> I thought hard about whats lacking in current userspace interface (sysfs):
->  - /proc/sys/vm/compact_memory: full system compaction is not an option as
->    a viable pro-active compaction strategy.
-Don't we have a sysfs interface to compact memory per node through 
-/sys/devices/system/node/node<node_number>/compact? CONFIG_SYSFS AND
-CONFIG_NUMA are enabled on a lot of systems? Why are we not talking
-about this?
-I don't think kcompactd can go finer grain than per node. per-zone is 
-an option but then that would be overkill I feel.
->  - possibly expose [low, high] threshold values for each node and let
->    kcompactd act on them. This was my approach for my original patch I
->    linked earlier. Problem here is that it introduces too many tunables.
-> 
-> Considering the above, I came up with this callback approach which make it
-> trivial to introduce user specific policies for compaction. It puts the
-> onus of system stability, responsive in the hands of user without burdening
-> admins with more tunables or adding crystal balls to kernel.
-I have the same question as Michal, that is won't this cause conflicts
-among different subsystems? If you did answer it in your previous
-mails, could you point to as I may have missed it :)
-> > > Such a design causes very high latency for workloads where we want
-> > > to allocate lots of hugepages in short period of time. With pro-active
-> > > compaction we can hide much of this latency. For some more background
-> > > discussion and data, please see this thread:
-> > > 
-> > > https://patchwork.kernel.org/patch/11098289/
-> > 
-> > I am aware of that thread. And there are two things. You claim the
-> > allocation success rate is unnecessarily lower and that the direct
-> > latency is high. You simply cannot assume both low latency and high
-> > success rate. Compaction is not free. Somebody has to do the work.
-> > Hiding it into the background means that you are eating a lot of cycles
-> > from everybody else (think of a workload running in a restricted cpu
-> > controller just doing a lot of work in an unaccounted context).
-> > 
-> > That being said you really have to be prepared to pay a price for
-> > precious resource like high order pages.
-> > 
-> > On the other hand I do understand that high latency is not really
-> > desired for a more optimistic allocation requests with a reasonable
-> > fallback strategy. Those would benefit from kcompactd not giving up too
-> > early.
-> 
-> Doing pro-active compaction in background has merits in reducing reducing
-> high-order alloc latency. Its true that it would end up burning cycles with
-> little benefit in some cases. Its upto the user of this new interface to
-> back off if it detects such a case.
-Are these cycles worth considering in the big picture of reducing high
-order allocation latency? 
-> >  
-> > > > > Even with these caveats, pro-active compaction can still be very
-> > > > > useful in certain scenarios to reduce hugepage allocation latencies.
-> > > > > This callback interface allows drivers to drive compaction based on
-> > > > > their own policies like the current level of external fragmentation
-> > > > > for a particular order, system load etc.
-> > > > 
-> > > > So we do not trust the core MM to make a reasonable decision while we
-> > > > give
-> > > > a free ticket to modules. How does this make any sense at all? How is a
-> > > > random module going to make a more informed decision when it has less
-> > > > visibility on the overal MM situation.
-> > > > 
-> > > 
-> > > Embedding any specific policy (like: keep external fragmentation for
-> > > order-9
-> > > between 30-40%) within MM core looks like a bad idea.
-> > 
-> > Agreed
-> > 
-> > > As a driver, we
-> > > can easily measure parameters like system load, current fragmentation
-> > > level
-> > > for any order in any zone etc. to make an informed decision.
-> > > See the thread I refereed above for more background discussion.
-> > 
-> > Do that from the userspace then. If there is an insufficient interface
-> > to do that then let's talk about what is missing.
-> > 
-> 
-> Currently we only have a proc interface to do full system compaction.
-> Here's what missing from this interface: ability to set per-node, per-zone,
-> per-order, [low, high] extfrag thresholds. This is what I exposed in my
-> earlier patch titled 'proactive compaction'. Discussion there made me realize
-> these are too many tunables and any admin would always get them wrong. Even
-> if intended user of these sysfs node is some monitoring daemon, its
-> tempting to mess with them.
-> 
-> With a callback extension to compact_zone_order() implementing any of the
-> per-node, per-zone, per-order limits is straightforward and if needed the
-> driver can expose debugfs/sysfs nodes if needed at all. (nvcompact.c
-> driver[1] exposes these tunables as debugfs nodes, for example).
-> 
-> [1] https://gitlab.com/nigupta/linux/snippets/1894161
-Now, your proposing a system where we have interfaces from each driver.
-That could be more confusing for a sys admin to configure I feel?
 
-But what your proposing really made me think about  what kind
-of tunables do we want? Rather than just talking about tunables from the
-mm subsystem, can we introduce tunables that indicate the behaviour of
-workloads? Using this information from the user, we can look to optimize 
-reclaim and compaction for that workload.
-If we have a tunable which can indicate that the kernel is running in an
-environment where the where the workload will be performing a lot of
-higher order allocations, we can improve memory reclaim and compaction
-considering these parameters. One optimization I can think of extending
-kcompactd to compact more memory when a higher order allocation fails.
+On 9/12/19 3:47 AM, David Hildenbrand wrote:
+> On 12.09.19 09:16, Michal Hocko wrote:
+>> On Wed 11-09-19 18:09:18, David Hildenbrand wrote:
+>>> On 11.09.19 15:51, Michal Hocko wrote:
+>>>> On Wed 11-09-19 15:20:02, Michal Hocko wrote:
+>>>> [...]
+>>>>>> 4. Continuously report, not the "one time report everything" appro=
+ach.
+>>>>> So you mean the allocator reporting this rather than an external co=
+de to
+>>>>> poll right? I do not know, how much this is nice to have than must =
+have?
+>>>> Another idea that I haven't really thought through so it might turne=
+d
+>>>> out to be completely bogus but let's try anyway. Your "report everyt=
+hing"
+>>>> just made me look and realize that free_pages_prepare already perfor=
+ms
+>>>> stuff that actually does something similar yet unrelated.
+>>>>
+>>>> We do report to special page poisoning, zeroying or
+>>>> CONFIG_DEBUG_PAGEALLOC to unmap the address from the kernel address
+>>>> space. This sounds like something fitting your model no?
+>>>>
+>>> AFAIKS, the poisoning/unmapping is done whenever a page is freed. I
+>>> don't quite see yet how that would help to remember if a page was
+>>> already reported.
+>> Do you still have to differ that state when each page is reported?
+> Ah, very good point. I can see that the reason for this was not
+> discussed in this thread so far. (Alexander, Nitesh, please correct me
+> if I am wrong). It's buried in the long history of free page
+> hinting/reporting.
+>
+> Some early patch sets tried to report during every free synchronously.
+> Free a page, report them to the hypervisor. This resulted in some issue=
+s
+> (especially, locking-related and the virtio + the hypervisor being
+> involved, resulting in unpredictable delays, quite some overhead ...).
+> It was no good.
 
-One of the biggest issues with having a discussion on proactive
-reclaim/compaction is that the workloads are really unpredictable. 
-Rather than working on tunables from the mm subsystem which help us take
-action on memory pressure, can we talk about interfaces to hint about
-workloads so that we can make better informed decisions in the mm
-subsystem rather than involving other drivers?
-> 
-> > > > If you need to control compaction from the userspace you have an
-> > > > interface
-> > > > for that.  It is also completely unexplained why you need a completion
-> > > > callback.
-> > > > 
-> > > 
-> > > /proc/sys/vm/compact_memory does whole system compaction which is
-> > > often too much as a pro-active compaction strategy. To get more control
-> > > over how to compaction work to do, I have added a compaction callback
-> > > which controls how much work is done in one compaction cycle.
-> > 
-> > Why is a more fine grained control really needed? Sure compacting
-> > everything is heavy weight but how often do you have to do that. Your
-> > changelog starts with a usecase when there is a high demand for large
-> > pages at the startup. What prevents you do compaction at that time. If
-> > the workload is longterm then the initial price should just pay back,
-> > no?
-> > 
-> 
-> Compacting all NUMA nodes is not practical on large systems in response to,
-> say, launching a DB process on a certain node. Also, the frequency of
-> hugepage allocation burts may be completely unpredictable. That's why
-> background compaction can keep extfrag in check, say while system is
-> lightly loaded (adhoc policy), keeping high-order allocation latencies low
-> whenever the burst shows up.
-> 
-> - Nitin
-> 
-Thank you
-Bharath
++1
+If I remember correctly then Alexander had posted a patch-set
+prior to this series where he was reporting every page of a fixed
+order from __free_one_page(). But as you said it will be costly as
+it will involve one hypercall per page of reporting_order.
+
+>
+> One design decision then was to not report single pages, but a bunch of=
+
+> pages at once. This made it necessary to "remember" the pages to be
+> reported and to temporarily block them from getting allocated while
+> reporting.
+
+Until my v7 posting [1] I was doing this. We did not proceed with
+this as blocking allocation was not recommended for reporting.
+
+>
+> Nitesh implemented (at least) two "capture PFNs of free pages in an
+> array when freeing" approaches. One being synchronous from the freeing
+> CPU once the list was full (having similar issues as plain synchronous
+> reporting) and one being asynchronous by a separate thread (which solve=
+d
+> many locking issues).
+
+One issue with asynchronous + array approach was that it could have lead
+to false OOMs due to several pages being isolated at the same time.
+
+>
+> Turned out the a simple array can quickly lead to us having to drop
+> "reports" to the hypervisor because the array is full and the reporting=
+
+> thread was not able to keep up. Not good as well. Especially, if some
+> process frees a lot of memory this can happen quickly and Nitesh wa
+> sable to trigger this scenario frequently.
+
++1
+
+>
+> Finally, Nitesh decided to use the bitmap instead to keep track of page=
+s
+> to report. I'd like to note that this approach could still be combined
+> with an "array of potentially free PFNs". Only when the array/circular
+> buffer runs out of entries ("reporting thread cannot keep up"), we woul=
+d
+> have to go back to scanning the bitmap.
+
+I will have to think about it.
+
+> That was also the point where Alexander decided to look into integratin=
+g
+> tracking/handling reported/unreported pages directly in the buddy.
+>
+>>> After reporting the page we would have to switch some
+>>> state (Nitesh: bitmap bit, Alexander: page flag) to identify that.
+>> Yes, you can either store the state somewhere.
+>>
+>>> Of course, we could map the page and treat that as "the state" when w=
+e
+>>> reported it, but I am not sure that's such a good idea :)
+>>>
+>>> As always, I might be very wrong ...
+>> I still do not fully understand the usecase so I might be equally wron=
+g.
+>> My thinking is along these lines. Why should you scan free pages when
+>> you can effectively capture each freed page? If you go one step furthe=
+r
+>> then post_alloc_hook would be the counterpart to know that your page h=
+as
+>> been allocated.
+> I'd like to note that Nitesh's patch set contains the following hunk,
+> which is roughly what you were thinking :)
+>
+>
+> -static inline void __free_one_page(struct page *page,
+> +inline void __free_one_page(struct page *page,
+>  		unsigned long pfn,
+>  		struct zone *zone, unsigned int order,
+> -		int migratetype)
+> +		int migratetype, bool hint)
+>  {
+>  	unsigned long combined_pfn;
+>  	unsigned long uninitialized_var(buddy_pfn);
+> @@ -980,7 +981,8 @@ static inline void __free_one_page(struct page *pag=
+e,
+>  				migratetype);
+>  	else
+>  		add_to_free_area(page, &zone->free_area[order], migratetype);
+> -
+> +	if (hint)
+> +		page_hinting_enqueue(page, order);
+>  }
+>
+>
+> (ignore the hint parameter, when he would switch to a isolate vs.
+> alloc/free, that can go away and all we left is the enqueue part)
+
+Precisely.
+Although, there would be a scenario where the allocation will
+take place for a page whose order would be < REPORTING_ORDER.
+In that case, if I decide to ignore all the remaining pages and clear
+the previously head free page bit, I might end
+up losing the reporting opportunity.
+
+But I can certainly look into this.
+
+>
+>
+> Inside that callback we can remember the pages any way we want. Right
+> now in a bitmap. Maybe later in a array + bitmap (as discussed above).
+> Another idea I had was to simply go over all pages and report them when=
+
+> running into this "array full" condition. But I am not yet sure about
+> the performance implications on rather large machines. So the bitmap
+> idea might have some other limitations but seems to do its job.
+
+That's correct, I was actually trying to come up with a basic framework.
+Which is acceptable in terms of benefits and performance and that can fit=
+ into
+most of the use-cases (if not all).
+After which my plan was to further optimize it.
+
+>
+> Hoe that makes things clearer and am not missing something.
+
+Thanks for explaining.
+
+>
+--=20
+Thanks
+Nitesh
+
 
