@@ -2,308 +2,351 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94281C4CEC7
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:00:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54195C4CEC6
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:02:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4771020830
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:00:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4771020830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id F3E5120856
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 12:02:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="X9BwuCAM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3E5120856
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E8B2A6B0003; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
+	id 8483A6B0005; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E3B9E6B0005; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
+	id 7F81A6B0006; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE54E6B0006; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
+	id 6E7286B0007; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0013.hostedemail.com [216.40.44.13])
-	by kanga.kvack.org (Postfix) with ESMTP id ACAA06B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:00:53 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 1AFAF1F209
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:00:53 +0000 (UTC)
-X-FDA: 75926127186.20.angle46_5ef2e47f74c24
-X-HE-Tag: angle46_5ef2e47f74c24
-X-Filterd-Recvd-Size: 12679
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:00:52 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id F289E10DCC8F;
-	Thu, 12 Sep 2019 12:00:50 +0000 (UTC)
-Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 75FC05F9C4;
-	Thu, 12 Sep 2019 12:00:46 +0000 (UTC)
-Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
-To: David Hildenbrand <david@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Alexander Duyck <alexander.duyck@gmail.com>,
- virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
- Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
- linux-arm-kernel@lists.infradead.org, Oscar Salvador <osalvador@suse.de>,
- Yang Zhang <yang.zhang.wz@gmail.com>, Pankaj Gupta <pagupta@redhat.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
- "Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli
- <aarcange@redhat.com>, ying.huang@intel.com,
- Paolo Bonzini <pbonzini@redhat.com>, Dan Williams
- <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-References: <20190911113619.GP4023@dhcp22.suse.cz>
- <20190911080804-mutt-send-email-mst@kernel.org>
- <20190911121941.GU4023@dhcp22.suse.cz> <20190911122526.GV4023@dhcp22.suse.cz>
- <4748a572-57b3-31da-0dde-30138e550c3a@redhat.com>
- <20190911125413.GY4023@dhcp22.suse.cz>
- <736594d6-b9ae-ddb9-2b96-85648728ef33@redhat.com>
- <20190911132002.GA4023@dhcp22.suse.cz> <20190911135100.GC4023@dhcp22.suse.cz>
- <abea20a0-463c-68c0-e810-2e341d971b30@redhat.com>
- <20190912071633.GL4023@dhcp22.suse.cz>
- <ef460202-cebd-c6d2-19f3-e8a82a3d3cbd@redhat.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <880cb776-a5c0-026c-6c50-3d8d3c2bb2df@redhat.com>
-Date: Thu, 12 Sep 2019 08:00:45 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <ef460202-cebd-c6d2-19f3-e8a82a3d3cbd@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.64]); Thu, 12 Sep 2019 12:00:51 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0235.hostedemail.com [216.40.44.235])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E97D6B0005
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 08:02:56 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id E36A1181AC9BA
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:02:55 +0000 (UTC)
+X-FDA: 75926132310.08.fact51_70caaba29ff10
+X-HE-Tag: fact51_70caaba29ff10
+X-Filterd-Recvd-Size: 12780
+Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 12:02:54 +0000 (UTC)
+Received: by mail-qk1-f194.google.com with SMTP id w2so1314471qkf.2
+        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 05:02:54 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=NJ+V9WdH/Mr55CbE+4tCVIXroMyvqDzfmVNb8fYQdC4=;
+        b=X9BwuCAMyL0HkIMHQZTrYkcKYoxesQQBc03dGTAerff++yYqnueCFUG+9R5d+jXfsD
+         ILAnkSwukAjd9PMBWa9h1go0l+VstSm5Hci3nDYtrAlFN5FC8VzMhHh/wM1ypkfVi7I5
+         xC2NQpOkaZGRGDDblnEmqtsCDwJjKPhPf1gxSpyhFJAfAnHkZToO0QVL3o7qmb6yq3kl
+         /fPKJ36uZKtumx4PMe051elYi1fZr6YsGFpQtmalR3a03is+1tETesXYb8nLmi7YOgWT
+         YbiZACAjO9JVtxcJOF8Fl8Vh+s/Y/AMgZMpVqQHjcJCPht1J5olzVhZ4edarhiUmbZFX
+         4ajw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:message-id:subject:from:to:date:in-reply-to
+         :references:mime-version:content-transfer-encoding;
+        bh=NJ+V9WdH/Mr55CbE+4tCVIXroMyvqDzfmVNb8fYQdC4=;
+        b=gQKa16vU15+0rN6Tok/3mtNE0sDH1OmayJ+f5XBZ8NuWyIH5iOd4v8nvf3NBwgvuFR
+         bXOesjt/oWgtNxzpSC8RN/G5KpApGXWwMp0mPfrE2F5AebmOQTgNRWY886vtuUrbLZEb
+         LZS+gaKnjxCS0rW5piZPf4PE8NU0v9Df/p3Q8J4poTk2xVzwdWr0tqkV3lG+7grWFvb4
+         5mQ5pm2dg50GyGC3ZxX4KTlpQyam1Wmf2j5IignipFMVUA2/QFP5S7eNKed0//3BIR6S
+         SzEmj0UHLKwykge6nRIsRWKefHQ+mH4S65LEmsrqKUJPH+jDVCDCvj+DChmrNtBxw2Rt
+         aptw==
+X-Gm-Message-State: APjAAAUlNBlwB4fNKxnNOxsp2JwxswV3KuV2WzSOdgUbyyhAKAFKQgkz
+	ZXblpnbk4kc3U0kS/sSE+S+1/A==
+X-Google-Smtp-Source: APXvYqxW3gfyTl86Ie7fIUSZxIf33R/kZjhqzOjknmiTByk8wlOSZatDorFjLent8xT63ngd7QqDdQ==
+X-Received: by 2002:a05:620a:7c8:: with SMTP id 8mr1592111qkb.299.1568289774048;
+        Thu, 12 Sep 2019 05:02:54 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id a72sm12098951qkg.77.2019.09.12.05.02.51
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Sep 2019 05:02:53 -0700 (PDT)
+Message-ID: <1568289769.5576.138.camel@lca.pw>
+Subject: Re: [PATCH] zswap: Add CONFIG_ZSWAP_IO_SWITCH
+From: Qian Cai <cai@lca.pw>
+To: Hui Zhu <teawaterz@linux.alibaba.com>, sjenning@redhat.com, 
+ ddstreet@ieee.org, akpm@linux-foundation.org, mhocko@suse.com,
+ willy@infradead.org,  chris@chris-wilson.co.uk, hannes@cmpxchg.org,
+ ziqian.lzq@antfin.com,  osandov@fb.com, ying.huang@intel.com,
+ aryabinin@virtuozzo.com, vovoy@chromium.org,  richard.weiyang@gmail.com,
+ jgg@ziepe.ca, dan.j.williams@intel.com,  rppt@linux.ibm.com,
+ jglisse@redhat.com, b.zolnierkie@samsung.com, axboe@kernel.dk, 
+ dennis@kernel.org, josef@toxicpanda.com, tj@kernel.org, oleg@redhat.com, 
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Date: Thu, 12 Sep 2019 08:02:49 -0400
+In-Reply-To: <1568258490-25359-1-git-send-email-teawaterz@linux.alibaba.com>
+References: <1568258490-25359-1-git-send-email-teawaterz@linux.alibaba.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2019-09-12 at 11:21 +0800, Hui Zhu wrote:
+> I use zswap to handle the swap IO issue in a VM that uses a swap file.
+> This VM has 4G memory and 2 CPUs.  And I set up 4G swap in /swapfile.
+> This is test script:
+> cat 1.sh
+> ./usemem --sleep 3600 -M -a -n 1 $((3 * 1024 * 1024 * 1024)) &
+> sleep 10
+> echo 1 > /proc/sys/vm/drop_caches
+> ./usemem -S -f /test2 $((2 * 1024 * 1024 * 1024)) &
+> while [ True ]; do ./usemem -a -n 1 $((1 * 1024 * 1024 * 1024)); done
+> 
+> Without ZSWAP:
+> echo 100 > /proc/sys/vm/swappiness
+> swapon /swapfile
+> sh 1.sh
+> ...
+> ...
+> 1207959552 bytes / 2076479 usecs = 568100 KB/s
+> 61088 usecs to free memory
+> 1207959552 bytes / 2035439 usecs = 579554 KB/s
+> 55073 usecs to free memory
+> 2415919104 bytes / 24054408 usecs = 98081 KB/s
+> 3741 usecs to free memory
+> 1207959552 bytes / 1954371 usecs = 603594 KB/s
+> 53161 usecs to free memory
+> ...
+> ...
+> 
+> With ZSWAP:
+> echo 100 > /proc/sys/vm/swappiness
+> swapon /swapfile
+> echo lz4 > /sys/module/zswap/parameters/compressor
+> echo zsmalloc > /sys/module/zswap/parameters/zpool
+> echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
+> echo 20 > /sys/module/zswap/parameters/max_pool_percent
+> echo 1 > /sys/module/zswap/parameters/enabled
+> sh 1.sh
+> 1207959552 bytes / 3619283 usecs = 325934 KB/s
+> 194825 usecs to free memory
+> 1207959552 bytes / 3439563 usecs = 342964 KB/s
+> 218419 usecs to free memory
+> 2415919104 bytes / 19508762 usecs = 120935 KB/s
+> 5632 usecs to free memory
+> 1207959552 bytes / 3329369 usecs = 354315 KB/s
+> 179764 usecs to free memory
+> 
+> The normal io speed is increased from 98081 KB/s to 120935 KB/s.
+> But I found 2 issues of zswap in this machine:
+> 1. Because the disk of VM has the file cache in the host layer,
+>    so normal swap speed is higher than with zswap.
+> 2. Because zswap need allocates memory to store the compressed pages,
+>    it will make memory capacity worse.
+> For example:
+> Command "./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))" request 7G memory
+> from this machine.
+> It will work OK without zswap but got OOM when zswap is opened.
+> 
+> This commit adds CONFIG_ZSWAP_IO_SWITCH that try to handle the issues
+> and let zswap keep save IO.
+> It add two parameters read_in_flight_limit and write_in_flight_limit to
+> zswap.
+> In zswap_frontswap_store, pages will be stored to zswap only when
+> the IO in flight number of swap device is bigger than
+> zswap_read_in_flight_limit or zswap_write_in_flight_limit
+> when zswap is enabled.
+> Then the zswap just work when the IO in flight number of swap device
+> is low.
 
-On 9/12/19 3:47 AM, David Hildenbrand wrote:
-> On 12.09.19 09:16, Michal Hocko wrote:
->> On Wed 11-09-19 18:09:18, David Hildenbrand wrote:
->>> On 11.09.19 15:51, Michal Hocko wrote:
->>>> On Wed 11-09-19 15:20:02, Michal Hocko wrote:
->>>> [...]
->>>>>> 4. Continuously report, not the "one time report everything" appro=
-ach.
->>>>> So you mean the allocator reporting this rather than an external co=
-de to
->>>>> poll right? I do not know, how much this is nice to have than must =
-have?
->>>> Another idea that I haven't really thought through so it might turne=
-d
->>>> out to be completely bogus but let's try anyway. Your "report everyt=
-hing"
->>>> just made me look and realize that free_pages_prepare already perfor=
-ms
->>>> stuff that actually does something similar yet unrelated.
->>>>
->>>> We do report to special page poisoning, zeroying or
->>>> CONFIG_DEBUG_PAGEALLOC to unmap the address from the kernel address
->>>> space. This sounds like something fitting your model no?
->>>>
->>> AFAIKS, the poisoning/unmapping is done whenever a page is freed. I
->>> don't quite see yet how that would help to remember if a page was
->>> already reported.
->> Do you still have to differ that state when each page is reported?
-> Ah, very good point. I can see that the reason for this was not
-> discussed in this thread so far. (Alexander, Nitesh, please correct me
-> if I am wrong). It's buried in the long history of free page
-> hinting/reporting.
->
-> Some early patch sets tried to report during every free synchronously.
-> Free a page, report them to the hypervisor. This resulted in some issue=
-s
-> (especially, locking-related and the virtio + the hypervisor being
-> involved, resulting in unpredictable delays, quite some overhead ...).
-> It was no good.
+There isn't sufficient information for users to decide when they should enable
+this kconfig. Also, It describes your specific workload, but not clear to me how
+this benefit other people's workloads in general.
 
-+1
-If I remember correctly then Alexander had posted a patch-set
-prior to this series where he was reporting every page of a fixed
-order from __free_one_page(). But as you said it will be costly as
-it will involve one hypercall per page of reporting_order.
-
->
-> One design decision then was to not report single pages, but a bunch of=
-
-> pages at once. This made it necessary to "remember" the pages to be
-> reported and to temporarily block them from getting allocated while
-> reporting.
-
-Until my v7 posting [1] I was doing this. We did not proceed with
-this as blocking allocation was not recommended for reporting.
-
->
-> Nitesh implemented (at least) two "capture PFNs of free pages in an
-> array when freeing" approaches. One being synchronous from the freeing
-> CPU once the list was full (having similar issues as plain synchronous
-> reporting) and one being asynchronous by a separate thread (which solve=
-d
-> many locking issues).
-
-One issue with asynchronous + array approach was that it could have lead
-to false OOMs due to several pages being isolated at the same time.
-
->
-> Turned out the a simple array can quickly lead to us having to drop
-> "reports" to the hypervisor because the array is full and the reporting=
-
-> thread was not able to keep up. Not good as well. Especially, if some
-> process frees a lot of memory this can happen quickly and Nitesh wa
-> sable to trigger this scenario frequently.
-
-+1
-
->
-> Finally, Nitesh decided to use the bitmap instead to keep track of page=
-s
-> to report. I'd like to note that this approach could still be combined
-> with an "array of potentially free PFNs". Only when the array/circular
-> buffer runs out of entries ("reporting thread cannot keep up"), we woul=
-d
-> have to go back to scanning the bitmap.
-
-I will have to think about it.
-
-> That was also the point where Alexander decided to look into integratin=
-g
-> tracking/handling reported/unreported pages directly in the buddy.
->
->>> After reporting the page we would have to switch some
->>> state (Nitesh: bitmap bit, Alexander: page flag) to identify that.
->> Yes, you can either store the state somewhere.
->>
->>> Of course, we could map the page and treat that as "the state" when w=
-e
->>> reported it, but I am not sure that's such a good idea :)
->>>
->>> As always, I might be very wrong ...
->> I still do not fully understand the usecase so I might be equally wron=
-g.
->> My thinking is along these lines. Why should you scan free pages when
->> you can effectively capture each freed page? If you go one step furthe=
-r
->> then post_alloc_hook would be the counterpart to know that your page h=
-as
->> been allocated.
-> I'd like to note that Nitesh's patch set contains the following hunk,
-> which is roughly what you were thinking :)
->
->
-> -static inline void __free_one_page(struct page *page,
-> +inline void __free_one_page(struct page *page,
->  		unsigned long pfn,
->  		struct zone *zone, unsigned int order,
-> -		int migratetype)
-> +		int migratetype, bool hint)
->  {
->  	unsigned long combined_pfn;
->  	unsigned long uninitialized_var(buddy_pfn);
-> @@ -980,7 +981,8 @@ static inline void __free_one_page(struct page *pag=
-e,
->  				migratetype);
->  	else
->  		add_to_free_area(page, &zone->free_area[order], migratetype);
-> -
-> +	if (hint)
-> +		page_hinting_enqueue(page, order);
+> 
+> This is the test result:
+> echo 100 > /proc/sys/vm/swappiness
+> swapon /swapfile
+> echo lz4 > /sys/module/zswap/parameters/compressor
+> echo zsmalloc > /sys/module/zswap/parameters/zpool
+> echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
+> echo 20 > /sys/module/zswap/parameters/max_pool_percent
+> echo 1 > /sys/module/zswap/parameters/enabled
+> echo 3 > /sys/module/zswap/parameters/read_in_flight_limit
+> echo 50 > /sys/module/zswap/parameters/write_in_flight_limit
+> sh 1.sh
+> ...
+> 1207959552 bytes / 2320861 usecs = 508280 KB/s
+> 106164 usecs to free memory
+> 1207959552 bytes / 2343916 usecs = 503280 KB/s
+> 79386 usecs to free memory
+> 2415919104 bytes / 20136015 usecs = 117167 KB/s
+> 4411 usecs to free memory
+> 1207959552 bytes / 1833403 usecs = 643419 KB/s
+> 70452 usecs to free memory
+> ...
+> killall usemem
+> ./usemem -a -n 1 $((7 * 1024 * 1024 * 1024))
+> 8455716864 bytes / 14457505 usecs = 571159 KB/s
+> 365961 usecs to free memory
+> 
+> Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+> ---
+>  include/linux/swap.h |  3 +++
+>  mm/Kconfig           | 11 +++++++++++
+>  mm/page_io.c         | 16 +++++++++++++++
+>  mm/zswap.c           | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 85 insertions(+)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index de2c67a..82b621f 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -389,6 +389,9 @@ extern void end_swap_bio_write(struct bio *bio);
+>  extern int __swap_writepage(struct page *page, struct writeback_control *wbc,
+>  	bio_end_io_t end_write_func);
+>  extern int swap_set_page_dirty(struct page *page);
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +extern void swap_io_in_flight(struct page *page, unsigned int inflight[2]);
+> +#endif
+>  
+>  int add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+>  		unsigned long nr_pages, sector_t start_block);
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 56cec63..d077e51 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -546,6 +546,17 @@ config ZSWAP
+>  	  they have not be fully explored on the large set of potential
+>  	  configurations and workloads that exist.
+>  
+> +config ZSWAP_IO_SWITCH
+> +	bool "Compressed cache for swap pages according to the IO status"
+> +	depends on ZSWAP
+> +	def_bool n
+> +	help
+> +	  Add two parameters read_in_flight_limit and write_in_flight_limit to
+> +	  ZSWAP.  When ZSWAP is enabled, pages will be stored to zswap only
+> +	  when the IO in flight number of swap device is bigger than
+> +	  zswap_read_in_flight_limit or zswap_write_in_flight_limit.
+> +	  If unsure, say "n".
+> +
+>  config ZPOOL
+>  	tristate "Common API for compressed memory storage"
+>  	help
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 24ee600..e66b050 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -434,3 +434,19 @@ int swap_set_page_dirty(struct page *page)
+>  		return __set_page_dirty_no_writeback(page);
+>  	}
 >  }
->
->
-> (ignore the hint parameter, when he would switch to a isolate vs.
-> alloc/free, that can go away and all we left is the enqueue part)
-
-Precisely.
-Although, there would be a scenario where the allocation will
-take place for a page whose order would be < REPORTING_ORDER.
-In that case, if I decide to ignore all the remaining pages and clear
-the previously head free page bit, I might end
-up losing the reporting opportunity.
-
-But I can certainly look into this.
-
->
->
-> Inside that callback we can remember the pages any way we want. Right
-> now in a bitmap. Maybe later in a array + bitmap (as discussed above).
-> Another idea I had was to simply go over all pages and report them when=
-
-> running into this "array full" condition. But I am not yet sure about
-> the performance implications on rather large machines. So the bitmap
-> idea might have some other limitations but seems to do its job.
-
-That's correct, I was actually trying to come up with a basic framework.
-Which is acceptable in terms of benefits and performance and that can fit=
- into
-most of the use-cases (if not all).
-After which my plan was to further optimize it.
-
->
-> Hoe that makes things clearer and am not missing something.
-
-Thanks for explaining.
-
->
---=20
-Thanks
-Nitesh
-
+> +
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +void swap_io_in_flight(struct page *page, unsigned int inflight[2])
+> +{
+> +	struct swap_info_struct *sis = page_swap_info(page);
+> +
+> +	if (!sis->bdev) {
+> +		inflight[0] = 0;
+> +		inflight[1] = 0;
+> +		return;
+> +	}
+> +
+> +	part_in_flight_rw(bdev_get_queue(sis->bdev), sis->bdev->bd_part,
+> +					  inflight);
+> +}
+> +#endif
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 0e22744..1255645 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -62,6 +62,13 @@ static u64 zswap_reject_compress_poor;
+>  static u64 zswap_reject_alloc_fail;
+>  /* Store failed because the entry metadata could not be allocated (rare) */
+>  static u64 zswap_reject_kmemcache_fail;
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +/* Store failed because zswap_read_in_flight_limit or
+> + * zswap_write_in_flight_limit is bigger than IO in flight number of
+> + * swap device
+> + */
+> +static u64 zswap_reject_io;
+> +#endif
+>  /* Duplicate store was encountered (rare) */
+>  static u64 zswap_duplicate_entry;
+>  
+> @@ -114,6 +121,22 @@ static bool zswap_same_filled_pages_enabled = true;
+>  module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_enabled,
+>  		   bool, 0644);
+>  
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +/* zswap will not try to store the page if zswap_read_in_flight_limit is
+> + * bigger than IO read in flight number of swap device
+> + */
+> +static unsigned int zswap_read_in_flight_limit;
+> +module_param_named(read_in_flight_limit, zswap_read_in_flight_limit,
+> +		   uint, 0644);
+> +
+> +/* zswap will not try to store the page if zswap_write_in_flight_limit is
+> + * bigger than IO write in flight number of swap device
+> + */
+> +static unsigned int zswap_write_in_flight_limit;
+> +module_param_named(write_in_flight_limit, zswap_write_in_flight_limit,
+> +		   uint, 0644);
+> +#endif
+> +
+>  /*********************************
+>  * data structures
+>  **********************************/
+> @@ -1009,6 +1032,34 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>  		goto reject;
+>  	}
+>  
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +	if (zswap_read_in_flight_limit || zswap_write_in_flight_limit) {
+> +		unsigned int inflight[2];
+> +		bool should_swap = false;
+> +
+> +		swap_io_in_flight(page, inflight);
+> +
+> +		if (zswap_write_in_flight_limit &&
+> +			inflight[1] < zswap_write_in_flight_limit)
+> +			should_swap = true;
+> +
+> +		if (zswap_read_in_flight_limit &&
+> +			(should_swap ||
+> +			 (!should_swap && !zswap_write_in_flight_limit))) {
+> +			if (inflight[0] < zswap_read_in_flight_limit)
+> +				should_swap = true;
+> +			else
+> +				should_swap = false;
+> +		}
+> +
+> +		if (should_swap) {
+> +			zswap_reject_io++;
+> +			ret = -EIO;
+> +			goto reject;
+> +		}
+> +	}
+> +#endif
+> +
+>  	/* reclaim space if needed */
+>  	if (zswap_is_full()) {
+>  		zswap_pool_limit_hit++;
+> @@ -1264,6 +1315,10 @@ static int __init zswap_debugfs_init(void)
+>  			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+>  	debugfs_create_u64("reject_compress_poor", 0444,
+>  			   zswap_debugfs_root, &zswap_reject_compress_poor);
+> +#ifdef CONFIG_ZSWAP_IO_SWITCH
+> +	debugfs_create_u64("reject_io", 0444,
+> +			   zswap_debugfs_root, &zswap_reject_io);
+> +#endif
+>  	debugfs_create_u64("written_back_pages", 0444,
+>  			   zswap_debugfs_root, &zswap_written_back_pages);
+>  	debugfs_create_u64("duplicate_entry", 0444,
 
