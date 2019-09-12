@@ -2,161 +2,147 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64B46C5ACAE
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:24:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 173ABC5ACAE
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:35:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 19EE4208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:24:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="rjY82Sy3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19EE4208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id CF90F206A5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:35:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF90F206A5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A17E66B0003; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
+	id 3CDF96B0003; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C7CA6B0005; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
+	id 37F296B0005; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B6F26B0006; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
+	id 21F5C6B0006; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3F06B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:24:27 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 0DD26180AD7C3
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:24:27 +0000 (UTC)
-X-FDA: 75925884174.06.war72_7e18cdb7cbb42
-X-HE-Tag: war72_7e18cdb7cbb42
-X-Filterd-Recvd-Size: 6675
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:24:26 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id f2so17109096edw.3
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 03:24:26 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+mmfaBX0Np9W/b7Q5MqD32lbNina1cQ/FOr9Xbx+2SA=;
-        b=rjY82Sy3etyc/lURHAAH5Zl+/VTkVL1QfiSGIjGFzaoW/tFRFM+zEYupBdTECALHrG
-         yPnD/zet+9v/0zbzm/E5VjxIC4kHBGoI6fG6y3ZudVWE1Fqr5jUEFHOhmpHGUgJBjFLR
-         Pp4qZYYyCBsVXmvAX8dVxq7xFDjWJd+exfdSoleHOrbAKfryXx1FyZtARD7dR7tAJFzo
-         JrefYLyjWx+Ptmb0NQyHMPY02QIUK5RaU1NoX/BBPIIVc7yZpU9xVdpA7vqiSPpdXXbt
-         d5OJ8VA03djK7lmxCv6oPg+S+/UFNoBoSlbJXwZ5azlQ2uo9F1xXDa4+5x33RZHpoQkO
-         TV/w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=+mmfaBX0Np9W/b7Q5MqD32lbNina1cQ/FOr9Xbx+2SA=;
-        b=Tt9lu7gSLQdknoXHRTANed2OQkjr/uk1hwPbBQZt93/OaUcfWZnvOcouqkpC3F4hPF
-         FpOaSWojhOBq2prJLAcN+LQhAEwr3I1m28EYPrWSe5p7Glwkc/SiE+XyBn4ErO5jnRI5
-         x+Ei37+lck6MxEUygjStLwwJ15JiYcbm7xsXiMKaidIIc3voH6gbX7+lpGFQC4P4H3j7
-         zOyu/CIBULbZipwfKn/6hh2KHlD1T+Rxy4XA2C7h3UZUhT5abEqgnVBUxlwFwhcd+dDr
-         +WZ6ySHaaPwc8e14Nc9SLV2XkEdKZ9oueEe1Q3Hh1l48DsrIF0PasifQ8au6+uRiR0KK
-         67+g==
-X-Gm-Message-State: APjAAAVqfpQN2UOUfXusu3bLRqoL5KW3Vpz3qsHTc4TNLwZzDYbhJ7zD
-	6sJUoDKx+TrdPexZuFsqqn46OA==
-X-Google-Smtp-Source: APXvYqxqQuNiTjkjaC8Hs02PHF+LHAOwtw4KJLDqhBlQ3F6XmLygJAqZUw/cEZVOIq4hY2vxi9be2Q==
-X-Received: by 2002:a50:8961:: with SMTP id f30mr40528236edf.144.1568283865271;
-        Thu, 12 Sep 2019 03:24:25 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id qt5sm2710889ejb.11.2019.09.12.03.24.24
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Sep 2019 03:24:24 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 04633100B4A; Thu, 12 Sep 2019 13:24:26 +0300 (+03)
-Date: Thu, 12 Sep 2019 13:24:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	virtio-dev@lists.oasis-open.org, kvm list <kvm@vger.kernel.org>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	David Hildenbrand <david@redhat.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>, will@kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	Oscar Salvador <osalvador@suse.de>,
-	Yang Zhang <yang.zhang.wz@gmail.com>,
-	Pankaj Gupta <pagupta@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Nitesh Narayan Lal <nitesh@redhat.com>,
-	Rik van Riel <riel@surriel.com>, lcapitulino@redhat.com,
-	"Wang, Wei W" <wei.w.wang@intel.com>,
-	Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [PATCH v9 0/8] stg mail -e --version=v9 \
-Message-ID: <20190912102425.wzhhe6ygfgg64sma@box>
-References: <20190907172225.10910.34302.stgit@localhost.localdomain>
- <20190910124209.GY2063@dhcp22.suse.cz>
- <CAKgT0Udr6nYQFTRzxLbXk41SiJ-pcT_bmN1j1YR4deCwdTOaUQ@mail.gmail.com>
- <20190910144713.GF2063@dhcp22.suse.cz>
- <CAKgT0UdB4qp3vFGrYEs=FwSXKpBEQ7zo7DV55nJRO2C-KCEOrw@mail.gmail.com>
- <20190910175213.GD4023@dhcp22.suse.cz>
- <1d7de9f9f4074f67c567dbb4cc1497503d739e30.camel@linux.intel.com>
- <20190911113619.GP4023@dhcp22.suse.cz>
- <CAKgT0UfOp1c+ov=3pBD72EkSB9Vm7mG5G6zJj4=j=UH7zCgg2Q@mail.gmail.com>
- <20190912091925.GM4023@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0063.hostedemail.com [216.40.44.63])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A506B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:48 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 5EA1C181AC9AE
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:35:48 +0000 (UTC)
+X-FDA: 75925912776.30.tray75_4fb8665c92f44
+X-HE-Tag: tray75_4fb8665c92f44
+X-Filterd-Recvd-Size: 4851
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:35:47 +0000 (UTC)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8CAWkkC044720
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:46 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uyhn6pg4v-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:45 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 12 Sep 2019 11:35:43 +0100
+Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 12 Sep 2019 11:35:41 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8CAZeV220709736
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 12 Sep 2019 10:35:40 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5E083AE058;
+	Thu, 12 Sep 2019 10:35:40 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 572CAAE051;
+	Thu, 12 Sep 2019 10:35:39 +0000 (GMT)
+Received: from linux.ibm.com (unknown [9.148.206.179])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 12 Sep 2019 10:35:39 +0000 (GMT)
+Date: Thu, 12 Sep 2019 11:35:36 +0100
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Cao jin <caoj.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/memblock: fix typo in memblock doc
+References: <20190911030856.18010-1-caoj.fnst@cn.fujitsu.com>
+ <20190911144230.GB6429@linux.ibm.com>
+ <59f571f6-785c-7f6e-fd03-5cfc76da27be@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190912091925.GM4023@dhcp22.suse.cz>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <59f571f6-785c-7f6e-fd03-5cfc76da27be@cn.fujitsu.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19091210-4275-0000-0000-00000364D55E
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19091210-4276-0000-0000-000038772FC3
+Message-Id: <20190912103535.GB9062@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-12_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=992 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909120112
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 12, 2019 at 11:19:25AM +0200, Michal Hocko wrote:
-> On Wed 11-09-19 08:12:03, Alexander Duyck wrote:
-> > On Wed, Sep 11, 2019 at 4:36 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Tue 10-09-19 14:23:40, Alexander Duyck wrote:
-> > > [...]
-> > > > We don't put any limitations on the allocator other then that it needs to
-> > > > clean up the metadata on allocation, and that it cannot allocate a page
-> > > > that is in the process of being reported since we pulled it from the
-> > > > free_list. If the page is a "Reported" page then it decrements the
-> > > > reported_pages count for the free_area and makes sure the page doesn't
-> > > > exist in the "Boundary" array pointer value, if it does it moves the
-> > > > "Boundary" since it is pulling the page.
-> > >
-> > > This is still a non-trivial limitation on the page allocation from an
-> > > external code IMHO. I cannot give any explicit reason why an ordering on
-> > > the free list might matter (well except for page shuffling which uses it
-> > > to make physical memory pattern allocation more random) but the
-> > > architecture seems hacky and dubious to be honest. It shoulds like the
-> > > whole interface has been developed around a very particular and single
-> > > purpose optimization.
+On Thu, Sep 12, 2019 at 10:54:09AM +0800, Cao jin wrote:
+> On 9/11/19 10:42 PM, Mike Rapoport wrote:
+> > On Wed, Sep 11, 2019 at 11:08:56AM +0800, Cao jin wrote:
+> >> elaboarte -> elaborate
+> >> architecure -> architecture
+> >> compltes -> completes
+> >>
+> >> Signed-off-by: Cao jin <caoj.fnst@cn.fujitsu.com>
+> >> ---
+> >>  mm/memblock.c | 6 +++---
+> >>  1 file changed, 3 insertions(+), 3 deletions(-)
+> >>
+> >> diff --git a/mm/memblock.c b/mm/memblock.c
+> >> index 7d4f61ae666a..0d0f92003d18 100644
+> >> --- a/mm/memblock.c
+> >> +++ b/mm/memblock.c
+> >> @@ -83,16 +83,16 @@
+> >>   * Note, that both API variants use implict assumptions about allowed
+> >>   * memory ranges and the fallback methods. Consult the documentation
+> >>   * of :c:func:`memblock_alloc_internal` and
+> >> - * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
+> >> + * :c:func:`memblock_alloc_range_nid` functions for more elaborate
 > > 
-> > How is this any different then the code that moves a page that will
-> > likely be merged to the tail though?
+> > While on it, could you please replace the
+> > :c:func:`memblock_alloc_range_nid` construct with
+> > memblock_alloc_range_nid()?
+> > 
+> > And that would be really great to see all the :c:func:`foo` changed to
+> > foo().
+> > 
 > 
-> I guess you are referring to the page shuffling. If that is the case
-> then this is an integral part of the allocator for a reason and it is
-> very well obvious in the code including the consequences. I do not
-> really like an idea of hiding similar constrains behind a generic
-> looking feature which is completely detached from the allocator and so
-> any future change of the allocator might subtly break it.
+> Sure. BTW, do you want convert all the markups too?
+> 
+>     :c:type:`foo` -> struct foo
+>     %FOO -> FOO
+>     ``foo`` -> foo
+>     **foo** -> foo
 
-I don't necessary follow why shuffling is more integral to page allocator
-than reporting would be. It's next to shutffle.c under mm/ and integrated
-in a simillar way.
+The documentation toolchain can recognize now foo() as a function and does
+not require the :c:func: prefix for that. AFAIK it only works for
+functions, so please don't change the rest of the markup.
+ 
+> -- 
+> Sincerely,
+> Cao jin
+> 
+> 
 
 -- 
- Kirill A. Shutemov
+Sincerely yours,
+Mike.
+
 
