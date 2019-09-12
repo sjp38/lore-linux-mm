@@ -2,147 +2,291 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 173ABC5ACAE
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:35:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0660C43331
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:53:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF90F206A5
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:35:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF90F206A5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8019D20678
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 10:53:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8019D20678
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CDF96B0003; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
+	id 1C5796B0003; Thu, 12 Sep 2019 06:53:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37F296B0005; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
+	id 1289C6B0005; Thu, 12 Sep 2019 06:53:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 21F5C6B0006; Thu, 12 Sep 2019 06:35:49 -0400 (EDT)
+	id F094B6B0006; Thu, 12 Sep 2019 06:53:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0063.hostedemail.com [216.40.44.63])
-	by kanga.kvack.org (Postfix) with ESMTP id 03A506B0003
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:48 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 5EA1C181AC9AE
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:35:48 +0000 (UTC)
-X-FDA: 75925912776.30.tray75_4fb8665c92f44
-X-HE-Tag: tray75_4fb8665c92f44
-X-Filterd-Recvd-Size: 4851
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:35:47 +0000 (UTC)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8CAWkkC044720
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:46 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uyhn6pg4v-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:35:45 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 12 Sep 2019 11:35:43 +0100
-Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 12 Sep 2019 11:35:41 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8CAZeV220709736
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 12 Sep 2019 10:35:40 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5E083AE058;
-	Thu, 12 Sep 2019 10:35:40 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 572CAAE051;
-	Thu, 12 Sep 2019 10:35:39 +0000 (GMT)
-Received: from linux.ibm.com (unknown [9.148.206.179])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 12 Sep 2019 10:35:39 +0000 (GMT)
-Date: Thu, 12 Sep 2019 11:35:36 +0100
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Cao jin <caoj.fnst@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/memblock: fix typo in memblock doc
-References: <20190911030856.18010-1-caoj.fnst@cn.fujitsu.com>
- <20190911144230.GB6429@linux.ibm.com>
- <59f571f6-785c-7f6e-fd03-5cfc76da27be@cn.fujitsu.com>
+Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
+	by kanga.kvack.org (Postfix) with ESMTP id C9CFA6B0003
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 06:53:36 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 64B03181AC9AE
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:53:36 +0000 (UTC)
+X-FDA: 75925957632.27.crowd87_5994b298bcb32
+X-HE-Tag: crowd87_5994b298bcb32
+X-Filterd-Recvd-Size: 12975
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de [178.250.10.56])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:53:35 +0000 (UTC)
+Received: (qmail 15390 invoked from network); 12 Sep 2019 12:53:33 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.182]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Thu, 12 Sep 2019 12:53:33 +0200
+Subject: Re: lot of MemAvailable but falling cache and raising PSI
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, l.roehrs@profihost.ag,
+ cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
+ Vlastimil Babka <vbabka@suse.cz>
+References: <52235eda-ffe2-721c-7ad7-575048e2d29d@profihost.ag>
+ <20190910082919.GL2063@dhcp22.suse.cz>
+ <132e1fd0-c392-c158-8f3a-20e340e542f0@profihost.ag>
+ <20190910090241.GM2063@dhcp22.suse.cz>
+ <743a047e-a46f-32fa-1fe4-a9bd8f09ed87@profihost.ag>
+ <20190910110741.GR2063@dhcp22.suse.cz>
+ <364d4c2e-9c9a-d8b3-43a8-aa17cccae9c7@profihost.ag>
+ <20190910125756.GB2063@dhcp22.suse.cz>
+ <d7448f13-899a-5805-bd36-8922fa17b8a9@profihost.ag>
+ <b1fe902f-fce6-1aa9-f371-ceffdad85968@profihost.ag>
+ <20190910132418.GC2063@dhcp22.suse.cz>
+ <d07620d9-4967-40fe-fa0f-be51f2459dc5@profihost.ag>
+ <5f960e74-1f44-9a0a-58a6-dcb64aa71612@profihost.ag>
+ <289fbe71-0472-520f-64e2-b6d07ced5436@profihost.ag>
+Message-ID: <dc062161-7828-0d27-6347-8dd0e118d4a9@profihost.ag>
+Date: Thu, 12 Sep 2019 12:53:33 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <59f571f6-785c-7f6e-fd03-5cfc76da27be@cn.fujitsu.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19091210-4275-0000-0000-00000364D55E
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19091210-4276-0000-0000-000038772FC3
-Message-Id: <20190912103535.GB9062@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-12_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=992 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1909120112
+In-Reply-To: <289fbe71-0472-520f-64e2-b6d07ced5436@profihost.ag>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 12, 2019 at 10:54:09AM +0800, Cao jin wrote:
-> On 9/11/19 10:42 PM, Mike Rapoport wrote:
-> > On Wed, Sep 11, 2019 at 11:08:56AM +0800, Cao jin wrote:
-> >> elaboarte -> elaborate
-> >> architecure -> architecture
-> >> compltes -> completes
-> >>
-> >> Signed-off-by: Cao jin <caoj.fnst@cn.fujitsu.com>
-> >> ---
-> >>  mm/memblock.c | 6 +++---
-> >>  1 file changed, 3 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/mm/memblock.c b/mm/memblock.c
-> >> index 7d4f61ae666a..0d0f92003d18 100644
-> >> --- a/mm/memblock.c
-> >> +++ b/mm/memblock.c
-> >> @@ -83,16 +83,16 @@
-> >>   * Note, that both API variants use implict assumptions about allowed
-> >>   * memory ranges and the fallback methods. Consult the documentation
-> >>   * of :c:func:`memblock_alloc_internal` and
-> >> - * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
-> >> + * :c:func:`memblock_alloc_range_nid` functions for more elaborate
-> > 
-> > While on it, could you please replace the
-> > :c:func:`memblock_alloc_range_nid` construct with
-> > memblock_alloc_range_nid()?
-> > 
-> > And that would be really great to see all the :c:func:`foo` changed to
-> > foo().
-> > 
-> 
-> Sure. BTW, do you want convert all the markups too?
-> 
->     :c:type:`foo` -> struct foo
->     %FOO -> FOO
->     ``foo`` -> foo
->     **foo** -> foo
+Hello Michal,
 
-The documentation toolchain can recognize now foo() as a function and does
-not require the :c:func: prefix for that. AFAIK it only works for
-functions, so please don't change the rest of the markup.
- 
-> -- 
-> Sincerely,
-> Cao jin
-> 
-> 
+now the kernel (5.2.14) was locked / deadlocked with:
+---------------
+019-09-12 12:41:47     ------------[ cut here ]------------
+2019-09-12 12:41:47     NETDEV WATCHDOG: eth0 (igb): transmit queue 2
+timed out
+2019-09-12 12:41:47     WARNING: CPU: 2 PID: 0 at
+net/sched/sch_generic.c:443 dev_watchdog+0x254/0x260
+2019-09-12 12:41:47     Modules linked in: btrfs dm_mod netconsole
+xt_tcpudp xt_owner xt_conntrack nf_conntrack nf_defrag_ipv6
+nf_defrag_ipv4 fuse xt_multiport ipt_REJECT nf_reject_ipv4 xt_set
+iptable_filter bpfilter ip_set_hash_net ip_set nfnetlink 8021q garp
+bonding sb_edac x86_pkg_temp_thermal coretemp kvm_intel ast ttm kvm
+drm_kms_helper irqbypass drm crc32_pclmul fb_sys_fops lpc_ich ipmi_si
+syscopyarea sysfillrect ipmi_devintf mfd_core ghash_clmulni_intel wmi
+sysimgblt sg ipmi_msghandler button ip_tables x_tables zstd_decompress
+zstd_compress raid10 raid456 async_raid6_recov async_memcpy async_pq
+async_xor async_tx xor usbhid raid6_pq raid1 raid0 multipath linear
+md_mod xhci_pci sd_mod ehci_pci xhci_hcd ehci_hcd igb i2c_i801
+i2c_algo_bit ahci usbcore ptp libahci i2c_core usb_common pps_core
+megaraid_sas [last unloaded: btrfs]
+2019-09-12 12:41:47     CPU: 2 PID: 0 Comm: swapper/2 Not tainted 5.2.14 #1
+2019-09-12 12:41:47     Hardware name: Supermicro Super Server/X10SRi-F,
+BIOS 1.0b 04/21/2015
+2019-09-12 12:41:47     RIP: 0010:dev_watchdog+0x254/0x260
+2019-09-12 12:41:47     Code: 48 85 c0 75 e4 eb 9d 4c 89 ef c6 05 a6 09
+c8 00 01 e8 b0 53 fb ff 89 d9 48 89 c2 4c 89 ee 48 c7 c7 10 d6 0c be e8
+ac ca 98 ff <0f> 0b e9 7c ff ff ff 0f 1f 44 00 00 0f 1f 44 00 00 41 57
+41 56 49
+2019-09-12 12:41:47     RSP: 0018:ffffbea7c63a0e68 EFLAGS: 00010282
+2019-09-12 12:41:47     RAX: 0000000000000000 RBX: 0000000000000002 RCX:
+0000000000000006
+2019-09-12 12:41:47     RDX: 0000000000000007 RSI: 0000000000000086 RDI:
+ffff96f9ff896540
+2019-09-12 12:41:47     RBP: ffff96f9fc18041c R08: 0000000000000001 R09:
+000000000000046f
+2019-09-12 12:41:47     R10: ffff96f9ff89a630 R11: 0000000000000000 R12:
+ffff96f9f9e16940
+2019-09-12 12:41:47     R13: ffff96f9fc180000 R14: ffff96f9fc180440 R15:
+0000000000000008
+2019-09-12 12:41:47     FS: 0000000000000000(0000)
+GS:ffff96f9ff880000(0000) knlGS:0000000000000000
+2019-09-12 12:41:47     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+2019-09-12 12:41:47     CR2: 00007fbb2c4e2000 CR3: 0000000c0d20a004 CR4:
+00000000001606e0
+2019-09-12 12:41:47     Call Trace:<IRQ>
+2019-09-12 12:41:47     ?
+pfifo_fast_reset+0x110/0x110call_timer_fn+0x2d/0x140run_timer_softirq+0x1e2/0x440
+2019-09-12 12:41:47     ? timerqueue_add+0x54/0x80
+2019-09-12 12:41:48     ?
+enqueue_hrtimer+0x3a/0x90__do_softirq+0x10c/0x2d4irq_exit+0xdd/0xf0smp_apic_timer_interrupt+0x74/0x130apic_timer_interrupt+0xf/0x20</IRQ>
+2019-09-12 12:41:48     RIP: 0010:cpuidle_enter_state+0xbd/0x410
+2019-09-12 12:41:48     Code: 24 0f 1f 44 00 00 31 ff e8 b0 67 a5 ff 80
+7c 24 13 00 74 12 9c 58 f6 c4 02 0f 85 2c 03 00 00 31 ff e8 a7 b9 aa ff
+fb 45 85 ed <0f> 88 e0 02 00 00 4c 8b 04 24 4c 2b 44 24 08 48 ba cf f7
+53 e3 a5
+2019-09-12 12:41:48     RSP: 0018:ffffbea7c62f7e60 EFLAGS: 00000202
+ORIG_RAX: ffffffffffffff13
+2019-09-12 12:41:48     RAX: ffff96f9ff8a9840 RBX: ffffffffbe3271a0 RCX:
+000000000000001f
+2019-09-12 12:41:48     RDX: 000044a065c471eb RSI: 0000000024925419 RDI:
+0000000000000000
+2019-09-12 12:41:48     RBP: ffffdea7bfa80f00 R08: 0000000000000002 R09:
+00000000000290c0
+2019-09-12 12:41:48     R10: 00000000ffffffff R11: 0000000000000f05 R12:
+0000000000000004
+2019-09-12 12:41:48     R13: 0000000000000004 R14: 0000000000000004 R15:
+ffffffffbe3271a0cpuidle_enter+0x29/0x40do_idle+0x1d5/0x220cpu_startup_entry+0x19/0x20start_secondary+0x16b/0x1b0secondary_startup_64+0xa4/0xb0
+2019-09-12 12:41:48     ---[ end trace 3241d99856ac4582 ]---
+2019-09-12 12:41:48     igb 0000:05:00.0 eth0: Reset adapter
+-------------------------------
 
--- 
-Sincerely yours,
-Mike.
-
+Stefan
+Am 11.09.19 um 15:59 schrieb Stefan Priebe - Profihost AG:
+> HI,
+> 
+> i've now tried v5.2.14 but that one died with - i don't know which
+> version to try... now
+> 
+> 2019-09-11 15:41:09     ------------[ cut here ]------------
+> 2019-09-11 15:41:09     kernel BUG at mm/page-writeback.c:2655!
+> 2019-09-11 15:41:09     invalid opcode: 0000 [#1] SMP PTI
+> 2019-09-11 15:41:09     CPU: 4 PID: 466 Comm: kworker/u24:6 Not tainted
+> 5.2.14 #1
+> 2019-09-11 15:41:09     Hardware name: Supermicro Super Server/X10SRi-F,
+> BIOS 1.0b 04/21/2015
+> 2019-09-11 15:41:09     Workqueue: btrfs-delalloc btrfs_delalloc_helper
+> [btrfs]
+> 2019-09-11 15:41:09     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
+> 2019-09-11 15:41:09     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
+> 00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
+> 5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
+> d2 48 8b
+> 2019-09-11 15:41:09     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
+> 2019-09-11 15:41:09     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
+> 0000000000000000
+> 2019-09-11 15:41:09     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
+> ffffe660525b3140
+> 2019-09-11 15:41:09     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
+> 000000000002de18
+> 2019-09-11 15:41:09     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
+> 0000000000000000
+> 2019-09-11 15:41:09     R13: 0000000000000001 R14: 0000000000000000 R15:
+> ffffbd4b8d2f3d08
+> 2019-09-11 15:41:09     FS: 0000000000000000(0000)
+> GS:ffff9ade3f900000(0000) knlGS:0000000000000000
+> 2019-09-11 15:41:09     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> 2019-09-11 15:41:09     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
+> 00000000001606e0
+> 2019-09-11 15:41:09     Call Trace:
+> 2019-09-11 15:41:09     __process_pages_contig+0x270/0x360 [btrfs]
+> 2019-09-11 15:41:09     submit_compressed_extents+0x39d/0x460 [btrfs]
+> 2019-09-11 15:41:09     normal_work_helper+0x20f/0x320
+> [btrfs]process_one_work+0x18b/0x380worker_thread+0x4f/0x3a0
+> 2019-09-11 15:41:09     ? rescuer_thread+0x330/0x330kthread+0xf8/0x130
+> 2019-09-11 15:41:09     ?
+> kthread_create_worker_on_cpu+0x70/0x70ret_from_fork+0x35/0x40
+> 2019-09-11 15:41:09     Modules linked in: netconsole xt_tcpudp xt_owner
+> xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_multiport
+> ipt_REJECT nf_reject_ipv4 xt_set iptable_filter bpfilter fuse
+> ip_set_hash_net ip_set nfnetlink 8021q garp bonding sb_edac
+> x86_pkg_temp_thermal coretemp kvm_intel ast kvm ttm drm_kms_helper
+> irqbypass crc32_pclmul drm fb_sys_fops syscopyarea lpc_ich sysfillrect
+> ghash_clmulni_intel sysimgblt mfd_core sg wmi ipmi_si ipmi_devintf
+> ipmi_msghandler button ip_tables x_tables btrfs zstd_decompress
+> zstd_compress raid10 raid456 async_raid6_recov async_memcpy async_pq
+> async_xor async_tx xor usbhid raid6_pq raid1 raid0 multipath linear
+> md_mod sd_mod xhci_pci ehci_pci igb xhci_hcd ehci_hcd i2c_algo_bit
+> i2c_i801 ahci ptp i2c_core usbcore libahci usb_common pps_core megaraid_sas
+> 2019-09-11 15:41:09     ---[ end trace d9a3f99c047dc8bf ]---
+> 2019-09-11 15:41:10     RIP: 0010:clear_page_dirty_for_io+0xfc/0x210
+> 2019-09-11 15:41:10     Code: 01 48 0f 44 d3 f0 48 0f ba 32 03 b8 00 00
+> 00 00 72 1a 4d 85 e4 0f 85 b4 00 00 00 48 83 c4 08 5b 5d 41 5c 41 5d 41
+> 5e 41 5f c3 <0f> 0b 9c 41 5f fa 48 8b 03 48 8b 53 38 48 c1 e8 36 48 85
+> d2 48 8b
+> 2019-09-11 15:41:10     RSP: 0018:ffffbd4b8d2f3c18 EFLAGS: 00010246
+> 2019-09-11 15:41:10     RAX: 001000000004205c RBX: ffffe660525b3140 RCX:
+> 0000000000000000
+> 2019-09-11 15:41:10     RDX: 0000000000000000 RSI: 0000000000000006 RDI:
+> ffffe660525b3140
+> 2019-09-11 15:41:10     RBP: ffff9ad639868818 R08: 0000000000000001 R09:
+> 000000000002de18
+> 2019-09-11 15:41:10     R10: 0000000000000002 R11: ffff9ade7ffd6000 R12:
+> 0000000000000000
+> 2019-09-11 15:41:10     R13: 0000000000000001 R14: 0000000000000000 R15:
+> ffffbd4b8d2f3d08
+> 2019-09-11 15:41:10     FS: 0000000000000000(0000)
+> GS:ffff9ade3f900000(0000) knlGS:0000000000000000
+> 2019-09-11 15:41:10     CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> 2019-09-11 15:41:10     CR2: 000055fa10d2bf70 CR3: 00000005a420a002 CR4:
+> 00000000001606e0
+> 2019-09-11 15:41:10     Kernel panic - not syncing: Fatal exception
+> 2019-09-11 15:41:10     Kernel Offset: 0x1a000000 from
+> 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+> 2019-09-11 15:41:10     Rebooting in 20 seconds..
+> 2019-09-11 15:41:29     ACPI MEMORY or I/O RESET_REG.
+> 
+> Stefan
+> Am 11.09.19 um 08:24 schrieb Stefan Priebe - Profihost AG:
+>> Hi Michal,
+>>
+>> Am 11.09.19 um 08:12 schrieb Stefan Priebe - Profihost AG:
+>>> Hi Michal,
+>>> Am 10.09.19 um 15:24 schrieb Michal Hocko:
+>>>> On Tue 10-09-19 15:14:45, Stefan Priebe - Profihost AG wrote:
+>>>>> Am 10.09.19 um 15:05 schrieb Stefan Priebe - Profihost AG:
+>>>>>>
+>>>>>> Am 10.09.19 um 14:57 schrieb Michal Hocko:
+>>>>>>> On Tue 10-09-19 14:45:37, Stefan Priebe - Profihost AG wrote:
+>>>>>>>> Hello Michal,
+>>>>>>>>
+>>>>>>>> ok this might take a long time. Attached you'll find a graph from a
+>>>>>>>> fresh boot what happens over time (here 17 August to 30 August). Memory
+>>>>>>>> Usage decreases as well as cache but slowly and only over time and days.
+>>>>>>>>
+>>>>>>>> So it might take 2-3 weeks running Kernel 5.3 to see what happens.
+>>>>>>>
+>>>>>>> No problem. Just make sure to collect the requested data from the time
+>>>>>>> you see the actual problem. Btw. you try my very dumb scriplets to get
+>>>>>>> an idea of how much memory gets reclaimed due to THP.
+>>>>>>
+>>>>>> You mean your sed and sort on top of the trace file? No i did not with
+>>>>>> the current 5.3 kernel do you think it will show anything interesting?
+>>>>>> Which line shows me how much memory gets reclaimed due to THP?
+>>>>
+>>>> Please re-read http://lkml.kernel.org/r/20190910082919.GL2063@dhcp22.suse.cz
+>>>> Each command has a commented output. If you see nunmber of reclaimed
+>>>> pages to be large for GFP_TRANSHUGE then you are seeing a similar
+>>>> problem.
+>>>>
+>>>>> Is something like a kernel memory leak possible? Or wouldn't this end up
+>>>>> in having a lot of free memory which doesn't seem usable.
+>>>>
+>>>> I would be really surprised if this was the case.
+>>>>
+>>>>> I also wonder why a reclaim takes place when there is enough memory.
+>>>>
+>>>> This is not clear yet and it might be a bug that has been fixed since
+>>>> 4.18. That's why we need to see whether the same is pattern is happening
+>>>> with 5.3 as well.
+>>
+>> but except from the btrfs problem the memory consumption looks far
+>> better than before.
+>>
+>> Running 4.19.X:
+>> after about 12h cache starts to drop from 30G to 24G
+>>
+>> Running 5.3-rc8:
+>> after about 24h cache is still constant at nearly 30G
+>>
+>> Greets,
+>> Stefan
+>>
 
