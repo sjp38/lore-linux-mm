@@ -2,302 +2,281 @@ Return-Path: <SRS0=iDsh=XH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA856C4CEC5
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:10:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 696EAC4CEC5
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:17:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8FE6C2053B
-	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:10:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="IPApOKeT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FE6C2053B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 0319E20684
+	for <linux-mm@archiver.kernel.org>; Thu, 12 Sep 2019 14:17:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0319E20684
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43DC66B0005; Thu, 12 Sep 2019 10:10:20 -0400 (EDT)
+	id 7946E6B0005; Thu, 12 Sep 2019 10:17:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EEB16B0008; Thu, 12 Sep 2019 10:10:20 -0400 (EDT)
+	id 744646B0008; Thu, 12 Sep 2019 10:17:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DDC56B000A; Thu, 12 Sep 2019 10:10:20 -0400 (EDT)
+	id 632896B000A; Thu, 12 Sep 2019 10:17:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0123.hostedemail.com [216.40.44.123])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C41D6B0005
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:10:20 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0103.hostedemail.com [216.40.44.103])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CCAA6B0005
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 10:17:04 -0400 (EDT)
 Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 957EA181AC9B4
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:10:19 +0000 (UTC)
-X-FDA: 75926453358.27.boys17_3cf9a252aff25
-X-HE-Tag: boys17_3cf9a252aff25
-X-Filterd-Recvd-Size: 10625
-Received: from mail-qk1-f196.google.com (mail-qk1-f196.google.com [209.85.222.196])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:10:18 +0000 (UTC)
-Received: by mail-qk1-f196.google.com with SMTP id y144so16540229qkb.7
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 07:10:18 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=GCjjLgVtFgvLpF7hk0kQsXY9fbLxlC94ZIxVciM5Jrc=;
-        b=IPApOKeTDA0Q9+airIUTSKgoI5W/B0vmtx4ONsYipmEFXipYHSjxhseubVsD78TdxU
-         dYPV78ZTBxTrnu/tMf4HVQMXSw8U6dt1SmhrJ5a19zxDaakP7L+QesLii21nf2FzPHxN
-         Zjs6ekynBLAGjgTMoM4zHhBJSE+7E0uuU9piEVI+bjaJelgfjRJ2H5j39IXm4yv9xI6E
-         esqYGbyoNBcgomaPf9V0h7s54HaVzL3i3U6i1O2S3WrEAdaJPEAP5jG8h8sM1lHIIYlF
-         XUKbgoOWnroOIHvP3QjURsVtfoTrXmohsNBtw/UBWrHLW5ESORYaXQpvpiIG0kHvSIx9
-         2XdA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=GCjjLgVtFgvLpF7hk0kQsXY9fbLxlC94ZIxVciM5Jrc=;
-        b=WTeW/vRHz2k2e9aw7R8PNtq2pBSS+dVMcTqjBBm1UWiHfDKGgZs9A/cGeDz6xsje/L
-         jmbxRKPHUdCnVC9kj9bROZY6bR+71XT7coIKeIFIJuixkh8Pl3wZG7qIlegVDkv756ip
-         K2Hc2ft1UNyGKG5hFDP1MG7k4sY840wjl/UWlhOZI8Pe2JlXlM8U6SETSlmp0mNPb3Y+
-         zELpIWrRMIf4yYTlxymgw1bikQPRaiezNTb+yaOxLgsYilkN9DMM8BtALKmwD4TOcWLm
-         qYcXfa0AcqHItQDaE7bLhbmO6rqZRYMmssjpshtWMyr5rzoswGQFaX04oKI0Qry5yAYE
-         2yfw==
-X-Gm-Message-State: APjAAAXVHAl4ey3iISEihYI43cNl0MKjDjITZNlA/gs6/uEmqcs1ptHc
-	6NqFOIhQV6yE7ZgOdCVmE1ba9g==
-X-Google-Smtp-Source: APXvYqxQUvfIMWnP584+jxyb55PV/oXt+R5gYyiqrvmNhItO9b00LDpKMRkbSIi9+vN3Gj5tiYCd3w==
-X-Received: by 2002:a37:aa96:: with SMTP id t144mr29539420qke.275.1568297418177;
-        Thu, 12 Sep 2019 07:10:18 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id i4sm6615004qke.93.2019.09.12.07.10.16
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Sep 2019 07:10:17 -0700 (PDT)
-Message-ID: <1568297415.5576.143.camel@lca.pw>
-Subject: Re: [PATCH v3] mm/kasan: dump alloc and free stack for page
- allocator
-From: Qian Cai <cai@lca.pw>
-To: Vlastimil Babka <vbabka@suse.cz>, Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
- <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Matthias Brugger
- <matthias.bgg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Martin
- Schwidefsky <schwidefsky@de.ibm.com>, Andrey Konovalov
- <andreyknvl@google.com>, Arnd Bergmann <arnd@arndb.de>,
- linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, 
- linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, 
- linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
-Date: Thu, 12 Sep 2019 10:10:15 -0400
-In-Reply-To: <c4d2518f-4813-c941-6f47-73897f420517@suse.cz>
-References: <20190911083921.4158-1-walter-zh.wu@mediatek.com>
-	 <5E358F4B-552C-4542-9655-E01C7B754F14@lca.pw>
-	 <c4d2518f-4813-c941-6f47-73897f420517@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
+	by forelay04.hostedemail.com (Postfix) with SMTP id D39A3442B
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:17:03 +0000 (UTC)
+X-FDA: 75926470326.27.hen43_77c88b25b9a18
+X-HE-Tag: hen43_77c88b25b9a18
+X-Filterd-Recvd-Size: 9799
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 14:17:02 +0000 (UTC)
+Received: from pps.filterd (m0187473.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8CE7X5k006871;
+	Thu, 12 Sep 2019 10:16:57 -0400
+Received: from pps.reinject (localhost [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uyp18ubpt-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 10:16:54 -0400
+Received: from m0187473.ppops.net (m0187473.ppops.net [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x8CE7tkK007616;
+	Thu, 12 Sep 2019 10:16:51 -0400
+Received: from ppma05wdc.us.ibm.com (1b.90.2fa9.ip4.static.sl-reverse.com [169.47.144.27])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2uyp18ubks-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 10:16:51 -0400
+Received: from pps.filterd (ppma05wdc.us.ibm.com [127.0.0.1])
+	by ppma05wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8CE5ZPb008328;
+	Thu, 12 Sep 2019 14:16:46 GMT
+Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
+	by ppma05wdc.us.ibm.com with ESMTP id 2uv467cdks-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Thu, 12 Sep 2019 14:16:46 +0000
+Received: from b03ledav002.gho.boulder.ibm.com (b03ledav002.gho.boulder.ibm.com [9.17.130.233])
+	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8CEGj7M23921038
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 12 Sep 2019 14:16:46 GMT
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E2E8913605E;
+	Thu, 12 Sep 2019 14:16:45 +0000 (GMT)
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 678BC136066;
+	Thu, 12 Sep 2019 14:16:43 +0000 (GMT)
+Received: from [9.199.32.243] (unknown [9.199.32.243])
+	by b03ledav002.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Thu, 12 Sep 2019 14:16:43 +0000 (GMT)
+Subject: Re: [PATCH 2/3] powperc/mm: read TLB Block Invalidate Characteristics
+To: Laurent Dufour <ldufour@linux.ibm.com>, mpe@ellerman.id.au,
+        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+References: <20190830120712.22971-1-ldufour@linux.ibm.com>
+ <20190830120712.22971-3-ldufour@linux.ibm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Message-ID: <e809e33f-58df-ec99-44e8-9b1ae0b6bfe0@linux.ibm.com>
+Date: Thu, 12 Sep 2019 19:46:41 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <20190830120712.22971-3-ldufour@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-12_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1909120149
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-09-12 at 15:53 +0200, Vlastimil Babka wrote:
-> On 9/11/19 5:19 PM, Qian Cai wrote:
-> > 
-> > The new config looks redundant and confusing. It looks to me more of a document update
-> > in Documentation/dev-tools/kasan.txt to educate developers to select PAGE_OWNER and
-> > DEBUG_PAGEALLOC if needed.
+On 8/30/19 5:37 PM, Laurent Dufour wrote:
+> The PAPR document specifies the TLB Block Invalidate Characteristics which
+> is telling which couple base page size / page size is supported by the
+> H_BLOCK_REMOVE hcall.
 > 
->  
-> Agreed. But if you want it fully automatic, how about something
-> like this (on top of mmotm/next)? If you agree I'll add changelog
-> and send properly.
+> A new set of feature is added to the mmu_psize_def structure to record per
+> base page size which page size is supported by H_BLOCK_REMOVE.
 > 
-> ----8<----
+> A new init service is added to read the characteristics. The size of the
+> buffer is set to twice the number of known page size, plus 10 bytes to
+> ensure we have enough place.
 > 
-> From a528d14c71d7fdf5872ca8ab3bd1b5bad26670c9 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Thu, 12 Sep 2019 15:51:23 +0200
-> Subject: [PATCH] make KASAN enable page_owner with free stack capture
-> 
+
+
+So this is not really the base page size/actual page size combination. 
+This is related to H_BLOCK_REMOVE hcall, block size supported by that 
+HCALL and what page size combination is supported with that specific 
+block size.
+
+We should add that TLB block invalidate characteristics format in this 
+patch.
+
+
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 > ---
->  include/linux/page_owner.h |  1 +
->  lib/Kconfig.kasan          |  4 ++++
->  mm/Kconfig.debug           |  5 +++++
->  mm/page_alloc.c            |  6 +++++-
->  mm/page_owner.c            | 37 ++++++++++++++++++++++++-------------
->  5 files changed, 39 insertions(+), 14 deletions(-)
+>   arch/powerpc/include/asm/book3s/64/mmu.h |   3 +
+>   arch/powerpc/platforms/pseries/lpar.c    | 107 +++++++++++++++++++++++
+>   2 files changed, 110 insertions(+)
 > 
-> diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-> index 8679ccd722e8..6ffe8b81ba85 100644
-> --- a/include/linux/page_owner.h
-> +++ b/include/linux/page_owner.h
-> @@ -6,6 +6,7 @@
->  
->  #ifdef CONFIG_PAGE_OWNER
->  extern struct static_key_false page_owner_inited;
-> +extern bool page_owner_free_stack_disabled;
->  extern struct page_ext_operations page_owner_ops;
->  
->  extern void __reset_page_owner(struct page *page, unsigned int order);
-> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> index 6c9682ce0254..dc560c7562e8 100644
-> --- a/lib/Kconfig.kasan
-> +++ b/lib/Kconfig.kasan
-> @@ -41,6 +41,8 @@ config KASAN_GENERIC
->  	select SLUB_DEBUG if SLUB
->  	select CONSTRUCTORS
->  	select STACKDEPOT
-> +	select PAGE_OWNER
-> +	select PAGE_OWNER_FREE_STACK
->  	help
->  	  Enables generic KASAN mode.
->  	  Supported in both GCC and Clang. With GCC it requires version 4.9.2
-> @@ -63,6 +65,8 @@ config KASAN_SW_TAGS
->  	select SLUB_DEBUG if SLUB
->  	select CONSTRUCTORS
->  	select STACKDEPOT
-> +	select PAGE_OWNER
-> +	select PAGE_OWNER_FREE_STACK
->  	help
->  	  Enables software tag-based KASAN mode.
->  	  This mode requires Top Byte Ignore support by the CPU and therefore
-
-I don't know how KASAN people will feel about this. Especially, KASAN_SW_TAGS
-was designed for people who complain about memory footprint of KASAN_GENERIC is
-too high as far as I can tell.
-
-I guess it depends on them to test the new memory footprint of KASAN to see if
-they are happy with it.
-
-> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-> index 327b3ebf23bf..a71d52636687 100644
-> --- a/mm/Kconfig.debug
-> +++ b/mm/Kconfig.debug
-> @@ -13,6 +13,7 @@ config DEBUG_PAGEALLOC
->  	depends on DEBUG_KERNEL
->  	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
->  	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
-> +	select PAGE_OWNER_FREE_STACK if PAGE_OWNER
->  	---help---
->  	  Unmap pages from the kernel linear mapping after free_pages().
->  	  Depending on runtime enablement, this results in a small or large
-> @@ -62,6 +63,10 @@ config PAGE_OWNER
->  
->  	  If unsure, say N.
->  
-> +config PAGE_OWNER_FREE_STACK
-> +	def_bool n
-> +	depends on PAGE_OWNER
+> diff --git a/arch/powerpc/include/asm/book3s/64/mmu.h b/arch/powerpc/include/asm/book3s/64/mmu.h
+> index 23b83d3593e2..675895dfe39f 100644
+> --- a/arch/powerpc/include/asm/book3s/64/mmu.h
+> +++ b/arch/powerpc/include/asm/book3s/64/mmu.h
+> @@ -12,11 +12,14 @@
+>    *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
+>    *            directly to a slbmte "vsid" value
+>    *    penc  : is the HPTE encoding mask for the "LP" field:
+> + *    hblk  : H_BLOCK_REMOVE supported block size for this page size in
+> + *            segment who's base page size is that page size.
+>    *
+>    */
+>   struct mmu_psize_def {
+>   	unsigned int	shift;	/* number of bits */
+>   	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
+> +	int		hblk[MMU_PAGE_COUNT];	/* H_BLOCK_REMOVE support */
+>   	unsigned int	tlbiel;	/* tlbiel supported for that page size */
+>   	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
+>   	union {
+> diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
+> index 4f76e5f30c97..375e19b3cf53 100644
+> --- a/arch/powerpc/platforms/pseries/lpar.c
+> +++ b/arch/powerpc/platforms/pseries/lpar.c
+> @@ -1311,6 +1311,113 @@ static void do_block_remove(unsigned long number, struct ppc64_tlb_batch *batch,
+>   		(void)call_block_remove(pix, param, true);
+>   }
+>   
+> +static inline void __init set_hblk_bloc_size(int bpsize, int psize,
+> +					     unsigned int block_size)
+> +{
+> +	struct mmu_psize_def *def = &mmu_psize_defs[bpsize];
 > +
->  config PAGE_POISONING
->  	bool "Poison pages after freeing"
->  	select PAGE_POISONING_NO_SANITY if HIBERNATION
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c5d62f1c2851..d9e44671af3f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -710,8 +710,12 @@ static int __init early_debug_pagealloc(char *buf)
->  	if (kstrtobool(buf, &enable))
->  		return -EINVAL;
->  
-> -	if (enable)
-> +	if (enable) {
->  		static_branch_enable(&_debug_pagealloc_enabled);
-> +#ifdef CONFIG_PAGE_OWNER
-> +		page_owner_free_stack_disabled = false;
-> +#endif
-> +	}
->  
->  	return 0;
->  }
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index dee931184788..d4551d7012d0 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -24,13 +24,15 @@ struct page_owner {
->  	short last_migrate_reason;
->  	gfp_t gfp_mask;
->  	depot_stack_handle_t handle;
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> +#ifdef CONFIG_PAGE_OWNER_FREE_STACK
->  	depot_stack_handle_t free_handle;
->  #endif
->  };
->  
->  static bool page_owner_disabled = true;
-> +bool page_owner_free_stack_disabled = true;
->  DEFINE_STATIC_KEY_FALSE(page_owner_inited);
-> +static DEFINE_STATIC_KEY_FALSE(page_owner_free_stack);
->  
->  static depot_stack_handle_t dummy_handle;
->  static depot_stack_handle_t failure_handle;
-> @@ -46,6 +48,11 @@ static int __init early_page_owner_param(char *buf)
->  	if (strcmp(buf, "on") == 0)
->  		page_owner_disabled = false;
->  
-> +	if (IS_ENABLED(CONFIG_KASAN)) {
-> +		page_owner_disabled = false;
-> +		page_owner_free_stack_disabled = false;
+> +	if (block_size > def->hblk[psize])
+> +		def->hblk[psize] = block_size;
+> +}
+> +
+> +static inline void __init check_lp_set_hblk(unsigned int lp,
+> +					    unsigned int block_size)
+> +{
+> +	unsigned int bpsize, psize;
+> +
+> +
+> +	/* First, check the L bit, if not set, this means 4K */
+> +	if ((lp & 0x80) == 0) {
+
+
+What is that 0x80? We should have #define for most of those.
+
+> +		set_hblk_bloc_size(MMU_PAGE_4K, MMU_PAGE_4K, block_size);
+> +		return;
 > +	}
 > +
->  	return 0;
->  }
->  early_param("page_owner", early_page_owner_param);
-> @@ -91,6 +98,8 @@ static void init_page_owner(void)
->  	register_failure_stack();
->  	register_early_stack();
->  	static_branch_enable(&page_owner_inited);
-> +	if (!page_owner_free_stack_disabled)
-> +		static_branch_enable(&page_owner_free_stack);
->  	init_early_allocated_pages();
->  }
->  
-> @@ -148,11 +157,11 @@ void __reset_page_owner(struct page *page, unsigned int order)
->  {
->  	int i;
->  	struct page_ext *page_ext;
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> +#ifdef CONFIG_PAGE_OWNER_FREE_STACK
->  	depot_stack_handle_t handle = 0;
->  	struct page_owner *page_owner;
->  
-> -	if (debug_pagealloc_enabled())
-> +	if (static_branch_unlikely(&page_owner_free_stack))
->  		handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
->  #endif
->  
-> @@ -161,8 +170,8 @@ void __reset_page_owner(struct page *page, unsigned int order)
->  		if (unlikely(!page_ext))
->  			continue;
->  		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> -		if (debug_pagealloc_enabled()) {
-> +#ifdef CONFIG_PAGE_OWNER_FREE_STACK
-> +		if (static_branch_unlikely(&page_owner_free_stack)) {
->  			page_owner = get_page_owner(page_ext);
->  			page_owner->free_handle = handle;
->  		}
-> @@ -451,14 +460,16 @@ void __dump_page_owner(struct page *page)
->  		stack_trace_print(entries, nr_entries, 0);
->  	}
->  
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> -	handle = READ_ONCE(page_owner->free_handle);
-> -	if (!handle) {
-> -		pr_alert("page_owner free stack trace missing\n");
-> -	} else {
-> -		nr_entries = stack_depot_fetch(handle, &entries);
-> -		pr_alert("page last free stack trace:\n");
-> -		stack_trace_print(entries, nr_entries, 0);
-> +#ifdef CONFIG_PAGE_OWNER_FREE_STACK
-> +	if (static_branch_unlikely(&page_owner_free_stack)) {
-> +		handle = READ_ONCE(page_owner->free_handle);
-> +		if (!handle) {
-> +			pr_alert("page_owner free stack trace missing\n");
-> +		} else {
-> +			nr_entries = stack_depot_fetch(handle, &entries);
-> +			pr_alert("page last free stack trace:\n");
-> +			stack_trace_print(entries, nr_entries, 0);
+> +	/* PAPR says to look at bits 2-7 (0 = MSB) */
+> +	lp &= 0x3f;
+
+Also convert that to #define?
+
+> +	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++) {
+> +		struct mmu_psize_def *def =  &mmu_psize_defs[bpsize];
+> +
+> +		for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+> +			if (def->penc[psize] == lp) {
+> +				set_hblk_bloc_size(bpsize, psize, block_size);
+> +				return;
+> +			}
 > +		}
->  	}
->  #endif
->  
+> +	}
+> +}
+> +
+> +#define SPLPAR_TLB_BIC_TOKEN		50
+> +#define SPLPAR_TLB_BIC_MAXLENGTH	(MMU_PAGE_COUNT*2 + 10)
+> +static int __init read_tlbbi_characteristics(void)
+> +{
+> +	int call_status;
+> +	unsigned char local_buffer[SPLPAR_TLB_BIC_MAXLENGTH];
+> +	int len, idx, bpsize;
+> +
+> +	if (!firmware_has_feature(FW_FEATURE_BLOCK_REMOVE)) {
+> +		pr_info("H_BLOCK_REMOVE is not supported");
+> +		return 0;
+> +	}
+> +
+> +	memset(local_buffer, 0, SPLPAR_TLB_BIC_MAXLENGTH);
+> +
+> +	spin_lock(&rtas_data_buf_lock);
+> +	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
+> +	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+> +				NULL,
+> +				SPLPAR_TLB_BIC_TOKEN,
+> +				__pa(rtas_data_buf),
+> +				RTAS_DATA_BUF_SIZE);
+> +	memcpy(local_buffer, rtas_data_buf, SPLPAR_TLB_BIC_MAXLENGTH);
+> +	local_buffer[SPLPAR_TLB_BIC_MAXLENGTH - 1] = '\0';
+> +	spin_unlock(&rtas_data_buf_lock);
+> +
+> +	if (call_status != 0) {
+> +		pr_warn("%s %s Error calling get-system-parameter (0x%x)\n",
+> +			__FILE__, __func__, call_status);
+> +		return 0;
+> +	}
+> +
+> +	/*
+> +	 * The first two (2) bytes of the data in the buffer are the length of
+> +	 * the returned data, not counting these first two (2) bytes.
+> +	 */
+> +	len = local_buffer[0] * 256 + local_buffer[1] + 2;
+> +	if (len >= SPLPAR_TLB_BIC_MAXLENGTH) {
+> +		pr_warn("%s too large returned buffer %d", __func__, len);
+> +		return 0;
+> +	}
+> +
+> +	idx = 2;
+> +	while (idx < len) {
+> +		unsigned int block_size = local_buffer[idx++];
+> +		unsigned int npsize;
+> +
+> +		if (!block_size)
+> +			break;
+> +
+> +		block_size = 1 << block_size;
+> +		if (block_size != 8)
+> +			/* We only support 8 bytes size TLB invalidate buffer */
+> +			pr_warn("Unsupported H_BLOCK_REMOVE block size : %d\n",
+> +				block_size);
+> +
+> +		for (npsize = local_buffer[idx++];  npsize > 0; npsize--)
+> +			check_lp_set_hblk((unsigned int) local_buffer[idx++],
+> +					  block_size);
+> +	}
+> +
+> +	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
+> +		for (idx = 0; idx < MMU_PAGE_COUNT; idx++)
+> +			if (mmu_psize_defs[bpsize].hblk[idx])
+> +				pr_info("H_BLOCK_REMOVE supports base psize:%d psize:%d block size:%d",
+> +					bpsize, idx,
+> +					mmu_psize_defs[bpsize].hblk[idx]);
+> +
+> +	return 0;
+> +}
+> +machine_arch_initcall(pseries, read_tlbbi_characteristics);
+> +
+
+Why a machine_arch_initcall() ? Can't we do this similar to how we do 
+segment-page-size parsing from device tree? Also this should be hash 
+translation mode specific.
+
+>   /*
+>    * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
+>    * lock.
+> 
+
 
