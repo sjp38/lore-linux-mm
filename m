@@ -2,112 +2,187 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06F85C49ED7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 12:29:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3263C4CEC7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 13:16:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BF8720678
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 12:29:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="i1l+219C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BF8720678
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 74E6C20CC7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 13:16:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74E6C20CC7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5BC86B0005; Fri, 13 Sep 2019 08:29:24 -0400 (EDT)
+	id 007716B0005; Fri, 13 Sep 2019 09:16:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE54F6B0006; Fri, 13 Sep 2019 08:29:24 -0400 (EDT)
+	id EF9CA6B0006; Fri, 13 Sep 2019 09:16:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C85A26B0007; Fri, 13 Sep 2019 08:29:24 -0400 (EDT)
+	id DE81A6B0007; Fri, 13 Sep 2019 09:16:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0136.hostedemail.com [216.40.44.136])
-	by kanga.kvack.org (Postfix) with ESMTP id A7D066B0005
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 08:29:24 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 35F69211C1
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 12:29:24 +0000 (UTC)
-X-FDA: 75929827848.09.slip12_6f0a1f8b9ea36
-X-HE-Tag: slip12_6f0a1f8b9ea36
-X-Filterd-Recvd-Size: 3591
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 12:29:22 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=CrGgdhhyRrFEwIE94Hl26sryidhYhTqOfxUWATyGN4g=; b=i1l+219ClDtpFQhLcnfanUhXM
-	iKmh/lBfTIxuPc4ZBCGJe4+8k+mApc+0RMJLOXJNFZur0e7PLS+NWdTBmYv7OBq6oAJ0JHqzYtF/p
-	oAr8UeO+Ki3C3Ej5TONFfMyVj8oyw4cETDTtNbX505kg8tVqUIkAK07596f3s5NVaesgqQOzGgSZ6
-	ZA8+G+4N8eYGYj/a9RyEkCYpIYQdaQcvNoGqTHDB+YV1v1JIMkIL1m6MvgX/k4FKkJ95CS0a+/7t6
-	JGBC2axSkRjNq1uO5fQTxu+CPjE7J69w7vJ4sjxz4FpRBAFbNPwIKobiyGL1/bUwDBuIRJUHb5Pt5
-	WmnhwOmEQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92.2 #3 (Red Hat Linux))
-	id 1i8khO-0005PS-Cp; Fri, 13 Sep 2019 12:29:14 +0000
-Date: Fri, 13 Sep 2019 05:29:14 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Subject: Re: problem starting /sbin/init (32-bit 5.3-rc8)
-Message-ID: <20190913122914.GL29434@bombadil.infradead.org>
-References: <a6010953-16f3-efb9-b507-e46973fc9275@infradead.org>
- <201909121637.B9C39DF@keescook>
- <201909121753.C242E16AA@keescook>
+Received: from forelay.hostedemail.com (smtprelay0232.hostedemail.com [216.40.44.232])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AAC6B0005
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:16:24 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 342AF181AC9BF
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 13:16:24 +0000 (UTC)
+X-FDA: 75929946288.10.boot54_54e97649a901c
+X-HE-Tag: boot54_54e97649a901c
+X-Filterd-Recvd-Size: 6329
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 13:16:23 +0000 (UTC)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8DDD82b140834
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:16:22 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2v0awaam8t-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:16:21 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
+	Fri, 13 Sep 2019 14:16:19 +0100
+Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 13 Sep 2019 14:16:15 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8DDFn9344368324
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 13 Sep 2019 13:15:50 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id EBD19AE059;
+	Fri, 13 Sep 2019 13:16:14 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5878BAE051;
+	Fri, 13 Sep 2019 13:16:14 +0000 (GMT)
+Received: from pomme.local (unknown [9.145.181.150])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Fri, 13 Sep 2019 13:16:14 +0000 (GMT)
+Subject: Re: [PATCH 3/3] powerpc/mm: call H_BLOCK_REMOVE when supported
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, mpe@ellerman.id.au,
+        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+References: <20190830120712.22971-1-ldufour@linux.ibm.com>
+ <20190830120712.22971-4-ldufour@linux.ibm.com>
+ <5bcd3da7-1bc2-f3f9-3ed2-e3aa0bb540bd@linux.ibm.com>
+From: Laurent Dufour <ldufour@linux.ibm.com>
+Date: Fri, 13 Sep 2019 15:16:13 +0200
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.9.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201909121753.C242E16AA@keescook>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <5bcd3da7-1bc2-f3f9-3ed2-e3aa0bb540bd@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+X-TM-AS-GCONF: 00
+x-cbid: 19091313-4275-0000-0000-000003654FAE
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19091313-4276-0000-0000-00003877ADA2
+Message-Id: <cf06842a-ea37-9684-5b28-de4277e7bef3@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-13_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1908290000 definitions=main-1909130130
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 12, 2019 at 06:46:04PM -0700, Kees Cook wrote:
-> This combination appears to be bugged since the original introduction
-> of hardened usercopy in v4.8. Is this an untested combination until
-> now? (I don't usually do tests with CONFIG_DEBUG_VIRTUAL, but I guess
-> I will from now on!)
+Le 12/09/2019 =C3=A0 16:20, Aneesh Kumar K.V a =C3=A9crit=C2=A0:
+> On 8/30/19 5:37 PM, Laurent Dufour wrote:
+>> Instead of calling H_BLOCK_REMOVE all the time when the feature is
+>> exhibited, call this hcall only when the couple base page size, page s=
+ize
+>> is supported as reported by the TLB Invalidate Characteristics.
+>>
+>=20
+> supported is not actually what we are checking here. We are checking=20
+> whether the base page size actual page size remove can be done in chunk=
+s of=20
+> 8 blocks. If we don't support 8 block you fallback to bulk invalidate. =
+May=20
+> be update the commit message accordingly?
 
-Tricky one because it is only going to trip when someone actually does
-this with a highmem page, so if you have a small machine (eg <512MB)
-running a 32-bit kernel, you won't hit it.
+Yes that's correct.
 
-> Is kmap somewhere "unexpected" in this case? Ah-ha, yes, it seems it is.
-> There is even a helper to do the "right" thing as virt_to_page(). This
-> seems to be used very rarely in the kernel... is there a page type for
-> kmap pages? This seems like a hack, but it fixes it:
+I think I should also put the warning message displayed when reading the=20
+characteristic in that commit and explicitly mentioned that we only suppo=
+rt=20
+8 entries size block for this hcall.
+This way the limitation is limited to this commit.
 
-I think this is actually the right thing to do.  It'd be better if we had
-a kmap_to_head_page(), but we don't.
+>=20
+>> For regular pages and hugetlb, the assumption is made that the page si=
+ze is
+>> equal to the base page size. For THP the page size is assumed to be 16=
+M.
+>>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+>> ---
+>> =C2=A0 arch/powerpc/platforms/pseries/lpar.c | 11 +++++++++--
+>> =C2=A0 1 file changed, 9 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/powerpc/platforms/pseries/lpar.c=20
+>> b/arch/powerpc/platforms/pseries/lpar.c
+>> index 375e19b3cf53..ef3dbf108a65 100644
+>> --- a/arch/powerpc/platforms/pseries/lpar.c
+>> +++ b/arch/powerpc/platforms/pseries/lpar.c
+>> @@ -1143,7 +1143,11 @@ static inline void=20
+>> __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (lock_tlbie)
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 spin_lock_irqsa=
+ve(&pSeries_lpar_tlbie_lock, flags);
+>> -=C2=A0=C2=A0=C2=A0 if (firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))
+>> +=C2=A0=C2=A0=C2=A0 /*
+>> +=C2=A0=C2=A0=C2=A0=C2=A0 * Assuming THP size is 16M, and we only supp=
+ort 8 bytes size buffer
+>> +=C2=A0=C2=A0=C2=A0=C2=A0 * for the momment.
+>> +=C2=A0=C2=A0=C2=A0=C2=A0 */
+>> +=C2=A0=C2=A0=C2=A0 if (mmu_psize_defs[psize].hblk[MMU_PAGE_16M] =3D=3D=
+ 8)
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 hugepage_block_=
+invalidate(slot, vpn, count, psize, ssize);
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 else
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 hugepage_bulk_i=
+nvalidate(slot, vpn, count, psize, ssize);
+>=20
+>=20
+>=20
+> So we don't use block invalidate if blocksize is !=3D 8.
 
-> @@ -227,7 +228,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
->  	if (!virt_addr_valid(ptr))
->  		return;
->  
-> -	page = virt_to_head_page(ptr);
-> +	page = compound_head(kmap_to_page((void *)ptr));
->  
->  	if (PageSlab(page)) {
->  		/* Check slab allocator for flags and size. */
-> 
-> 
-> What's the right way to "ignore" the kmap range? (i.e. it's not Slab, so
-> ignore it here: I can't find a page type nor a "is this kmap?" helper...)
+yes
 
-I don't think we want it to be _ignored_ ... if an attempted copy crosses
-outside this page boundary, we want it stopped.  So I think this patch
-is as good as it can be.
+>=20
+>=20
+>> @@ -1437,7 +1441,10 @@ static void pSeries_lpar_flush_hash_range(unsig=
+ned=20
+>> long number, int local)
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (lock_tlbie)
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 spin_lock_irqsa=
+ve(&pSeries_lpar_tlbie_lock, flags);
+>> -=C2=A0=C2=A0=C2=A0 if (firmware_has_feature(FW_FEATURE_BLOCK_REMOVE))=
+ {
+>> +=C2=A0=C2=A0=C2=A0 /*
+>> +=C2=A0=C2=A0=C2=A0=C2=A0 * Currently, we only support 8 bytes size bu=
+ffer in do_block_remove().
+>> +=C2=A0=C2=A0=C2=A0=C2=A0 */
+>> +=C2=A0=C2=A0=C2=A0 if (mmu_psize_defs[batch->psize].hblk[batch->psize=
+] =3D=3D 8) {
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 do_block_remove=
+(number, batch, param);
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 goto out;
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }
+>>
+>=20
+> -aneesh
+
 
