@@ -2,113 +2,194 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 173C8C49ED7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 07:11:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 26A09C4CEC5
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 07:15:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4F8C20644
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 07:11:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C78E3207FC
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 07:15:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="UJ7cXfv+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F8C20644
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="t2xYByHH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C78E3207FC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 587176B0005; Fri, 13 Sep 2019 03:11:55 -0400 (EDT)
+	id 5F91D6B0005; Fri, 13 Sep 2019 03:15:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5375A6B0006; Fri, 13 Sep 2019 03:11:55 -0400 (EDT)
+	id 5A99B6B0006; Fri, 13 Sep 2019 03:15:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 426A36B0007; Fri, 13 Sep 2019 03:11:55 -0400 (EDT)
+	id 423336B0007; Fri, 13 Sep 2019 03:15:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0074.hostedemail.com [216.40.44.74])
-	by kanga.kvack.org (Postfix) with ESMTP id 203276B0005
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 03:11:55 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id C0E44180AD812
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 07:11:54 +0000 (UTC)
-X-FDA: 75929027748.25.crook73_67ee24fdb833b
-X-HE-Tag: crook73_67ee24fdb833b
-X-Filterd-Recvd-Size: 6690
-Received: from pegase1.c-s.fr (pegase1.c-s.fr [93.17.236.30])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 07:11:54 +0000 (UTC)
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 46V6JR5Tvtz9tx5P;
-	Fri, 13 Sep 2019 09:11:51 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=UJ7cXfv+; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id bnDgViFqh-wM; Fri, 13 Sep 2019 09:11:51 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 46V6JR2lDWz9tx4q;
-	Fri, 13 Sep 2019 09:11:51 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1568358711; bh=SKMq9rsjiToR1XeaTtZaZt/ZVEVZP1tQeQ1xFEfo9qg=;
-	h=Subject:From:To:Cc:References:Date:In-Reply-To:From;
-	b=UJ7cXfv+eBfnhyPf3nZi2bp8LPd3ec5emLPKdnxbi++UttiefE18hXhlgFdX8hS4M
-	 Qb+y4OdLyxrGYBNBbE0rg59w7Fq7U4kvfShMqiAfaExqQhGKEoc8XoASSbxk/5LWUJ
-	 AnnZQSsx92tpe/Y9wcUDVAMlSabwRdE/QheT7Q2I=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 503638B966;
-	Fri, 13 Sep 2019 09:11:52 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id erem9Jv6ULxz; Fri, 13 Sep 2019 09:11:52 +0200 (CEST)
-Received: from [172.25.230.101] (po15451.idsi0.si.c-s.fr [172.25.230.101])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 912508B958;
-	Fri, 13 Sep 2019 09:11:51 +0200 (CEST)
-Subject: Re: [PATCH] mm/pgtable/debug: Fix test validating architecture page
- table helpers
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
-Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
- linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
- James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
- Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
- Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
- Dan Williams <dan.j.williams@intel.com>, linux-s390@vger.kernel.org,
- Jason Gunthorpe <jgg@ziepe.ca>, x86@kernel.org,
- Russell King - ARM Linux <linux@armlinux.org.uk>,
- Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Vlastimil Babka <vbabka@suse.cz>, linux-snps-arc@lists.infradead.org,
- Kees Cook <keescook@chromium.org>, Mark Brown <broonie@kernel.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- Thomas Gleixner <tglx@linutronix.de>,
- Gerald Schaefer <gerald.schaefer@de.ibm.com>,
- linux-arm-kernel@lists.infradead.org,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mips@vger.kernel.org,
- Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
- Paul Burton <paul.burton@mips.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Vineet Gupta <vgupta@synopsys.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>
-References: <1892b37d1fd9a4ed39e76c4b999b6556077201c0.1568355752.git.christophe.leroy@c-s.fr>
- <527dd29d-45fa-4d83-1899-6cbf268dd749@arm.com>
- <e2b42446-7f91-83f1-ac12-08dff75c4d35@c-s.fr>
-Message-ID: <cb226b56-ff20-3136-7ffb-890657e56870@c-s.fr>
-Date: Fri, 13 Sep 2019 09:11:49 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.9.0
+Received: from forelay.hostedemail.com (smtprelay0206.hostedemail.com [216.40.44.206])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DBDD6B0005
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 03:15:49 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id B9DFF181AC9B4
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 07:15:48 +0000 (UTC)
+X-FDA: 75929037576.20.women10_89f1d31b77250
+X-HE-Tag: women10_89f1d31b77250
+X-Filterd-Recvd-Size: 15424
+Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com [209.85.221.65])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 07:15:47 +0000 (UTC)
+Received: by mail-wr1-f65.google.com with SMTP id q17so26248434wrx.10
+        for <linux-mm@kvack.org>; Fri, 13 Sep 2019 00:15:47 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:openpgp:autocrypt:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=KZdTQ/JLv3LPojIDBUtXCv2hAJkuAhsDaAhVCmB+J+0=;
+        b=t2xYByHHnqAFXRGQM283yrK/1OLWBwsM86kKONu9do/RjxGb6awZHXJpH4/OypSl+M
+         S8Z9cor4nA1GOLxqnfdr6EDFGh3N/OJrAzKCRwUsnNz0fGySlb3jQCtiPW4iyBHfuNuq
+         MNbWQB5yHtkKAFJvItAD+MScvX4c025E1R/LqONENRjSbFR3S9fBPCIeieweq35L/QAF
+         90JxRnFZB5txuotHWbTXg1YBC5pb5ZalHW4qNlyoWVPiJaluMzWeyKkXJa99UsjiAzqO
+         hWOeKRmhTjSqYXP5W+BPPPk/L51Pc4cOdKXt/GVvtNxo+t0DEJyAPDLNULE1uLGxAea+
+         3HMQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:openpgp:autocrypt
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=KZdTQ/JLv3LPojIDBUtXCv2hAJkuAhsDaAhVCmB+J+0=;
+        b=WMq3J4zvYhR+zyq1F5xEK+nDToZxSi8n8238tyOnGggM4iVHkZr3LBxC+8GDwmQXKB
+         ghW0u+4SlsCng6BlaVchhp9vFzPdEdCNV1ZMO6uYIPY4jqRJlTzjJ6a/ZtKkZydBcjGx
+         v8i4yvu1CoYXN82WxYHF77r2u0QDfiMVdf+NJUid6d3EC7yKEvjoLBuyGxhhK5n7/k3D
+         45eC7T+tp2zoIw7IKb4UFTEZ6REhwiL4DT5tfpebzk183bAbmh87OWzP35RbjhoSj4PR
+         UEh8fhjrcuTmFYW/bkeaQJTx2OC9S4SasrCtFICS6zHrp4LyIsbNmmLfiWJyse2SpEFC
+         Z+9g==
+X-Gm-Message-State: APjAAAVk8pMo6xbqlRnyuZNQQcQ/tV9ITS5lqduIq09DuhleUyGW/pro
+	A8ZJSbCklN8vFDFB5gwwPKc=
+X-Google-Smtp-Source: APXvYqwpnvzAJ2NXLuNW+7DSPeCnlflK24fEQ4KnHZqONAc208zilAkbOpQtjSK0bBBuvWmx65NXGA==
+X-Received: by 2002:adf:828d:: with SMTP id 13mr25863994wrc.115.1568358946455;
+        Fri, 13 Sep 2019 00:15:46 -0700 (PDT)
+Received: from ziggy.stardust ([37.223.145.235])
+        by smtp.gmail.com with ESMTPSA id x6sm1694909wmf.35.2019.09.13.00.15.44
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Fri, 13 Sep 2019 00:15:45 -0700 (PDT)
+Subject: Re: [PATCH v5 0/4] Raspberry Pi 4 DMA addressing support
+To: Stefan Wahren <wahrenst@gmx.net>, Matthias Brugger <mbrugger@suse.com>,
+ catalin.marinas@arm.com, marc.zyngier@arm.com, robh+dt@kernel.org,
+ linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+ linux-riscv@lists.infradead.org, hch@lst.de,
+ Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: f.fainelli@gmail.com, robin.murphy@arm.com, linux-kernel@vger.kernel.org,
+ linux-rpi-kernel@lists.infradead.org, phill@raspberrypi.org,
+ will@kernel.org, m.szyprowski@samsung.com
+References: <20190909095807.18709-1-nsaenzjulienne@suse.de>
+ <5a8af6e9-6b90-ce26-ebd7-9ee626c9fa0e@gmx.net>
+ <3f9af46e-2e1a-771f-57f2-86a53caaf94a@suse.com>
+ <09f82f88-a13a-b441-b723-7bb061a2f1e3@gmail.com>
+ <2c3e1ef3-0dba-9f79-52e2-314b6b500e14@gmx.net>
+From: Matthias Brugger <matthias.bgg@gmail.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=matthias.bgg@gmail.com; prefer-encrypt=mutual; keydata=
+ mQINBFP1zgUBEAC21D6hk7//0kOmsUrE3eZ55kjc9DmFPKIz6l4NggqwQjBNRHIMh04BbCMY
+ fL3eT7ZsYV5nur7zctmJ+vbszoOASXUpfq8M+S5hU2w7sBaVk5rpH9yW8CUWz2+ZpQXPJcFa
+ OhLZuSKB1F5JcvLbETRjNzNU7B3TdS2+zkgQQdEyt7Ij2HXGLJ2w+yG2GuR9/iyCJRf10Okq
+ gTh//XESJZ8S6KlOWbLXRE+yfkKDXQx2Jr1XuVvM3zPqH5FMg8reRVFsQ+vI0b+OlyekT/Xe
+ 0Hwvqkev95GG6x7yseJwI+2ydDH6M5O7fPKFW5mzAdDE2g/K9B4e2tYK6/rA7Fq4cqiAw1+u
+ EgO44+eFgv082xtBez5WNkGn18vtw0LW3ESmKh19u6kEGoi0WZwslCNaGFrS4M7OH+aOJeqK
+ fx5dIv2CEbxc6xnHY7dwkcHikTA4QdbdFeUSuj4YhIZ+0QlDVtS1QEXyvZbZky7ur9rHkZvP
+ ZqlUsLJ2nOqsmahMTIQ8Mgx9SLEShWqD4kOF4zNfPJsgEMB49KbS2o9jxbGB+JKupjNddfxZ
+ HlH1KF8QwCMZEYaTNogrVazuEJzx6JdRpR3sFda/0x5qjTadwIW6Cl9tkqe2h391dOGX1eOA
+ 1ntn9O/39KqSrWNGvm+1raHK+Ev1yPtn0Wxn+0oy1tl67TxUjQARAQABtClNYXR0aGlhcyBC
+ cnVnZ2VyIDxtYXR0aGlhcy5iZ2dAZ21haWwuY29tPokCUgQTAQIAPAIbAwYLCQgHAwIGFQgC
+ CQoLBBYCAwECHgECF4AWIQTmuZIYwPLDJRwsOhfZFAuyVhMC8QUCWt3scQIZAQAKCRDZFAuy
+ VhMC8WzRD/4onkC+gCxG+dvui5SXCJ7bGLCu0xVtiGC673Kz5Aq3heITsERHBV0BqqctOEBy
+ ZozQQe2Hindu9lasOmwfH8+vfTK+2teCgWesoE3g3XKbrOCB4RSrQmXGC3JYx6rcvMlLV/Ch
+ YMRR3qv04BOchnjkGtvm9aZWH52/6XfChyh7XYndTe5F2bqeTjt+kF/ql+xMc4E6pniqIfkv
+ c0wsH4CkBHqoZl9w5e/b9MspTqsU9NszTEOFhy7p2CYw6JEa/vmzR6YDzGs8AihieIXDOfpT
+ DUr0YUlDrwDSrlm/2MjNIPTmSGHH94ScOqu/XmGW/0q1iar/Yr0leomUOeeEzCqQtunqShtE
+ 4Mn2uEixFL+9jiVtMjujr6mphznwpEqObPCZ3IcWqOFEz77rSL+oqFiEA03A2WBDlMm++Sve
+ 9jpkJBLosJRhAYmQ6ey6MFO6Krylw1LXcq5z1XQQavtFRgZoruHZ3XlhT5wcfLJtAqrtfCe0
+ aQ0kJW+4zj9/So0uxJDAtGuOpDYnmK26dgFN0tAhVuNInEVhtErtLJHeJzFKJzNyQ4GlCaLw
+ jKcwWcqDJcrx9R7LsCu4l2XpKiyxY6fO4O8DnSleVll9NPfAZFZvf8AIy3EQ8BokUsiuUYHz
+ wUo6pclk55PZRaAsHDX/fNr24uC6Eh5oNQ+v4Pax/gtyybkCDQRT9c4FARAAqdGWpdzcSM8q
+ 6I2oTPS5J4KXXIJS8O2jbUcxoNuaSBnUkhwp2eML/i30oLbEC+akmagcOLD0kOY46yRFeSEC
+ SPM9SWLxKvKUTQYGLX2sphPVZ3hEdFYKen3+cbvo6GyYTnm8ropHM9uqmXPZFFfLJDL76Nau
+ kFsRfPMQUuwMe3hFVLmF7ntvdX3Z3jKImoMWrgA/SnsT6K40n/GCl1HNz2T8PSnqAUQjvSoI
+ FAenxb23NtW6kg50xIxlb7DKbncnQGGTwoYn8u9Lgxkh8gJ03IMiSDHZ9o+wl21U8B3OXr1K
+ L08vXmdR70d6MJSmt6pKs7yTjxraF0ZS6gz+F2BTy080jxceZwEWIIbK7zU3tm1hnr7QIbj/
+ H6W2Pv9p5CXzQCIw17FXFXjpGPa9knzd4WMzJv2Rgx/m8/ZG91aKq+4Cbz9TLQ7OyRdXqhPJ
+ CopfKgZ2l/Fc5+AGhogJLxOopBoELIdHgB50Durx4YJLmQ1z/oimD0O/mUb5fJu0FUQ5Boc1
+ kHHJ8J8bZTuFrGAomfvnsek+dyenegqBpZCDniCSfdgeAx9oWNoXG4cgo8OVG7J/1YIWBHRa
+ Wnk+WyXGBfbY/8247Gy8oaXtQs1OnehbMKBHRIY0tgoyUlag3wXuUzeK+0PKtWC7ZYelKNC0
+ Fn+zL9XpnK3HLE5ckhBLgK8AEQEAAYkCHwQYAQIACQUCU/XOBQIbDAAKCRDZFAuyVhMC8Yyu
+ D/9g6+JZZ+oEy7HoGZ0Bawnlxu/xQrzaK/ltQhA2vtiMaxCN46gOvEF/x+IvFscAucm3q4Dy
+ bJJkW2qY30ISK9MDELnudPmHRqCxTj8koabvcI1cP8Z0Fw1reMNZVgWgVZJkwHuPYnkhY15u
+ 3vHDzcWnfnvmguKgYoJxkqqdp/acb0x/qpQgufrWGeYv2yb1YNidXBHTJSuelFcGp/oBXeJz
+ rQ2IP1JBbQmQfPSePZzWdSLlrR+3jcBJEP/A/73lSObOQpiYJomXPcla6dH+iyV0IiiZdYgU
+ Htwru4Stv/cFVFsUJk1fIOP1qjSa+L6Y0dWX6JMniqUXHhaXo6OPf7ArpVbBygMuzvy99LtS
+ FSkMcYXn359sXOYsRy4V+Yr7Bs0lzdnHnKdpVqHiDvNgrrLoPNrKTiYwTmzTVbb9u/BjUGhC
+ YUS705vcjBgXhdXS44kgO22kaB5c6Obg7WP7cucFomITovtZs5Rm1iaZZc31lzobfFPUwDSc
+ YXOj6ckS9bF9lDG26z3C/muyiifZeiQvvG1ygexrHtnKYTNxqisOGjjcXzDzpS8egIOtIEI/
+ arzlqK5RprMLVOl6n/npxEWmInjBetsBsaX/9kJNZFM4Yais5scOnP+tuTnFTW2K9xKySyuD
+ q/iLORJYRYMloJPaDAftiYfjFa8zuw1XnQyG17kCDQRT9gX3ARAAsL2UwyvSLQuMxOW2GRLv
+ CiZuxtIEoUuhaBWdC/Yq3c6rWpTu692lhLd4bRpKJkE4nE3saaTVxIHFF3tt3IHSa3Qf831S
+ lW39EkcFxr7DbO17kRThOyU1k7KDhUQqhRaUoT1NznrykvpTlNszhYNjA0CMYWH249MJXgck
+ iKOezSHbQ2bZWtFG3uTloWSKloFsjsmRsb7Vn2FlyeP+00PVC6j7CRqczxpkyYoHuqIS0w1z
+ Aq8HP5DDSH7+arijtPuJhVv9uaiD6YFLgSIQy4ZCZuMcdzKJz2j6KCw2kUXLehk4BU326O0G
+ r9+AojZT8J3qvZYBpvCmIhGliKhZ7pYDKZWVseRw7rJS5UFnst5OBukBIjOaSVdp6JMpe99o
+ caLjyow2By6DCEYgLCrquzuUxMQ8plEMfPD1yXBo00bLPatkuxIibM0G4IstKL5hSAKiaFCc
+ 2f73ppp7eby3ZceyF4uCIxN3ABjW9ZCEAcEwC40S3rnh2wZhscBFZ+7sO7+Fgsd0w67zjpt+
+ YHFNv/chRJiPnDGGRt0jPWryaasDnQtAAf59LY3qd4GVHu8RA1G0Rz4hVw27yssHGycc4+/Z
+ ZX7sPpgNKlpsToMaB5NWgc389HdqOG80Ia+sGkNj9ylp74MPbd0t3fzQnKXzBSHOCNuS67sc
+ lUAw7HB+wa3BqgsAEQEAAYkEPgQYAQIACQUCU/YF9wIbAgIpCRDZFAuyVhMC8cFdIAQZAQIA
+ BgUCU/YF9wAKCRC0OWJbLPHTQ14xD/9crEKZOwhIWX32UXvB/nWbhEx6+PQG2uWsnah7oc5D
+ 7V+aY7M1jy5af8yhlhVdaxL5xUoepfOP08lkCEuSdrYbS5wBcQj4NE1QUoeAjJKbq4JwxUkX
+ Baq2Lu91UZpdKxEVFfSkEzmeMaVvClGjGOtNCUKl8lwLuthU7dGTW74mJaW5jjlXldgzfzFd
+ BkS3fsXfcmeDhHh5TpA4e3MYVBIJrq6Repv151g/zxdA02gjJgGvJlXTb6OgEZGNFr8LGJDh
+ LP7MSksBw6IxCAJSicMESu5kXsJfcODlm4zFaV8QDBevI/s/TgOQ9KQ/EJQsG+XBAuh0dqpu
+ ImmCdhlHx+YaGmwKO1/yhfWvg1h1xbVn98izeotmq1+0J1jt9tgM17MGvgHjmvqlaY+oUXfj
+ OkHkcCGOvao5uAsddQhZcSLmLhrSot8WJI0z3NIM30yiNx/r6OMu47lzTobdYCU8/8m7Rhsq
+ fyW68D+XR098NIlU2oYy1zUetw59WJLf2j5u6D6a9p10doY5lYUEeTjy9Ejs/cL+tQbGwgWh
+ WwKVal1lAtZVaru0GMbSQQ2BycZsZ+H+sbVwpDNEOxQaQPMmEzwgv2Sk2hvR3dTnhUoUaVoR
+ hQE3/+fVRbWHEEroh/+vXV6n4Ps5bDd+75NCQ/lfPZNzGxgxqbd/rd2wStVZpQXkhofMD/4k
+ Z8IivHZYaTA+udUk3iRm0l0qnuX2M5eUbyHW0sZVPnL7Oa4OKXoOir1EWwzzq0GNZjHCh6Cz
+ vLOb1+pllnMkBky0G/+txtgvj5T/366ErUF+lQfgNtENKY6In8tw06hPJbu1sUTQIs50Jg9h
+ RNkDSIQ544ack0fzOusSPM+vo6OkvIHt8tV0fTO1muclwCX/5jb7zQIDgGiUIgS8y0M4hIkP
+ KvdmgurPywi74nEoQQrKF6LpPYYHsDteWR/k2m2BOj0ciZDIIxVR09Y9moQIjBLJKN0J21XJ
+ eAgam4uLV2p1kRDdw/ST5uMCqD4Qi5zrZyWilCci6jF1TR2VEt906E2+AZ3BEheRyn8yb2KO
+ +cJD3kB4RzOyBC/Cq/CGAujfDkRiy1ypFF3TkZdya0NnMgka9LXwBV29sAw9vvrxHxGa+tO+
+ RpgKRywr4Al7QGiw7tRPbxkcatkxg67OcRyntfT0lbKlSTEQUxM06qvwFN7nobc9YiJJTeLu
+ gfa4fCqhQCyquWVVoVP+MnLqkzu1F6lSB6dGIpiW0s3LwyE/WbCAVBraPoENlt69jI0WTXvH
+ 4v71zEffYaGWqtrSize20x9xZf5c/Aukpx0UmsqheKeoSprKyRD/Wj/LgsuTE2Uod85U36Xk
+ eFYetwQY1h3lok2Zb/3uFhWr0NqmT14EL7kCDQRT9gkSARAApxtQ4zUMC512kZ+gCiySFcIF
+ /mAf7+l45689Tn7LI1xmPQrAYJDoqQVXcyh3utgtvBvDLmpQ+1BfEONDWc8KRP6Abo35YqBx
+ 3udAkLZgr/RmEg3+Tiof+e1PJ2zRh5zmdei5MT8biE2zVd9DYSJHZ8ltEWIALC9lAsv9oa+2
+ L6naC+KFF3i0m5mxklgFoSthswUnonqvclsjYaiVPoSldDrreCPzmRCUd8znf//Z4BxtlTw3
+ SulF8weKLJ+Hlpw8lwb3sUl6yPS6pL6UV45gyWMe677bVUtxLYOu+kiv2B/+nrNRDs7B35y/
+ J4t8dtK0S3M/7xtinPiYRmsnJdk+sdAe8TgGkEaooF57k1aczcJlUTBQvlYAEg2NJnqaKg3S
+ CJ4fEuT8rLjzuZmLkoHNumhH/mEbyKca82HvANu5C9clyQusJdU+MNRQLRmOAd/wxGLJ0xmA
+ ye7Ozja86AIzbEmuNhNH9xNjwbwSJNZefV2SoZUv0+V9EfEVxTzraBNUZifqv6hernMQXGxs
+ +lBjnyl624U8nnQWnA8PwJ2hI3DeQou1HypLFPeY9DfWv4xYdkyeOtGpueeBlqhtMoZ0kDw2
+ C3vzj77nWwBgpgn1Vpf4hG/sW/CRR6tuIQWWTvUM3ACa1pgEsBvIEBiVvPxyAtL+L+Lh1Sni
+ 7w3HBk1EJvUAEQEAAYkCHwQYAQIACQUCU/YJEgIbDAAKCRDZFAuyVhMC8QndEACuN16mvivn
+ WwLDdypvco5PF8w9yrfZDKW4ggf9TFVB9skzMNCuQc+tc+QM+ni2c4kKIdz2jmcg6QytgqVu
+ m6V1OsNmpjADaQkVp5jL0tmg6/KA9Tvr07Kuv+Uo4tSrS/4djDjJnXHEp/tB+Fw7CArNtUtL
+ lc8SuADCmMD+kBOVWktZyzkBkDfBXlTWl46T/8291lEspDWe5YW1ZAH/HdCR1rQNZWjNCpB2
+ Cic58CYMD1rSonCnbfUeyZYNNhNHZosl4dl7f+am87Q2x3pK0DLSoJRxWb7vZB0uo9CzCSm3
+ I++aYozF25xQoT+7zCx2cQi33jwvnJAK1o4VlNx36RfrxzBqc1uZGzJBCQu48UjmUSsTwWC3
+ HpE/D9sM+xACs803lFUIZC5H62G059cCPAXKgsFpNMKmBAWweBkVJAisoQeX50OP+/11ArV0
+ cv+fOTfJj0/KwFXJaaYh3LUQNILLBNxkSrhCLl8dUg53IbHx4NfIAgqxLWGfXM8DY1aFdU79
+ pac005PuhxCWkKTJz3gCmznnoat4GCnL5gy/m0Qk45l4PFqwWXVLo9AQg2Kp3mlIFZ6fsEKI
+ AN5hxlbNvNb9V2Zo5bFZjPWPFTxOteM0omUAS+QopwU0yPLLGJVf2iCmItHcUXI+r2JwH1CJ
+ jrHWeQEI2ucSKsNa8FllDmG/fQ==
+Message-ID: <50d6ad40-d6d6-3805-ab7f-066dcc257dd2@gmail.com>
+Date: Fri, 13 Sep 2019 09:15:44 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <e2b42446-7f91-83f1-ac12-08dff75c4d35@c-s.fr>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <2c3e1ef3-0dba-9f79-52e2-314b6b500e14@gmx.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -117,95 +198,122 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-Le 13/09/2019 =C3=A0 09:03, Christophe Leroy a =C3=A9crit=C2=A0:
->=20
->=20
-> Le 13/09/2019 =C3=A0 08:58, Anshuman Khandual a =C3=A9crit=C2=A0:
->> On 09/13/2019 11:53 AM, Christophe Leroy wrote:
->>> Fix build failure on powerpc.
+On 12/09/2019 21:32, Stefan Wahren wrote:
+> 
+> Am 12.09.19 um 19:18 schrieb Matthias Brugger:
+>>
+>> On 10/09/2019 11:27, Matthias Brugger wrote:
 >>>
->>> Fix preemption imbalance.
+>>> On 09/09/2019 21:33, Stefan Wahren wrote:
+>>>> Hi Nicolas,
+>>>>
+>>>> Am 09.09.19 um 11:58 schrieb Nicolas Saenz Julienne:
+>>>>> Hi all,
+>>>>> this series attempts to address some issues we found while bringing up
+>>>>> the new Raspberry Pi 4 in arm64 and it's intended to serve as a follow
+>>>>> up of these discussions:
+>>>>> v4: https://lkml.org/lkml/2019/9/6/352
+>>>>> v3: https://lkml.org/lkml/2019/9/2/589
+>>>>> v2: https://lkml.org/lkml/2019/8/20/767
+>>>>> v1: https://lkml.org/lkml/2019/7/31/922
+>>>>> RFC: https://lkml.org/lkml/2019/7/17/476
+>>>>>
+>>>>> The new Raspberry Pi 4 has up to 4GB of memory but most peripherals can
+>>>>> only address the first GB: their DMA address range is
+>>>>> 0xc0000000-0xfc000000 which is aliased to the first GB of physical
+>>>>> memory 0x00000000-0x3c000000. Note that only some peripherals have these
+>>>>> limitations: the PCIe, V3D, GENET, and 40-bit DMA channels have a wider
+>>>>> view of the address space by virtue of being hooked up trough a second
+>>>>> interconnect.
+>>>>>
+>>>>> Part of this is solved on arm32 by setting up the machine specific
+>>>>> '.dma_zone_size = SZ_1G', which takes care of reserving the coherent
+>>>>> memory area at the right spot. That said no buffer bouncing (needed for
+>>>>> dma streaming) is available at the moment, but that's a story for
+>>>>> another series.
+>>>>>
+>>>>> Unfortunately there is no such thing as 'dma_zone_size' in arm64. Only
+>>>>> ZONE_DMA32 is created which is interpreted by dma-direct and the arm64
+>>>>> arch code as if all peripherals where be able to address the first 4GB
+>>>>> of memory.
+>>>>>
+>>>>> In the light of this, the series implements the following changes:
+>>>>>
+>>>>> - Create both DMA zones in arm64, ZONE_DMA will contain the first 1G
+>>>>>   area and ZONE_DMA32 the rest of the 32 bit addressable memory. So far
+>>>>>   the RPi4 is the only arm64 device with such DMA addressing limitations
+>>>>>   so this hardcoded solution was deemed preferable.
+>>>>>
+>>>>> - Properly set ARCH_ZONE_DMA_BITS.
+>>>>>
+>>>>> - Reserve the CMA area in a place suitable for all peripherals.
+>>>>>
+>>>>> This series has been tested on multiple devices both by checking the
+>>>>> zones setup matches the expectations and by double-checking physical
+>>>>> addresses on pages allocated on the three relevant areas GFP_DMA,
+>>>>> GFP_DMA32, GFP_KERNEL:
+>>>>>
+>>>>> - On an RPi4 with variations on the ram memory size. But also forcing
+>>>>>   the situation where all three memory zones are nonempty by setting a 3G
+>>>>>   ZONE_DMA32 ceiling on a 4G setup. Both with and without NUMA support.
+>>>>>
+>>>> i like to test this series on Raspberry Pi 4 and i have some questions
+>>>> to get arm64 running:
+>>>>
+>>>> Do you use U-Boot? Which tree?
+>>> If you want to use U-Boot, try v2019.10-rc4, it should have everything you need
+>>> to boot your kernel.
 >>>
->>> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
->>> ---
->>> =C2=A0 mm/arch_pgtable_test.c | 3 +++
->>> =C2=A0 1 file changed, 3 insertions(+)
+>> Ok, here is a thing. In the linux kernel we now use bcm2711 as SoC name, but the
+>> RPi4 devicetree provided by the FW uses mostly bcm2838.
+> 
+> Do you mean the DTB provided at runtime?
+> 
+
+Yes.
+
+> You mean the merged U-Boot changes, doesn't work with my Raspberry Pi
+> series?
+> 
+
+Unfortunately that is exactly the state right now.
+
+>>  U-Boot in its default
+>> config uses the devicetree provided by the FW, mostly because this way you don't
+>> have to do anything to find out how many RAM you really have. Secondly because
+>> this will allow us, in the near future, to have one U-boot binary for both RPi3
+>> and RPi4 (and as a side effect one binary for RPi1 and RPi2).
+>>
+>> Anyway, I found at least, that the following compatibles need to be added:
+>>
+>> "brcm,bcm2838-cprman"
+>> "brcm,bcm2838-gpio"
+>>
+>> Without at least the cprman driver update, you won't see anything.
+>>
+>> "brcm,bcm2838-rng200" is also a candidate.
+>>
+>> I also suppose we will need to add "brcm,bcm2838" to
+>> arch/arm/mach-bcm/bcm2711.c, but I haven't verified this.
+> How about changing this in the downstream kernel? Which is much easier.
+>>
+>> Regards,
+>> Matthias
+>>
+>>> Regards,
+>>> Matthias
 >>>
->>> diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
->>> index 8b4a92756ad8..f2b3c9ec35fa 100644
->>> --- a/mm/arch_pgtable_test.c
->>> +++ b/mm/arch_pgtable_test.c
->>> @@ -24,6 +24,7 @@
->>> =C2=A0 #include <linux/swap.h>
->>> =C2=A0 #include <linux/swapops.h>
->>> =C2=A0 #include <linux/sched/mm.h>
->>> +#include <linux/highmem.h>
->>
->> This is okay.
->>
->>> =C2=A0 #include <asm/pgalloc.h>
->>> =C2=A0 #include <asm/pgtable.h>
->>> @@ -400,6 +401,8 @@ static int __init arch_pgtable_tests_init(void)
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 p4d_clear_tests(p4dp);
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 pgd_clear_tests(mm, pgdp);
->>> +=C2=A0=C2=A0=C2=A0 pte_unmap(ptep);
->>> +
->>
->> Now the preemption imbalance via pte_alloc_map() path i.e
->>
->> pte_alloc_map() -> pte_offset_map() -> kmap_atomic()
->>
->> Is not this very much powerpc 32 specific or this will be applicable
->> for all platform which uses kmap_XXX() to map high memory ?
->>
->=20
-> See=20
-> https://elixir.bootlin.com/linux/v5.3-rc8/source/include/linux/highmem.=
-h#L91=20
->=20
->=20
-> I think it applies at least to all arches using the generic implementat=
-ion.
->=20
-> Applies also to arm:
-> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/arm/mm/highmem.c#=
-L52
->=20
-> Applies also to mips:
-> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/mips/mm/highmem.c=
-#L47
->=20
-> Same on sparc:
-> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/sparc/mm/highmem.=
-c#L52=20
->=20
->=20
-> Same on x86:
-> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/x86/mm/highmem_32=
-.c#L34=20
->=20
->=20
-> I have not checked others, but I guess it is like that for all.
->=20
-
-
-Seems like I answered too quickly. All kmap_atomic() do=20
-preempt_disable(), but not all pte_alloc_map() call kmap_atomic().
-
-However, for instance ARM does:
-
-https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/arm/include/asm/pgt=
-able.h#L200
-
-And X86 as well:
-
-https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/x86/include/asm/pgt=
-able_32.h#L51
-
-Microblaze also:
-
-https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/microblaze/include/=
-asm/pgtable.h#L495
-
-Christophe
+>>>> Are there any config.txt tweaks necessary?
+>>>>
+>>>>
+>>> _______________________________________________
+>>> linux-arm-kernel mailing list
+>>> linux-arm-kernel@lists.infradead.org
+>>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>>>
+>> _______________________________________________
+>> linux-arm-kernel mailing list
+>> linux-arm-kernel@lists.infradead.org
+>> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
 
