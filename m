@@ -7,62 +7,59 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6B68C4CEC9
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05612C4CEC5
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 71F21214AE
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A4D3C20830
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="FEfOmewt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71F21214AE
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="E6BAZgR+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4D3C20830
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 19A336B0007; Fri, 13 Sep 2019 05:32:40 -0400 (EDT)
+	id F09786B0008; Fri, 13 Sep 2019 05:32:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 14B756B0008; Fri, 13 Sep 2019 05:32:40 -0400 (EDT)
+	id EBA7A6B000C; Fri, 13 Sep 2019 05:32:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDF1F6B000C; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
+	id D33116B000D; Fri, 13 Sep 2019 05:32:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0243.hostedemail.com [216.40.44.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B2AC36B0008
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 2BFE922034
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:39 +0000 (UTC)
-X-FDA: 75929382438.03.62F5ECC
-Received: from filter.hostedemail.com (10.5.16.251.rfc1918.com [10.5.16.251])
-	by smtpin03.hostedemail.com (Postfix) with ESMTP id 9835528A247
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:36 +0000 (UTC)
-X-HE-Tag: chin71_167a47633a61a
-X-Filterd-Recvd-Size: 34228
-Received: from ste-pvt-msa1.bahnhof.se (ste-pvt-msa1.bahnhof.se [213.80.101.70])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:34 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id B05386B0008
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:32:41 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 6083E2BFB2
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:41 +0000 (UTC)
+X-FDA: 75929382522.02.books53_175e26067d719
+X-HE-Tag: books53_175e26067d719
+X-Filterd-Recvd-Size: 13288
+Received: from pio-pvt-msa2.bahnhof.se (pio-pvt-msa2.bahnhof.se [79.136.2.41])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:40 +0000 (UTC)
 Received: from localhost (localhost [127.0.0.1])
-	by ste-pvt-msa1.bahnhof.se (Postfix) with ESMTP id DF8143F695;
-	Fri, 13 Sep 2019 11:32:32 +0200 (CEST)
-Authentication-Results: ste-pvt-msa1.bahnhof.se;
-	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=FEfOmewt;
+	by pio-pvt-msa2.bahnhof.se (Postfix) with ESMTP id D65743F712;
+	Fri, 13 Sep 2019 11:32:33 +0200 (CEST)
+Authentication-Results: pio-pvt-msa2.bahnhof.se;
+	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=E6BAZgR+;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at bahnhof.se
-Received: from ste-pvt-msa1.bahnhof.se ([127.0.0.1])
-	by localhost (ste-pvt-msa1.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id nkIu-Pc_04-B; Fri, 13 Sep 2019 11:32:31 +0200 (CEST)
+Received: from pio-pvt-msa2.bahnhof.se ([127.0.0.1])
+	by localhost (pio-pvt-msa2.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id dDA1F9XuZwPV; Fri, 13 Sep 2019 11:32:30 +0200 (CEST)
 Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
 	(Authenticated sender: mb878879)
-	by ste-pvt-msa1.bahnhof.se (Postfix) with ESMTPA id 917ED3F449;
+	by pio-pvt-msa2.bahnhof.se (Postfix) with ESMTPA id 5AD1C3F21C;
 	Fri, 13 Sep 2019 11:32:28 +0200 (CEST)
 Received: from localhost.localdomain.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
-	by mail1.shipmail.org (Postfix) with ESMTPSA id E2E783602AF;
+	by mail1.shipmail.org (Postfix) with ESMTPSA id AD27F360248;
 	Fri, 13 Sep 2019 11:32:27 +0200 (CEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
-	t=1568367148; bh=Tp2TmC3JbljJhhddAMHJSLhXvhpWu7rfFR8NK5pCbcE=;
+	t=1568367147; bh=O7CkVSfbqrZbq1k5SqaS6g94hqbxrwcsGFU1Ild1cks=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=FEfOmewtsK8oZHlbZZNdA9+J5vsuj+XtiPy072iSNAlXj4eYUbOjSlvP3eWKiYHkI
-	 OkkMDHz9qy0KLgTO5dcAAY5aadjgFL2Wu9vvyMP0vagY4IKiJ+TpYN0mX2gglsB9ay
-	 RLPkPt09yGf19S/U6poB1g9uS0XMiWXPSqSA3bX8=
+	b=E6BAZgR+y6UMLcc92a5xk+hww9ed0cP2nftJGTFhB5/uZ4mxev50mo58VXDwlP7kP
+	 h7xCIv6GyIwo+nZ6cw6bTKPqxgbLF4Y/qaxpOhuN2olO29/h0XCXQCacDcaR386n7s
+	 U7vJ1QYfj1LvkeRmFX0vK+Ghef0RvN5SIEnld42Q=
 From: =?UTF-8?q?Thomas=20Hellstr=C3=B6m=20=28VMware=29?= <thomas_os@shipmail.org>
 To: linux-kernel@vger.kernel.org,
 	dri-devel@lists.freedesktop.org,
@@ -81,11 +78,10 @@ Cc: pv-drivers@vmware.com,
 	Souptick Joarder <jrdr.linux@gmail.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Deepak Rawat <drawat@vmware.com>
-Subject: [RFC PATCH 4/7] drm/vmwgfx: Implement an infrastructure for write-coherent resources
-Date: Fri, 13 Sep 2019 11:32:10 +0200
-Message-Id: <20190913093213.27254-5-thomas_os@shipmail.org>
+	Christoph Hellwig <hch@infradead.org>
+Subject: [RFC PATCH 3/7] drm/ttm: TTM fault handler helpers
+Date: Fri, 13 Sep 2019 11:32:09 +0200
+Message-Id: <20190913093213.27254-4-thomas_os@shipmail.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190913093213.27254-1-thomas_os@shipmail.org>
 References: <20190913093213.27254-1-thomas_os@shipmail.org>
@@ -100,9 +96,16 @@ List-ID: <linux-mm.kvack.org>
 
 From: Thomas Hellstrom <thellstrom@vmware.com>
 
-This infrastructure will, for coherent resources, make sure that
-from the user-space point of view, data written by the CPU is immediately
-automatically available to the GPU at resource validation time.
+With the vmwgfx dirty tracking, the default TTM fault handler is not
+completely sufficient (vmwgfx need to modify the vma->vm_flags member,
+and also needs to restrict the number of prefaults).
+
+We also want to replicate the new ttm_bo_vm_reserve() functionality
+
+So start turning the TTM vm code into helpers: ttm_bo_vm_fault_reserved()
+and ttm_bo_vm_reserve(), and provide a default TTM fault handler for othe=
+r
+drivers to use.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@infradead.org>
@@ -117,951 +120,304 @@ Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
 Cc: "Christian K=C3=B6nig" <christian.koenig@amd.com>
 Cc: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Thomas Hellstrom <thellstrom@vmware.com>
-Reviewed-by: Deepak Rawat <drawat@vmware.com>
+Reviewed-by: "Christian K=C3=B6nig" <christian.koenig@amd.com> #v1
 ---
- drivers/gpu/drm/vmwgfx/Kconfig                |   1 +
- drivers/gpu/drm/vmwgfx/Makefile               |   2 +-
- drivers/gpu/drm/vmwgfx/vmwgfx_bo.c            |   5 +-
- drivers/gpu/drm/vmwgfx/vmwgfx_drv.c           |   5 +
- drivers/gpu/drm/vmwgfx/vmwgfx_drv.h           |  26 +-
- drivers/gpu/drm/vmwgfx/vmwgfx_execbuf.c       |   1 -
- drivers/gpu/drm/vmwgfx/vmwgfx_page_dirty.c    | 417 ++++++++++++++++++
- drivers/gpu/drm/vmwgfx/vmwgfx_resource.c      |  57 +++
- drivers/gpu/drm/vmwgfx/vmwgfx_resource_priv.h |  11 +
- drivers/gpu/drm/vmwgfx/vmwgfx_validation.c    |  71 +++
- drivers/gpu/drm/vmwgfx/vmwgfx_validation.h    |  16 +-
- 11 files changed, 592 insertions(+), 20 deletions(-)
- create mode 100644 drivers/gpu/drm/vmwgfx/vmwgfx_page_dirty.c
+ drivers/gpu/drm/ttm/ttm_bo_vm.c | 176 +++++++++++++++++++-------------
+ include/drm/ttm/ttm_bo_api.h    |  10 ++
+ 2 files changed, 114 insertions(+), 72 deletions(-)
 
-diff --git a/drivers/gpu/drm/vmwgfx/Kconfig b/drivers/gpu/drm/vmwgfx/Kcon=
-fig
-index 6b28a326f8bb..d5fd81a521f6 100644
---- a/drivers/gpu/drm/vmwgfx/Kconfig
-+++ b/drivers/gpu/drm/vmwgfx/Kconfig
-@@ -8,6 +8,7 @@ config DRM_VMWGFX
- 	select FB_CFB_IMAGEBLIT
- 	select DRM_TTM
- 	select FB
-+	select AS_DIRTY_HELPERS
- 	# Only needed for the transitional use of drm_crtc_init - can be remove=
-d
- 	# again once vmwgfx sets up the primary plane itself.
- 	select DRM_KMS_HELPER
-diff --git a/drivers/gpu/drm/vmwgfx/Makefile b/drivers/gpu/drm/vmwgfx/Mak=
-efile
-index 8841bd30e1e5..c877a21a0739 100644
---- a/drivers/gpu/drm/vmwgfx/Makefile
-+++ b/drivers/gpu/drm/vmwgfx/Makefile
-@@ -8,7 +8,7 @@ vmwgfx-y :=3D vmwgfx_execbuf.o vmwgfx_gmr.o vmwgfx_kms.o =
-vmwgfx_drv.o \
- 	    vmwgfx_cmdbuf_res.o vmwgfx_cmdbuf.o vmwgfx_stdu.o \
- 	    vmwgfx_cotable.o vmwgfx_so.o vmwgfx_binding.o vmwgfx_msg.o \
- 	    vmwgfx_simple_resource.o vmwgfx_va.o vmwgfx_blit.o \
--	    vmwgfx_validation.o \
-+	    vmwgfx_validation.o vmwgfx_page_dirty.o \
- 	    ttm_object.o ttm_lock.o
+diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo=
+_vm.c
+index 03f702c296cf..5a580adeb9d1 100644
+--- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
++++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
+@@ -42,8 +42,6 @@
+ #include <linux/uaccess.h>
+ #include <linux/mem_encrypt.h>
 =20
- obj-$(CONFIG_DRM_VMWGFX) :=3D vmwgfx.o
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_bo.c b/drivers/gpu/drm/vmwgfx/=
-vmwgfx_bo.c
-index aad8d8140259..869aeaec2f86 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_bo.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_bo.c
-@@ -462,6 +462,7 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
+-#define TTM_BO_VM_NUM_PREFAULT 16
+-
+ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
+ 				struct vm_fault *vmf)
  {
- 	struct vmw_buffer_object *vmw_bo =3D vmw_buffer_object(bo);
-=20
-+	WARN_ON(vmw_bo->dirty);
- 	vmw_bo_unmap(vmw_bo);
- 	kfree(vmw_bo);
- }
-@@ -475,8 +476,10 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
- static void vmw_user_bo_destroy(struct ttm_buffer_object *bo)
- {
- 	struct vmw_user_buffer_object *vmw_user_bo =3D vmw_user_buffer_object(b=
-o);
-+	struct vmw_buffer_object *vbo =3D &vmw_user_bo->vbo;
-=20
--	vmw_bo_unmap(&vmw_user_bo->vbo);
-+	WARN_ON(vbo->dirty);
-+	vmw_bo_unmap(vbo);
- 	ttm_prime_object_kfree(vmw_user_bo, prime);
+@@ -106,31 +104,30 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_b=
+uffer_object *bo,
+ 		+ page_offset;
  }
 =20
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_drv.c b/drivers/gpu/drm/vmwgfx=
-/vmwgfx_drv.c
-index b38bcb032c99..82872686b71e 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_drv.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_drv.c
-@@ -835,6 +835,11 @@ static int vmw_driver_load(struct drm_device *dev, u=
-nsigned long chipset)
- 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");
- 		goto out_no_bdev;
+-static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
++/**
++ * ttm_bo_vm_reserve - Reserve a buffer object in a retryable vm callbac=
+k
++ * @bo: The buffer object
++ * @vmf: The fault structure handed to the callback
++ *
++ * vm callbacks like fault() and *_mkwrite() allow for the mm_sem to be =
+dropped
++ * during long waits, and after the wait the callback will be restarted.=
+ This
++ * is to allow other threads using the same virtual memory space concurr=
+ent
++ * access to map(), unmap() completely unrelated buffer objects. TTM buf=
+fer
++ * object reservations sometimes wait for GPU and should therefore be
++ * considered long waits. This function reserves the buffer object inter=
+ruptibly
++ * taking this into account. Starvation is avoided by the vm system not
++ * allowing too many repeated restarts.
++ * This function is intended to be used in customized fault() and _mkwri=
+te()
++ * handlers.
++ *
++ * Return:
++ *    0 on success and the bo was reserved.
++ *    VM_FAULT_RETRY if blocking wait.
++ *    VM_FAULT_NOPAGE if blocking wait and retrying was not allowed.
++ */
++vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
++			     struct vm_fault *vmf)
+ {
+-	struct vm_area_struct *vma =3D vmf->vma;
+-	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
+-	    vma->vm_private_data;
+-	struct ttm_bo_device *bdev =3D bo->bdev;
+-	unsigned long page_offset;
+-	unsigned long page_last;
+-	unsigned long pfn;
+-	struct ttm_tt *ttm =3D NULL;
+-	struct page *page;
+-	int err;
+-	int i;
+-	vm_fault_t ret =3D VM_FAULT_NOPAGE;
+-	unsigned long address =3D vmf->address;
+-	struct ttm_mem_type_manager *man =3D
+-		&bdev->man[bo->mem.mem_type];
+-	struct vm_area_struct cvma;
+-
+-	/*
+-	 * Work around locking order reversal in fault / nopfn
+-	 * between mmap_sem and bo_reserve: Perform a trylock operation
+-	 * for reserve, and if it fails, retry the fault after waiting
+-	 * for the buffer to become unreserved.
+-	 */
+ 	if (unlikely(!dma_resv_trylock(bo->base.resv))) {
+ 		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
+ 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+@@ -151,14 +148,55 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *=
+vmf)
+ 		return VM_FAULT_NOPAGE;
  	}
-+	dev_priv->vm_ops =3D *dev_priv->bdev.vm_ops;
-+	dev_priv->vm_ops.fault =3D vmw_bo_vm_fault;
-+	dev_priv->vm_ops.pfn_mkwrite =3D vmw_bo_vm_mkwrite;
-+	dev_priv->vm_ops.page_mkwrite =3D vmw_bo_vm_mkwrite;
-+	dev_priv->bdev.vm_ops =3D &dev_priv->vm_ops;
+=20
++	return 0;
++}
++EXPORT_SYMBOL(ttm_bo_vm_reserve);
++
++/**
++ * ttm_bo_vm_fault_reserved - TTM fault helper
++ * @vmf: The struct vm_fault given as argument to the fault callback
++ * @prot: The page protection to be used for this memory area.
++ * @num_prefault: Maximum number of prefault pages. The caller may want =
+to
++ * specify this based on madvice settings and the size of the GPU object
++ * backed by the memory.
++ *
++ * This function inserts one or more page table entries pointing to the
++ * memory backing the buffer object, and then returns a return code
++ * instructing the caller to retry the page access.
++ *
++ * Return:
++ *   VM_FAULT_NOPAGE on success or pending signal
++ *   VM_FAULT_SIGBUS on unspecified error
++ *   VM_FAULT_OOM on out-of-memory
++ *   VM_FAULT_RETRY if retryable wait
++ */
++vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
++				    pgprot_t prot,
++				    pgoff_t num_prefault)
++{
++	struct vm_area_struct *vma =3D vmf->vma;
++	struct vm_area_struct cvma =3D *vma;
++	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
++	    vma->vm_private_data;
++	struct ttm_bo_device *bdev =3D bo->bdev;
++	unsigned long page_offset;
++	unsigned long page_last;
++	unsigned long pfn;
++	struct ttm_tt *ttm =3D NULL;
++	struct page *page;
++	int err;
++	pgoff_t i;
++	vm_fault_t ret =3D VM_FAULT_NOPAGE;
++	unsigned long address =3D vmf->address;
++	struct ttm_mem_type_manager *man =3D
++		&bdev->man[bo->mem.mem_type];
++
+ 	/*
+ 	 * Refuse to fault imported pages. This should be handled
+ 	 * (if at all) by redirecting mmap to the exporter.
+ 	 */
+-	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+-		ret =3D VM_FAULT_SIGBUS;
+-		goto out_unlock;
+-	}
++	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG))
++		return VM_FAULT_SIGBUS;
+=20
+ 	if (bdev->driver->fault_reserve_notify) {
+ 		struct dma_fence *moving =3D dma_fence_get(bo->moving);
+@@ -169,11 +207,9 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *v=
+mf)
+ 			break;
+ 		case -EBUSY:
+ 		case -ERESTARTSYS:
+-			ret =3D VM_FAULT_NOPAGE;
+-			goto out_unlock;
++			return VM_FAULT_NOPAGE;
+ 		default:
+-			ret =3D VM_FAULT_SIGBUS;
+-			goto out_unlock;
++			return VM_FAULT_SIGBUS;
+ 		}
+=20
+ 		if (bo->moving !=3D moving) {
+@@ -189,26 +225,15 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *=
+vmf)
+ 	 * move.
+ 	 */
+ 	ret =3D ttm_bo_vm_fault_idle(bo, vmf);
+-	if (unlikely(ret !=3D 0)) {
+-		if (ret =3D=3D VM_FAULT_RETRY &&
+-		    !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+-			/* The BO has already been unreserved. */
+-			return ret;
+-		}
+-
+-		goto out_unlock;
+-	}
++	if (unlikely(ret !=3D 0))
++		return ret;
+=20
+ 	err =3D ttm_mem_io_lock(man, true);
+-	if (unlikely(err !=3D 0)) {
+-		ret =3D VM_FAULT_NOPAGE;
+-		goto out_unlock;
+-	}
++	if (unlikely(err !=3D 0))
++		return VM_FAULT_NOPAGE;
+ 	err =3D ttm_mem_io_reserve_vm(bo);
+-	if (unlikely(err !=3D 0)) {
+-		ret =3D VM_FAULT_SIGBUS;
+-		goto out_io_unlock;
+-	}
++	if (unlikely(err !=3D 0))
++		return VM_FAULT_SIGBUS;
+=20
+ 	page_offset =3D ((address - vma->vm_start) >> PAGE_SHIFT) +
+ 		vma->vm_pgoff - drm_vma_node_start(&bo->base.vma_node);
+@@ -220,18 +245,8 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *v=
+mf)
+ 		goto out_io_unlock;
+ 	}
+=20
+-	/*
+-	 * Make a local vma copy to modify the page_prot member
+-	 * and vm_flags if necessary. The vma parameter is protected
+-	 * by mmap_sem in write mode.
+-	 */
+-	cvma =3D *vma;
+-	cvma.vm_page_prot =3D vm_get_page_prot(cvma.vm_flags);
+-
+-	if (bo->mem.bus.is_iomem) {
+-		cvma.vm_page_prot =3D ttm_io_prot(bo->mem.placement,
+-						cvma.vm_page_prot);
+-	} else {
++	cvma.vm_page_prot =3D ttm_io_prot(bo->mem.placement, prot);
++	if (!bo->mem.bus.is_iomem) {
+ 		struct ttm_operation_ctx ctx =3D {
+ 			.interruptible =3D false,
+ 			.no_wait_gpu =3D false,
+@@ -240,24 +255,21 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *=
+vmf)
+ 		};
+=20
+ 		ttm =3D bo->ttm;
+-		cvma.vm_page_prot =3D ttm_io_prot(bo->mem.placement,
+-						cvma.vm_page_prot);
+-
+-		/* Allocate all page at once, most common usage */
+-		if (ttm_tt_populate(ttm, &ctx)) {
++		if (ttm_tt_populate(bo->ttm, &ctx)) {
+ 			ret =3D VM_FAULT_OOM;
+ 			goto out_io_unlock;
+ 		}
++	} else {
++		/* Iomem should not be marked encrypted */
++		cvma.vm_page_prot =3D pgprot_decrypted(cvma.vm_page_prot);
+ 	}
 =20
  	/*
- 	 * Enable VRAM, but initially don't use it until SVGA is enabled and
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_drv.h b/drivers/gpu/drm/vmwgfx=
-/vmwgfx_drv.h
-index 5eb73ded8e07..4d1f80811ac0 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_drv.h
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_drv.h
-@@ -105,6 +105,7 @@ struct vmw_fpriv {
-  * @dx_query_ctx: DX context if this buffer object is used as a DX query=
- MOB
-  * @map: Kmap object for semi-persistent mappings
-  * @res_prios: Eviction priority counts for attached resources
-+ * @dirty: structure for user-space dirty-tracking
-  */
- struct vmw_buffer_object {
- 	struct ttm_buffer_object base;
-@@ -115,6 +116,7 @@ struct vmw_buffer_object {
- 	/* Protected by reservation */
- 	struct ttm_bo_kmap_obj map;
- 	u32 res_prios[TTM_MAX_BO_PRIORITY];
-+	struct vmw_bo_dirty *dirty;
- };
-=20
- /**
-@@ -145,7 +147,8 @@ struct vmw_res_func;
-  * @res_dirty: Resource contains data not yet in the backup buffer. Prot=
-ected
-  * by resource reserved.
-  * @backup_dirty: Backup buffer contains data not yet in the HW resource=
-.
-- * Protecte by resource reserved.
-+ * Protected by resource reserved.
-+ * @coherent: Emulate coherency by tracking vm accesses.
-  * @backup: The backup buffer if any. Protected by resource reserved.
-  * @backup_offset: Offset into the backup buffer if any. Protected by re=
-source
-  * reserved. Note that only a few resource types can have a @backup_offs=
-et
-@@ -162,14 +165,16 @@ struct vmw_res_func;
-  * @hw_destroy: Callback to destroy the resource on the device, as part =
-of
-  * resource destruction.
-  */
-+struct vmw_resource_dirty;
- struct vmw_resource {
- 	struct kref kref;
- 	struct vmw_private *dev_priv;
- 	int id;
- 	u32 used_prio;
- 	unsigned long backup_size;
--	bool res_dirty;
--	bool backup_dirty;
-+	u32 res_dirty : 1;
-+	u32 backup_dirty : 1;
-+	u32 coherent : 1;
- 	struct vmw_buffer_object *backup;
- 	unsigned long backup_offset;
- 	unsigned long pin_count;
-@@ -177,6 +182,7 @@ struct vmw_resource {
- 	struct list_head lru_head;
- 	struct list_head mob_head;
- 	struct list_head binding_head;
-+	struct vmw_resource_dirty *dirty;
- 	void (*res_free) (struct vmw_resource *res);
- 	void (*hw_destroy) (struct vmw_resource *res);
- };
-@@ -605,6 +611,9 @@ struct vmw_private {
-=20
- 	/* Validation memory reservation */
- 	struct vmw_validation_mem vvm;
-+
-+	/* VM operations */
-+	struct vm_operations_struct vm_ops;
- };
-=20
- static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *re=
-s)
-@@ -716,6 +725,8 @@ extern void vmw_resource_evict_all(struct vmw_private=
- *dev_priv);
- extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
- void vmw_resource_mob_attach(struct vmw_resource *res);
- void vmw_resource_mob_detach(struct vmw_resource *res);
-+void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
-+			       pgoff_t end);
-=20
- /**
-  * vmw_resource_mob_attached - Whether a resource currently has a mob at=
-tached
-@@ -1403,6 +1414,15 @@ int vmw_host_log(const char *log);
- #define VMW_DEBUG_USER(fmt, ...)                                        =
-      \
- 	DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__)
-=20
-+/* Resource dirtying - vmwgfx_page_dirty.c */
-+void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo);
-+int vmw_bo_dirty_add(struct vmw_buffer_object *vbo);
-+void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res);
-+void vmw_bo_dirty_clear_res(struct vmw_resource *res);
-+void vmw_bo_dirty_release(struct vmw_buffer_object *vbo);
-+vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
-+vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
-+
- /**
-  * VMW_DEBUG_KMS - Debug output for kernel mode-setting
-  *
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_execbuf.c b/drivers/gpu/drm/vm=
-wgfx/vmwgfx_execbuf.c
-index ff86d49dc5e8..934ad7c0c342 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_execbuf.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_execbuf.c
-@@ -2560,7 +2560,6 @@ static int vmw_cmd_dx_check_subresource(struct vmw_=
-private *dev_priv,
- 		     offsetof(typeof(*cmd), sid));
-=20
- 	cmd =3D container_of(header, typeof(*cmd), header);
--
- 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
- 				 VMW_RES_DIRTY_NONE, user_surface_converter,
- 				 &cmd->sid, NULL);
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_page_dirty.c b/drivers/gpu/drm=
-/vmwgfx/vmwgfx_page_dirty.c
-new file mode 100644
-index 000000000000..11404862eff7
---- /dev/null
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_page_dirty.c
-@@ -0,0 +1,417 @@
-+// SPDX-License-Identifier: GPL-2.0 OR MIT
-+/***********************************************************************=
-***
-+ *
-+ * Copyright 2019 VMware, Inc., Palo Alto, CA., USA
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining=
- a
-+ * copy of this software and associated documentation files (the
-+ * "Software"), to deal in the Software without restriction, including
-+ * without limitation the rights to use, copy, modify, merge, publish,
-+ * distribute, sub license, and/or sell copies of the Software, and to
-+ * permit persons to whom the Software is furnished to do so, subject to
-+ * the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the
-+ * next paragraph) shall be included in all copies or substantial portio=
-ns
-+ * of the Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRE=
-SS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILI=
-TY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SH=
-ALL
-+ * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY=
- CLAIM,
-+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR=
- THE
-+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
-+ *
-+ ***********************************************************************=
-***/
-+#include "vmwgfx_drv.h"
-+
-+/*
-+ * Different methods for tracking dirty:
-+ * VMW_BO_DIRTY_PAGETABLE - Scan the pagetable for hardware dirty bits
-+ * VMW_BO_DIRTY_MKWRITE - Write-protect page table entries and record wr=
-ite-
-+ * accesses in the VM mkwrite() callback
-+ */
-+enum vmw_bo_dirty_method {
-+	VMW_BO_DIRTY_PAGETABLE,
-+	VMW_BO_DIRTY_MKWRITE,
-+};
-+
-+/*
-+ * No dirtied pages at scan trigger a transition to the _MKWRITE method,
-+ * similarly a certain percentage of dirty pages trigger a transition to
-+ * the _PAGETABLE method. How many triggers should we wait for before
-+ * changing method?
-+ */
-+#define VMW_DIRTY_NUM_CHANGE_TRIGGERS 2
-+
-+/* Percentage to trigger a transition to the _PAGETABLE method */
-+#define VMW_DIRTY_PERCENTAGE 10
-+
-+/**
-+ * struct vmw_bo_dirty - Dirty information for buffer objects
-+ * @start: First currently dirty bit
-+ * @end: Last currently dirty bit + 1
-+ * @method: The currently used dirty method
-+ * @change_count: Number of consecutive method change triggers
-+ * @ref_count: Reference count for this structure
-+ * @bitmap_size: The size of the bitmap in bits. Typically equal to the
-+ * nuber of pages in the bo.
-+ * @size: The accounting size for this struct.
-+ * @bitmap: A bitmap where each bit represents a page. A set bit means a
-+ * dirty page.
-+ */
-+struct vmw_bo_dirty {
-+	unsigned long start;
-+	unsigned long end;
-+	enum vmw_bo_dirty_method method;
-+	unsigned int change_count;
-+	unsigned int ref_count;
-+	unsigned long bitmap_size;
-+	size_t size;
-+	unsigned long bitmap[0];
-+};
-+
-+/**
-+ * vmw_bo_dirty_scan_pagetable - Perform a pagetable scan for dirty bits
-+ * @vbo: The buffer object to scan
-+ *
-+ * Scans the pagetable for dirty bits. Clear those bits and modify the
-+ * dirty structure with the results. This function may change the
-+ * dirty-tracking method.
-+ */
-+static void vmw_bo_dirty_scan_pagetable(struct vmw_buffer_object *vbo)
-+{
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+	pgoff_t offset =3D drm_vma_node_start(&vbo->base.vma_node);
-+	struct address_space *mapping =3D vbo->base.bdev->dev_mapping;
-+	pgoff_t num_marked;
-+
-+	num_marked =3D apply_as_clean(mapping,
-+				    offset, dirty->bitmap_size,
-+				    offset, &dirty->bitmap[0],
-+				    &dirty->start, &dirty->end);
-+	if (num_marked =3D=3D 0)
-+		dirty->change_count++;
-+	else
-+		dirty->change_count =3D 0;
-+
-+	if (dirty->change_count > VMW_DIRTY_NUM_CHANGE_TRIGGERS) {
-+		dirty->change_count =3D 0;
-+		dirty->method =3D VMW_BO_DIRTY_MKWRITE;
-+		apply_as_wrprotect(mapping,
-+				   offset, dirty->bitmap_size);
-+		apply_as_clean(mapping,
-+			       offset, dirty->bitmap_size,
-+			       offset, &dirty->bitmap[0],
-+			       &dirty->start, &dirty->end);
-+	}
-+}
-+
-+/**
-+ * vmw_bo_dirty_scan_mkwrite - Reset the mkwrite dirty-tracking method
-+ * @vbo: The buffer object to scan
-+ *
-+ * Write-protect pages written to so that consecutive write accesses wil=
-l
-+ * trigger a call to mkwrite.
-+ *
-+ * This function may change the dirty-tracking method.
-+ */
-+static void vmw_bo_dirty_scan_mkwrite(struct vmw_buffer_object *vbo)
-+{
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+	unsigned long offset =3D drm_vma_node_start(&vbo->base.vma_node);
-+	struct address_space *mapping =3D vbo->base.bdev->dev_mapping;
-+	pgoff_t num_marked;
-+
-+	if (dirty->end <=3D dirty->start)
-+		return;
-+
-+	num_marked =3D apply_as_wrprotect(vbo->base.bdev->dev_mapping,
-+					dirty->start + offset,
-+					dirty->end - dirty->start);
-+
-+	if (100UL * num_marked / dirty->bitmap_size >
-+	    VMW_DIRTY_PERCENTAGE) {
-+		dirty->change_count++;
-+	} else {
-+		dirty->change_count =3D 0;
-+	}
-+
-+	if (dirty->change_count > VMW_DIRTY_NUM_CHANGE_TRIGGERS) {
-+		pgoff_t start =3D 0;
-+		pgoff_t end =3D dirty->bitmap_size;
-+
-+		dirty->method =3D VMW_BO_DIRTY_PAGETABLE;
-+		apply_as_clean(mapping, offset, end, offset, &dirty->bitmap[0],
-+			       &start, &end);
-+		bitmap_clear(&dirty->bitmap[0], 0, dirty->bitmap_size);
-+		if (dirty->start < dirty->end)
-+			bitmap_set(&dirty->bitmap[0], dirty->start,
-+				   dirty->end - dirty->start);
-+		dirty->change_count =3D 0;
-+	}
-+}
-+
-+
-+/**
-+ * vmw_bo_dirty_scan - Scan for dirty pages and add them to the dirty
-+ * tracking structure
-+ * @vbo: The buffer object to scan
-+ *
-+ * This function may change the dirty tracking method.
-+ */
-+void vmw_bo_dirty_scan(struct vmw_buffer_object *vbo)
-+{
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+
-+	if (dirty->method =3D=3D VMW_BO_DIRTY_PAGETABLE)
-+		vmw_bo_dirty_scan_pagetable(vbo);
-+	else
-+		vmw_bo_dirty_scan_mkwrite(vbo);
-+}
-+
-+/**
-+ * vmw_bo_dirty_add - Add a dirty-tracking user to a buffer object
-+ * @vbo: The buffer object
-+ *
-+ * This function registers a dirty-tracking user to a buffer object.
-+ * A user can be for example a resource or a vma in a special user-space
-+ * mapping.
-+ *
-+ * Return: Zero on success, -ENOMEM on memory allocation failure.
-+ */
-+int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
-+{
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+	pgoff_t num_pages =3D vbo->base.num_pages;
-+	size_t size, acc_size;
-+	int ret;
-+	static struct ttm_operation_ctx ctx =3D {
-+		.interruptible =3D false,
-+		.no_wait_gpu =3D false
-+	};
-+
-+	if (dirty) {
-+		dirty->ref_count++;
-+		return 0;
-+	}
-+
-+	size =3D sizeof(*dirty) + BITS_TO_LONGS(num_pages) * sizeof(long);
-+	acc_size =3D ttm_round_pot(size);
-+	ret =3D ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
-+	if (ret) {
-+		VMW_DEBUG_USER("Out of graphics memory for buffer object "
-+			       "dirty tracker.\n");
-+		return ret;
-+	}
-+	dirty =3D kvzalloc(size, GFP_KERNEL);
-+	if (!dirty) {
-+		ret =3D -ENOMEM;
-+		goto out_no_dirty;
-+	}
-+
-+	dirty->size =3D acc_size;
-+	dirty->bitmap_size =3D num_pages;
-+	dirty->start =3D dirty->bitmap_size;
-+	dirty->end =3D 0;
-+	dirty->ref_count =3D 1;
-+	if (num_pages < PAGE_SIZE / sizeof(pte_t)) {
-+		dirty->method =3D VMW_BO_DIRTY_PAGETABLE;
-+	} else {
-+		struct address_space *mapping =3D vbo->base.bdev->dev_mapping;
-+		pgoff_t offset =3D drm_vma_node_start(&vbo->base.vma_node);
-+
-+		dirty->method =3D VMW_BO_DIRTY_MKWRITE;
-+
-+		/* Write-protect and then pick up already dirty bits */
-+		apply_as_wrprotect(mapping, offset, num_pages);
-+		apply_as_clean(mapping, offset, num_pages, offset,
-+			       &dirty->bitmap[0], &dirty->start, &dirty->end);
-+	}
-+
-+	vbo->dirty =3D dirty;
-+
-+	return 0;
-+
-+out_no_dirty:
-+	ttm_mem_global_free(&ttm_mem_glob, acc_size);
+ 	 * Speculatively prefault a number of pages. Only error on
+ 	 * first page.
+ 	 */
+-	for (i =3D 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
++	for (i =3D 0; i < num_prefault; ++i) {
+ 		if (bo->mem.bus.is_iomem) {
+-			/* Iomem should not be marked encrypted */
+-			cvma.vm_page_prot =3D pgprot_decrypted(cvma.vm_page_prot);
+ 			pfn =3D ttm_bo_io_mem_pfn(bo, page_offset);
+ 		} else {
+ 			page =3D ttm->pages[page_offset];
+@@ -295,8 +307,28 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *v=
+mf)
+ 	ret =3D VM_FAULT_NOPAGE;
+ out_io_unlock:
+ 	ttm_mem_io_unlock(man);
+-out_unlock:
 +	return ret;
 +}
++EXPORT_SYMBOL(ttm_bo_vm_fault_reserved);
 +
-+/**
-+ * vmw_bo_dirty_release - Release a dirty-tracking user from a buffer ob=
-ject
-+ * @vbo: The buffer object
-+ *
-+ * This function releases a dirty-tracking user from a buffer object.
-+ * If the reference count reaches zero, then the dirty-tracking object i=
-s
-+ * freed and the pointer to it cleared.
-+ *
-+ * Return: Zero on success, -ENOMEM on memory allocation failure.
-+ */
-+void vmw_bo_dirty_release(struct vmw_buffer_object *vbo)
-+{
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+
-+	if (dirty && --dirty->ref_count =3D=3D 0) {
-+		size_t acc_size =3D dirty->size;
-+
-+		kvfree(dirty);
-+		ttm_mem_global_free(&ttm_mem_glob, acc_size);
-+		vbo->dirty =3D NULL;
-+	}
-+}
-+
-+/**
-+ * vmw_bo_dirty_transfer_to_res - Pick up a resource's dirty region from
-+ * its backing mob.
-+ * @res: The resource
-+ *
-+ * This function will pick up all dirty ranges affecting the resource fr=
-om
-+ * it's backup mob, and call vmw_resource_dirty_update() once for each
-+ * range. The transferred ranges will be cleared from the backing mob's
-+ * dirty tracking.
-+ */
-+void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res)
-+{
-+	struct vmw_buffer_object *vbo =3D res->backup;
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+	pgoff_t start, cur, end;
-+	unsigned long res_start =3D res->backup_offset;
-+	unsigned long res_end =3D res->backup_offset + res->backup_size;
-+
-+	WARN_ON_ONCE(res_start & ~PAGE_MASK);
-+	res_start >>=3D PAGE_SHIFT;
-+	res_end =3D DIV_ROUND_UP(res_end, PAGE_SIZE);
-+
-+	if (res_start >=3D dirty->end || res_end <=3D dirty->start)
-+		return;
-+
-+	cur =3D max(res_start, dirty->start);
-+	res_end =3D max(res_end, dirty->end);
-+	while (cur < res_end) {
-+		unsigned long num;
-+
-+		start =3D find_next_bit(&dirty->bitmap[0], res_end, cur);
-+		if (start >=3D res_end)
-+			break;
-+
-+		end =3D find_next_zero_bit(&dirty->bitmap[0], res_end, start + 1);
-+		cur =3D end + 1;
-+		num =3D end - start;
-+		bitmap_clear(&dirty->bitmap[0], start, num);
-+		vmw_resource_dirty_update(res, start, end);
-+	}
-+
-+	if (res_start <=3D dirty->start && res_end > dirty->start)
-+		dirty->start =3D res_end;
-+	if (res_start < dirty->end && res_end >=3D dirty->end)
-+		dirty->end =3D res_start;
-+}
-+
-+/**
-+ * vmw_bo_dirty_clear_res - Clear a resource's dirty region from
-+ * its backing mob.
-+ * @res: The resource
-+ *
-+ * This function will clear all dirty ranges affecting the resource from
-+ * it's backup mob's dirty tracking.
-+ */
-+void vmw_bo_dirty_clear_res(struct vmw_resource *res)
-+{
-+	unsigned long res_start =3D res->backup_offset;
-+	unsigned long res_end =3D res->backup_offset + res->backup_size;
-+	struct vmw_buffer_object *vbo =3D res->backup;
-+	struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+
-+	res_start >>=3D PAGE_SHIFT;
-+	res_end =3D DIV_ROUND_UP(res_end, PAGE_SIZE);
-+
-+	if (res_start >=3D dirty->end || res_end <=3D dirty->start)
-+		return;
-+
-+	res_start =3D max(res_start, dirty->start);
-+	res_end =3D min(res_end, dirty->end);
-+	bitmap_clear(&dirty->bitmap[0], res_start, res_end - res_start);
-+
-+	if (res_start <=3D dirty->start && res_end > dirty->start)
-+		dirty->start =3D res_end;
-+	if (res_start < dirty->end && res_end >=3D dirty->end)
-+		dirty->end =3D res_start;
-+}
-+
-+vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
++static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 +{
 +	struct vm_area_struct *vma =3D vmf->vma;
-+	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
-+	    vma->vm_private_data;
-+	vm_fault_t ret;
-+	unsigned long page_offset;
-+	unsigned int save_flags;
-+	struct vmw_buffer_object *vbo =3D
-+		container_of(bo, typeof(*vbo), base);
-+
-+	/*
-+	 * mkwrite() doesn't handle the VM_FAULT_RETRY return value correctly.
-+	 * So make sure the TTM helpers are aware.
-+	 */
-+	save_flags =3D vmf->flags;
-+	vmf->flags &=3D ~FAULT_FLAG_ALLOW_RETRY;
-+	ret =3D ttm_bo_vm_reserve(bo, vmf);
-+	vmf->flags =3D save_flags;
-+	if (ret)
-+		return ret;
-+
-+	page_offset =3D vmf->pgoff - drm_vma_node_start(&bo->vma_node);
-+	if (unlikely(page_offset >=3D bo->num_pages)) {
-+		ret =3D VM_FAULT_SIGBUS;
-+		goto out_unlock;
-+	}
-+
-+	if (vbo->dirty && vbo->dirty->method =3D=3D VMW_BO_DIRTY_MKWRITE &&
-+	    !test_bit(page_offset, &vbo->dirty->bitmap[0])) {
-+		struct vmw_bo_dirty *dirty =3D vbo->dirty;
-+
-+		__set_bit(page_offset, &dirty->bitmap[0]);
-+		dirty->start =3D min(dirty->start, page_offset);
-+		dirty->end =3D max(dirty->end, page_offset + 1);
-+	}
-+
-+out_unlock:
-+	reservation_object_unlock(bo->resv);
-+	return ret;
-+}
-+
-+vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
-+{
-+	struct vm_area_struct *vma =3D vmf->vma;
-+	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
-+	    vma->vm_private_data;
-+	struct vmw_buffer_object *vbo =3D
-+		container_of(bo, struct vmw_buffer_object, base);
-+	pgoff_t num_prefault;
 +	pgprot_t prot;
++	struct ttm_buffer_object *bo =3D vma->vm_private_data;
 +	vm_fault_t ret;
 +
 +	ret =3D ttm_bo_vm_reserve(bo, vmf);
 +	if (ret)
 +		return ret;
 +
-+	/*
-+	 * This will cause mkwrite() to be called for each pte on
-+	 * write-enable vmas.
-+	 */
-+	if (vbo->dirty && vbo->dirty->method =3D=3D VMW_BO_DIRTY_MKWRITE)
-+		prot =3D vma->vm_page_prot;
-+	else
-+		prot =3D vm_get_page_prot(vma->vm_flags);
-+
-+	num_prefault =3D (vma->vm_flags & VM_RAND_READ) ? 0 :
-+		TTM_BO_VM_NUM_PREFAULT;
-+	ret =3D ttm_bo_vm_fault_reserved(vmf, prot, num_prefault);
++	prot =3D vm_get_page_prot(vma->vm_flags);
++	ret =3D ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT);
 +	if (ret =3D=3D VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT=
 ))
 +		return ret;
 +
-+	reservation_object_unlock(bo->resv);
-+	return ret;
-+}
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_resource.c b/drivers/gpu/drm/v=
-mwgfx/vmwgfx_resource.c
-index 5581a7826b4c..e4c97a4cf2ff 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_resource.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_resource.c
-@@ -119,6 +119,10 @@ static void vmw_resource_release(struct kref *kref)
- 		}
- 		res->backup_dirty =3D false;
- 		vmw_resource_mob_detach(res);
-+		if (res->dirty)
-+			res->func->dirty_free(res);
-+		if (res->coherent)
-+			vmw_bo_dirty_release(res->backup);
- 		ttm_bo_unreserve(bo);
- 		vmw_bo_unreference(&res->backup);
- 	}
-@@ -208,7 +212,9 @@ int vmw_resource_init(struct vmw_private *dev_priv, s=
-truct vmw_resource *res,
- 	res->backup_offset =3D 0;
- 	res->backup_dirty =3D false;
- 	res->res_dirty =3D false;
-+	res->coherent =3D false;
- 	res->used_prio =3D 3;
-+	res->dirty =3D NULL;
- 	if (delay_id)
- 		return 0;
- 	else
-@@ -395,6 +401,30 @@ static int vmw_resource_do_validate(struct vmw_resou=
-rce *res,
- 			vmw_resource_mob_attach(res);
- 	}
+ 	dma_resv_unlock(bo->base.resv);
++
+ 	return ret;
+ }
 =20
-+	/*
-+	 * Handle the case where the backup mob is marked coherent but
-+	 * the resource isn't.
-+	 */
-+	if (func->dirty_alloc && vmw_resource_mob_attached(res) &&
-+	    !res->coherent) {
-+		if (res->backup->dirty && !res->dirty) {
-+			ret =3D func->dirty_alloc(res);
-+			if (ret)
-+				return ret;
-+		} else if (!res->backup->dirty && res->dirty) {
-+			func->dirty_free(res);
-+		}
-+	}
-+
-+	/*
-+	 * Transfer the dirty regions to the resource and update
-+	 * the resource.
-+	 */
-+	if (res->dirty) {
-+		vmw_bo_dirty_transfer_to_res(res);
-+		return func->dirty_sync(res);
-+	}
-+
- 	return 0;
-=20
- out_bind_failed:
-@@ -433,16 +463,28 @@ void vmw_resource_unreserve(struct vmw_resource *re=
-s,
- 	if (switch_backup && new_backup !=3D res->backup) {
- 		if (res->backup) {
- 			vmw_resource_mob_detach(res);
-+			if (res->coherent)
-+				vmw_bo_dirty_release(res->backup);
- 			vmw_bo_unreference(&res->backup);
- 		}
-=20
- 		if (new_backup) {
- 			res->backup =3D vmw_bo_reference(new_backup);
-+
-+			/*
-+			 * The validation code should already have added a
-+			 * dirty tracker here.
-+			 */
-+			WARN_ON(res->coherent && !new_backup->dirty);
-+
- 			vmw_resource_mob_attach(res);
- 		} else {
- 			res->backup =3D NULL;
- 		}
-+	} else if (switch_backup && res->coherent) {
-+		vmw_bo_dirty_release(res->backup);
- 	}
-+
- 	if (switch_backup)
- 		res->backup_offset =3D new_backup_offset;
-=20
-@@ -1008,3 +1050,18 @@ enum vmw_res_type vmw_res_type(const struct vmw_re=
-source *res)
+diff --git a/include/drm/ttm/ttm_bo_api.h b/include/drm/ttm/ttm_bo_api.h
+index 43c4929a2171..d7ad8721d641 100644
+--- a/include/drm/ttm/ttm_bo_api.h
++++ b/include/drm/ttm/ttm_bo_api.h
+@@ -785,4 +785,14 @@ static inline bool ttm_bo_uses_embedded_gem_object(s=
+truct ttm_buffer_object *bo)
  {
- 	return res->func->res_type;
+ 	return bo->base.dev !=3D NULL;
  }
 +
-+/**
-+ * vmw_resource_update_dirty - Update a resource's dirty tracker with a
-+ * sequential range of touched backing store memory.
-+ * @res: The resource.
-+ * @start: The first page touched.
-+ * @end: The last page touched + 1.
-+ */
-+void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
-+			       pgoff_t end)
-+{
-+	if (res->dirty)
-+		res->func->dirty_range_add(res, start << PAGE_SHIFT,
-+					   end << PAGE_SHIFT);
-+}
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_resource_priv.h b/drivers/gpu/=
-drm/vmwgfx/vmwgfx_resource_priv.h
-index 984e588c62ca..c85144286cfe 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_resource_priv.h
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_resource_priv.h
-@@ -71,6 +71,12 @@ struct vmw_user_resource_conv {
-  * @commit_notify:     If the resource is a command buffer managed resou=
-rce,
-  *                     callback to notify that a define or remove comman=
-d
-  *                     has been committed to the device.
-+ * @dirty_alloc:       Allocate a dirty tracker. NULL if dirty-tracking =
-is not
-+ *                     supported.
-+ * @dirty_free:        Free the dirty tracker.
-+ * @dirty_sync:        Upload the dirty mob contents to the resource.
-+ * @dirty_add_range:   Add a sequential dirty range to the resource
-+ *                     dirty tracker.
-  */
- struct vmw_res_func {
- 	enum vmw_res_type res_type;
-@@ -90,6 +96,11 @@ struct vmw_res_func {
- 		       struct ttm_validate_buffer *val_buf);
- 	void (*commit_notify)(struct vmw_resource *res,
- 			      enum vmw_cmdbuf_res_state state);
-+	int (*dirty_alloc)(struct vmw_resource *res);
-+	void (*dirty_free)(struct vmw_resource *res);
-+	int (*dirty_sync)(struct vmw_resource *res);
-+	void (*dirty_range_add)(struct vmw_resource *res, size_t start,
-+				 size_t end);
- };
-=20
- /**
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_validation.c b/drivers/gpu/drm=
-/vmwgfx/vmwgfx_validation.c
-index f611b2290a1b..71349a7bae90 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_validation.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_validation.c
-@@ -33,6 +33,8 @@
-  * struct vmw_validation_bo_node - Buffer object validation metadata.
-  * @base: Metadata used for TTM reservation- and validation.
-  * @hash: A hash entry used for the duplicate detection hash table.
-+ * @coherent_count: If switching backup buffers, number of new coherent
-+ * resources that will have this buffer as a backup buffer.
-  * @as_mob: Validate as mob.
-  * @cpu_blit: Validate for cpu blit access.
-  *
-@@ -42,6 +44,7 @@
- struct vmw_validation_bo_node {
- 	struct ttm_validate_buffer base;
- 	struct drm_hash_item hash;
-+	unsigned int coherent_count;
- 	u32 as_mob : 1;
- 	u32 cpu_blit : 1;
- };
-@@ -459,6 +462,19 @@ int vmw_validation_res_reserve(struct vmw_validation=
-_context *ctx,
- 			if (ret)
- 				goto out_unreserve;
- 		}
++/* Default number of pre-faulted pages in the TTM fault handler */
++#define TTM_BO_VM_NUM_PREFAULT 16
 +
-+		if (val->switching_backup && val->new_backup &&
-+		    res->coherent) {
-+			struct vmw_validation_bo_node *bo_node =3D
-+				vmw_validation_find_bo_dup(ctx,
-+							   val->new_backup);
++vm_fault_t ttm_bo_vm_reserve(struct ttm_buffer_object *bo,
++			     struct vm_fault *vmf);
 +
-+			if (WARN_ON(!bo_node)) {
-+				ret =3D -EINVAL;
-+				goto out_unreserve;
-+			}
-+			bo_node->coherent_count++;
-+		}
- 	}
-=20
- 	return 0;
-@@ -562,6 +578,9 @@ int vmw_validation_bo_validate(struct vmw_validation_=
-context *ctx, bool intr)
- 	int ret;
-=20
- 	list_for_each_entry(entry, &ctx->bo_list, base.head) {
-+		struct vmw_buffer_object *vbo =3D
-+			container_of(entry->base.bo, typeof(*vbo), base);
-+
- 		if (entry->cpu_blit) {
- 			struct ttm_operation_ctx ctx =3D {
- 				.interruptible =3D intr,
-@@ -576,6 +595,27 @@ int vmw_validation_bo_validate(struct vmw_validation=
-_context *ctx, bool intr)
- 		}
- 		if (ret)
- 			return ret;
-+
-+		/*
-+		 * Rather than having the resource code allocating the bo
-+		 * dirty tracker in resource_unreserve() where we can't fail,
-+		 * Do it here when validating the buffer object.
-+		 */
-+		if (entry->coherent_count) {
-+			unsigned int coherent_count =3D entry->coherent_count;
-+
-+			while (coherent_count) {
-+				ret =3D vmw_bo_dirty_add(vbo);
-+				if (ret)
-+					return ret;
-+
-+				coherent_count--;
-+			}
-+			entry->coherent_count -=3D coherent_count;
-+		}
-+
-+		if (vbo->dirty)
-+			vmw_bo_dirty_scan(vbo);
- 	}
- 	return 0;
- }
-@@ -828,3 +868,34 @@ int vmw_validation_preload_res(struct vmw_validation=
-_context *ctx,
- 	ctx->mem_size_left +=3D size;
- 	return 0;
- }
-+
-+/**
-+ * vmw_validation_bo_backoff - Unreserve buffer objects registered with =
-a
-+ * validation context
-+ * @ctx: The validation context
-+ *
-+ * This function unreserves the buffer objects previously reserved using
-+ * vmw_validation_bo_reserve. It's typically used as part of an error pa=
-th
-+ */
-+void vmw_validation_bo_backoff(struct vmw_validation_context *ctx)
-+{
-+	struct vmw_validation_bo_node *entry;
-+
-+	/*
-+	 * Switching coherent resource backup buffers failed.
-+	 * Release corresponding buffer object dirty trackers.
-+	 */
-+	list_for_each_entry(entry, &ctx->bo_list, base.head) {
-+		if (entry->coherent_count) {
-+			unsigned int coherent_count =3D entry->coherent_count;
-+			struct vmw_buffer_object *vbo =3D
-+				container_of(entry->base.bo, typeof(*vbo),
-+					     base);
-+
-+			while (coherent_count--)
-+				vmw_bo_dirty_release(vbo);
-+		}
-+	}
-+
-+	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->bo_list);
-+}
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_validation.h b/drivers/gpu/drm=
-/vmwgfx/vmwgfx_validation.h
-index 0e063743dd86..4cee3f732588 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_validation.h
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_validation.h
-@@ -173,20 +173,6 @@ vmw_validation_bo_reserve(struct vmw_validation_cont=
-ext *ctx,
- 				      NULL, true);
- }
-=20
--/**
-- * vmw_validation_bo_backoff - Unreserve buffer objects registered with =
-a
-- * validation context
-- * @ctx: The validation context
-- *
-- * This function unreserves the buffer objects previously reserved using
-- * vmw_validation_bo_reserve. It's typically used as part of an error pa=
-th
-- */
--static inline void
--vmw_validation_bo_backoff(struct vmw_validation_context *ctx)
--{
--	ttm_eu_backoff_reservation(&ctx->ticket, &ctx->bo_list);
--}
--
- /**
-  * vmw_validation_bo_fence - Unreserve and fence buffer objects register=
-ed
-  * with a validation context
-@@ -269,4 +255,6 @@ int vmw_validation_preload_res(struct vmw_validation_=
-context *ctx,
- 			       unsigned int size);
- void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
- 				  void *val_private, u32 dirty);
-+void vmw_validation_bo_backoff(struct vmw_validation_context *ctx);
-+
++vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
++				    pgprot_t prot,
++				    pgoff_t num_prefault);
  #endif
 --=20
 2.20.1
