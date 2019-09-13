@@ -2,206 +2,255 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71BEFC4CEC6
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:46:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 775E7C49ED7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 05:58:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FA1B2084D
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:46:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ov0Eu2b4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FA1B2084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0872E20CC7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 05:58:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0872E20CC7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 69AF06B0005; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
+	id 6D12D6B0005; Fri, 13 Sep 2019 01:58:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 624F06B0006; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
+	id 6595C6B0006; Fri, 13 Sep 2019 01:58:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4ED0C6B0007; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
+	id 548376B0007; Fri, 13 Sep 2019 01:58:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C406B0005
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E1B5F181AC9AE
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:46:16 +0000 (UTC)
-X-FDA: 75928358352.25.watch17_70fc9357fd406
-X-HE-Tag: watch17_70fc9357fd406
-X-Filterd-Recvd-Size: 8658
-Received: from mail-yw1-f65.google.com (mail-yw1-f65.google.com [209.85.161.65])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:46:16 +0000 (UTC)
-Received: by mail-yw1-f65.google.com with SMTP id x82so420842ywd.12
-        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:46:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=zLkW+74wc48chMaJ/KVuQ7uRrxWQIHDU9l5rh4JtIOY=;
-        b=ov0Eu2b4I7Q12uq0yRcdvZeS638ThpP0iTtsvSfkqDaN3X5+nLqrTerinuZIfna51K
-         ER7JlMfi5/Xu1xECvpsZcwQmhvhwoLwRqAPlPWqHJtZA7E3crnhbm2dtm58n6JAXzaQf
-         2T0+yGLXET7Xb/mVjCPGiy29t7BebbCUCgQvtmhJenAsZrYgFnd3UBsdjOcz1nBBeixn
-         RWF1cIKC/XL5R85ZJoORWeIr7lVJxbiTwBsMdRvb0/1jCmuU1W8iNdIVbzoEOl5sYa+C
-         fS9XTVFXDaMoKeVfsnierV2HeVhjobRSLZFev3F2n/AbX8NhzyhVUqkaoCWdqZ+qdRob
-         6p2Q==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=zLkW+74wc48chMaJ/KVuQ7uRrxWQIHDU9l5rh4JtIOY=;
-        b=bGHYLIpM0T55w0GGVaqLOssvqYJ8b1V0/yMc3kYunV25pRjgZ+4Hv6f0ieLyJ0AFWQ
-         TYTJ1+CIDCjddr7EN3Le6DZpqYTIViy3iJdTFXaWg7jcMzzQ8IKDa9tuFBx2H4qponkQ
-         zoR+zepo+QTyReNyUjAdDBb1xI4puOUNygQ0esjIj/NPlPZP9SVyhDPr29SX9rC39gpL
-         0HbE2WzOzkUH4rTRzqtce7CRGfVGbhzF8MDe4O2IFV3LBqpNfkP1U1qHiSdF5KKYIxDf
-         4nhXKRU5N/PKwjKV9FDH5g7NI5vCA2mYxC/jVVs/JkiUX8PeBxRtTUJx4RTXEBIAzDTU
-         JHdQ==
-X-Gm-Message-State: APjAAAVFdQr+x8NdxaFX6x74LKGOyG4PssO5j8Ybj6/tw79d/vwUxe9A
-	c5wOJOdrlkmEaEma7IQXyDrJkoue37Edj81Msnk9gA==
-X-Google-Smtp-Source: APXvYqxVM4s8F4BS1Zlcn5M6gNmvcyM6ChJG6gCcHFmoDtUB11R5vxC7LO/naIitvw995GJ4Ao0m100O1UmzFVjsq2k=
-X-Received: by 2002:a81:30c3:: with SMTP id w186mr27042004yww.10.1568342775235;
- Thu, 12 Sep 2019 19:46:15 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0157.hostedemail.com [216.40.44.157])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA6A6B0005
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 01:58:01 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C5117181AC9AE
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:58:00 +0000 (UTC)
+X-FDA: 75928841520.29.rate62_28b32342e110c
+X-HE-Tag: rate62_28b32342e110c
+X-Filterd-Recvd-Size: 10141
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:57:59 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 48CCF337;
+	Thu, 12 Sep 2019 22:57:58 -0700 (PDT)
+Received: from [10.162.41.125] (p8cg001049571a15.blr.arm.com [10.162.41.125])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C08F33F67D;
+	Thu, 12 Sep 2019 23:00:20 -0700 (PDT)
+Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+ will@kernel.org, mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
+ david@redhat.com, cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com,
+ mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
+ steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
+ Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
+References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+ <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
+ <20190912201517.GB1068@C02TF0J2HF1T.local>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <ce127798-3863-0f28-de04-84b177418310@arm.com>
+Date: Fri, 13 Sep 2019 11:28:01 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
- <20190906125608.32129-1-mhocko@kernel.org> <CALvZod5w72jH8fJSFRaw7wgQTnzF6nb=+St-sSXVGSiG6Bs3Lg@mail.gmail.com>
- <20190909112245.GH27159@dhcp22.suse.cz> <20190911120002.GQ4023@dhcp22.suse.cz>
- <20190911073740.b5c40cd47ea845884e25e265@linux-foundation.org> <20190911151612.GI4023@dhcp22.suse.cz>
-In-Reply-To: <20190911151612.GI4023@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 12 Sep 2019 19:46:04 -0700
-Message-ID: <CALvZod65jCCH+fHqAQwk0RTZhyhxG71F-sHE7qxrmZ_L1tDbvw@mail.gmail.com>
-Subject: Re: [PATCH] memcg, kmem: do not fail __GFP_NOFAIL charges
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Thomas Lindroth <thomas.lindroth@gmail.com>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190912201517.GB1068@C02TF0J2HF1T.local>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 11, 2019 at 8:16 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Wed 11-09-19 07:37:40, Andrew Morton wrote:
-> > On Wed, 11 Sep 2019 14:00:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > > On Mon 09-09-19 13:22:45, Michal Hocko wrote:
-> > > > On Fri 06-09-19 11:24:55, Shakeel Butt wrote:
-> > > [...]
-> > > > > I wonder what has changed since
-> > > > > <http://lkml.kernel.org/r/20180525185501.82098-1-shakeelb@google.com/>.
-> > > >
-> > > > I have completely forgot about that one. It seems that we have just
-> > > > repeated the same discussion again. This time we have a poor user who
-> > > > actually enabled the kmem limit.
-> > > >
-> > > > I guess there was no real objection to the change back then. The primary
-> > > > discussion revolved around the fact that the accounting will stay broken
-> > > > even when this particular part was fixed. Considering this leads to easy
-> > > > to trigger crash (with the limit enabled) then I guess we should just
-> > > > make it less broken and backport to stable trees and have a serious
-> > > > discussion about discontinuing of the limit. Start by simply failing to
-> > > > set any limit in the current upstream kernels.
-> > >
-> > > Any more concerns/objections to the patch? I can add a reference to your
-> > > earlier post Shakeel if you want or to credit you the way you prefer.
-> > >
-> > > Also are there any objections to start deprecating process of kmem
-> > > limit? I would see it in two stages
-> > > - 1st warn in the kernel log
-> > >     pr_warn("kmem.limit_in_bytes is deprecated and will be removed.
-> > >             "Please report your usecase to linux-mm@kvack.org if you "
-> > >             "depend on this functionality."
-> >
-> > pr_warn_once() :)
-> >
-> > > - 2nd fail any write to kmem.limit_in_bytes
-> > > - 3rd remove the control file completely
-> >
-> > Sounds good to me.
->
-> Here we go
->
-> From 512822e551fe2960040c23b12c7b27a5fdab9013 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Wed, 11 Sep 2019 17:02:33 +0200
-> Subject: [PATCH] memcg, kmem: deprecate kmem.limit_in_bytes
->
-> Cgroup v1 memcg controller has exposed a dedicated kmem limit to users
-> which turned out to be really a bad idea because there are paths which
-> cannot shrink the kernel memory usage enough to get below the limit
-> (e.g. because the accounted memory is not reclaimable). There are cases
-> when the failure is even not allowed (e.g. __GFP_NOFAIL). This means
-> that the kmem limit is in excess to the hard limit without any way to
-> shrink and thus completely useless. OOM killer cannot be invoked to
-> handle the situation because that would lead to a premature oom killing.
->
-> As a result many places might see ENOMEM returning from kmalloc and
-> result in unexpected errors. E.g. a global OOM killer when there is a
-> lot of free memory because ENOMEM is translated into VM_FAULT_OOM in #PF
-> path and therefore pagefault_out_of_memory would result in OOM killer.
->
-> Please note that the kernel memory is still accounted to the overall
-> limit along with the user memory so removing the kmem specific limit
-> should still allow to contain kernel memory consumption. Unlike the kmem
-> one, though, it invokes memory reclaim and targeted memcg oom killing if
-> necessary.
->
-> Start the deprecation process by crying to the kernel log. Let's see
-> whether there are relevant usecases and simply return to EINVAL in the
-> second stage if nobody complains in few releases.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 09/13/2019 01:45 AM, Catalin Marinas wrote:
+> Hi Anshuman,
+> 
+> Thanks for the details on the need for removing the page tables and
+> vmemmap backing. Some comments on the code below.
+> 
+> On Tue, Sep 03, 2019 at 03:15:58PM +0530, Anshuman Khandual wrote:
+>> --- a/arch/arm64/mm/mmu.c
+>> +++ b/arch/arm64/mm/mmu.c
+>> @@ -60,6 +60,14 @@ static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
+>>  
+>>  static DEFINE_SPINLOCK(swapper_pgdir_lock);
+>>  
+>> +/*
+>> + * This represents if vmalloc and vmemmap address range overlap with
+>> + * each other on an intermediate level kernel page table entry which
+>> + * in turn helps in deciding whether empty kernel page table pages
+>> + * if any can be freed during memory hotplug operation.
+>> + */
+>> +static bool vmalloc_vmemmap_overlap;
+> 
+> I'd say just move the static find_vmalloc_vmemmap_overlap() function
+> here, the compiler should be sufficiently smart enough to figure out
+> that it's just a build-time constant.
 
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Sure, will do.
 
-> ---
->  Documentation/admin-guide/cgroup-v1/memory.rst | 3 +++
->  mm/memcontrol.c                                | 3 +++
->  2 files changed, 6 insertions(+)
->
-> diff --git a/Documentation/admin-guide/cgroup-v1/memory.rst b/Documentation/admin-guide/cgroup-v1/memory.rst
-> index 41bdc038dad9..e53fc2f31549 100644
-> --- a/Documentation/admin-guide/cgroup-v1/memory.rst
-> +++ b/Documentation/admin-guide/cgroup-v1/memory.rst
-> @@ -87,6 +87,9 @@ Brief summary of control files.
->                                      node
->
->   memory.kmem.limit_in_bytes          set/show hard limit for kernel memory
-> +                                     This knob is deprecated it shouldn't be
-> +                                     used. It is planned to be removed in
-> +                                     a foreseeable future.
->   memory.kmem.usage_in_bytes          show current kernel memory allocation
->   memory.kmem.failcnt                 show the number of kernel memory usage
->                                      hits limits
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e18108b2b786..113969bc57e8 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3518,6 +3518,9 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
->                         ret = mem_cgroup_resize_max(memcg, nr_pages, true);
->                         break;
->                 case _KMEM:
-> +                       pr_warn_once("kmem.limit_in_bytes is deprecated and will be removed. "
-> +                                    "Please report your usecase to linux-mm@kvack.org if you "
-> +                                    "depend on this functionality.\n");
->                         ret = memcg_update_kmem_max(memcg, nr_pages);
->                         break;
->                 case _TCP:
-> --
-> 2.20.1
->
->
-> --
-> Michal Hocko
-> SUSE Labs
+> 
+>> @@ -770,6 +1022,28 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+>>  void vmemmap_free(unsigned long start, unsigned long end,
+>>  		struct vmem_altmap *altmap)
+>>  {
+>> +#ifdef CONFIG_MEMORY_HOTPLUG
+>> +	/*
+>> +	 * FIXME: We should have called remove_pagetable(start, end, true).
+>> +	 * vmemmap and vmalloc virtual range might share intermediate kernel
+>> +	 * page table entries. Removing vmemmap range page table pages here
+>> +	 * can potentially conflict with a concurrent vmalloc() allocation.
+>> +	 *
+>> +	 * This is primarily because vmalloc() does not take init_mm ptl for
+>> +	 * the entire page table walk and it's modification. Instead it just
+>> +	 * takes the lock while allocating and installing page table pages
+>> +	 * via [p4d|pud|pmd|pte]_alloc(). A concurrently vanishing page table
+>> +	 * entry via memory hot remove can cause vmalloc() kernel page table
+>> +	 * walk pointers to be invalid on the fly which can cause corruption
+>> +	 * or worst, a crash.
+>> +	 *
+>> +	 * So free_empty_tables() gets called where vmalloc and vmemmap range
+>> +	 * do not overlap at any intermediate level kernel page table entry.
+>> +	 */
+>> +	unmap_hotplug_range(start, end, true);
+>> +	if (!vmalloc_vmemmap_overlap)
+>> +		free_empty_tables(start, end);
+>> +#endif
+>>  }
+> 
+> So, I see the risk with overlapping and I guess for some kernel
+> configurations (PAGE_SIZE == 64K) we may not be able to avoid it. If we
+
+Did not see 64K config options to have overlap, do you suspect they might ?
+After the 52 bit KVA series has been merged, following configurations have
+the vmalloc-vmemmap range overlap problem.
+
+- 4K  page size with 48 bit VA space
+- 16K page size with 48 bit VA space
+
+> can, that's great, otherwise could we rewrite the above functions to
+> handle floor and ceiling similar to free_pgd_range()? (I wonder how this
+> function works if you called it on init_mm and kernel address range). By
+
+Hmm, never tried that. Are you wondering if this can be used directly ?
+There are two distinct elements which make it very specific to user page
+tables, mmu_gather based TLB tracking and mm->pgtable_bytes accounting
+with mm_dec_nr_pxx().
+
+> having the vmemmap start/end information it avoids freeing partially
+> filled page table pages.
+
+Did you mean page table pages which can partially overlap with vmalloc ?
+
+The problem (race) is not because of the inability to deal with partially
+filled table. We can handle that correctly as explained below [1]. The
+problem is with inadequate kernel page table locking during vmalloc()
+which might be accessing intermediate kernel page table pointers which is
+being freed with free_empty_tables() concurrently. Hence we cannot free
+any page table page which can ever have entries from vmalloc() range.
+
+Though not completely sure, whether I really understood the suggestion above
+with respect to the floor-ceiling mechanism as in free_pgd_range(). Are you
+suggesting that we should only attempt to free up those vmemmap range page
+table pages which *definitely* could never overlap with vmalloc by working
+on a modified (i.e cut down with floor-ceiling while avoiding vmalloc range
+at each level) vmemmap range instead ? This can be one restrictive version of
+the function free_empty_tables() called in case there is an overlap. So we
+will maintain two versions for free_empty_tables(). Please correct me if any
+the above assumptions or understanding is wrong.
+
+But yes, with this we should be able to free up some possible empty page
+table pages which were being left out in the current proposal when overlap
+happens.
+
+[1] Skipping partially filled page tables
+
+All free_pXX_table() functions take care in avoiding freeing partially filled
+page table pages whether they represent or ever represented linear or vmemmap
+or vmalloc mapping in init_mm. They go over each individual entry in a given
+page table making sure that each of them checks as pXX_none() before freeing
+the entire page table page.
+
+Though walking is restricted by the address range in question.
+
+free_empty_tables(start, end)
+	free_empty_pud_table(pgdp, addr, next);
+		free_empty_pmd_table(pudp, addr, next);
+			free_empty_pte_table(pmdp, addr, next);
+
+Page table pages being examined here on the way while freeing might contain
+entries which once represented address beyond vmemmap range in removal. But
+thats a good thing IMHO. It can accommodate vmemmap tear down from a previous
+hot remove for an adjacent range which might not have been freed last time.
+
+pudp = pud_offset(pgdp, 0UL);
+pmdp = pmd_offset(pudp, 0UL);
+ptep = pte_offset_kernel(pmdp, 0UL);
+
+pxx_none() makes sure that in such cases freeing of the page table page is
+skipped. But yes, even though it is more thorough, it might attempt to free
+page table pages which might contains entries not belonging to the range
+being removed.
+
+> 
+> Another question: could we do the page table and the actual vmemmap
+> pages freeing in a single pass (sorry if this has been discussed
+> before)?
+
+We could and some initial versions (till V5) of the series had that in fact.
+Initially Mark Rutland had suggested to do this in two passes. Some extracts
+from the previous discussion.
+
+https://lkml.org/lkml/2019/5/30/1159
+
+-----------------------
+Looking at this some more, I don't think this is quite right, and tI
+think that structure of the free_*() and remove_*() functions makes this
+unnecessarily hard to follow. We should aim for this to be obviously
+correct.
+
+The x86 code is the best template to follow here. As mentioned
+previously, I'm fairly certain it's not entirely correct (e.g. due to
+missing TLB maintenance), and we've already diverged a fair amount in
+fixing up obvious issues, so we shouldn't aim to mirror it.
+
+I think that the structure of unmap_region() is closer to what we want
+here -- do one pass to unmap leaf entries (and freeing the associated
+memory if unmapping the vmemmap), then do a second pass cleaning up any
+empty tables.
+----------------------
+
+Apart from the fact that two passes over the page table is cleaner and gives
+us more granular and modular infrastructure to use for later purposes, it is
+also a necessity in dealing with vmalloc-vmemmap overlap. free_empty_tables()
+which is the second pass, can be skipped cleanly when overlap is detected.
+
+> 
+>> @@ -1048,10 +1322,18 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
+>>  }
+>>  
+>>  #ifdef CONFIG_MEMORY_HOTPLUG
+>> +static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
+>> +{
+>> +	unsigned long end = start + size;
+>> +
+>> +	WARN_ON(pgdir != init_mm.pgd);
+>> +	remove_pagetable(start, end, false);
+>> +}
+> 
+> I think the point I've made previously still stands: you only call
+> remove_pagetable() with sparse_vmap == false in this patch. Just remove
+> the extra argument and call unmap_hotplug_range() with sparse_vmap ==
+> false directly in remove_pagetable().
+
+Sure, will do. The original function signature was left unchanged in the hope
+that at a later point in time it can be called with "sparse_vmap == true" as
+mentioned by the comment in vmemmap_free(). Will change the comment as well.
 
