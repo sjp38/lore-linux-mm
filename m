@@ -2,178 +2,206 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FF4EC4CEC7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:00:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71BEFC4CEC6
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:46:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5ADD820693
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:00:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5ADD820693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0FA1B2084D
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 02:46:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ov0Eu2b4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FA1B2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C622C6B0007; Thu, 12 Sep 2019 22:00:57 -0400 (EDT)
+	id 69AF06B0005; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C15756B0008; Thu, 12 Sep 2019 22:00:57 -0400 (EDT)
+	id 624F06B0006; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B28156B000A; Thu, 12 Sep 2019 22:00:57 -0400 (EDT)
+	id 4ED0C6B0007; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A3C676B0007
-	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 22:00:57 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7682E824376B
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:00:57 +0000 (UTC)
-X-FDA: 75928244154.30.nest50_84be8213c445
-X-HE-Tag: nest50_84be8213c445
-X-Filterd-Recvd-Size: 5954
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:00:56 +0000 (UTC)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8D1ud3I117254;
-	Thu, 12 Sep 2019 22:00:50 -0400
-Received: from pps.reinject (localhost [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uywn4xv48-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 12 Sep 2019 22:00:50 -0400
-Received: from m0098394.ppops.net (m0098394.ppops.net [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x8D1vR0D124274;
-	Thu, 12 Sep 2019 22:00:49 -0400
-Received: from ppma03wdc.us.ibm.com (ba.79.3fa9.ip4.static.sl-reverse.com [169.63.121.186])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2uywn4xv3h-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Thu, 12 Sep 2019 22:00:49 -0400
-Received: from pps.filterd (ppma03wdc.us.ibm.com [127.0.0.1])
-	by ppma03wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8D1sm19022449;
-	Fri, 13 Sep 2019 02:00:48 GMT
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by ppma03wdc.us.ibm.com with ESMTP id 2uytdx37je-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Fri, 13 Sep 2019 02:00:48 +0000
-Received: from b03ledav005.gho.boulder.ibm.com (b03ledav005.gho.boulder.ibm.com [9.17.130.236])
-	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8D20lSw46858692
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 13 Sep 2019 02:00:47 GMT
-Received: from b03ledav005.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 1E896BE058;
-	Fri, 13 Sep 2019 02:00:47 +0000 (GMT)
-Received: from b03ledav005.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7F809BE04F;
-	Fri, 13 Sep 2019 02:00:44 +0000 (GMT)
-Received: from [9.199.46.176] (unknown [9.199.46.176])
-	by b03ledav005.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Fri, 13 Sep 2019 02:00:44 +0000 (GMT)
-Subject: Re: [PATCH 2/3] powperc/mm: read TLB Block Invalidate Characteristics
-To: Laurent Dufour <ldufour@linux.ibm.com>, mpe@ellerman.id.au,
-        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-References: <20190830120712.22971-1-ldufour@linux.ibm.com>
- <20190830120712.22971-3-ldufour@linux.ibm.com> <87impxshfk.fsf@linux.ibm.com>
- <468a53a6-a970-5526-8035-eef59dcf48ed@linux.ibm.com>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Message-ID: <97bafb53-6ae9-1d42-1816-ef81b845b80c@linux.ibm.com>
-Date: Fri, 13 Sep 2019 07:30:42 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+	by kanga.kvack.org (Postfix) with ESMTP id 37C406B0005
+	for <linux-mm@kvack.org>; Thu, 12 Sep 2019 22:46:17 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id E1B5F181AC9AE
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:46:16 +0000 (UTC)
+X-FDA: 75928358352.25.watch17_70fc9357fd406
+X-HE-Tag: watch17_70fc9357fd406
+X-Filterd-Recvd-Size: 8658
+Received: from mail-yw1-f65.google.com (mail-yw1-f65.google.com [209.85.161.65])
+	by imf26.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 02:46:16 +0000 (UTC)
+Received: by mail-yw1-f65.google.com with SMTP id x82so420842ywd.12
+        for <linux-mm@kvack.org>; Thu, 12 Sep 2019 19:46:16 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=zLkW+74wc48chMaJ/KVuQ7uRrxWQIHDU9l5rh4JtIOY=;
+        b=ov0Eu2b4I7Q12uq0yRcdvZeS638ThpP0iTtsvSfkqDaN3X5+nLqrTerinuZIfna51K
+         ER7JlMfi5/Xu1xECvpsZcwQmhvhwoLwRqAPlPWqHJtZA7E3crnhbm2dtm58n6JAXzaQf
+         2T0+yGLXET7Xb/mVjCPGiy29t7BebbCUCgQvtmhJenAsZrYgFnd3UBsdjOcz1nBBeixn
+         RWF1cIKC/XL5R85ZJoORWeIr7lVJxbiTwBsMdRvb0/1jCmuU1W8iNdIVbzoEOl5sYa+C
+         fS9XTVFXDaMoKeVfsnierV2HeVhjobRSLZFev3F2n/AbX8NhzyhVUqkaoCWdqZ+qdRob
+         6p2Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=zLkW+74wc48chMaJ/KVuQ7uRrxWQIHDU9l5rh4JtIOY=;
+        b=bGHYLIpM0T55w0GGVaqLOssvqYJ8b1V0/yMc3kYunV25pRjgZ+4Hv6f0ieLyJ0AFWQ
+         TYTJ1+CIDCjddr7EN3Le6DZpqYTIViy3iJdTFXaWg7jcMzzQ8IKDa9tuFBx2H4qponkQ
+         zoR+zepo+QTyReNyUjAdDBb1xI4puOUNygQ0esjIj/NPlPZP9SVyhDPr29SX9rC39gpL
+         0HbE2WzOzkUH4rTRzqtce7CRGfVGbhzF8MDe4O2IFV3LBqpNfkP1U1qHiSdF5KKYIxDf
+         4nhXKRU5N/PKwjKV9FDH5g7NI5vCA2mYxC/jVVs/JkiUX8PeBxRtTUJx4RTXEBIAzDTU
+         JHdQ==
+X-Gm-Message-State: APjAAAVFdQr+x8NdxaFX6x74LKGOyG4PssO5j8Ybj6/tw79d/vwUxe9A
+	c5wOJOdrlkmEaEma7IQXyDrJkoue37Edj81Msnk9gA==
+X-Google-Smtp-Source: APXvYqxVM4s8F4BS1Zlcn5M6gNmvcyM6ChJG6gCcHFmoDtUB11R5vxC7LO/naIitvw995GJ4Ao0m100O1UmzFVjsq2k=
+X-Received: by 2002:a81:30c3:: with SMTP id w186mr27042004yww.10.1568342775235;
+ Thu, 12 Sep 2019 19:46:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <468a53a6-a970-5526-8035-eef59dcf48ed@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-13_01:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=856 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1908290000 definitions=main-1909130019
-Content-Transfer-Encoding: quoted-printable
+References: <31131c2d-a936-8bbf-e58d-a3baaa457340@gmail.com>
+ <20190906125608.32129-1-mhocko@kernel.org> <CALvZod5w72jH8fJSFRaw7wgQTnzF6nb=+St-sSXVGSiG6Bs3Lg@mail.gmail.com>
+ <20190909112245.GH27159@dhcp22.suse.cz> <20190911120002.GQ4023@dhcp22.suse.cz>
+ <20190911073740.b5c40cd47ea845884e25e265@linux-foundation.org> <20190911151612.GI4023@dhcp22.suse.cz>
+In-Reply-To: <20190911151612.GI4023@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 12 Sep 2019 19:46:04 -0700
+Message-ID: <CALvZod65jCCH+fHqAQwk0RTZhyhxG71F-sHE7qxrmZ_L1tDbvw@mail.gmail.com>
+Subject: Re: [PATCH] memcg, kmem: do not fail __GFP_NOFAIL charges
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+	Thomas Lindroth <thomas.lindroth@gmail.com>, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/13/19 12:56 AM, Laurent Dufour wrote:
-> Le 12/09/2019 =C3=A0 16:44, Aneesh Kumar K.V a =C3=A9crit=C2=A0:
->> Laurent Dufour <ldufour@linux.ibm.com> writes:
+On Wed, Sep 11, 2019 at 8:16 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 11-09-19 07:37:40, Andrew Morton wrote:
+> > On Wed, 11 Sep 2019 14:00:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > > On Mon 09-09-19 13:22:45, Michal Hocko wrote:
+> > > > On Fri 06-09-19 11:24:55, Shakeel Butt wrote:
+> > > [...]
+> > > > > I wonder what has changed since
+> > > > > <http://lkml.kernel.org/r/20180525185501.82098-1-shakeelb@google.com/>.
+> > > >
+> > > > I have completely forgot about that one. It seems that we have just
+> > > > repeated the same discussion again. This time we have a poor user who
+> > > > actually enabled the kmem limit.
+> > > >
+> > > > I guess there was no real objection to the change back then. The primary
+> > > > discussion revolved around the fact that the accounting will stay broken
+> > > > even when this particular part was fixed. Considering this leads to easy
+> > > > to trigger crash (with the limit enabled) then I guess we should just
+> > > > make it less broken and backport to stable trees and have a serious
+> > > > discussion about discontinuing of the limit. Start by simply failing to
+> > > > set any limit in the current upstream kernels.
+> > >
+> > > Any more concerns/objections to the patch? I can add a reference to your
+> > > earlier post Shakeel if you want or to credit you the way you prefer.
+> > >
+> > > Also are there any objections to start deprecating process of kmem
+> > > limit? I would see it in two stages
+> > > - 1st warn in the kernel log
+> > >     pr_warn("kmem.limit_in_bytes is deprecated and will be removed.
+> > >             "Please report your usecase to linux-mm@kvack.org if you "
+> > >             "depend on this functionality."
+> >
+> > pr_warn_once() :)
+> >
+> > > - 2nd fail any write to kmem.limit_in_bytes
+> > > - 3rd remove the control file completely
+> >
+> > Sounds good to me.
+>
+> Here we go
+>
+> From 512822e551fe2960040c23b12c7b27a5fdab9013 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 11 Sep 2019 17:02:33 +0200
+> Subject: [PATCH] memcg, kmem: deprecate kmem.limit_in_bytes
+>
+> Cgroup v1 memcg controller has exposed a dedicated kmem limit to users
+> which turned out to be really a bad idea because there are paths which
+> cannot shrink the kernel memory usage enough to get below the limit
+> (e.g. because the accounted memory is not reclaimable). There are cases
+> when the failure is even not allowed (e.g. __GFP_NOFAIL). This means
+> that the kmem limit is in excess to the hard limit without any way to
+> shrink and thus completely useless. OOM killer cannot be invoked to
+> handle the situation because that would lead to a premature oom killing.
+>
+> As a result many places might see ENOMEM returning from kmalloc and
+> result in unexpected errors. E.g. a global OOM killer when there is a
+> lot of free memory because ENOMEM is translated into VM_FAULT_OOM in #PF
+> path and therefore pagefault_out_of_memory would result in OOM killer.
+>
+> Please note that the kernel memory is still accounted to the overall
+> limit along with the user memory so removing the kmem specific limit
+> should still allow to contain kernel memory consumption. Unlike the kmem
+> one, though, it invokes memory reclaim and targeted memcg oom killing if
+> necessary.
+>
+> Start the deprecation process by crying to the kernel log. Let's see
+> whether there are relevant usecases and simply return to EINVAL in the
+> second stage if nobody complains in few releases.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
->>> +
->>> +=C2=A0=C2=A0=C2=A0 idx =3D 2;
->>> +=C2=A0=C2=A0=C2=A0 while (idx < len) {
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 unsigned int block_size =3D=
- local_buffer[idx++];
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 unsigned int npsize;
->>> +
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (!block_size)
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 b=
-reak;
->>> +
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 block_size =3D 1 << block=
-_size;
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (block_size !=3D 8)
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 /=
-* We only support 8 bytes size TLB invalidate buffer */
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 p=
-r_warn("Unsupported H_BLOCK_REMOVE block size : %d\n",
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 block_size);
->>
->> Should we skip setting block size if we find block_size !=3D 8? Also c=
-an
->> we avoid doing that pr_warn in loop and only warn if we don't find
->> block_size 8 in the invalidate characteristics array?
->=20
-> My idea here is to fully read and process the data returned by the=20
-> hcall, and to put the limitation to 8 when checking before calling=20
-> H_BLOCK_REMOVE.
-> The warning is there because I want it to be displayed once at boot.
->=20
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-
-Can we have two block size reported for the same base page size/actual=20
-page size combination? If so we will overwrite the hblk[actual_psize] ?
-
->>
->>> +
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 for (npsize =3D local_buf=
-fer[idx++];=C2=A0 npsize > 0; npsize--)
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 c=
-heck_lp_set_hblk((unsigned int) local_buffer[idx++],
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 block_size);
->>> +=C2=A0=C2=A0=C2=A0 }
->>> +
->>> +=C2=A0=C2=A0=C2=A0 for (bpsize =3D 0; bpsize < MMU_PAGE_COUNT; bpsiz=
-e++)
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 for (idx =3D 0; idx < MMU=
-_PAGE_COUNT; idx++)
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 i=
-f (mmu_psize_defs[bpsize].hblk[idx])
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 pr_info("H_BLOCK_REMOVE supports base psize:%d=20
->>> psize:%d block size:%d",
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 bpsize, idx,
->>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mmu_psize_defs[bpsize].hblk=
-[idx]);
->>> +
->>> +=C2=A0=C2=A0=C2=A0 return 0;
->>> +}
->>> +machine_arch_initcall(pseries, read_tlbbi_characteristics);
->>> +
->>> =C2=A0 /*
->>> =C2=A0=C2=A0 * Take a spinlock around flushes to avoid bouncing the h=
-ypervisor=20
->>> tlbie
->>> =C2=A0=C2=A0 * lock.
-
--aneesh
+> ---
+>  Documentation/admin-guide/cgroup-v1/memory.rst | 3 +++
+>  mm/memcontrol.c                                | 3 +++
+>  2 files changed, 6 insertions(+)
+>
+> diff --git a/Documentation/admin-guide/cgroup-v1/memory.rst b/Documentation/admin-guide/cgroup-v1/memory.rst
+> index 41bdc038dad9..e53fc2f31549 100644
+> --- a/Documentation/admin-guide/cgroup-v1/memory.rst
+> +++ b/Documentation/admin-guide/cgroup-v1/memory.rst
+> @@ -87,6 +87,9 @@ Brief summary of control files.
+>                                      node
+>
+>   memory.kmem.limit_in_bytes          set/show hard limit for kernel memory
+> +                                     This knob is deprecated it shouldn't be
+> +                                     used. It is planned to be removed in
+> +                                     a foreseeable future.
+>   memory.kmem.usage_in_bytes          show current kernel memory allocation
+>   memory.kmem.failcnt                 show the number of kernel memory usage
+>                                      hits limits
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e18108b2b786..113969bc57e8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3518,6 +3518,9 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+>                         ret = mem_cgroup_resize_max(memcg, nr_pages, true);
+>                         break;
+>                 case _KMEM:
+> +                       pr_warn_once("kmem.limit_in_bytes is deprecated and will be removed. "
+> +                                    "Please report your usecase to linux-mm@kvack.org if you "
+> +                                    "depend on this functionality.\n");
+>                         ret = memcg_update_kmem_max(memcg, nr_pages);
+>                         break;
+>                 case _TCP:
+> --
+> 2.20.1
+>
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
