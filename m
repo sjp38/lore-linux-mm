@@ -2,343 +2,200 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6BC6C4CEC5
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 21:18:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 349F0C49ED7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 22:55:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 871EE206A4
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 21:18:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C1E9F20692
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 22:55:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="a8vMpoPx";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="MRuTWkgj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 871EE206A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gBLn9e9R"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1E9F20692
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0244F6B0007; Fri, 13 Sep 2019 17:18:41 -0400 (EDT)
+	id 24D576B0005; Fri, 13 Sep 2019 18:55:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F16EF6B0008; Fri, 13 Sep 2019 17:18:40 -0400 (EDT)
+	id 1FE106B0006; Fri, 13 Sep 2019 18:55:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DDF7E6B000A; Fri, 13 Sep 2019 17:18:40 -0400 (EDT)
+	id 1147B6B0007; Fri, 13 Sep 2019 18:55:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0052.hostedemail.com [216.40.44.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BCC216B0007
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 17:18:40 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 65D0787D3
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 21:18:40 +0000 (UTC)
-X-FDA: 75931161600.12.nail19_4b9c6e331bc22
-X-HE-Tag: nail19_4b9c6e331bc22
-X-Filterd-Recvd-Size: 13467
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 21:18:39 +0000 (UTC)
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x8DLIbt1013239;
-	Fri, 13 Sep 2019 14:18:37 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=a0xuC6eR/lnVf73YQTrGDn/ESnrsxFtf3ZvbEG/m9BA=;
- b=a8vMpoPxuYoVWjaPcsrOthX8LVX1dso2kREoCVpwK9KBP+Mzd0Oehu/ZRjFCwBVhgHxe
- qX5R1rn3CYDQ8lUXVQUgCplJI8zYh7QwzcnGANiTJw4Gv/OqGDMHqt25YQJcdCkH3R9l
- d9MljPmiKMgpHIAol8Ur9IHckmDeBiEorRs= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2uytcqdx8k-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 13 Sep 2019 14:18:36 -0700
-Received: from ash-exhub203.TheFacebook.com (2620:10d:c0a8:83::5) by
- ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 13 Sep 2019 14:17:11 -0700
-Received: from NAM05-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.102) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 13 Sep 2019 14:17:11 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=SGwBrhwruGUMHEjOz3U7AfFEzZjqMvY95fwiBCFeB+bZIlNcO6MT3u3KCTmh7bu2DgWQNu0sMgxBqku9S22NN+qK+AK4dY8OdBCltm9WN6plmxS4c/D4E1CAm5E6YTKxQpB4EgzjNsVwGeCHqQrIQ+LNKPHS7U6LBSI+ZCS5oErn7t0v5nTb/GIiGs4CNKpi9hHE363MKjdKFS6h+gJj9+2YYoMRQbr4N5QnIBmJzbm4XxcQxdtXrWkbi8wnYnoKilb8EL3Av7PQ+Xs+2qibKOwNmKCP1ANyqLnG8yqPyDflVqletWxHsXg5/8VEMk0YgljpBaSm7sPkPVT6PP/oZQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=a0xuC6eR/lnVf73YQTrGDn/ESnrsxFtf3ZvbEG/m9BA=;
- b=kx6DMCONnPNoMWJ43wYdyBjJf1Tr0jXL3y7bSYMZYt36nLcSukr0wCLM3BPsKyVSHEIjh0Ite5UQrracDmmn2xiY7aLHhoAPUaiGcq5TIyrRylhIUr5Pr9PXxFu3s00AjYla0mIRmfA1p2eAkvSuEv/HKnmNRFMsln9FaloaJC0qfki+oEbuHfhVJZGGeQQg0E6ajZNi00vSDLbwYksFxPsBlbS7bt0wcuvFJfBOvITYonb6ryIu47zJqNuwiVeQIMtsRU2hf2lpbJX+ow0ZYTAO6jaAq1/UetIHhwrG6QVwYtoQg7/i/5efPgEzsaR95B39y25aOqC8U54uilgF9Q==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=a0xuC6eR/lnVf73YQTrGDn/ESnrsxFtf3ZvbEG/m9BA=;
- b=MRuTWkgjVRRQdiHlx03ykrNxI8fZO3Nz+w9FiSesRCPY9HlYmWbi19pQemR5t7zNPXXC+woiKykQx4+s36UwKL+hCRLrmpvbyNJ7kZ29tZP9vds/jC3Au7Us6dTk5lN9TcD18BLSGNWHk2YaIaErjVuoq98LaYr1/xBVaM6p4po=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB2251.namprd15.prod.outlook.com (20.176.69.12) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2241.18; Fri, 13 Sep 2019 21:17:09 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::845f:c175:4860:45db]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::845f:c175:4860:45db%3]) with mapi id 15.20.2241.022; Fri, 13 Sep 2019
- 21:17:09 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Lucian Grijincu <lucian@fb.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Souptick Joarder
-	<jrdr.linux@gmail.com>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Michal Hocko <mhocko@kernel.org>,
-        "Andrew
- Morton" <akpm@linux-foundation.org>,
-        Rik van Riel <riel@fb.com>
-Subject: Re: [Potential Spoof] [PATCH v3] mm: memory: fix /proc/meminfo
- reporting for MLOCK_ONFAULT
-Thread-Topic: [Potential Spoof] [PATCH v3] mm: memory: fix /proc/meminfo
- reporting for MLOCK_ONFAULT
-Thread-Index: AQHVanfTSfRS6C+xc0+kVsEX6I4P3acqHD+A
-Date: Fri, 13 Sep 2019 21:17:08 +0000
-Message-ID: <20190913211705.GA5392@tower.DHCP.thefacebook.com>
-References: <20190913211119.416168-1-lucian@fb.com>
-In-Reply-To: <20190913211119.416168-1-lucian@fb.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR0201CA0019.namprd02.prod.outlook.com
- (2603:10b6:301:74::32) To DM6PR15MB2635.namprd15.prod.outlook.com
- (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::3:7a97]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 99f507b0-5420-47eb-bd27-08d7388fbc66
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600166)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR15MB2251;
-x-ms-traffictypediagnostic: DM6PR15MB2251:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <DM6PR15MB22511005FF8FCB507FA0D083BEB30@DM6PR15MB2251.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:2043;
-x-forefront-prvs: 0159AC2B97
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(396003)(346002)(39860400002)(376002)(136003)(199004)(189003)(14454004)(81166006)(81156014)(76176011)(46003)(476003)(66446008)(52116002)(186003)(6116002)(11346002)(102836004)(6636002)(6512007)(99286004)(316002)(8936002)(6436002)(66476007)(66556008)(446003)(6246003)(71200400001)(256004)(14444005)(478600001)(229853002)(33656002)(4326008)(71190400001)(386003)(6506007)(6486002)(7736002)(64756008)(66946007)(9686003)(54906003)(25786009)(1076003)(53936002)(305945005)(86362001)(5660300002)(8676002)(2906002)(486006)(6862004);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2251;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 8IT2kIPiznAi7Evv8uEo7BigShLyJ9SFGgyki/H2sD4BCSmueuhHdLFpwCdTUPgFtCKVGhtWOh0qzpATX/vKKuGpbsx877mJOfsAltK1LLiWYXbQh7hmmT1qxILNs2X0HMzMcxRZOnQlknyT4CrGvdIbJb1kLQfrPrY321imGxT1ravZ+v8pekXJNQvShOI74VK8+/RXJYonyqwEtfpUyFX4AwLSlbUjrEHo76Vt7LF50tAOv/TjzjhCmwoKH0x9WsbWSd20+bgBoOYRTlkHCSkGwsc0EqaTbb0KY0Ca/i0LXHBK9ay/D6j9wpcdYTB9Q59QiNLLtXDyHoz1Std6oLIgnZacRpiVGO4CCQzNHT6KL/EPrtQguSY6qf57ajfszWTANp7hjnD26dmYwf2bCjfXYKyk5EceoMAvnyh8C6k=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <46ABEF5E05BF4C48B61E4522FF292AB2@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0064.hostedemail.com [216.40.44.64])
+	by kanga.kvack.org (Postfix) with ESMTP id E47576B0005
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 18:55:41 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8E781181AC9AE
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 22:55:41 +0000 (UTC)
+X-FDA: 75931406082.13.doll10_318b385adb641
+X-HE-Tag: doll10_318b385adb641
+X-Filterd-Recvd-Size: 7411
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 22:55:40 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=QkiKvAOlgEkEoioPwm6PKJKVwp6rjiveAVqjCdQFnWc=; b=gBLn9e9R+SE/XQ20B18BJfPHJ
+	Xz29IoBicnMui2wldBgo7tG0yUSW7jvFxuOqcm1f+/Jo+Iv5+j0jOohGeZ74XZifbdx4OXgQ55GbW
+	L6i/1eoRwi3FH1dI9kF4v5UM+U0/BI67eCcC8U+mbxoKpdZBa3z+LxtEH/P8C+TzI03Xf4BMu797y
+	OM+5Ef+CUfZta7F6Xj8nTVFtUUWrydBEguLKxzFp9IWmf/eizCiOQHG7MQGDrWJFudMkLiZZHjIfG
+	xm2tfdaqecw6arVS3T8l02kWFK7fqL+jLLQknBHJbheVhVMshEbaIaQcEN2XMSojJ+AYLa7VLhrwv
+	9CaAnfHLw==;
+Received: from c-73-157-219-8.hsd1.or.comcast.net ([73.157.219.8] helo=[10.0.0.252])
+	by bombadil.infradead.org with esmtpsa (Exim 4.92.2 #3 (Red Hat Linux))
+	id 1i8uTW-0002JD-Ab; Fri, 13 Sep 2019 22:55:34 +0000
+Subject: Re: problem starting /sbin/init (32-bit 5.3-rc8)
+To: Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>,
+ X86 ML <x86@kernel.org>, Oleg Nesterov <oleg@redhat.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+References: <a6010953-16f3-efb9-b507-e46973fc9275@infradead.org>
+ <201909121637.B9C39DF@keescook> <201909121753.C242E16AA@keescook>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <d997ec7b-fb40-060c-c481-57db87c205d8@infradead.org>
+Date: Fri, 13 Sep 2019 15:55:33 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 99f507b0-5420-47eb-bd27-08d7388fbc66
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Sep 2019 21:17:09.0132
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: oz/cDCWTOa5Ptw4Hp1HA1aRdnQOx0CKeptwkMcQ6+JrTJtKFs5AQv2Z9CQdMuIap
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2251
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:6.0.70,1.0.8
- definitions=2019-09-13_10:2019-09-11,2019-09-13 signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 suspectscore=0
- impostorscore=0 mlxscore=0 adultscore=0 mlxlogscore=881 bulkscore=0
- lowpriorityscore=0 priorityscore=1501 clxscore=1015 malwarescore=0
- spamscore=0 phishscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.12.0-1908290000 definitions=main-1909130213
-X-FB-Internal: deliver
+In-Reply-To: <201909121753.C242E16AA@keescook>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 13, 2019 at 02:11:19PM -0700, Lucian Adrian Grijincu wrote:
-> As pages are faulted in MLOCK_ONFAULT correctly updates
-> /proc/self/smaps, but doesn't update /proc/meminfo's Mlocked field.
->=20
-> - Before this /proc/meminfo fields didn't change as pages were faulted in=
-:
->=20
-> =3D Start =3D
-> /proc/meminfo
-> Unevictable:       10128 kB
-> Mlocked:           10132 kB
-> =3D Creating testfile =3D
->=20
-> =3D after mlock2(MLOCK_ONFAULT) =3D
-> /proc/meminfo
-> Unevictable:       10128 kB
-> Mlocked:           10132 kB
-> /proc/self/smaps
-> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
-> Locked:                0 kB
->=20
-> =3D after reading half of the file =3D
-> /proc/meminfo
-> Unevictable:       10128 kB
-> Mlocked:           10132 kB
-> /proc/self/smaps
-> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
-> Locked:           524288 kB
->=20
-> =3D after reading the entire the file =3D
-> /proc/meminfo
-> Unevictable:       10128 kB
-> Mlocked:           10132 kB
-> /proc/self/smaps
-> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
-> Locked:          1048576 kB
->=20
-> =3D after munmap =3D
-> /proc/meminfo
-> Unevictable:       10128 kB
-> Mlocked:           10132 kB
-> /proc/self/smaps
->=20
-> - After: /proc/meminfo fields are properly updated as pages are touched:
->=20
-> =3D Start =3D
-> /proc/meminfo
-> Unevictable:          60 kB
-> Mlocked:              60 kB
-> =3D Creating testfile =3D
->=20
-> =3D after mlock2(MLOCK_ONFAULT) =3D
-> /proc/meminfo
-> Unevictable:          60 kB
-> Mlocked:              60 kB
-> /proc/self/smaps
-> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
-> Locked:                0 kB
->=20
-> =3D after reading half of the file =3D
-> /proc/meminfo
-> Unevictable:      524220 kB
-> Mlocked:          524220 kB
-> /proc/self/smaps
-> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
-> Locked:           524288 kB
->=20
-> =3D after reading the entire the file =3D
-> /proc/meminfo
-> Unevictable:     1048496 kB
-> Mlocked:         1048508 kB
-> /proc/self/smaps
-> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
-> Locked:          1048576 kB
->=20
-> =3D after munmap =3D
-> /proc/meminfo
-> Unevictable:         176 kB
-> Mlocked:              60 kB
-> /proc/self/smaps
->=20
-> Repro code.
-> ---
->=20
-> int mlock2wrap(const void* addr, size_t len, int flags) {
->   return syscall(SYS_mlock2, addr, len, flags);
-> }
->=20
-> void smaps() {
->   char smapscmd[1000];
->   snprintf(
->       smapscmd,
->       sizeof(smapscmd) - 1,
->       "grep testfile -A 20 /proc/%d/smaps | grep -E '(testfile|Locked)'",
->       getpid());
->   printf("/proc/self/smaps\n");
->   fflush(stdout);
->   system(smapscmd);
-> }
->=20
-> void meminfo() {
->   const char* meminfocmd =3D "grep -E '(Mlocked|Unevictable)' /proc/memin=
-fo";
->   printf("/proc/meminfo\n");
->   fflush(stdout);
->   system(meminfocmd);
-> }
->=20
->   {                                                 \
->     int rc =3D (call);                                \
->     if (rc !=3D 0) {                                  \
->       printf("error %d %s\n", rc, strerror(errno)); \
->       exit(1);                                      \
->     }                                               \
->   }
-> int main(int argc, char* argv[]) {
->   printf("=3D Start =3D\n");
->   meminfo();
->=20
->   printf("=3D Creating testfile =3D\n");
->   size_t size =3D 1 << 30; // 1 GiB
->   int fd =3D open("testfile", O_CREAT | O_RDWR, 0666);
->   {
->     void* buf =3D malloc(size);
->     write(fd, buf, size);
->     free(buf);
->   }
->   int ret =3D 0;
->   void* addr =3D NULL;
->   addr =3D mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
->=20
->   if (argc > 1) {
->     PCHECK(mlock2wrap(addr, size, MLOCK_ONFAULT));
->     printf("=3D after mlock2(MLOCK_ONFAULT) =3D\n");
->     meminfo();
->     smaps();
->=20
->     for (size_t i =3D 0; i < size / 2; i +=3D 4096) {
->       ret +=3D ((char*)addr)[i];
->     }
->     printf("=3D after reading half of the file =3D\n");
->     meminfo();
->     smaps();
->=20
->     for (size_t i =3D 0; i < size; i +=3D 4096) {
->       ret +=3D ((char*)addr)[i];
->     }
->     printf("=3D after reading the entire the file =3D\n");
->     meminfo();
->     smaps();
->=20
->   } else {
->     PCHECK(mlock(addr, size));
->     printf("=3D after mlock =3D\n");
->     meminfo();
->     smaps();
->   }
->=20
->   PCHECK(munmap(addr, size));
->   printf("=3D after munmap =3D\n");
->   meminfo();
->   smaps();
->=20
->   return ret;
-> }
->=20
-> ---
->=20
-> Signed-off-by: Lucian Adrian Grijincu <lucian@fb.com>
-> Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
->  mm/memory.c | 2 ++
->  1 file changed, 2 insertions(+)
->=20
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e0c232fe81d9..55da24f33bc4 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3311,6 +3311,8 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, stru=
-ct mem_cgroup *memcg,
->  	} else {
->  		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
->  		page_add_file_rmap(page, false);
-> +		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(page))
-> +			mlock_vma_page(page);
+On 9/12/19 6:46 PM, Kees Cook wrote:
+> On Thu, Sep 12, 2019 at 05:16:02PM -0700, Kees Cook wrote:
+>> On Thu, Sep 12, 2019 at 02:40:19PM -0700, Randy Dunlap wrote:
+>>> This is 32-bit kernel, just happens to be running on a 64-bit laptop.
+>>> I added the debug printk in __phys_addr() just before "[cut here]".
+>>>
+>>> CONFIG_HARDENED_USERCOPY=y
+>>
+>> I can reproduce this under CONFIG_DEBUG_VIRTUAL=y, and it goes back
+>> to at least to v5.2. Booting with "hardened_usercopy=off" or without
+>> CONFIG_DEBUG_VIRTUAL makes this go away (since __phys_addr() doesn't
+>> get called):
+>>
+>> __check_object_size+0xff/0x1b0:
+>> pfn_to_section_nr at include/linux/mmzone.h:1153
+>> (inlined by) __pfn_to_section at include/linux/mmzone.h:1291
+>> (inlined by) virt_to_head_page at include/linux/mm.h:729
+>> (inlined by) check_heap_object at mm/usercopy.c:230
+>> (inlined by) __check_object_size at mm/usercopy.c:280
+>>
+>> Is virt_to_head_page() illegal to use under some recently new conditions?
+> 
+> This combination appears to be bugged since the original introduction
+> of hardened usercopy in v4.8. Is this an untested combination until
+> now? (I don't usually do tests with CONFIG_DEBUG_VIRTUAL, but I guess
+> I will from now on!)
+> 
+> Note from the future (i.e. the end of this email where I figure it out):
+> it turns out it's actually these three together:
+> 
+> CONFIG_HIGHMEM=y
+> CONFIG_DEBUG_VIRTUAL=y
+> CONFIG_HARDENED_USERCOPY=y
+> 
+>>
+>>> The BUG is this line in arch/x86/mm/physaddr.c:
+>>> 		VIRTUAL_BUG_ON((phys_addr >> PAGE_SHIFT) > max_low_pfn);
+>>> It's line 83 in my source file only due to adding <linux/printk.h> and
+>>> a conditional pr_crit() call.
+> 
+> What exactly is this trying to test?
+> 
+>>> [   19.730409][    T1] debug: unmapping init [mem 0xdc7bc000-0xdca30fff]
+>>> [   19.734289][    T1] Write protecting kernel text and read-only data: 13888k
+>>> [   19.737675][    T1] rodata_test: all tests were successful
+>>> [   19.740757][    T1] Run /sbin/init as init process
+>>> [   19.792877][    T1] __phys_addr: max_low_pfn=0x36ffe, x=0xff001ff1, phys_addr=0x3f001ff1
+> 
+> It seems like this address is way out of range of the physical memory.
+> That seems like it's vmalloc or something, but that was actually
+> explicitly tested for back in the v4.8 version (it became unneeded
+> later).
+> 
+>>> [   19.796561][    T1] ------------[ cut here ]------------
+>>> [   19.797501][    T1] kernel BUG at ../arch/x86/mm/physaddr.c:83!
+>>> [   19.802799][    T1] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>>> [   19.803782][    T1] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 5.3.0-rc8 #6
+>>> [   19.803782][    T1] Hardware name: Dell Inc. Inspiron 1318                   /0C236D, BIOS A04 01/15/2009
+>>> [   19.803782][    T1] EIP: __phys_addr+0xaf/0x100
+>>> [   19.803782][    T1] Code: 85 c0 74 67 89 f7 c1 ef 0c 39 f8 73 2e 56 53 50 68 90 9f 1f dc 68 00 eb 45 dc e8 ec b3 09 00 83 c4 14 3b 3d 30 55 cf dc 76 11 <0f> 0b b8 7c 3b 5c dc e8 45 53 4c 00 90 8d 74 26 00 89 d8 e8 39 cd
+>>> [   19.803782][    T1] EAX: 00000044 EBX: ff001ff1 ECX: 00000000 EDX: db90a471
+>>> [   19.803782][    T1] ESI: 3f001ff1 EDI: 0003f001 EBP: f41ddea0 ESP: f41dde90
+>>> [   19.803782][    T1] DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068 EFLAGS: 00010216
+>>> [   19.803782][    T1] CR0: 80050033 CR2: dc218544 CR3: 1ca39000 CR4: 000406d0
+>>> [   19.803782][    T1] Call Trace:
+>>> [   19.803782][    T1]  __check_object_size+0xaf/0x3c0
+>>> [   19.803782][    T1]  ? __might_sleep+0x80/0xa0
+>>> [   19.803782][    T1]  copy_strings+0x1c2/0x370
+> 
+> Oh, this is actually copying into a kmap() pointer due to the weird
+> stuff exec() does:
+> 
+>                         kaddr = kmap(kmapped_page);
+>                 ...
+>                 if (copy_from_user(kaddr+offset, str, bytes_to_copy)) {
+> 
+>>> [   19.803782][    T1]  copy_strings_kernel+0x2b/0x40
+>>>
+>>> Full boot log or kernel .config file are available if wanted.
+> 
+> Is kmap somewhere "unexpected" in this case? Ah-ha, yes, it seems it is.
+> There is even a helper to do the "right" thing as virt_to_page(). This
+> seems to be used very rarely in the kernel... is there a page type for
+> kmap pages? This seems like a hack, but it fixes it:
+> 
 
-Acked-by: Roman Gushchin <guro@fb.com>
+Tested-by: Randy Dunlap <rdunlap@infradead.org>
 
-Thanks!
+Thanks.
+
+> 
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index 98e924864554..5a14b80ad63e 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -11,6 +11,7 @@
+>  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+>  
+>  #include <linux/mm.h>
+> +#include <linux/highmem.h>
+>  #include <linux/slab.h>
+>  #include <linux/sched.h>
+>  #include <linux/sched/task.h>
+> @@ -227,7 +228,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+>  	if (!virt_addr_valid(ptr))
+>  		return;
+>  
+> -	page = virt_to_head_page(ptr);
+> +	page = compound_head(kmap_to_page((void *)ptr));
+>  
+>  	if (PageSlab(page)) {
+>  		/* Check slab allocator for flags and size. */
+> 
+> 
+> What's the right way to "ignore" the kmap range? (i.e. it's not Slab, so
+> ignore it here: I can't find a page type nor a "is this kmap?" helper...)
+> 
+
+
+-- 
+~Randy
 
