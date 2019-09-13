@@ -2,188 +2,136 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-15.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69EAEC4CEC7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 16:33:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1699EC4CEC9
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 18:20:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 254FB217D6
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 16:33:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 254FB217D6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id BBB19206A5
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 18:20:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBB19206A5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6F136B000C; Fri, 13 Sep 2019 12:33:03 -0400 (EDT)
+	id 20C2D6B0003; Fri, 13 Sep 2019 14:20:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C45886B000D; Fri, 13 Sep 2019 12:33:03 -0400 (EDT)
+	id 1BA4E6B0006; Fri, 13 Sep 2019 14:20:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B33FE6B000E; Fri, 13 Sep 2019 12:33:03 -0400 (EDT)
+	id 0A95F6B0007; Fri, 13 Sep 2019 14:20:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0030.hostedemail.com [216.40.44.30])
-	by kanga.kvack.org (Postfix) with ESMTP id 92C9E6B000C
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 12:33:03 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 44E6E21960
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 16:33:03 +0000 (UTC)
-X-FDA: 75930441846.15.sea26_37a8f586cdc20
-X-HE-Tag: sea26_37a8f586cdc20
-X-Filterd-Recvd-Size: 5657
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 16:33:02 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5F46315A2;
-	Fri, 13 Sep 2019 09:33:01 -0700 (PDT)
-Received: from localhost.localdomain (entos-thunderx2-02.shanghai.arm.com [10.169.40.54])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 400293F67D;
-	Fri, 13 Sep 2019 09:32:57 -0700 (PDT)
-From: Jia He <justin.he@arm.com>
-To: Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	James Morse <james.morse@arm.com>,
-	Marc Zyngier <maz@kernel.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: Punit Agrawal <punitagrawal@gmail.com>,
-	Anshuman Khandual <anshuman.khandual@arm.com>,
-	Jun Yao <yaojun8558363@gmail.com>,
-	Alex Van Brunt <avanbrunt@nvidia.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	hejianet@gmail.com,
-	Jia He <justin.he@arm.com>
-Subject: [PATCH v3 2/2] mm: fix double page fault on arm64 if PTE_AF is cleared
-Date: Sat, 14 Sep 2019 00:32:39 +0800
-Message-Id: <20190913163239.125108-3-justin.he@arm.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190913163239.125108-1-justin.he@arm.com>
-References: <20190913163239.125108-1-justin.he@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0141.hostedemail.com [216.40.44.141])
+	by kanga.kvack.org (Postfix) with ESMTP id D73566B0003
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 14:20:30 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 718EF8404
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 18:20:30 +0000 (UTC)
+X-FDA: 75930712620.20.anger03_789fd7cf9a946
+X-HE-Tag: anger03_789fd7cf9a946
+X-Filterd-Recvd-Size: 5867
+Received: from mga03.intel.com (mga03.intel.com [134.134.136.65])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 18:20:28 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Sep 2019 11:20:27 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,492,1559545200"; 
+   d="scan'208";a="197640760"
+Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
+  by orsmga002.jf.intel.com with ESMTP; 13 Sep 2019 11:20:27 -0700
+Subject: Re: [PATCH] x86/mm: Enable 5-level paging support by default
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190913095452.40592-1-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <8435951c-d88a-a5c6-5328-90c9f2521664@intel.com>
+Date: Fri, 13 Sep 2019 11:20:26 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <20190913095452.40592-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When we tested pmdk unit test [1] vmmalloc_fork TEST1 in arm64 guest, there
-will be a double page fault in __copy_from_user_inatomic of cow_user_page.
+On 9/13/19 2:54 AM, Kirill A. Shutemov wrote:
+> The next major release of distributions expected to have
+> CONFIG_X86_5LEVEL=3Dy.
 
-Below call trace is from arm64 do_page_fault for debugging purpose
-[  110.016195] Call trace:
-[  110.016826]  do_page_fault+0x5a4/0x690
-[  110.017812]  do_mem_abort+0x50/0xb0
-[  110.018726]  el1_da+0x20/0xc4
-[  110.019492]  __arch_copy_from_user+0x180/0x280
-[  110.020646]  do_wp_page+0xb0/0x860
-[  110.021517]  __handle_mm_fault+0x994/0x1338
-[  110.022606]  handle_mm_fault+0xe8/0x180
-[  110.023584]  do_page_fault+0x240/0x690
-[  110.024535]  do_mem_abort+0x50/0xb0
-[  110.025423]  el0_da+0x20/0x24
+It's probably worth noting that this exposes to two kinds of possible
+performance issues:
 
-The pte info before __copy_from_user_inatomic is (PTE_AF is cleared):
-[ffff9b007000] pgd=000000023d4f8003, pud=000000023da9b003, pmd=000000023d4b3003, pte=360000298607bd3
+First is the overhead of having the 5-level code on 4-level hardware.
+We haven't seen any regressions there in quite a while.  Kirill talked
+about this in the changelog.
 
-As told by Catalin: "On arm64 without hardware Access Flag, copying from
-user will fail because the pte is old and cannot be marked young. So we
-always end up with zeroed page after fork() + CoW for pfn mappings. we
-don't always have a hardware-managed access flag on arm64."
+Second is the overhead of having 5-level paging active on 5-level
+hardware versus using 4-level paging on hardware *capable* of 5-level.
+That is, of course, much harder to measure since 5-level hardware is not
+publicly available.  But, we've tested this quite a bit and we're pretty
+confident that it will not cause regressions, especially on systems
+where apps don't opt in to the larger address space.
 
-This patch fix it by calling pte_mkyoung. Also, the parameter is
-changed because vmf should be passed to cow_user_page()
+I do think endeavoring to have mainline's defaults match the most common
+distro configs is a good idea, and now is as good of a time as any.
 
-[1] https://github.com/pmem/pmdk/tree/master/src/test/vmmalloc_fork
-
-Reported-by: Yibo Cai <Yibo.Cai@arm.com>
-Signed-off-by: Jia He <justin.he@arm.com>
----
- mm/memory.c | 30 +++++++++++++++++++++++++-----
- 1 file changed, 25 insertions(+), 5 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index e2bb51b6242e..a64af6495f71 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -118,6 +118,13 @@ int randomize_va_space __read_mostly =
- 					2;
- #endif
- 
-+#ifndef arch_faults_on_old_pte
-+static inline bool arch_faults_on_old_pte(void)
-+{
-+	return false;
-+}
-+#endif
-+
- static int __init disable_randmaps(char *s)
- {
- 	randomize_va_space = 0;
-@@ -2140,7 +2147,8 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
- 	return same;
- }
- 
--static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-+static inline void cow_user_page(struct page *dst, struct page *src,
-+				struct vm_fault *vmf)
- {
- 	debug_dma_assert_idle(src);
- 
-@@ -2152,20 +2160,32 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
- 	 */
- 	if (unlikely(!src)) {
- 		void *kaddr = kmap_atomic(dst);
--		void __user *uaddr = (void __user *)(va & PAGE_MASK);
-+		void __user *uaddr = (void __user *)(vmf->address & PAGE_MASK);
-+		pte_t entry;
- 
- 		/*
- 		 * This really shouldn't fail, because the page is there
- 		 * in the page tables. But it might just be unreadable,
- 		 * in which case we just give up and fill the result with
--		 * zeroes.
-+		 * zeroes. If PTE_AF is cleared on arm64, it might
-+		 * cause double page fault. So makes pte young here
- 		 */
-+		if (arch_faults_on_old_pte() && !pte_young(vmf->orig_pte)) {
-+			spin_lock(vmf->ptl);
-+			entry = pte_mkyoung(vmf->orig_pte);
-+			if (ptep_set_access_flags(vmf->vma, vmf->address,
-+						  vmf->pte, entry, 0))
-+				update_mmu_cache(vmf->vma, vmf->address,
-+						 vmf->pte);
-+			spin_unlock(vmf->ptl);
-+		}
-+
- 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
- 			clear_page(kaddr);
- 		kunmap_atomic(kaddr);
- 		flush_dcache_page(dst);
- 	} else
--		copy_user_highpage(dst, src, va, vma);
-+		copy_user_highpage(dst, src, vmf->address, vmf->vma);
- }
- 
- static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
-@@ -2318,7 +2338,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 				vmf->address);
- 		if (!new_page)
- 			goto oom;
--		cow_user_page(new_page, old_page, vmf->address, vma);
-+		cow_user_page(new_page, old_page, vmf);
- 	}
- 
- 	if (mem_cgroup_try_charge_delay(new_page, mm, GFP_KERNEL, &memcg, false))
--- 
-2.17.1
-
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
 
