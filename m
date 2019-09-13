@@ -2,113 +2,86 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81E0EC4CEC7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 08:37:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC940C49ED7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 08:42:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5226F20830
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 08:37:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5226F20830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7CEA320830
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 08:42:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CEA320830
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E45586B0005; Fri, 13 Sep 2019 04:37:50 -0400 (EDT)
+	id 123406B0005; Fri, 13 Sep 2019 04:42:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF6526B0006; Fri, 13 Sep 2019 04:37:50 -0400 (EDT)
+	id 0AC546B0006; Fri, 13 Sep 2019 04:42:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE42F6B0007; Fri, 13 Sep 2019 04:37:50 -0400 (EDT)
+	id EB5F76B0007; Fri, 13 Sep 2019 04:42:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0114.hostedemail.com [216.40.44.114])
-	by kanga.kvack.org (Postfix) with ESMTP id A88E16B0005
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 04:37:50 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 553D51F23B
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 08:37:50 +0000 (UTC)
-X-FDA: 75929244300.07.snake25_7e825c5b31e3f
-X-HE-Tag: snake25_7e825c5b31e3f
-X-Filterd-Recvd-Size: 6345
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 08:37:49 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3449918C8931;
-	Fri, 13 Sep 2019 08:37:48 +0000 (UTC)
-Received: from [10.36.117.182] (ovpn-117-182.ams2.redhat.com [10.36.117.182])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D0B441001944;
-	Fri, 13 Sep 2019 08:37:46 +0000 (UTC)
-Subject: Re: [PATCH 02/10] mm,madvise: call soft_offline_page() without
- MF_COUNT_INCREASED
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Oscar Salvador <osalvador@suse.de>, "mhocko@kernel.org"
- <mhocko@kernel.org>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-References: <20190910103016.14290-1-osalvador@suse.de>
- <20190910103016.14290-3-osalvador@suse.de>
- <a2ec3629-3671-cdb4-70e8-2c7e327444e9@redhat.com>
- <20190912013759.GA4614@hori.linux.bs1.fc.nec.co.jp>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <2edff784-c5e7-ec1e-025d-45e4164e2a46@redhat.com>
-Date: Fri, 13 Sep 2019 10:37:46 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0071.hostedemail.com [216.40.44.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C24426B0005
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 04:42:47 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 567FD1F845
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 08:42:47 +0000 (UTC)
+X-FDA: 75929256774.16.list83_182eec515ad16
+X-HE-Tag: list83_182eec515ad16
+X-Filterd-Recvd-Size: 6015
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 08:42:46 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D181628;
+	Fri, 13 Sep 2019 01:42:44 -0700 (PDT)
+Received: from [10.162.41.125] (p8cg001049571a15.blr.arm.com [10.162.41.125])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A21F43F59C;
+	Fri, 13 Sep 2019 01:42:34 -0700 (PDT)
+Subject: Re: [PATCH] mm/pgtable/debug: Fix test validating architecture page
+ table helpers
+To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org
+Cc: Mark Rutland <mark.rutland@arm.com>, linux-ia64@vger.kernel.org,
+ linux-sh@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
+ James Hogan <jhogan@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+ Paul Mackerras <paulus@samba.org>, sparclinux@vger.kernel.org,
+ Dan Williams <dan.j.williams@intel.com>, linux-s390@vger.kernel.org,
+ Jason Gunthorpe <jgg@ziepe.ca>, x86@kernel.org,
+ Russell King - ARM Linux <linux@armlinux.org.uk>,
+ Matthew Wilcox <willy@infradead.org>, Steven Price <Steven.Price@arm.com>,
+ Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+ Vlastimil Babka <vbabka@suse.cz>, linux-snps-arc@lists.infradead.org,
+ Kees Cook <keescook@chromium.org>, Mark Brown <broonie@kernel.org>,
+ "Kirill A . Shutemov" <kirill@shutemov.name>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Gerald Schaefer <gerald.schaefer@de.ibm.com>,
+ linux-arm-kernel@lists.infradead.org,
+ Sri Krishna chowdary <schowdary@nvidia.com>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mips@vger.kernel.org,
+ Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
+ Paul Burton <paul.burton@mips.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Vineet Gupta <vgupta@synopsys.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
+ "David S. Miller" <davem@davemloft.net>
+References: <1892b37d1fd9a4ed39e76c4b999b6556077201c0.1568355752.git.christophe.leroy@c-s.fr>
+ <527dd29d-45fa-4d83-1899-6cbf268dd749@arm.com>
+ <e2b42446-7f91-83f1-ac12-08dff75c4d35@c-s.fr>
+ <cb226b56-ff20-3136-7ffb-890657e56870@c-s.fr>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <bdf7f152-d093-1691-4e96-77da7eb9e20a@arm.com>
+Date: Fri, 13 Sep 2019 14:12:45 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190912013759.GA4614@hori.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <cb226b56-ff20-3136-7ffb-890657e56870@c-s.fr>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.70]); Fri, 13 Sep 2019 08:37:48 +0000 (UTC)
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,42 +89,110 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.09.19 03:37, Naoya Horiguchi wrote:
-> On Wed, Sep 11, 2019 at 12:27:22PM +0200, David Hildenbrand wrote:
->> On 10.09.19 12:30, Oscar Salvador wrote:
->>> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+
+On 09/13/2019 12:41 PM, Christophe Leroy wrote:
+>=20
+>=20
+> Le 13/09/2019 =C3=A0 09:03, Christophe Leroy a =C3=A9crit=C2=A0:
+>>
+>>
+>> Le 13/09/2019 =C3=A0 08:58, Anshuman Khandual a =C3=A9crit=C2=A0:
+>>> On 09/13/2019 11:53 AM, Christophe Leroy wrote:
+>>>> Fix build failure on powerpc.
+>>>>
+>>>> Fix preemption imbalance.
+>>>>
+>>>> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+>>>> ---
+>>>> =C2=A0 mm/arch_pgtable_test.c | 3 +++
+>>>> =C2=A0 1 file changed, 3 insertions(+)
+>>>>
+>>>> diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
+>>>> index 8b4a92756ad8..f2b3c9ec35fa 100644
+>>>> --- a/mm/arch_pgtable_test.c
+>>>> +++ b/mm/arch_pgtable_test.c
+>>>> @@ -24,6 +24,7 @@
+>>>> =C2=A0 #include <linux/swap.h>
+>>>> =C2=A0 #include <linux/swapops.h>
+>>>> =C2=A0 #include <linux/sched/mm.h>
+>>>> +#include <linux/highmem.h>
 >>>
->>> Currently madvise_inject_error() pins the target via get_user_pages_f=
-ast.
->>> The call to get_user_pages_fast is only to get the respective page
->>> of a given address, but it is the job of the memory-poisoning handler
->>> to deal with races, so drop the refcount grabbed by get_user_pages_fa=
-st.
+>>> This is okay.
+>>>
+>>>> =C2=A0 #include <asm/pgalloc.h>
+>>>> =C2=A0 #include <asm/pgtable.h>
+>>>> @@ -400,6 +401,8 @@ static int __init arch_pgtable_tests_init(void)
+>>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 p4d_clear_tests(p4dp);
+>>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 pgd_clear_tests(mm, pgdp);
+>>>> +=C2=A0=C2=A0=C2=A0 pte_unmap(ptep);
+>>>> +
+>>>
+>>> Now the preemption imbalance via pte_alloc_map() path i.e
+>>>
+>>> pte_alloc_map() -> pte_offset_map() -> kmap_atomic()
+>>>
+>>> Is not this very much powerpc 32 specific or this will be applicable
+>>> for all platform which uses kmap_XXX() to map high memory ?
 >>>
 >>
->> Oh, and another question "it is the job of the memory-poisoning handle=
-r"
->> - is that already properly implemented? (newbee question =C2=AF\_(=E3=83=
-=84)_/=C2=AF)
+>> See https://elixir.bootlin.com/linux/v5.3-rc8/source/include/linux/hig=
+hmem.h#L91
+>>
+>> I think it applies at least to all arches using the generic implementa=
+tion.
+>>
+>> Applies also to arm:
+>> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/arm/mm/highmem.c=
+#L52
+>>
+>> Applies also to mips:
+>> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/mips/mm/highmem.=
+c#L47
+>>
+>> Same on sparc:
+>> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/sparc/mm/highmem=
+.c#L52
+>>
+>> Same on x86:
+>> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/x86/mm/highmem_3=
+2.c#L34
+>>
+>> I have not checked others, but I guess it is like that for all.
+>>
 >=20
-> The above description might be confusing, sorry. It's intended likes
 >=20
->   The call to get_user_pages_fast is only to get the pointer to struct
->   page of a given address, pinning it is memory-poisoning handler's job=
-,
->   so drop the refcount grabbed by get_user_pages_fast.
+> Seems like I answered too quickly. All kmap_atomic() do preempt_disable=
+(), but not all pte_alloc_map() call kmap_atomic().
 >=20
-> And pinning is done in get_hwpoison_page() for hard-offline and
-> get_any_page() for soft-offline.  For soft-offline case, the semantics =
-of
-> refcount of poisoned pages is what this patchset tries to change/improv=
-e.
+> However, for instance ARM does:
+>=20
+> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/arm/include/asm/p=
+gtable.h#L200
+>=20
+> And X86 as well:
+>=20
+> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/x86/include/asm/p=
+gtable_32.h#L51
+>=20
+> Microblaze also:
+>=20
+> https://elixir.bootlin.com/linux/v5.3-rc8/source/arch/microblaze/includ=
+e/asm/pgtable.h#L495
 
-Thanks for the clarification!
+All the above platforms checks out to be using k[un]map_atomic(). I am wo=
+ndering whether
+any of the intermediate levels will have similar problems on any these 32=
+ bit platforms
+or any other platforms which might be using generic k[un]map_atomic(). Th=
+ere can be many
+permutations here.
 
---=20
+	p4dp =3D p4d_alloc(mm, pgdp, vaddr);
+	pudp =3D pud_alloc(mm, p4dp, vaddr);
+	pmdp =3D pmd_alloc(mm, pudp, vaddr);
 
-Thanks,
-
-David / dhildenb
+Otherwise pte_alloc_map()/pte_unmap() looks good enough which will atleas=
+t take care of
+a known failure.
 
