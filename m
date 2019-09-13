@@ -2,64 +2,64 @@ Return-Path: <SRS0=B4NV=XI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5781C4CEC5
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AD1BC4CEC7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 532F620830
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0EEE62089F
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 09:32:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="h5GxOn8s"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 532F620830
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="dNNHULGc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EEE62089F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 173B36B000A; Fri, 13 Sep 2019 05:32:37 -0400 (EDT)
+	id A4C6C6B0006; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0FDCB6B0007; Fri, 13 Sep 2019 05:32:37 -0400 (EDT)
+	id 9D9546B0007; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F06606B0008; Fri, 13 Sep 2019 05:32:36 -0400 (EDT)
+	id 8289D6B0008; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0048.hostedemail.com [216.40.44.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C856C6B0005
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:32:36 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 5F2D32BFC1
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:36 +0000 (UTC)
-X-FDA: 75929382312.15.wound08_16721de0cb422
-X-HE-Tag: wound08_16721de0cb422
-X-Filterd-Recvd-Size: 19859
-Received: from ste-pvt-msa1.bahnhof.se (ste-pvt-msa1.bahnhof.se [213.80.101.70])
-	by imf17.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:34 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2716B0006
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 05:32:39 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 062E1180AD804
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:39 +0000 (UTC)
+X-FDA: 75929382438.22.floor80_170015bad1c4b
+X-HE-Tag: floor80_170015bad1c4b
+X-Filterd-Recvd-Size: 6921
+Received: from pio-pvt-msa3.bahnhof.se (pio-pvt-msa3.bahnhof.se [79.136.2.42])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 09:32:37 +0000 (UTC)
 Received: from localhost (localhost [127.0.0.1])
-	by ste-pvt-msa1.bahnhof.se (Postfix) with ESMTP id 919A63F4D8;
-	Fri, 13 Sep 2019 11:32:32 +0200 (CEST)
-Authentication-Results: ste-pvt-msa1.bahnhof.se;
-	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=h5GxOn8s;
+	by pio-pvt-msa3.bahnhof.se (Postfix) with ESMTP id 5B3913F58A;
+	Fri, 13 Sep 2019 11:32:31 +0200 (CEST)
+Authentication-Results: pio-pvt-msa3.bahnhof.se;
+	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=dNNHULGc;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at bahnhof.se
-Received: from ste-pvt-msa1.bahnhof.se ([127.0.0.1])
-	by localhost (ste-pvt-msa1.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 3cFDeS0zG9lS; Fri, 13 Sep 2019 11:32:31 +0200 (CEST)
+Received: from pio-pvt-msa3.bahnhof.se ([127.0.0.1])
+	by localhost (pio-pvt-msa3.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id SJPszWSLs_C6; Fri, 13 Sep 2019 11:32:29 +0200 (CEST)
 Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
 	(Authenticated sender: mb878879)
-	by ste-pvt-msa1.bahnhof.se (Postfix) with ESMTPA id 3D6873F695;
+	by pio-pvt-msa3.bahnhof.se (Postfix) with ESMTPA id D31EF3F4D5;
 	Fri, 13 Sep 2019 11:32:27 +0200 (CEST)
 Received: from localhost.localdomain.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
-	by mail1.shipmail.org (Postfix) with ESMTPSA id 5B0A83601AA;
+	by mail1.shipmail.org (Postfix) with ESMTPSA id 880A6360221;
 	Fri, 13 Sep 2019 11:32:27 +0200 (CEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
-	t=1568367147; bh=rOMBTW/RhuOcvDQswCQgA5LGb1f8A4ZVULitfsW366Q=;
+	t=1568367147; bh=+gqEjDMVRRxJpdrCVBfIMbPfYpR7zyotcVVYvs8w/Co=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=h5GxOn8sgsWNbg33mXbM2fUZacaPfp26EksW7OQuSW3Tj0yX9w4tcmMLSSHqCrYd8
-	 6f4WtS5RzEuhtfrIefl1graK9DKj8tVVGkra/EHob3+z86jDDoPag2Itvc+WN5J+ij
-	 KJSQQUU9dvrqg0GowVzo2jPJVRW/+MkLusE7g2m4=
+	b=dNNHULGcSysjEpuosNRDO9H1gcQHvEt+eLL3sXYBKyiU4HOHfzczDfmwwjoC8BJlF
+	 vOvdwr6Qc8HRfxQz7h5JaljSJWbwlBTpPTsYqKiufOOGcFT60Ly5YCTSSz1bSX0V1Z
+	 kjaliHjPRHOtdCS3Byq9Z+mP0Ci1aDeHFb3vTGtw=
 From: =?UTF-8?q?Thomas=20Hellstr=C3=B6m=20=28VMware=29?= <thomas_os@shipmail.org>
 To: linux-kernel@vger.kernel.org,
 	dri-devel@lists.freedesktop.org,
@@ -77,10 +77,11 @@ Cc: pv-drivers@vmware.com,
 	Huang Ying <ying.huang@intel.com>,
 	Souptick Joarder <jrdr.linux@gmail.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>
-Subject: [RFC PATCH 1/7] mm: Add write-protect and clean utilities for address space ranges
-Date: Fri, 13 Sep 2019 11:32:07 +0200
-Message-Id: <20190913093213.27254-2-thomas_os@shipmail.org>
+	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
+	Christoph Hellwig <hch@infradead.org>
+Subject: [RFC PATCH 2/7] drm/ttm: Allow the driver to provide the ttm struct vm_operations_struct
+Date: Fri, 13 Sep 2019 11:32:08 +0200
+Message-Id: <20190913093213.27254-3-thomas_os@shipmail.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190913093213.27254-1-thomas_os@shipmail.org>
 References: <20190913093213.27254-1-thomas_os@shipmail.org>
@@ -95,20 +96,11 @@ List-ID: <linux-mm.kvack.org>
 
 From: Thomas Hellstrom <thellstrom@vmware.com>
 
-Add two utilities to a) write-protect and b) clean all ptes pointing into
-a range of an address space.
-The utilities are intended to aid in tracking dirty pages (either
-driver-allocated system memory or pci device memory).
-The write-protect utility should be used in conjunction with
-page_mkwrite() and pfn_mkwrite() to trigger write page-faults on page
-accesses. Typically one would want to use this on sparse accesses into
-large memory regions. The clean utility should be used to utilize
-hardware dirtying functionality and avoid the overhead of page-faults,
-typically on large accesses into small memory regions.
+Add a pointer to the struct vm_operations_struct in the bo_device, and
+assign that pointer to the default value currently used.
 
-The added file "as_dirty_helpers.c" is initially listed as maintained by
-VMware under our DRM driver. If somebody would like it elsewhere,
-that's of course no problem.
+The driver can then optionally modify that pointer and the new value
+can be used for each new vma created.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@infradead.org>
@@ -120,499 +112,96 @@ Cc: Michal Hocko <mhocko@suse.com>
 Cc: Huang Ying <ying.huang@intel.com>
 Cc: Souptick Joarder <jrdr.linux@gmail.com>
 Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-
+Cc: "Christian K=C3=B6nig" <christian.koenig@amd.com>
+Cc: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Thomas Hellstrom <thellstrom@vmware.com>
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com> #v1
+Reviewed-by: Christian K=C3=B6nig <christian.koenig@amd.com>
 ---
- MAINTAINERS           |   1 +
- include/linux/mm.h    |  13 +-
- mm/Kconfig            |   3 +
- mm/Makefile           |   1 +
- mm/as_dirty_helpers.c | 392 ++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 409 insertions(+), 1 deletion(-)
- create mode 100644 mm/as_dirty_helpers.c
+ drivers/gpu/drm/ttm/ttm_bo.c    | 1 +
+ drivers/gpu/drm/ttm/ttm_bo_vm.c | 6 +++---
+ include/drm/ttm/ttm_bo_driver.h | 6 ++++++
+ 3 files changed, 10 insertions(+), 3 deletions(-)
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index c2d975da561f..b596c7cf4a85 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -5287,6 +5287,7 @@ T:	git git://people.freedesktop.org/~thomash/linux
- S:	Supported
- F:	drivers/gpu/drm/vmwgfx/
- F:	include/uapi/drm/vmwgfx_drm.h
-+F:	mm/as_dirty_helpers.c
+diff --git a/drivers/gpu/drm/ttm/ttm_bo.c b/drivers/gpu/drm/ttm/ttm_bo.c
+index 20ff56f27aa4..7d11be0bb48c 100644
+--- a/drivers/gpu/drm/ttm/ttm_bo.c
++++ b/drivers/gpu/drm/ttm/ttm_bo.c
+@@ -1751,6 +1751,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
+ 	mutex_lock(&ttm_global_mutex);
+ 	list_add_tail(&bdev->device_list, &glob->device_list);
+ 	mutex_unlock(&ttm_global_mutex);
++	bdev->vm_ops =3D &ttm_bo_vm_ops;
 =20
- DRM DRIVERS
- M:	David Airlie <airlied@linux.ie>
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0334ca97c584..27ff341ecbdc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2657,7 +2657,6 @@ typedef int (*pte_fn_t)(pte_t *pte, unsigned long a=
-ddr, void *data);
- extern int apply_to_page_range(struct mm_struct *mm, unsigned long addre=
-ss,
- 			       unsigned long size, pte_fn_t fn, void *data);
+ 	return 0;
+ out_no_sys:
+diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo=
+_vm.c
+index 76eedb963693..03f702c296cf 100644
+--- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
++++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
+@@ -395,7 +395,7 @@ static int ttm_bo_vm_access(struct vm_area_struct *vm=
+a, unsigned long addr,
+ 	return ret;
+ }
 =20
--
- #ifdef CONFIG_PAGE_POISONING
- extern bool page_poisoning_enabled(void);
- extern void kernel_poison_pages(struct page *page, int numpages, int ena=
-ble);
-@@ -2891,5 +2890,17 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
+-static const struct vm_operations_struct ttm_bo_vm_ops =3D {
++const struct vm_operations_struct ttm_bo_vm_ops =3D {
+ 	.fault =3D ttm_bo_vm_fault,
+ 	.open =3D ttm_bo_vm_open,
+ 	.close =3D ttm_bo_vm_close,
+@@ -449,7 +449,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_str=
+uct *vma,
+ 	if (unlikely(ret !=3D 0))
+ 		goto out_unref;
 =20
-+#ifdef CONFIG_AS_DIRTY_HELPERS
-+unsigned long apply_as_clean(struct address_space *mapping,
-+			     pgoff_t first_index, pgoff_t nr,
-+			     pgoff_t bitmap_pgoff,
-+			     unsigned long *bitmap,
-+			     pgoff_t *start,
-+			     pgoff_t *end);
-+
-+unsigned long apply_as_wrprotect(struct address_space *mapping,
-+				 pgoff_t first_index, pgoff_t nr);
-+#endif
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 56cec636a1fc..594350e9d78e 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -736,4 +736,7 @@ config ARCH_HAS_PTE_SPECIAL
- config ARCH_HAS_HUGEPD
- 	bool
+-	vma->vm_ops =3D &ttm_bo_vm_ops;
++	vma->vm_ops =3D bdev->vm_ops;
 =20
-+config AS_DIRTY_HELPERS
-+        bool
-+
- endmenu
-diff --git a/mm/Makefile b/mm/Makefile
-index d0b295c3b764..4086f1eefbc6 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -105,3 +105,4 @@ obj-$(CONFIG_PERCPU_STATS) +=3D percpu-stats.o
- obj-$(CONFIG_ZONE_DEVICE) +=3D memremap.o
- obj-$(CONFIG_HMM_MIRROR) +=3D hmm.o
- obj-$(CONFIG_MEMFD_CREATE) +=3D memfd.o
-+obj-$(CONFIG_AS_DIRTY_HELPERS) +=3D as_dirty_helpers.o
-diff --git a/mm/as_dirty_helpers.c b/mm/as_dirty_helpers.c
-new file mode 100644
-index 000000000000..3be06fe8f1d2
---- /dev/null
-+++ b/mm/as_dirty_helpers.c
-@@ -0,0 +1,392 @@
-+// SPDX-License-Identifier: GPL-2.0
-+#include <linux/mm.h>
-+#include <linux/mm_types.h>
-+#include <linux/hugetlb.h>
-+#include <linux/bitops.h>
-+#include <linux/mmu_notifier.h>
-+#include <asm/cacheflush.h>
-+#include <asm/tlbflush.h>
-+
-+/**
-+ * struct as_walk - Argument to as_pte_fn_t
-+ * @vma: Pointer to the struct vmw_area_struct currently being walked.
-+ *
-+ * Embeddable argument to struct as__pte_fn_t
-+ */
-+struct as_walk {
-+	struct vm_area_struct *vma;
-+};
-+
-+/**
-+ * struct as_walk_ops - Callbacks for entries of various page table leve=
-ls.
-+ * extend for additional level support.
-+ */
-+struct as_walk_ops {
-+	/**
-+	 * pte-entry: Callback for PTEs
-+	 * @pte: Pointer to the PTE.
-+	 * @addr: Virtual address.
-+	 * @asw: Struct as_walk argument for the walk. Embed for additional
-+	 * data.
-+	 */
-+	void (*const pte_entry) (pte_t *pte, unsigned long addr,
-+				 struct as_walk *asw);
-+};
-+
-+/* Page-walking code */
-+static void walk_as_pte_range(pmd_t *pmd, unsigned long addr, unsigned l=
-ong end,
-+			      const struct as_walk_ops *ops,
-+			      struct as_walk *asw)
-+{
-+	struct mm_struct *mm =3D asw->vma->vm_mm;
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+
-+	pte =3D (mm =3D=3D &init_mm) ?
-+		pte_offset_kernel(pmd, addr) :
-+		pte_offset_map_lock(mm, pmd, addr, &ptl);
-+
-+	arch_enter_lazy_mmu_mode();
-+
-+	do {
-+		ops->pte_entry(pte++, addr, asw);
-+	} while (addr +=3D PAGE_SIZE, addr !=3D end);
-+
-+	arch_leave_lazy_mmu_mode();
-+
-+	if (mm !=3D &init_mm)
-+		pte_unmap_unlock(pte - 1, ptl);
-+}
-+
-+static void walk_as_pmd_range(pud_t *pud, unsigned long addr, unsigned l=
-ong end,
-+			      const struct as_walk_ops *ops,
-+			      struct as_walk *asw)
-+{
-+	pmd_t *pmd =3D pmd_offset(pud, addr);
-+	unsigned long next;
-+
-+	do {
-+		next =3D pmd_addr_end(addr, end);
-+		if (pmd_none_or_clear_bad(pmd))
-+			continue;
-+		if (WARN_ON(pmd_huge(*pmd)))
-+			continue;
-+		walk_as_pte_range(pmd, addr, next, ops, asw);
-+	} while (pmd++, addr =3D next, addr !=3D end);
-+}
-+
-+static void walk_as_pud_range(p4d_t *p4d, unsigned long addr, unsigned l=
-ong end,
-+			      const struct as_walk_ops *ops,
-+			      struct as_walk *asw)
-+{
-+	pud_t *pud =3D pud_offset(p4d, addr);
-+	unsigned long next;
-+
-+	do {
-+		next =3D pud_addr_end(addr, end);
-+		if (pud_none_or_clear_bad(pud))
-+			continue;
-+		if (WARN_ON(pud_huge(*pud)))
-+			continue;
-+		walk_as_pmd_range(pud, addr, next, ops, asw);
-+	} while (pud++, addr =3D next, addr !=3D end);
-+}
-+
-+static void walk_as_p4d_range(pgd_t *pgd, unsigned long addr, unsigned l=
-ong end,
-+			      const struct as_walk_ops *ops,
-+			      struct as_walk *asw)
-+{
-+	p4d_t *p4d =3D p4d_offset(pgd, addr);
-+	unsigned long next;
-+
-+	do {
-+		next =3D p4d_addr_end(addr, end);
-+		if (p4d_none_or_clear_bad(p4d))
-+			continue;
-+		walk_as_pud_range(p4d, addr, next, ops, asw);
-+	} while (p4d++, addr =3D next, addr !=3D end);
-+}
-+
-+static void walk_as_pfn_range(unsigned long addr, unsigned long end,
-+			      const struct as_walk_ops *ops,
-+			      struct as_walk *asw)
-+{
-+	pgd_t *pgd =3D pgd_offset(asw->vma->vm_mm, addr);
-+	unsigned long next;
-+
-+	do {
-+		next =3D pgd_addr_end(addr, end);
-+		if (pgd_none_or_clear_bad(pgd))
-+			continue;
-+		walk_as_p4d_range(pgd, addr, next, ops, asw);
-+	} while (pgd++, addr =3D next, addr !=3D end);
-+}
-+
-+
-+/**
-+ * struct as_walk_range - Argument for apply_as_range
-+ * @asw: The struct as_walk we embed for the page walk
-+ * @start: Address of first modified pte
-+ * @end: Address of last modified pte + 1
-+ * @total: Total number of modified ptes
-+ */
-+struct as_walk_range {
-+	struct as_walk base;
-+	unsigned long start;
-+	unsigned long end;
-+	unsigned long total;
-+};
-+
-+#define to_as_walk_range(_asw) container_of(_asw, struct as_walk_range, =
-base)
-+
-+/**
-+ * apply_pt_wrprotect - Leaf pte callback to write-protect a pte
-+ * @pte: Pointer to the pte
-+ * @addr: The virtual page address
-+ * @asw: Pointer to a struct as_walk embedded in a struct as_walk_range
-+ *
-+ * The function write-protects a pte and records the range in
-+ * virtual address space of touched ptes for efficient range TLB flushes=
+ 	/*
+ 	 * Note: We're transferring the bo reference to
+@@ -481,7 +481,7 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct=
+ ttm_buffer_object *bo)
+=20
+ 	ttm_bo_get(bo);
+=20
+-	vma->vm_ops =3D &ttm_bo_vm_ops;
++	vma->vm_ops =3D bo->bdev->vm_ops;
+ 	vma->vm_private_data =3D bo;
+ 	vma->vm_flags |=3D VM_MIXEDMAP;
+ 	vma->vm_flags |=3D VM_IO | VM_DONTEXPAND;
+diff --git a/include/drm/ttm/ttm_bo_driver.h b/include/drm/ttm/ttm_bo_dri=
+ver.h
+index 6f536caea368..c1cc0c408e27 100644
+--- a/include/drm/ttm/ttm_bo_driver.h
++++ b/include/drm/ttm/ttm_bo_driver.h
+@@ -452,6 +452,9 @@ extern struct ttm_bo_global {
+  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver=
 .
-+ */
-+static void apply_pt_wrprotect(pte_t *pte, unsigned long addr,
-+			       struct as_walk *asw)
-+{
-+	struct as_walk_range *awr =3D to_as_walk_range(asw);
-+	pte_t ptent =3D *pte;
-+
-+	if (pte_write(ptent)) {
-+		pte_t old_pte =3D ptep_modify_prot_start(asw->vma, addr, pte);
-+
-+		ptent =3D pte_wrprotect(old_pte);
-+		ptep_modify_prot_commit(asw->vma, addr, pte, old_pte, ptent);
-+		awr->total++;
-+		awr->start =3D min(awr->start, addr);
-+		awr->end =3D max(awr->end, addr + PAGE_SIZE);
-+	}
-+}
-+
-+/**
-+ * struct as_walk_clean - Argument structure for apply_pt_clean
-+ * @base: struct as_walk we derive from
-+ * @bitmap_pgoff: Address_space Page offset of the first bit in @bitmap
-+ * @bitmap: Bitmap with one bit for each page offset in the address_spac=
-e range
-+ * covered.
-+ * @start: Address_space page offset of first modified pte relative
-+ * to @bitmap_pgoff
-+ * @end: Address_space page offset of last modified pte relative
-+ * to @bitmap_pgoff
-+ */
-+struct as_walk_clean {
-+	struct as_walk_range base;
-+	pgoff_t bitmap_pgoff;
-+	unsigned long *bitmap;
-+	pgoff_t start;
-+	pgoff_t end;
-+};
-+
-+#define to_as_walk_clean(_awr) container_of(_awr, struct as_walk_clean, =
-base)
-+
-+/**
-+ * apply_pt_clean - Leaf pte callback to clean a pte
-+ * @pte: Pointer to the pte
-+ * @addr: The virtual page address
-+ * @asw: Pointer to a struct as_walk embedded in a struct as_walk_clean
-+ *
-+ * The function cleans a pte and records the range in
-+ * virtual address space of touched ptes for efficient TLB flushes.
-+ * It also records dirty ptes in a bitmap representing page offsets
-+ * in the address_space, as well as the first and last of the bits
-+ * touched.
-+ */
-+static void apply_pt_clean(pte_t *pte, unsigned long addr, struct as_wal=
-k *asw)
-+{
-+	struct as_walk_range *awr =3D to_as_walk_range(asw);
-+	struct as_walk_clean *clean =3D to_as_walk_clean(awr);
-+	pte_t ptent =3D *pte;
-+
-+	if (pte_dirty(ptent)) {
-+		pgoff_t pgoff =3D ((addr - asw->vma->vm_start) >> PAGE_SHIFT) +
-+			asw->vma->vm_pgoff - clean->bitmap_pgoff;
-+		pte_t old_pte =3D ptep_modify_prot_start(asw->vma, addr, pte);
-+
-+		ptent =3D pte_mkclean(old_pte);
-+		ptep_modify_prot_commit(asw->vma, addr, pte, old_pte, ptent);
-+
-+		awr->total++;
-+		awr->start =3D min(awr->start, addr);
-+		awr->end =3D max(awr->end, addr + PAGE_SIZE);
-+
-+		__set_bit(pgoff, clean->bitmap);
-+		clean->start =3D min(clean->start, pgoff);
-+		clean->end =3D max(clean->end, pgoff + 1);
-+	}
-+}
-+
-+/**
-+ * apply_as_range - Apply a pte callback to all PTEs pointing into a ran=
-ge
-+ * of an address_space.
-+ * @mapping: Pointer to the struct address_space
-+ * @aas: Closure structure
-+ * @first_index: First page offset in the address_space
-+ * @nr: Number of incremental page offsets to cover
-+ *
-+ * Return: Number of ptes touched. Note that this number might be larger
-+ * than @nr if there are overlapping vmas
-+ */
-+static unsigned long apply_as_range(struct address_space *mapping,
-+				    pgoff_t first_index, pgoff_t nr,
-+				    const struct as_walk_ops *ops,
-+				    struct as_walk_range *awr)
-+{
-+	struct vm_area_struct *vma;
-+	pgoff_t vba, vea, cba, cea;
-+	unsigned long start_addr, end_addr;
-+	struct mmu_notifier_range range;
-+
-+	i_mmap_lock_read(mapping);
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, first_index,
-+				  first_index + nr - 1) {
-+		unsigned long vm_flags =3D READ_ONCE(vma->vm_flags);
-+
-+		/*
-+		 * We can only do advisory flag tests below, since we can't
-+		 * require the mm's mmap_sem to be held to protect the flags.
-+		 * Therefore, callers that strictly depend on specific vm_flags
-+		 * to remain constant throughout the operation must ensure
-+		 * those flags are immutable for all relevant vmas or can't use
-+		 * this function. Fixing this properly would require the
-+		 * vm_flags to be protected by a separate lock taken after the
-+		 * i_mmap_lock
-+		 */
-+
-+		/* Skip non-applicable VMAs */
-+		if ((vm_flags & (VM_SHARED | VM_WRITE)) !=3D
-+		    (VM_SHARED | VM_WRITE))
-+			continue;
-+
-+		/* Warn on and skip VMAs whose flags indicate illegal usage */
-+		if (WARN_ON((vm_flags & (VM_HUGETLB | VM_IO)) !=3D VM_IO))
-+			continue;
-+
-+		/* Clip to the vma */
-+		vba =3D vma->vm_pgoff;
-+		vea =3D vba + vma_pages(vma);
-+		cba =3D first_index;
-+		cba =3D max(cba, vba);
-+		cea =3D first_index + nr;
-+		cea =3D min(cea, vea);
-+
-+		/* Translate to virtual address */
-+		start_addr =3D ((cba - vba) << PAGE_SHIFT) + vma->vm_start;
-+		end_addr =3D ((cea - vba) << PAGE_SHIFT) + vma->vm_start;
-+		if (start_addr >=3D end_addr)
-+			continue;
-+
-+		awr->base.vma =3D vma;
-+		awr->start =3D end_addr;
-+		awr->end =3D start_addr;
-+
-+		mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE, 0,
-+					vma, vma->vm_mm, start_addr, end_addr);
-+		mmu_notifier_invalidate_range_start(&range);
-+
-+		/* Is this needed when we only change protection? */
-+		flush_cache_range(vma, start_addr, end_addr);
-+
-+		/*
-+		 * We're not using tlb_gather_mmu() since typically
-+		 * only a small subrange of PTEs are affected, whereas
-+		 * tlb_gather_mmu() records the full range.
-+		 */
-+		inc_tlb_flush_pending(vma->vm_mm);
-+		walk_as_pfn_range(start_addr, end_addr, ops, &awr->base);
-+		if (awr->end > awr->start)
-+			flush_tlb_range(vma, awr->start, awr->end);
-+
-+		mmu_notifier_invalidate_range_end(&range);
-+		dec_tlb_flush_pending(vma->vm_mm);
-+	}
-+	i_mmap_unlock_read(mapping);
-+
-+	return awr->total;
-+}
-+
-+/**
-+ * apply_as_wrprotect - Write-protect all ptes in an address_space range
-+ * @mapping: The address_space we want to write protect
-+ * @first_index: The first page offset in the range
-+ * @nr: Number of incremental page offsets to cover
-+ *
-+ * WARNING: This function should only be used for address spaces whose
-+ * vmas are marked VM_IO and that do not contain huge pages.
-+ * To avoid interference with COW'd pages, vmas not marked VM_SHARED are
-+ * simply skipped.
-+ *
-+ * Return: The number of ptes actually write-protected. Note that
-+ * already write-protected ptes are not counted.
-+ */
-+unsigned long apply_as_wrprotect(struct address_space *mapping,
-+				 pgoff_t first_index, pgoff_t nr)
-+{
-+	static const struct as_walk_ops ops =3D {
-+		.pte_entry =3D apply_pt_wrprotect
-+	};
-+	struct as_walk_range awr =3D { .total =3D 0 };
-+
-+	return apply_as_range(mapping, first_index, nr, &ops, &awr);
-+}
-+EXPORT_SYMBOL_GPL(apply_as_wrprotect);
-+
-+/**
-+ * apply_as_clean - Clean all ptes in an address_space range
-+ * @mapping: The address_space we want to clean
-+ * @first_index: The first page offset in the range
-+ * @nr: Number of incremental page offsets to cover
-+ * @bitmap_pgoff: The page offset of the first bit in @bitmap
-+ * @bitmap: Pointer to a bitmap of at least @nr bits. The bitmap needs t=
-o
-+ * cover the whole range @first_index..@first_index + @nr.
-+ * @start: Pointer to number of the first set bit in @bitmap.
-+ * is modified as new bits are set by the function.
-+ * @end: Pointer to the number of the last set bit in @bitmap.
-+ * none set. The value is modified as new bits are set by the function.
-+ *
-+ * Note: When this function returns there is no guarantee that a CPU has
-+ * not already dirtied new ptes. However it will not clean any ptes not
-+ * reported in the bitmap.
-+ *
-+ * If a caller needs to make sure all dirty ptes are picked up and none
-+ * additional are added, it first needs to write-protect the address-spa=
-ce
-+ * range and make sure new writers are blocked in page_mkwrite() or
-+ * pfn_mkwrite(). And then after a TLB flush following the write-protect=
-ion
-+ * pick up all dirty bits.
-+ *
-+ * WARNING: This function should only be used for address spaces whose
-+ * vmas are marked VM_IO and that do not contain huge pages.
-+ * To avoid interference with COW'd pages, vmas not marked VM_SHARED are
-+ * simply skipped.
-+ *
-+ * Return: The number of dirty ptes actually cleaned.
-+ */
-+unsigned long apply_as_clean(struct address_space *mapping,
-+			     pgoff_t first_index, pgoff_t nr,
-+			     pgoff_t bitmap_pgoff,
-+			     unsigned long *bitmap,
-+			     pgoff_t *start,
-+			     pgoff_t *end)
-+{
-+	bool none_set =3D (*start >=3D *end);
-+	static const struct as_walk_ops ops =3D { .pte_entry =3D apply_pt_clean=
+  * @man: An array of mem_type_managers.
+  * @vma_manager: Address space manager
++ * @vm_ops: Pointer to the struct vm_operations_struct used for this
++ * device's VM operations. The driver may override this before the first
++ * mmap() call.
+  * lru_lock: Spinlock that protects the buffer+device lru lists and
+  * ddestroy lists.
+  * @dev_mapping: A pointer to the struct address_space representing the
+@@ -470,6 +473,7 @@ struct ttm_bo_device {
+ 	struct ttm_bo_global *glob;
+ 	struct ttm_bo_driver *driver;
+ 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
++	const struct vm_operations_struct *vm_ops;
+=20
+ 	/*
+ 	 * Protected by internal locks.
+@@ -498,6 +502,8 @@ struct ttm_bo_device {
+ 	bool no_retry;
  };
-+	struct as_walk_clean clean =3D {
-+		.base =3D { .total =3D 0, },
-+		.bitmap_pgoff =3D bitmap_pgoff,
-+		.bitmap =3D bitmap,
-+		.start =3D none_set ? nr : *start,
-+		.end =3D none_set ? 0 : *end,
-+	};
-+	unsigned long ret =3D apply_as_range(mapping, first_index, nr, &ops,
-+					   &clean.base);
-+	*start =3D clean.start;
-+	*end =3D clean.end;
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(apply_as_clean);
+=20
++extern const struct vm_operations_struct ttm_bo_vm_ops;
++
+ /**
+  * struct ttm_lru_bulk_move_pos
+  *
 --=20
 2.20.1
 
