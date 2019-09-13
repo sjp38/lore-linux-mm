@@ -6,75 +6,85 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B004AC49ED7
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 15:18:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C0C0C4CEC7
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 16:09:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 760F321479
-	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 15:18:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 07C87216F4
+	for <linux-mm@archiver.kernel.org>; Fri, 13 Sep 2019 16:09:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="HGJfCy21"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 760F321479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="XynQCoTb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07C87216F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC7A46B0003; Fri, 13 Sep 2019 11:18:11 -0400 (EDT)
+	id 57A6F6B0003; Fri, 13 Sep 2019 12:09:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E78AB6B0006; Fri, 13 Sep 2019 11:18:11 -0400 (EDT)
+	id 5036F6B0006; Fri, 13 Sep 2019 12:09:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8CF66B0007; Fri, 13 Sep 2019 11:18:11 -0400 (EDT)
+	id 3CABF6B0007; Fri, 13 Sep 2019 12:09:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
-	by kanga.kvack.org (Postfix) with ESMTP id B2AC56B0003
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 11:18:11 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 58DD782437D2
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 15:18:11 +0000 (UTC)
-X-FDA: 75930253182.22.glass86_81a56a0780431
-X-HE-Tag: glass86_81a56a0780431
-X-Filterd-Recvd-Size: 3110
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 15:18:10 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=fxdx8ELT74pyYGT61OLGflIw6z6NXtnHEx3y22zF9/I=; b=HGJfCy214Ht+AD4xBmFC2EHL/h
-	RGMiZnEGOa0ZkY+vilO/vwXrwlw5aVSIvlxTJlhfy35kx2Hk/aCz/fPXBIfh0u4xiRil59kS16WqN
-	CY+c/HDv6hZES8flPhraJi79Tpz9SEavFg1fZFXMRI5mwNNJdUBiCFJFQIYl1DqSJWaXVqwotLrkI
-	660Dzqxfp3iTpjh7kUAAzqrFPM72+Z6LiD0P9chN7sJkU1s05NXxtGy9NxaZYefRN/RG1jJscJbE4
-	6htV+dd2KCxAB9XypgpTU4/6FN8Ci4QOP9ZyPmtmR7pOb2QB5fu/qm4PQs4IiI5fEeSy3ft9D+awP
-	t+Sl2VEQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92.2 #3 (Red Hat Linux))
-	id 1i8nKl-0006KN-Pf; Fri, 13 Sep 2019 15:18:03 +0000
-Date: Fri, 13 Sep 2019 08:18:03 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Thomas =?iso-8859-1?Q?Hellstr=F6m_=28VMware=29?= <thomas_os@shipmail.org>
-Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, pv-drivers@vmware.com,
-	linux-graphics-maintainer@vmware.com,
-	Thomas Hellstrom <thellstrom@vmware.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Will Deacon <will.deacon@arm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Rik van Riel <riel@surriel.com>, Minchan Kim <minchan@kernel.org>,
-	Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Christoph Hellwig <hch@infradead.org>
+Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
+	by kanga.kvack.org (Postfix) with ESMTP id 1598F6B0003
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 12:09:15 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id B5E2B180AD7C3
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 16:09:14 +0000 (UTC)
+X-FDA: 75930381828.18.frame98_8ab1d9b5b1543
+X-HE-Tag: frame98_8ab1d9b5b1543
+X-Filterd-Recvd-Size: 4134
+Received: from pio-pvt-msa3.bahnhof.se (pio-pvt-msa3.bahnhof.se [79.136.2.42])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Fri, 13 Sep 2019 16:09:12 +0000 (UTC)
+Received: from localhost (localhost [127.0.0.1])
+	by pio-pvt-msa3.bahnhof.se (Postfix) with ESMTP id 894CE3F4EE;
+	Fri, 13 Sep 2019 18:09:01 +0200 (CEST)
+Authentication-Results: pio-pvt-msa3.bahnhof.se;
+	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=XynQCoTb;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at bahnhof.se
+Received: from pio-pvt-msa3.bahnhof.se ([127.0.0.1])
+	by localhost (pio-pvt-msa3.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id w66xOcqsUdTC; Fri, 13 Sep 2019 18:09:00 +0200 (CEST)
+Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	(Authenticated sender: mb878879)
+	by pio-pvt-msa3.bahnhof.se (Postfix) with ESMTPA id C1B533F4CE;
+	Fri, 13 Sep 2019 18:08:58 +0200 (CEST)
+Received: from localhost.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	by mail1.shipmail.org (Postfix) with ESMTPSA id F2D88360142;
+	Fri, 13 Sep 2019 18:08:57 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
+	t=1568390938; bh=41MPZF1NeqOE0U6C6W9oOWADl0xCjXwYhj5nNmjRnd8=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=XynQCoTbU1vNaNOD1qJfXS4/bvLSiIvoX7kfiON1kgTFMwvHHRqAkyaF2qkA+Bi81
+	 /UnRhY8//LOcCTpf1fBzpEW2/YiDJRAu5Hy1DlO6y36DGIy+BCamkUQNY2Suy7TwWz
+	 c8zsZT3WgsPGSCU6llPnwjTx8zGiMdiTvmLTKC3Y=
 Subject: Re: [RFC PATCH 3/7] drm/ttm: TTM fault handler helpers
-Message-ID: <20190913151803.GO29434@bombadil.infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+ linux-mm@kvack.org, pv-drivers@vmware.com,
+ linux-graphics-maintainer@vmware.com,
+ Thomas Hellstrom <thellstrom@vmware.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Will Deacon
+ <will.deacon@arm.com>, Peter Zijlstra <peterz@infradead.org>,
+ Rik van Riel <riel@surriel.com>, Minchan Kim <minchan@kernel.org>,
+ Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>,
+ Souptick Joarder <jrdr.linux@gmail.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, =?UTF-8?Q?Christian_K=c3=b6nig?=
+ <christian.koenig@amd.com>, Christoph Hellwig <hch@infradead.org>
 References: <20190913093213.27254-1-thomas_os@shipmail.org>
  <20190913093213.27254-4-thomas_os@shipmail.org>
+ <20190913151803.GO29434@bombadil.infradead.org>
+From: =?UTF-8?Q?Thomas_Hellstr=c3=b6m_=28VMware=29?= <thomas_os@shipmail.org>
+Organization: VMware Inc.
+Message-ID: <6d33a9fd-47bb-a041-cd18-d67605edae54@shipmail.org>
+Date: Fri, 13 Sep 2019 18:08:57 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20190913093213.27254-4-thomas_os@shipmail.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190913151803.GO29434@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -82,22 +92,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 13, 2019 at 11:32:09AM +0200, Thomas Hellstr=F6m (VMware) wro=
-te:
-> +vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
-> +				    pgprot_t prot,
-> +				    pgoff_t num_prefault)
-> +{
-> +	struct vm_area_struct *vma =3D vmf->vma;
-> +	struct vm_area_struct cvma =3D *vma;
-> +	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
-> +	    vma->vm_private_data;
+On 9/13/19 5:18 PM, Matthew Wilcox wrote:
+> On Fri, Sep 13, 2019 at 11:32:09AM +0200, Thomas Hellstr=C3=B6m (VMware=
+) wrote:
+>> +vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
+>> +				    pgprot_t prot,
+>> +				    pgoff_t num_prefault)
+>> +{
+>> +	struct vm_area_struct *vma =3D vmf->vma;
+>> +	struct vm_area_struct cvma =3D *vma;
+>> +	struct ttm_buffer_object *bo =3D (struct ttm_buffer_object *)
+>> +	    vma->vm_private_data;
+> It's a void *.  There's no need to cast it.
+>
+> 	struct ttm_buffer_object *bo =3D vma->vm_private_data;
+>
+> conveys exactly the same information to both the reader and the compile=
+r,
+> except it's all on one line instead of split over two.
 
-It's a void *.  There's no need to cast it.
+Indeed.
 
-	struct ttm_buffer_object *bo =3D vma->vm_private_data;
+However since this is mostly a restructuring commit and there are a=20
+couple of these present in the code I'd like to keep cleanups separate.
 
-conveys exactly the same information to both the reader and the compiler,
-except it's all on one line instead of split over two.
+Thanks,
+Thomas
+
 
 
