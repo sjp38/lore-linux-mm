@@ -2,299 +2,198 @@ Return-Path: <SRS0=RN4K=XJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-17.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB563C49ED6
-	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 07:05:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6320FC4CEC9
+	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 09:47:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34FFC2081B
-	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 07:05:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F331B20854
+	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 09:47:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TFt74Cpq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34FFC2081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="SlFvsOvC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F331B20854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B7106B0005; Sat, 14 Sep 2019 03:05:36 -0400 (EDT)
+	id 82D1D6B0005; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 968796B0006; Sat, 14 Sep 2019 03:05:36 -0400 (EDT)
+	id 7DCE16B0006; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 87E3B6B0007; Sat, 14 Sep 2019 03:05:36 -0400 (EDT)
+	id 6F4876B0007; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F216B0005
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 03:05:36 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E484F181AC9AE
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 07:05:35 +0000 (UTC)
-X-FDA: 75932640630.24.wound23_6b09a9a861442
-X-HE-Tag: wound23_6b09a9a861442
-X-Filterd-Recvd-Size: 12221
-Received: from mail-yw1-f74.google.com (mail-yw1-f74.google.com [209.85.161.74])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 07:05:35 +0000 (UTC)
-Received: by mail-yw1-f74.google.com with SMTP id 132so25491057ywo.13
-        for <linux-mm@kvack.org>; Sat, 14 Sep 2019 00:05:35 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=DJvDW0udwitjO1Jctpco23V2LugHZvH/rR3Gw2m+9lg=;
-        b=TFt74CpqRx4liyP81l7T8Ew7QkCFUe+kj261h3E+ItvyzspkQtEGjE0oXMmNyQnPty
-         SfToHmq8J8bVPdq5+Yb5XqJMpLX1UleGtDOxj4YbMUFYkDGWLTtgdSZpnkSziZgvqKJv
-         Nr7X2tWYQJIAIp90Scdy+NlsjO00AO3P/ZMrnbwnMN+0JEv3M5M+y+bAqRBFBk8sDTmX
-         xs5hdplc/hCTAifhln6fKvZPYqB0g17lERHnqItwvukMXBOHr7ctTDWfHal76HwBfrxd
-         Vpe8qDLa38EL5TyvgGlNw36m9KA94inn5GpN45lZEs//j7R0M/z15KSN+wWDw1tdfyuI
-         8cJw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:in-reply-to:message-id:mime-version
-         :references:subject:from:to:cc;
-        bh=DJvDW0udwitjO1Jctpco23V2LugHZvH/rR3Gw2m+9lg=;
-        b=dJK6fn6tA7Tabg9j2JPtvF//wl1GrvAYo2qQbFVwyTXeK7Kje8yNtYN5Y9peTGcXWt
-         Te+M89Ih+/9qxc2WhPmTu/xzMRdpI0ZCWK36HYWqXKA3mTBpPdtI0cL8Jc8ZDGc1nsTh
-         W3ZJ96QbQnlTZg28GU8/8N3yVyBDIbcOhQaKsD9OVBeWms4vOShdCg+z1nBEipimDgss
-         +b1UyrWwgiGfIi6BJNm9ABWYKbFkYvN0loEY006MKqBttw8aGI45V+oLCh3Uk+2Z+dWc
-         lYzoCsRUz9p8GSud0T4s9Wy+EDPB130bBOwRTpU/JtInN3W7UR2h1ms//TdsFFUOphoW
-         +SKg==
-X-Gm-Message-State: APjAAAV/T/Xz0DjAOfxVW0+/c0e0yZEIudivNadEVhsElwJraRtRBizV
-	VphlDSBp2vE2LI+HQU/zzPqr8Vy9nLU=
-X-Google-Smtp-Source: APXvYqzM6Rh9Smccv9ad2DIffWzTThuMjeU5/uZ8rC//3OTGe9e+fGdlVaLuzgf8FfKoFdLM0HvMcOQVWKE=
-X-Received: by 2002:a81:650a:: with SMTP id z10mr9203069ywb.230.1568444734408;
- Sat, 14 Sep 2019 00:05:34 -0700 (PDT)
-Date: Sat, 14 Sep 2019 01:05:18 -0600
-In-Reply-To: <20190514230751.GA70050@google.com>
-Message-Id: <20190914070518.112954-1-yuzhao@google.com>
-Mime-Version: 1.0
-References: <20190514230751.GA70050@google.com>
-X-Mailer: git-send-email 2.23.0.237.gc6a4ce50a0-goog
-Subject: [PATCH v2] mm: don't expose page to fast gup prematurely
-From: Yu Zhao <yuzhao@google.com>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, 
-	Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, 
-	Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, 
-	Hugh Dickins <hughd@google.com>, 
-	"=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?=" <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, 
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, David Rientjes <rientjes@google.com>, 
-	Matthew Wilcox <willy@infradead.org>, Lance Roy <ldr709@gmail.com>, 
-	Ralph Campbell <rcampbell@nvidia.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dave Airlie <airlied@redhat.com>, 
-	Thomas Hellstrom <thellstrom@vmware.com>, Souptick Joarder <jrdr.linux@gmail.com>, 
-	Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, 
-	Huang Ying <ying.huang@intel.com>, Aaron Lu <ziqian.lzq@antfin.com>, 
-	Omar Sandoval <osandov@fb.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	Vineeth Remanan Pillai <vpillai@digitalocean.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, 
-	Mike Rapoport <rppt@linux.ibm.com>, Joel Fernandes <joel@joelfernandes.org>, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yu Zhao <yuzhao@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from forelay.hostedemail.com (smtprelay0150.hostedemail.com [216.40.44.150])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D9556B0005
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id D3042824CA27
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 09:47:46 +0000 (UTC)
+X-FDA: 75933049332.16.crush12_43db34b916f53
+X-HE-Tag: crush12_43db34b916f53
+X-Filterd-Recvd-Size: 7234
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 09:47:46 +0000 (UTC)
+Received: from localhost (unknown [77.137.89.37])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 608CE20693;
+	Sat, 14 Sep 2019 09:47:44 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1568454465;
+	bh=o1C1eO0XQdj1YbvGrXjBSYKylVEgbJNTPOZGcdRTRG0=;
+	h=Date:From:To:Cc:Subject:From;
+	b=SlFvsOvC8hnWCiNiFh1dPTLmNHt4DUC71thWfCK7ukAo8OmodVKQFCFggWrmQpDNE
+	 7yfj/ZwjookpdlbXK/bUOxzXXsHZb7odDaACo/6wQkxAeGRmZuAckeHm02reG3wJb7
+	 xWPpsTP2JOIEoW5wa3PJngDX0TqZLhV6BkIs5ml4=
+Date: Sat, 14 Sep 2019 12:47:30 +0300
+From: Leon Romanovsky <leon@kernel.org>
+To: RDMA mailing list <linux-rdma@vger.kernel.org>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Doug Ledford <dledford@redhat.com>,
+	linux-mm <linux-mm@kvack.org>, Jonathan Corbet <corbet@lwn.net>,
+	Christoph Hellwig <hch@lst.de>, Sagi Grimberg <sagi@grimberg.me>
+Subject: 4th RDMA Microconference Summary
+Message-ID: <20190914094730.GL6601@unreal>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+User-Agent: Mutt/1.12.1 (2019-06-15)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We don't want to expose page to fast gup running on a remote CPU
-before all local non-atomic ops on page flags are visible first.
+Hi,
 
-For anon page that isn't in swap cache, we need to make sure all
-prior non-atomic ops, especially __SetPageSwapBacked() in
-page_add_new_anon_rmap(), are order before set_pte_at() to prevent
-the following race:
+This is summary of 4th RDMA microconference co-located with Linux
+Plumbers Conference 2019.
 
-	CPU 1				CPU1
-set_pte_at()			get_user_pages_fast()
-page_add_new_anon_rmap()		gup_pte_range()
-	__SetPageSwapBacked()			SetPageReferenced()
+We would like to thank you for all presenters and attendees of our RDMA
+track, it is you who made this event so successful.
 
-This demonstrates a non-fatal scenario. Though I haven't directly
-observed any fatal ones, they can exist, e.g., PG_lock set by fast
-gup caller and then overwritten by __SetPageSwapBacked().
+Special thanks goes to Doug Ledford who volunteered to take notes
+and Jason Gunthorpe who helped to run this event smoothly.
 
-For anon page that is in swap cache and file page including tmpfs,
-we don't need smp_wmb() before set_pte_at(). We've already exposed
-them after adding them to swap and file caches. xas_lock_irq() and
-xas_unlock_irq() are used during the process, which guarantees
-__SetPageUptodate() and other non-atomic ops are ordered before
-set_pte_at(). (Using non-atomic ops thereafter is a bug, obviously).
+The original etherpad is located at [2] and below you will find the copy
+of those notes:
+-------------------------------------------------------------------------=
+-----------------------
+1. GUP and ZONE_DEVICE pages. [3]
+   Jason Gunthorpe, John Hubbard and Don Dutile
 
-The smp_wmb() is open-coded rather than inserted at the bottom of
-page_add_new_anon_rmap() because there is one place that calls the
-function doesn't need the barrier (do_huge_pmd_wp_page_fallback()).
+ * Make the interface to use p2p mechanism be via sysfs. (PCI???).
+ * Try to kill PTE flag for dev memory to make it easier to support
+   on things like s390.
+ * s390 will have mapping issues, arm/x86/PowerPC should be fine.
+ * Looking to map partial BARs so they can be partitioned between
+   different users.
+ * Total BAR space could exceed 1TB in some scenarios
+   (lots of GPUs in an HPC machine with persistent memory, etc.).
+ * Initially use struct page element but try to remove it later.
+ * Unlikely to be able to remove struct page, so maybe make it less painf=
+ul
+   by doing something like forcing all zone mappings to use hugepages ioc=
+tl no, sysfs yes.
+ * PCI SIG talking about peer-2-peer too.
+ * Distance might not be the best function name for the pci p2p checking =
+function.
+ * Conceptually, looking for new type of page fault, DMA fault, that will=
+ make a page
+   visible to DMA even if we don=E2=80=99t care if it=E2=80=99s visible t=
+o the CPU GUP API makes really
+   weak promise, no one could possibly think that it=E2=80=99s that weak,=
+ so everyone assumed
+   it was stronger they were wrong.
+ * It really is that weak wrappers around the GUP flags? 17+ flags curren=
+tly,
+   combinational matrix is extreme, some internal only flags can be abuse=
+d by callers.
+ * Possible to set "opposite" GUP flags.
+ * Most (if not all) out of core code (drivers) get_user_pages users
+   need same flags.
 
-Alternatively, we can use atomic ops instead. There seems at least
-as many __SetPageUptodate() and __SetPageSwapBacked() to change.
+2. RDMA, File Systems, and DAX. [4]
+   Ira Weiny
+ * There was a bug in previous versions of patch set. It=E2=80=99s fixed.
+ * New file_pin object to track relationship between mmaped files
+   and DMA mappings to the underlying pages.
+ * If owners of lease tries to do something that requires changes
+   to the file layout: deadlock of application (current patch set, but no=
+t settled).
+ * Write lease/fallocate/downgrade to read/unbreakable lease - fix race i=
+ssue
+   with fallocate and lease chicken and egg problem.
 
-Signed-off-by: Yu Zhao <yuzhao@google.com>
----
- kernel/events/uprobes.c |  2 ++
- mm/huge_memory.c        |  4 ++++
- mm/khugepaged.c         |  2 ++
- mm/memory.c             | 10 +++++++++-
- mm/migrate.c            |  2 ++
- mm/swapfile.c           |  6 ++++--
- mm/userfaultfd.c        |  2 ++
- 7 files changed, 25 insertions(+), 3 deletions(-)
+3. Discussion about IBNBD/IBTRS, upstreaming and action items. [5]
+   Jinpu Wang, Danil Kipnis
+ * IBTRS is standalone transfer engine that can be used with any ULP.
+ * IBTRS only uses RDMA_WRITE with IMM and so is limited to fabrics
+   that support this.
+ * Server does not unmap after write from client so data can change
+   when the server is flushing to disk.
+ * Need to think about transfer model as the current one appears
+   to be vulnerable to a nefarious kernel module.
+ * It is worth to consider to unite 4 kernel modules to be 2 kernel
+ * modules. One responsible for transfer (server + client) and another
+   is responsible for block operations.
+ * Security concern should be cleared first before in-depth review.
+ * No objections to see IBTRS in kernel, but needs to be renamed to
+   something more general, because it works on many fabrics and not only
+   IB.
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 84fa00497c49..7069785e2e52 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -194,6 +194,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 
- 	flush_cache_page(vma, addr, pte_pfn(*pvmw.pte));
- 	ptep_clear_flush_notify(vma, addr, pvmw.pte);
-+	/* commit non-atomic ops before exposing to fast gup */
-+	smp_wmb();
- 	set_pte_at_notify(mm, addr, pvmw.pte,
- 			mk_pte(new_page, vma->vm_page_prot));
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index de1f15969e27..0be8cee94a5b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -616,6 +616,8 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
- 		mem_cgroup_commit_charge(page, memcg, false, true);
- 		lru_cache_add_active_or_unevictable(page, vma);
- 		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 		set_pmd_at(vma->vm_mm, haddr, vmf->pmd, entry);
- 		add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		mm_inc_nr_ptes(vma->vm_mm);
-@@ -1423,6 +1425,8 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 		page_add_new_anon_rmap(new_page, vma, haddr, true);
- 		mem_cgroup_commit_charge(new_page, memcg, false, true);
- 		lru_cache_add_active_or_unevictable(new_page, vma);
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 		set_pmd_at(vma->vm_mm, haddr, vmf->pmd, entry);
- 		update_mmu_cache_pmd(vma, vmf->address, vmf->pmd);
- 		if (!page) {
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index eaaa21b23215..c703e4b7c9be 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1081,6 +1081,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
- 	lru_cache_add_active_or_unevictable(new_page, vma);
- 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
-+	/* commit non-atomic ops before exposing to fast gup */
-+	smp_wmb();
- 	set_pmd_at(mm, address, pmd, _pmd);
- 	update_mmu_cache_pmd(vma, address, pmd);
- 	spin_unlock(pmd_ptl);
-diff --git a/mm/memory.c b/mm/memory.c
-index ea3c74855b23..e56d7df0a206 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2363,6 +2363,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 		 * mmu page tables (such as kvm shadow page tables), we want the
- 		 * new page to be mapped directly into the secondary page table.
- 		 */
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 		set_pte_at_notify(mm, vmf->address, vmf->pte, entry);
- 		update_mmu_cache(vma, vmf->address, vmf->pte);
- 		if (old_page) {
-@@ -2873,7 +2875,6 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 	flush_icache_page(vma, page);
- 	if (pte_swp_soft_dirty(vmf->orig_pte))
- 		pte = pte_mksoft_dirty(pte);
--	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
- 	vmf->orig_pte = pte;
- 
-@@ -2882,12 +2883,15 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 		page_add_new_anon_rmap(page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 	} else {
- 		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
- 		mem_cgroup_commit_charge(page, memcg, true, false);
- 		activate_page(page);
- 	}
- 
-+	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 	swap_free(entry);
- 	if (mem_cgroup_swap_full(page) ||
- 	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-@@ -3030,6 +3034,8 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	page_add_new_anon_rmap(page, vma, vmf->address, false);
- 	mem_cgroup_commit_charge(page, memcg, false, false);
- 	lru_cache_add_active_or_unevictable(page, vma);
-+	/* commit non-atomic ops before exposing to fast gup */
-+	smp_wmb();
- setpte:
- 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
- 
-@@ -3293,6 +3299,8 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 		page_add_new_anon_rmap(page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 	} else {
- 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
- 		page_add_file_rmap(page, false);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index a42858d8e00b..ebfd58d2d606 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2689,6 +2689,8 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
- 		lru_cache_add_active_or_unevictable(page, vma);
- 	get_page(page);
- 
-+	/* commit non-atomic ops before exposing to fast gup */
-+	smp_wmb();
- 	if (flush) {
- 		flush_cache_page(vma, addr, pte_pfn(*ptep));
- 		ptep_clear_flush_notify(vma, addr, ptep);
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 0789a762ce2f..8e2c8ba9f793 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1880,8 +1880,6 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 	dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
- 	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
- 	get_page(page);
--	set_pte_at(vma->vm_mm, addr, pte,
--		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	if (page == swapcache) {
- 		page_add_anon_rmap(page, vma, addr, false);
- 		mem_cgroup_commit_charge(page, memcg, true, false);
-@@ -1889,7 +1887,11 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 		page_add_new_anon_rmap(page, vma, addr, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
-+		/* commit non-atomic ops before exposing to fast gup */
-+		smp_wmb();
- 	}
-+	set_pte_at(vma->vm_mm, addr, pte,
-+		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	swap_free(entry);
- 	/*
- 	 * Move the page to the active list so it is not
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index c7ae74ce5ff3..4f92913242a1 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -92,6 +92,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	mem_cgroup_commit_charge(page, memcg, false, false);
- 	lru_cache_add_active_or_unevictable(page, dst_vma);
- 
-+	/* commit non-atomic ops before exposing to fast gup */
-+	smp_wmb();
- 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
- 
- 	/* No need to invalidate - it was non-present before */
--- 
-2.23.0.237.gc6a4ce50a0-goog
+5. Improving RDMA performance through the use of contiguous memory and la=
+rger pages for files. [6]
+   Christopher Lameter
+ * The main problem is that contiguous physical memory being limited
+   resource in real life systems. The difference in system performance
+   so visible that it is worth to reboot servers every couple of days
+   (depend on workload).
+ * The reason to it, existence of unmovable pages.
+ * HugePages help, but pinned objects over time end up breaking up the hu=
+ge
+   pages and eventually system flows down Need movable objects: dentry an=
+d inode
+   are the big culprits.
+ * Typical use case used to trigger degradation is copying both very larg=
+e
+   and very small files on the same machine.
+ * Attempts to allocate unmovable pages in specific place causes to
+   situations where system experiences OOM despite being enough memory.
+ * x86 has 4K page size, while PowerPC has 64K. The bigger page size
+   gives better performance, but wastes more memory for small objects.
 
+4. Shared IB objects. [7]
+   Yuval Shaia
+ * There was lively discussion between various models of sharing
+   objects, through file description, or uverbs context, or PD.
+ * People would like to stick to the file handle model so you share
+   the file handle and get everything you need as being simplest
+   approach.
+ * Is the security model resolved?  Right now, the model assumes trusted
+   processes are allowed to share only.
+ * Simple (FD) model creates challenge to properly release HW objects
+   after main process exits and leaves HW objects which were in use by
+   itself and not by shared processes.
+ * Refcount needs to be in the API to track when the shared object is fre=
+eable
+ * API requires shared memory first, then import PD and import MR.  This =
+model
+   (as opposed to sharing the fd of the in context), allows for safe clea=
+nup on
+   process death without interfering with other users of the shared PD/MR=
+.
+
+Thanks
+
+[1] https://linuxplumbersconf.org/event/4/sessions/64/#20190911
+[2] https://etherpad.net/p/LPC2019_RDMA
+[3] https://www.linuxplumbersconf.org/event/4/contributions/369/
+[4] https://linuxplumbersconf.org/event/4/contributions/368/
+[5] https://linuxplumbersconf.org/event/4/contributions/367/
+[6] https://linuxplumbersconf.org/event/4/contributions/371/
+[7] https://www.linuxplumbersconf.org/event/4/contributions/371/
 
