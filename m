@@ -8,69 +8,69 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1F92C4CEC7
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:52:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DD01C4CEC7
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:52:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6791F216F4
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:52:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CCDAB214D8
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:52:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Wv2SR5sO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6791F216F4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jo+e4APs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCDAB214D8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CBFB6B0006; Sun, 15 Sep 2019 12:52:40 -0400 (EDT)
+	id 7BE0D6B000A; Sun, 15 Sep 2019 12:52:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 153C76B000A; Sun, 15 Sep 2019 12:52:40 -0400 (EDT)
+	id 76ED56B000C; Sun, 15 Sep 2019 12:52:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0423B6B000C; Sun, 15 Sep 2019 12:52:39 -0400 (EDT)
+	id 65CE06B000D; Sun, 15 Sep 2019 12:52:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0251.hostedemail.com [216.40.44.251])
-	by kanga.kvack.org (Postfix) with ESMTP id D4B9D6B0006
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 12:52:39 -0400 (EDT)
-Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 8B0382C07
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:52:39 +0000 (UTC)
-X-FDA: 75937748838.11.hole63_3441fb1e10563
-X-HE-Tag: hole63_3441fb1e10563
-X-Filterd-Recvd-Size: 5098
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:52:38 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id n190so18048833pgn.0
-        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 09:52:38 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0212.hostedemail.com [216.40.44.212])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BFC6B000A
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 12:52:50 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id E09473AB9
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:52:49 +0000 (UTC)
+X-FDA: 75937749258.09.story36_35c1c86a17631
+X-HE-Tag: story36_35c1c86a17631
+X-Filterd-Recvd-Size: 5096
+Received: from mail-pg1-f194.google.com (mail-pg1-f194.google.com [209.85.215.194])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:52:49 +0000 (UTC)
+Received: by mail-pg1-f194.google.com with SMTP id 4so18002898pgm.12
+        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 09:52:49 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
         bh=nii43oMTaFtktKbnijjugyrLFfb5ZKvbiN8kMj3vNPE=;
-        b=Wv2SR5sO7CBMS93mcNuzKaC33L131eKLxc2sWGOw4gZsA2mpeA6eOWAaQ/RIHpcvzE
-         UYJ4XZ0cp7TvEj4HUH5RXcDkYGpi4w7RgV9JDzthjil/VX+OCBWBLiGeksGPio5nQ4W/
-         n+P7xO6d5cPH1Y2J1pefYxNd2a+8t/tYy1U5iv+qth1jnHJ5CU82f/XrNno5sG7w6YdU
-         k8CQzOk8cSFIhkYRzTxSKtBvSH2vA3zRKAyWAPB3rtnYqJJ23EwyaBpsmIiHUeFdrX++
-         aRpLJJDVoVUYXcJKu5QRRIglkt97eQgVnqG/6gNYv3YgbZY8dd7gDsjlzpAuZyCQ/9hB
-         GHpQ==
+        b=jo+e4APs5xDRR8vZnH8rVBXMdzgGhpBwxw1z0mC3zae1JlCpMP62+atbzfzG4DzlJ4
+         weLCzW1zyxAYbUHZEPNrQtsLGmmxNCJWoa02cfILoRJfidraJ/kiXJgAl7L/E8Q0fs9c
+         Dn/J+0SvCTaHBHWnlM2UnCAVBdLyy6KgR6bwLi7xR2wQwJ/MXLv8ynXcZwlUN4nwfe+s
+         mxH+qYSu1vigjSVG1BrMLQUwD7FpJli522rbBGlbnGrt3xKG30eSKffnD0Y2HkDdyYzk
+         pUuTC/IUU8TzL15qlK7Wzrw6vMLteSA9xTkhgzsInyxQftpd8Cy5PZjQZfwwplgw50+k
+         yv6Q==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
         bh=nii43oMTaFtktKbnijjugyrLFfb5ZKvbiN8kMj3vNPE=;
-        b=jVbSCbrSZ5yJ+shiHCocJUQ7gsS1egp33wCCc7wrEVmGbKBJdnylMmv9oZIbvJ9iJN
-         XejujOKlg/hx0kwd0HNJitDMqvkm+3NS8vgHrdPNJ7GXI0A6tyZ9yGv0UnSm3hm97tAo
-         Wvea1Opm+6+6SNqLbg5jfZz3ffzNz0oi8gQkAhI7QyMyTeVq0kQYHa+XvCihRrWnQkCn
-         MykRjk0rFJp3iB+NDfmkshsWwZEsdSaO9LjZClGtn7rMfrWW+DWS2+xeZeO7Py0HfiG/
-         q0jLr4+V+oQZJa6HbpSYs17qmvFqSHIzqxzBYkBSMWfV6vdrtLbmEMZBYQdTXqIZhWkn
-         AV2w==
-X-Gm-Message-State: APjAAAUtZ+I+A0DdWAY01G8Aea8T5BHNNz9ytdAfW3x3qtfeZg7ofhzQ
-	xC0hKkToIo8JFXXfcmpEeVQ=
-X-Google-Smtp-Source: APXvYqxYf54cYNQWLvZP6JklEbGw44XbGka9yQDf7cpKtKvKEjKS+BbJ7rhYqAqRIGCfavv9PckRFQ==
-X-Received: by 2002:aa7:8f03:: with SMTP id x3mr66745495pfr.91.1568566358307;
-        Sun, 15 Sep 2019 09:52:38 -0700 (PDT)
+        b=q1xwyv0EkZF7TOQ6iGnQFYzGsU10dFvU10JLyogVH8SEKT6ualKkWwPHyYe3h6EEWk
+         fXwTHSNX5pbwwdLTWGBQqijWBP6pWBTYecj+kSybj91dPw+Tbl8cHwbv1mtfTDwLcmFj
+         k3nlTUoGASUnMiD1vX6/8bi/qgl2snkT+6YiWl+W1FPIesndGmpQ1wjEJ6PHzGLni4lS
+         I4DxEeuxymVL4gvcH6vIK9xEHW3cJPbJuVZ0ApiAztHyPtns0et169HN6KnmWAIjN52j
+         ZzYveQoR1A9rGtIIGf4gbtUNxOiXUSKMw7X5sOyU0ILhxRAV8/vFKIGWvewCke012pnn
+         qtdg==
+X-Gm-Message-State: APjAAAWvPk6fmBdiJlZYIoCouj6/HtgvLVgw1jIi3J618ivFu39GJMg4
+	U+EknxvyC1+T5VwbGTADkLQ=
+X-Google-Smtp-Source: APXvYqyTb4DRsLUcRsbIEyib6eSVHgjnGgZ0zUwvJ1lKLEu0+d9WiS+28E8PoS/0ro55mhxu8KF8iA==
+X-Received: by 2002:a62:7c4d:: with SMTP id x74mr7837018pfc.95.1568566368554;
+        Sun, 15 Sep 2019 09:52:48 -0700 (PDT)
 Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id a4sm4383259pgq.6.2019.09.15.09.52.29
+        by smtp.gmail.com with ESMTPSA id a4sm4383259pgq.6.2019.09.15.09.52.38
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 15 Sep 2019 09:52:37 -0700 (PDT)
+        Sun, 15 Sep 2019 09:52:48 -0700 (PDT)
 From: Pengfei Li <lpf.vector@gmail.com>
 To: akpm@linux-foundation.org
 Cc: vbabka@suse.cz,
@@ -82,9 +82,9 @@ Cc: vbabka@suse.cz,
 	linux-kernel@vger.kernel.org,
 	guro@fb.com,
 	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v4 4/7] mm, slab: return ZERO_SIZE_ALLOC for zero sized kmalloc requests
-Date: Mon, 16 Sep 2019 00:51:14 +0800
-Message-Id: <20190915165121.7237-6-lpf.vector@gmail.com>
+Subject: [PATCH v4 4/7] mm, slab: Return ZERO_SIZE_ALLOC for zero sized kmalloc requests
+Date: Mon, 16 Sep 2019 00:51:15 +0800
+Message-Id: <20190915165121.7237-7-lpf.vector@gmail.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190915165121.7237-1-lpf.vector@gmail.com>
 References: <20190915165121.7237-1-lpf.vector@gmail.com>
