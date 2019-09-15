@@ -5,72 +5,72 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
 	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65930C4CEC7
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9C86C4CECD
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2AC5C214DE
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6FCB021479
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SJ4lQn8Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AC5C214DE
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ChR4G6GA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FCB021479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C467A6B026C; Sun, 15 Sep 2019 13:08:49 -0400 (EDT)
+	id 1E5B36B0269; Sun, 15 Sep 2019 13:08:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCF5B6B026D; Sun, 15 Sep 2019 13:08:49 -0400 (EDT)
+	id 170696B026D; Sun, 15 Sep 2019 13:08:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A986F6B026E; Sun, 15 Sep 2019 13:08:49 -0400 (EDT)
+	id 036E36B026F; Sun, 15 Sep 2019 13:08:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0011.hostedemail.com [216.40.44.11])
-	by kanga.kvack.org (Postfix) with ESMTP id 89CF86B026C
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 13:08:49 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 392A3180AD801
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:49 +0000 (UTC)
-X-FDA: 75937789578.18.lake00_2fd5c6143a34d
-X-HE-Tag: lake00_2fd5c6143a34d
-X-Filterd-Recvd-Size: 4231
-Received: from mail-pf1-f179.google.com (mail-pf1-f179.google.com [209.85.210.179])
-	by imf23.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:48 +0000 (UTC)
-Received: by mail-pf1-f179.google.com with SMTP id h195so21137989pfe.5
-        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 10:08:48 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0189.hostedemail.com [216.40.44.189])
+	by kanga.kvack.org (Postfix) with ESMTP id D48D26B026D
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 13:08:56 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 813FB181AC9AE
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:56 +0000 (UTC)
+X-FDA: 75937789872.04.waves19_30eb2e864115d
+X-HE-Tag: waves19_30eb2e864115d
+X-Filterd-Recvd-Size: 5109
+Received: from mail-pl1-f193.google.com (mail-pl1-f193.google.com [209.85.214.193])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:56 +0000 (UTC)
+Received: by mail-pl1-f193.google.com with SMTP id t11so15559102plo.0
+        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 10:08:55 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=X86RdWoaDKqJbFDIoXti2bda7+kkyeUkiLhSN5JzlKU=;
-        b=SJ4lQn8Y/Rod0i0hqNjNSitEVvQrs8es0QonZHsDCnKam7BbbzVEPHy9+oxknfPvN8
-         etneVvl++kTLOnVbyVL3J27f0y0RDkparH82n0CA0OHumA+LjRYK2Xd4Pn/Cwf6pUd9U
-         pWOGQXYTwqx9bx6SmhPsjzugvSCmqq5EyYXooQeib3Gteu+s8MoQwXuXqJ5dapDppK4E
-         ZEexxMNhYSAcJb5SZhCeLI6aUGaioUwvuSx4bHo6vu8Coi81LXYgcIR+bUAQhjmReZFM
-         XxJsBsaBFvMm90tPLA7Yp3Vfz2paaHQs3L/5VMESJcuchf5AGuhYYtmwx7Up5u5AH4CE
-         dikg==
+        bh=nii43oMTaFtktKbnijjugyrLFfb5ZKvbiN8kMj3vNPE=;
+        b=ChR4G6GAPaZdbwdfKHEQSYy9/d3o+YfQNx9G6ElCWcdroi5oVcnCWZ0D9ltIPZcxkW
+         6rJ9OuFwAUTeyoZmJKyvA8c2HlyUN6MpflA36FPfDaPlhN+8MpDJUOmABIkQg3IXj+5X
+         5GGwg62qwPXQcBlF8QNS+M7Ww5yDUu66qX1T3mwv+tCVYVOPi/njgfU5BoChKExCRBny
+         VNLOKJDxONTTBugsfaTwNW7FyBDRyj+Q5kKt/Ha5YmiJiNDCnU7Gu5uW3D9KCPPbmdFC
+         gb7aTCIP08Su+wr3nLOXUv7Efdy5ovyi9gRj9ZiRgHiCatS9jLsNmuvQeojVZrAlXuA8
+         BVZw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding;
-        bh=X86RdWoaDKqJbFDIoXti2bda7+kkyeUkiLhSN5JzlKU=;
-        b=lAC9NoJVZbSSeBkImPP9IAidQLxrmNUMGNEYQxbmsdg9+negtbkyiIEup5j8uQbRfg
-         kumCmPx5BQna0fTj9JVhvwjm41CnNTRLV+FDsOJBzM8AzPEW2QSZTMDBIIVrEHWc1ZE9
-         hfC6EgWr+xXY8m6LQxuoGdMiQIw56oOscWkmlgtmHFptewAAZC0pE10A+tsuxZOxPTsP
-         0Xf3wyTUH0XJey+9U4RuTaxah42iG6tRCRpqpky0iWl9EGVr1p4g72U5WmTnkIU1PeiI
-         k0K/5q4zA4UHn1FwK3BS6A0L8INJDL+RJ+TEm76gI3Q8aOKfAmi15EQmWWdtTOSqEeU+
-         42ew==
-X-Gm-Message-State: APjAAAXeF0s6ADKKoto1DoWD/O+qj+1XLLstoiF0/9s86clIbgNs/uoC
-	+OextZF2cYCycVIRlxaMl20=
-X-Google-Smtp-Source: APXvYqz/PCrVfpnnFdh4p8qjLJANWYL2j9hhouM6ji0IbmKL3O+gmShY1YQqZx7BSLb0nk4Zw7a4Fg==
-X-Received: by 2002:a17:90a:8901:: with SMTP id u1mr2904510pjn.70.1568567327646;
-        Sun, 15 Sep 2019 10:08:47 -0700 (PDT)
+        bh=nii43oMTaFtktKbnijjugyrLFfb5ZKvbiN8kMj3vNPE=;
+        b=GIRad8bIq+V7mFjaE36pktLPWrgdciDnLoDYkyrSbshZHMguaagaiTXHAixEaOf6Hf
+         GTeL/ncEbqM7BZB+MCIfBBbHWJkXtzNfk/jjkrA5TMViI+sYCS8gmM+XOS6B4/YbWbDN
+         R4R7QqaFvcxgr/dFOoQewsX2ll5geNaksBviUcsfbTO1H5Tt49RKOa0dzMcib+GhAv2f
+         iwzWhUYRpHE40bwoifvIb1EkLt371cG1f4SPQSh90wdILtad8ImztiRMSA/cbm5EdWQI
+         Yk8rf/J3XfhJ99Tr4Hik01igpLmIC3oKRoNfBroGFRbpN6BVmdC3oh3fMolFEcT1hJ1V
+         YxPA==
+X-Gm-Message-State: APjAAAU6x9/RW13zSoZ9CDv2qV1E2LtLmLnpQZMz83wWwdnA+2RqjKc4
+	/2zEfHWVdlt4FkFQgFM5Spw=
+X-Google-Smtp-Source: APXvYqxIpfa3q8cGvHRTwJ6lHu6xR8cG8RIe6yRmztIbu+l53V7wTKsneEQe0JI+j7ru62hQqZv6Ag==
+X-Received: by 2002:a17:902:a606:: with SMTP id u6mr46467079plq.224.1568567335179;
+        Sun, 15 Sep 2019 10:08:55 -0700 (PDT)
 Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id r28sm62279134pfg.62.2019.09.15.10.08.40
+        by smtp.gmail.com with ESMTPSA id r28sm62279134pfg.62.2019.09.15.10.08.48
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 15 Sep 2019 10:08:47 -0700 (PDT)
+        Sun, 15 Sep 2019 10:08:54 -0700 (PDT)
 From: Pengfei Li <lpf.vector@gmail.com>
 To: akpm@linux-foundation.org
 Cc: vbabka@suse.cz,
@@ -82,9 +82,9 @@ Cc: vbabka@suse.cz,
 	linux-kernel@vger.kernel.org,
 	guro@fb.com,
 	Pengfei Li <lpf.vector@gmail.com>
-Subject: [RESEND v4 3/7] mm, slab_common: Use enum kmalloc_cache_type to iterate over kmalloc caches
-Date: Mon, 16 Sep 2019 01:08:05 +0800
-Message-Id: <20190915170809.10702-4-lpf.vector@gmail.com>
+Subject: [RESEND v4 4/7] mm, slab: Return ZERO_SIZE_ALLOC for zero sized kmalloc requests
+Date: Mon, 16 Sep 2019 01:08:06 +0800
+Message-Id: <20190915170809.10702-5-lpf.vector@gmail.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190915170809.10702-1-lpf.vector@gmail.com>
 References: <20190915170809.10702-1-lpf.vector@gmail.com>
@@ -96,41 +96,74 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The type of local variable *type* of new_kmalloc_cache() should
-be enum kmalloc_cache_type instead of int, so correct it.
+This is a preparation patch, just replace 0 with ZERO_SIZE_ALLOC
+as the return value of zero sized requests.
 
 Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Roman Gushchin <guro@fb.com>
 ---
- mm/slab_common.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ include/linux/slab.h | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 8b542cfcc4f2..af45b5278fdc 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1192,7 +1192,7 @@ void __init setup_kmalloc_cache_index_table(void)
- }
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index e773e5764b7b..1f05f68f2c3e 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -121,14 +121,20 @@
+ #define SLAB_DEACTIVATED	((slab_flags_t __force)0x10000000U)
 =20
- static void __init
--new_kmalloc_cache(int idx, int type, slab_flags_t flags)
-+new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t fl=
-ags)
- {
- 	if (type =3D=3D KMALLOC_RECLAIM)
- 		flags |=3D SLAB_RECLAIM_ACCOUNT;
-@@ -1210,7 +1210,8 @@ new_kmalloc_cache(int idx, int type, slab_flags_t f=
-lags)
+ /*
+- * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
++ * ZERO_SIZE_ALLOC will be returned by kmalloc_index() if it was zero si=
+zed
++ * requests.
+  *
++ * After that, ZERO_SIZE_PTR will be returned by the function that calle=
+d
++ * kmalloc_index().
++
+  * Dereferencing ZERO_SIZE_PTR will lead to a distinct access fault.
+  *
+  * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL=
+ can.
+  * Both make kfree a no-op.
   */
- void __init create_kmalloc_caches(slab_flags_t flags)
- {
--	int i, type;
-+	int i;
-+	enum kmalloc_cache_type type;
+-#define ZERO_SIZE_PTR ((void *)16)
++#define ZERO_SIZE_ALLOC		(UINT_MAX)
++
++#define ZERO_SIZE_PTR		((void *)16)
 =20
- 	for (type =3D KMALLOC_NORMAL; type <=3D KMALLOC_RECLAIM; type++) {
- 		for (i =3D KMALLOC_SHIFT_LOW; i <=3D KMALLOC_SHIFT_HIGH; i++) {
+ #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <=3D \
+ 				(unsigned long)ZERO_SIZE_PTR)
+@@ -350,7 +356,7 @@ static __always_inline enum kmalloc_cache_type kmallo=
+c_type(gfp_t flags)
+ static __always_inline unsigned int kmalloc_index(size_t size)
+ {
+ 	if (!size)
+-		return 0;
++		return ZERO_SIZE_ALLOC;
+=20
+ 	if (size <=3D KMALLOC_MIN_SIZE)
+ 		return KMALLOC_SHIFT_LOW;
+@@ -546,7 +552,7 @@ static __always_inline void *kmalloc(size_t size, gfp=
+_t flags)
+ #ifndef CONFIG_SLOB
+ 		index =3D kmalloc_index(size);
+=20
+-		if (!index)
++		if (index =3D=3D ZERO_SIZE_ALLOC)
+ 			return ZERO_SIZE_PTR;
+=20
+ 		return kmem_cache_alloc_trace(
+@@ -564,7 +570,7 @@ static __always_inline void *kmalloc_node(size_t size=
+, gfp_t flags, int node)
+ 		size <=3D KMALLOC_MAX_CACHE_SIZE) {
+ 		unsigned int i =3D kmalloc_index(size);
+=20
+-		if (!i)
++		if (i =3D=3D ZERO_SIZE_ALLOC)
+ 			return ZERO_SIZE_PTR;
+=20
+ 		return kmem_cache_alloc_node_trace(
 --=20
 2.21.0
 
