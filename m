@@ -1,199 +1,153 @@
-Return-Path: <SRS0=RN4K=XJ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=FJsX=XK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6320FC4CEC9
-	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 09:47:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 688E7C4CEC9
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 02:35:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F331B20854
-	for <linux-mm@archiver.kernel.org>; Sat, 14 Sep 2019 09:47:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F0EF120692
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 02:35:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="SlFvsOvC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F331B20854
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="oXe4Q8xk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0EF120692
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82D1D6B0005; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
+	id 64B476B0003; Sat, 14 Sep 2019 22:35:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DCE16B0006; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
+	id 5D3D26B0006; Sat, 14 Sep 2019 22:35:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F4876B0007; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
+	id 49B126B0007; Sat, 14 Sep 2019 22:35:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0150.hostedemail.com [216.40.44.150])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9556B0005
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 05:47:47 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D3042824CA27
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 09:47:46 +0000 (UTC)
-X-FDA: 75933049332.16.crush12_43db34b916f53
-X-HE-Tag: crush12_43db34b916f53
-X-Filterd-Recvd-Size: 7234
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 09:47:46 +0000 (UTC)
-Received: from localhost (unknown [77.137.89.37])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 608CE20693;
-	Sat, 14 Sep 2019 09:47:44 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1568454465;
-	bh=o1C1eO0XQdj1YbvGrXjBSYKylVEgbJNTPOZGcdRTRG0=;
-	h=Date:From:To:Cc:Subject:From;
-	b=SlFvsOvC8hnWCiNiFh1dPTLmNHt4DUC71thWfCK7ukAo8OmodVKQFCFggWrmQpDNE
-	 7yfj/ZwjookpdlbXK/bUOxzXXsHZb7odDaACo/6wQkxAeGRmZuAckeHm02reG3wJb7
-	 xWPpsTP2JOIEoW5wa3PJngDX0TqZLhV6BkIs5ml4=
-Date: Sat, 14 Sep 2019 12:47:30 +0300
-From: Leon Romanovsky <leon@kernel.org>
-To: RDMA mailing list <linux-rdma@vger.kernel.org>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, Doug Ledford <dledford@redhat.com>,
-	linux-mm <linux-mm@kvack.org>, Jonathan Corbet <corbet@lwn.net>,
-	Christoph Hellwig <hch@lst.de>, Sagi Grimberg <sagi@grimberg.me>
-Subject: 4th RDMA Microconference Summary
-Message-ID: <20190914094730.GL6601@unreal>
+Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFA56B0003
+	for <linux-mm@kvack.org>; Sat, 14 Sep 2019 22:35:45 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id AE7C8180AD7C3
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 02:35:44 +0000 (UTC)
+X-FDA: 75935589408.06.ray79_8969352bafc1c
+X-HE-Tag: ray79_8969352bafc1c
+X-Filterd-Recvd-Size: 5588
+Received: from mail-pg1-f196.google.com (mail-pg1-f196.google.com [209.85.215.196])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 02:35:44 +0000 (UTC)
+Received: by mail-pg1-f196.google.com with SMTP id m29so1046796pgc.3
+        for <linux-mm@kvack.org>; Sat, 14 Sep 2019 19:35:44 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=fhQRRoTWVDlkY7bkl1HwIxtbioEN9dfRxohZkdD1f9M=;
+        b=oXe4Q8xkuN/WPthulSrCIQoFnOzQuOLjaM94ovBClDefXyw5ovNZQI5UxwCo1NsTrI
+         qVl/6cRRmr+qcvtWQPmX/5Yz+sphzpUOsP4WG9Y8yRIFaaysposUEHDahrjcSYfzD2fi
+         dNjKpndLrX/FWkY6oJc6gHsADmWv45gjJMUL3WIzunxOmhd6N01z/PvDsnMKCwhfS9L8
+         zmW986xrcgPO9AsSS0Y84PEZjyS6KkPVHSKUiUYvqnRwFH5DElGEZNhZOJ4d9Y/ITR70
+         GcLf46BfWLGbFaNLXSH9EhNaOcg3wR+dNXqVvixO1ziCL4N5U+JiGLr5ilv//dX8FwsM
+         fvvw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=fhQRRoTWVDlkY7bkl1HwIxtbioEN9dfRxohZkdD1f9M=;
+        b=gfvvf48kIir43RABpFUAur3QSvH0S0959ZsQ1yhOhxkbJqtukAphQGoYvKvfpRkQNw
+         KA72hwWgYNmVXjBjIMDDFmIeS0t3oOiyviYGofPkcBl9zf1otMax5b2YJtAHo3l4KqLv
+         fnwrJ3JNjvcITl+XCFfQwydoqiUlI/MpHmh1YRr4T8W23UgpP5TO9kp7P1MR22hu8OD2
+         uJ0O79v0YBm/R0IescpK+G+32q5UP6wEqVdz9jijk4OEzGPwaX4+T0mNxaht9phdMXlr
+         nkmQkNe2U0VTA62Xm0vyJgbAYqtal1J50rszTdT0DWgJS4Thr1gYMEemcGi6HoBt6ZJD
+         +noA==
+X-Gm-Message-State: APjAAAUHnwrzqzyba4jow2lGlksPzTni8Pif519pqrlwq8EbmSuj4mwY
+	cLp6VaOVNlzdNGeh/SH/SBQ=
+X-Google-Smtp-Source: APXvYqx06da70srL4i4scsPW1kg1/C9aD5pMasQ7FoZzWmxFwg25UIdGOhHDBr6G6FhNTB7IHEefjg==
+X-Received: by 2002:a63:2216:: with SMTP id i22mr7782671pgi.430.1568514942554;
+        Sat, 14 Sep 2019 19:35:42 -0700 (PDT)
+Received: from [192.168.68.119] (220-245-129-191.tpgi.com.au. [220.245.129.191])
+        by smtp.gmail.com with ESMTPSA id e1sm3291519pgd.21.2019.09.14.19.35.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 14 Sep 2019 19:35:41 -0700 (PDT)
+Subject: Re: [PATCH V7 2/3] arm64/mm: Hold memory hotplug lock while walking
+ for kernel page table dump
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ akpm@linux-foundation.org, catalin.marinas@arm.com, will@kernel.org
+Cc: mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
+ david@redhat.com, cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com,
+ mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
+ steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
+ Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
+References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+ <1567503958-25831-3-git-send-email-anshuman.khandual@arm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <66922798-9de7-a230-8548-1f205e79ea50@gmail.com>
+Date: Sun, 15 Sep 2019 12:35:21 +1000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
+In-Reply-To: <1567503958-25831-3-git-send-email-anshuman.khandual@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-User-Agent: Mutt/1.12.1 (2019-06-15)
-Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-This is summary of 4th RDMA microconference co-located with Linux
-Plumbers Conference 2019.
 
-We would like to thank you for all presenters and attendees of our RDMA
-track, it is you who made this event so successful.
+On 3/9/19 7:45 pm, Anshuman Khandual wrote:
+> The arm64 page table dump code can race with concurrent modification of the
+> kernel page tables. When a leaf entries are modified concurrently, the dump
+> code may log stale or inconsistent information for a VA range, but this is
+> otherwise not harmful.
+> 
+> When intermediate levels of table are freed, the dump code will continue to
+> use memory which has been freed and potentially reallocated for another
+> purpose. In such cases, the dump code may dereference bogus addresses,
+> leading to a number of potential problems.
+> 
+> Intermediate levels of table may by freed during memory hot-remove,
+> which will be enabled by a subsequent patch. To avoid racing with
+> this, take the memory hotplug lock when walking the kernel page table.
+> 
+> Acked-by: David Hildenbrand <david@redhat.com>
+> Acked-by: Mark Rutland <mark.rutland@arm.com>
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
+>  arch/arm64/mm/ptdump_debugfs.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/arch/arm64/mm/ptdump_debugfs.c b/arch/arm64/mm/ptdump_debugfs.c
+> index 064163f25592..b5eebc8c4924 100644
+> --- a/arch/arm64/mm/ptdump_debugfs.c
+> +++ b/arch/arm64/mm/ptdump_debugfs.c
+> @@ -1,5 +1,6 @@
+>  // SPDX-License-Identifier: GPL-2.0
+>  #include <linux/debugfs.h>
+> +#include <linux/memory_hotplug.h>
+>  #include <linux/seq_file.h>
+>  
+>  #include <asm/ptdump.h>
+> @@ -7,7 +8,10 @@
+>  static int ptdump_show(struct seq_file *m, void *v)
+>  {
+>  	struct ptdump_info *info = m->private;
+> +
+> +	get_online_mems();
+>  	ptdump_walk_pgd(m, info);
+> +	put_online_mems();
 
-Special thanks goes to Doug Ledford who volunteered to take notes
-and Jason Gunthorpe who helped to run this event smoothly.
+Looks sane, BTW, checking other arches they might have the same race.
+Is there anything special about the arch?
 
-The original etherpad is located at [2] and below you will find the copy
-of those notes:
--------------------------------------------------------------------------=
------------------------
-1. GUP and ZONE_DEVICE pages. [3]
-   Jason Gunthorpe, John Hubbard and Don Dutile
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
- * Make the interface to use p2p mechanism be via sysfs. (PCI???).
- * Try to kill PTE flag for dev memory to make it easier to support
-   on things like s390.
- * s390 will have mapping issues, arm/x86/PowerPC should be fine.
- * Looking to map partial BARs so they can be partitioned between
-   different users.
- * Total BAR space could exceed 1TB in some scenarios
-   (lots of GPUs in an HPC machine with persistent memory, etc.).
- * Initially use struct page element but try to remove it later.
- * Unlikely to be able to remove struct page, so maybe make it less painf=
-ul
-   by doing something like forcing all zone mappings to use hugepages ioc=
-tl no, sysfs yes.
- * PCI SIG talking about peer-2-peer too.
- * Distance might not be the best function name for the pci p2p checking =
-function.
- * Conceptually, looking for new type of page fault, DMA fault, that will=
- make a page
-   visible to DMA even if we don=E2=80=99t care if it=E2=80=99s visible t=
-o the CPU GUP API makes really
-   weak promise, no one could possibly think that it=E2=80=99s that weak,=
- so everyone assumed
-   it was stronger they were wrong.
- * It really is that weak wrappers around the GUP flags? 17+ flags curren=
-tly,
-   combinational matrix is extreme, some internal only flags can be abuse=
-d by callers.
- * Possible to set "opposite" GUP flags.
- * Most (if not all) out of core code (drivers) get_user_pages users
-   need same flags.
-
-2. RDMA, File Systems, and DAX. [4]
-   Ira Weiny
- * There was a bug in previous versions of patch set. It=E2=80=99s fixed.
- * New file_pin object to track relationship between mmaped files
-   and DMA mappings to the underlying pages.
- * If owners of lease tries to do something that requires changes
-   to the file layout: deadlock of application (current patch set, but no=
-t settled).
- * Write lease/fallocate/downgrade to read/unbreakable lease - fix race i=
-ssue
-   with fallocate and lease chicken and egg problem.
-
-3. Discussion about IBNBD/IBTRS, upstreaming and action items. [5]
-   Jinpu Wang, Danil Kipnis
- * IBTRS is standalone transfer engine that can be used with any ULP.
- * IBTRS only uses RDMA_WRITE with IMM and so is limited to fabrics
-   that support this.
- * Server does not unmap after write from client so data can change
-   when the server is flushing to disk.
- * Need to think about transfer model as the current one appears
-   to be vulnerable to a nefarious kernel module.
- * It is worth to consider to unite 4 kernel modules to be 2 kernel
- * modules. One responsible for transfer (server + client) and another
-   is responsible for block operations.
- * Security concern should be cleared first before in-depth review.
- * No objections to see IBTRS in kernel, but needs to be renamed to
-   something more general, because it works on many fabrics and not only
-   IB.
-
-5. Improving RDMA performance through the use of contiguous memory and la=
-rger pages for files. [6]
-   Christopher Lameter
- * The main problem is that contiguous physical memory being limited
-   resource in real life systems. The difference in system performance
-   so visible that it is worth to reboot servers every couple of days
-   (depend on workload).
- * The reason to it, existence of unmovable pages.
- * HugePages help, but pinned objects over time end up breaking up the hu=
-ge
-   pages and eventually system flows down Need movable objects: dentry an=
-d inode
-   are the big culprits.
- * Typical use case used to trigger degradation is copying both very larg=
-e
-   and very small files on the same machine.
- * Attempts to allocate unmovable pages in specific place causes to
-   situations where system experiences OOM despite being enough memory.
- * x86 has 4K page size, while PowerPC has 64K. The bigger page size
-   gives better performance, but wastes more memory for small objects.
-
-4. Shared IB objects. [7]
-   Yuval Shaia
- * There was lively discussion between various models of sharing
-   objects, through file description, or uverbs context, or PD.
- * People would like to stick to the file handle model so you share
-   the file handle and get everything you need as being simplest
-   approach.
- * Is the security model resolved?  Right now, the model assumes trusted
-   processes are allowed to share only.
- * Simple (FD) model creates challenge to properly release HW objects
-   after main process exits and leaves HW objects which were in use by
-   itself and not by shared processes.
- * Refcount needs to be in the API to track when the shared object is fre=
-eable
- * API requires shared memory first, then import PD and import MR.  This =
-model
-   (as opposed to sharing the fd of the in context), allows for safe clea=
-nup on
-   process death without interfering with other users of the shared PD/MR=
-.
-
-Thanks
-
-[1] https://linuxplumbersconf.org/event/4/sessions/64/#20190911
-[2] https://etherpad.net/p/LPC2019_RDMA
-[3] https://www.linuxplumbersconf.org/event/4/contributions/369/
-[4] https://linuxplumbersconf.org/event/4/contributions/368/
-[5] https://linuxplumbersconf.org/event/4/contributions/367/
-[6] https://linuxplumbersconf.org/event/4/contributions/371/
-[7] https://www.linuxplumbersconf.org/event/4/contributions/371/
 
