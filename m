@@ -2,274 +2,97 @@ Return-Path: <SRS0=FJsX=XK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AE1CC4CECC
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 18:34:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E66CC4CECE
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 20:24:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35F1821479
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 18:34:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2C39B214C6
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 20:24:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=armlinux.org.uk header.i=@armlinux.org.uk header.b="xA4HUn2S"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35F1821479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=armlinux.org.uk
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Lromhxrg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C39B214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85B926B0003; Sun, 15 Sep 2019 14:34:56 -0400 (EDT)
+	id 943E96B0003; Sun, 15 Sep 2019 16:24:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80F416B0006; Sun, 15 Sep 2019 14:34:56 -0400 (EDT)
+	id 8F3186B0006; Sun, 15 Sep 2019 16:24:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 722CE6B0007; Sun, 15 Sep 2019 14:34:56 -0400 (EDT)
+	id 808466B0007; Sun, 15 Sep 2019 16:24:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0105.hostedemail.com [216.40.44.105])
-	by kanga.kvack.org (Postfix) with ESMTP id 510296B0003
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 14:34:56 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id B9C4F440F
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 18:34:55 +0000 (UTC)
-X-FDA: 75938006550.12.plane70_47effbe6d7461
-X-HE-Tag: plane70_47effbe6d7461
-X-Filterd-Recvd-Size: 10318
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk [78.32.30.218])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 18:34:54 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=armlinux.org.uk; s=pandora-2019; h=Sender:In-Reply-To:Content-Type:
-	MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=jsDc63G0j/DkI+K6Lr0zDi+b74Pxegfq3m7vm6p44LA=; b=xA4HUn2SQlkYKILPTZtzL/ftU
-	rvURYZewVLDafUKNvmdl3dqENKfLhvyt8Jn9ZivvyZeYd97KlrD0f7+BsDzoQpltyv7kPx7wH1skW
-	8XXj7NxRGa/lfH1P5wEL+Zsm5Tynd44hWyEMaL6zkGGPwIItBNi7S3AZRFTs1exQ/KZ8C3nSr9d6g
-	FQI1bybExS4bl3IB1i3Go91FxQhKvcK8eSTZ3QiIl4q394PI8Bex+Be2iR9Yu6IdHpcG+5AuaThs3
-	Y/1mtNvEsMZfOcmZ0zhwHdLvtUzp61iZ6Yb8Gl7PRszGbH9muB3gGr+cq8K/D+UQV5S9fb1W8RjWM
-	npVhifUEg==;
-Received: from shell.armlinux.org.uk ([2001:4d48:ad52:3201:5054:ff:fe00:4ec]:60632)
-	by pandora.armlinux.org.uk with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.90_1)
-	(envelope-from <linux@armlinux.org.uk>)
-	id 1i9ZLv-0007hn-AA; Sun, 15 Sep 2019 19:34:27 +0100
-Received: from linux by shell.armlinux.org.uk with local (Exim 4.92)
-	(envelope-from <linux@shell.armlinux.org.uk>)
-	id 1i9ZLl-0007zu-3k; Sun, 15 Sep 2019 19:34:17 +0100
-Date: Sun, 15 Sep 2019 19:34:17 +0100
-From: Russell King - ARM Linux admin <linux@armlinux.org.uk>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: kstewart@linuxfoundation.org, gustavo@embeddedor.com,
-	gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
-	Jing Xiangfeng <jingxiangfeng@huawei.com>, linux-mm@kvack.org,
-	sakari.ailus@linux.intel.com, bhelgaas@google.com,
-	tglx@linutronix.de, linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH] arm: fix page faults in do_alignment
-Message-ID: <20190915183416.GF25745@shell.armlinux.org.uk>
-References: <1567171877-101949-1-git-send-email-jingxiangfeng@huawei.com>
- <20190830133522.GZ13294@shell.armlinux.org.uk>
- <87d0gmwi73.fsf@x220.int.ebiederm.org>
- <20190830203052.GG13294@shell.armlinux.org.uk>
- <87y2zav01z.fsf@x220.int.ebiederm.org>
- <20190830222906.GH13294@shell.armlinux.org.uk>
- <87mufmioqv.fsf@x220.int.ebiederm.org>
- <20190906151759.GM13294@shell.armlinux.org.uk>
+Received: from forelay.hostedemail.com (smtprelay0169.hostedemail.com [216.40.44.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B79A6B0003
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:24:37 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id EEBC352A1
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 20:24:36 +0000 (UTC)
+X-FDA: 75938282952.05.cub18_b2542bbb3e01
+X-HE-Tag: cub18_b2542bbb3e01
+X-Filterd-Recvd-Size: 2667
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 20:24:36 +0000 (UTC)
+Received: from sol.localdomain (c-24-5-143-220.hsd1.ca.comcast.net [24.5.143.220])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 125AD214AF;
+	Sun, 15 Sep 2019 20:24:35 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1568579075;
+	bh=LCVK2aMgwTZJzb8J63CkOjhrW0RaVm+XZQ9QcWk8u64=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=LromhxrgzgBiWiRCWifYke78su7FoAeFk4hbabgMD3j1OY6I9lhHsv4j7lLe+hR8F
+	 IKDuRV1fnXI2+eGX1ZZ9vk4p1Uh1DSEbxGugPzhHZiCDEVAGazw+dCaOy9n9lxcf8I
+	 uSQcy/lO1NXYFgdb7hVEa77AxizYUGFADjSSyKTM=
+Date: Sun, 15 Sep 2019 13:24:33 -0700
+From: Eric Biggers <ebiggers@kernel.org>
+To: Janne Karhunen <janne.karhunen@gmail.com>
+Cc: linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org,
+	Mimi Zohar <zohar@linux.ibm.com>, linux-mm@kvack.org,
+	viro@zeniv.linux.org.uk,
+	Konsta Karsisto <konsta.karsisto@gmail.com>
+Subject: Re: [PATCH 1/3] ima: keep the integrity state of open files up to
+ date
+Message-ID: <20190915202433.GC1704@sol.localdomain>
+Mail-Followup-To: Janne Karhunen <janne.karhunen@gmail.com>,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org,
+	Mimi Zohar <zohar@linux.ibm.com>, linux-mm@kvack.org,
+	viro@zeniv.linux.org.uk,
+	Konsta Karsisto <konsta.karsisto@gmail.com>
+References: <20190902094540.12786-1-janne.karhunen@gmail.com>
+ <20190909213938.GA105935@gmail.com>
+ <CAE=NcraXOhGcPHh3cPxfaNjFXtPyDdSFa9hSrUSPfpFUmsxyMA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190906151759.GM13294@shell.armlinux.org.uk>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <CAE=NcraXOhGcPHh3cPxfaNjFXtPyDdSFa9hSrUSPfpFUmsxyMA@mail.gmail.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.007646, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 06, 2019 at 04:17:59PM +0100, Russell King - ARM Linux admin wrote:
-> On Mon, Sep 02, 2019 at 12:36:56PM -0500, Eric W. Biederman wrote:
-> > Russell King - ARM Linux admin <linux@armlinux.org.uk> writes:
-> > 
-> > > On Fri, Aug 30, 2019 at 04:02:48PM -0500, Eric W. Biederman wrote:
-> > >> Russell King - ARM Linux admin <linux@armlinux.org.uk> writes:
-> > >> 
-> > >> > On Fri, Aug 30, 2019 at 02:45:36PM -0500, Eric W. Biederman wrote:
-> > >> >> Russell King - ARM Linux admin <linux@armlinux.org.uk> writes:
-> > >> >> 
-> > >> >> > On Fri, Aug 30, 2019 at 09:31:17PM +0800, Jing Xiangfeng wrote:
-> > >> >> >> The function do_alignment can handle misaligned address for user and
-> > >> >> >> kernel space. If it is a userspace access, do_alignment may fail on
-> > >> >> >> a low-memory situation, because page faults are disabled in
-> > >> >> >> probe_kernel_address.
-> > >> >> >> 
-> > >> >> >> Fix this by using __copy_from_user stead of probe_kernel_address.
-> > >> >> >> 
-> > >> >> >> Fixes: b255188 ("ARM: fix scheduling while atomic warning in alignment handling code")
-> > >> >> >> Signed-off-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-> > >> >> >
-> > >> >> > NAK.
-> > >> >> >
-> > >> >> > The "scheduling while atomic warning in alignment handling code" is
-> > >> >> > caused by fixing up the page fault while trying to handle the
-> > >> >> > mis-alignment fault generated from an instruction in atomic context.
-> > >> >> >
-> > >> >> > Your patch re-introduces that bug.
-> > >> >> 
-> > >> >> And the patch that fixed scheduling while atomic apparently introduced a
-> > >> >> regression.  Admittedly a regression that took 6 years to track down but
-> > >> >> still.
-> > >> >
-> > >> > Right, and given the number of years, we are trading one regression for
-> > >> > a different regression.  If we revert to the original code where we
-> > >> > fix up, we will end up with people complaining about a "new" regression
-> > >> > caused by reverting the previous fix.  Follow this policy and we just
-> > >> > end up constantly reverting the previous revert.
-> > >> >
-> > >> > The window is very small - the page in question will have had to have
-> > >> > instructions read from it immediately prior to the handler being entered,
-> > >> > and would have had to be made "old" before subsequently being unmapped.
-> > >> 
-> > >> > Rather than excessively complicating the code and making it even more
-> > >> > inefficient (as in your patch), we could instead retry executing the
-> > >> > instruction when we discover that the page is unavailable, which should
-> > >> > cause the page to be paged back in.
-> > >> 
-> > >> My patch does not introduce any inefficiencies.  It onlys moves the
-> > >> check for user_mode up a bit.  My patch did duplicate the code.
-> > >> 
-> > >> > If the page really is unavailable, the prefetch abort should cause a
-> > >> > SEGV to be raised, otherwise the re-execution should replace the page.
-> > >> >
-> > >> > The danger to that approach is we page it back in, and it gets paged
-> > >> > back out before we're able to read the instruction indefinitely.
-> > >> 
-> > >> I would think either a little code duplication or a function that looks
-> > >> at user_mode(regs) and picks the appropriate kind of copy to do would be
-> > >> the best way to go.  Because what needs to happen in the two cases for
-> > >> reading the instruction are almost completely different.
-> > >
-> > > That is what I mean.  I'd prefer to avoid that with the large chunk of
-> > > code.  How about instead adding a local replacement for
-> > > probe_kernel_address() that just sorts out the reading, rather than
-> > > duplicating all the code to deal with thumb fixup.
-> > 
-> > So something like this should be fine?
-> > 
-> > Jing Xiangfeng can you test this please?  I think this fixes your issue
-> > but I don't currently have an arm development box where I could test this.
+On Tue, Sep 10, 2019 at 10:04:53AM +0300, Janne Karhunen wrote:
+> On Tue, Sep 10, 2019 at 12:39 AM Eric Biggers <ebiggers@kernel.org> wrote:
+> > > Core file operations (open, close, sync, msync, truncate) are
+> > > now allowed to update the measurement immediately. In order
+> > > to maintain sufficient write performance for writes, add a
+> > > latency tunable delayed work workqueue for computing the
+> > > measurements.
+> >
+> > This still doesn't make it crash-safe.  So why is it okay?
 > 
-> Sorry, only just got around to this again.  What I came up with is this:
-
-I've heard nothing, so I've done nothing...
-
-> 8<===
-> From: Russell King <rmk+kernel@armlinux.org.uk>
-> Subject: [PATCH] ARM: mm: fix alignment
-> 
-> Signed-off-by: Russell King <rmk+kernel@armlinux.org.uk>
-> ---
->  arch/arm/mm/alignment.c | 44 ++++++++++++++++++++++++++++++++++++--------
->  1 file changed, 36 insertions(+), 8 deletions(-)
-> 
-> diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
-> index 6067fa4de22b..529f54d94709 100644
-> --- a/arch/arm/mm/alignment.c
-> +++ b/arch/arm/mm/alignment.c
-> @@ -765,6 +765,36 @@ do_alignment_t32_to_handler(unsigned long *pinstr, struct pt_regs *regs,
->  	return NULL;
->  }
->  
-> +static int alignment_get_arm(struct pt_regs *regs, u32 *ip, unsigned long *inst)
-> +{
-> +	u32 instr = 0;
-> +	int fault;
-> +
-> +	if (user_mode(regs))
-> +		fault = get_user(instr, ip);
-> +	else
-> +		fault = probe_kernel_address(ip, instr);
-> +
-> +	*inst = __mem_to_opcode_arm(instr);
-> +
-> +	return fault;
-> +}
-> +
-> +static int alignment_get_thumb(struct pt_regs *regs, u16 *ip, u16 *inst)
-> +{
-> +	u16 instr = 0;
-> +	int fault;
-> +
-> +	if (user_mode(regs))
-> +		fault = get_user(instr, ip);
-> +	else
-> +		fault = probe_kernel_address(ip, instr);
-> +
-> +	*inst = __mem_to_opcode_thumb16(instr);
-> +
-> +	return fault;
-> +}
-> +
->  static int
->  do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
->  {
-> @@ -772,10 +802,10 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
->  	unsigned long instr = 0, instrptr;
->  	int (*handler)(unsigned long addr, unsigned long instr, struct pt_regs *regs);
->  	unsigned int type;
-> -	unsigned int fault;
->  	u16 tinstr = 0;
->  	int isize = 4;
->  	int thumb2_32b = 0;
-> +	int fault;
->  
->  	if (interrupts_enabled(regs))
->  		local_irq_enable();
-> @@ -784,15 +814,14 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
->  
->  	if (thumb_mode(regs)) {
->  		u16 *ptr = (u16 *)(instrptr & ~1);
-> -		fault = probe_kernel_address(ptr, tinstr);
-> -		tinstr = __mem_to_opcode_thumb16(tinstr);
-> +
-> +		fault = alignment_get_thumb(regs, ptr, &tinstr);
->  		if (!fault) {
->  			if (cpu_architecture() >= CPU_ARCH_ARMv7 &&
->  			    IS_T32(tinstr)) {
->  				/* Thumb-2 32-bit */
-> -				u16 tinst2 = 0;
-> -				fault = probe_kernel_address(ptr + 1, tinst2);
-> -				tinst2 = __mem_to_opcode_thumb16(tinst2);
-> +				u16 tinst2;
-> +				fault = alignment_get_thumb(regs, ptr + 1, &tinst2);
->  				instr = __opcode_thumb32_compose(tinstr, tinst2);
->  				thumb2_32b = 1;
->  			} else {
-> @@ -801,8 +830,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
->  			}
->  		}
->  	} else {
-> -		fault = probe_kernel_address((void *)instrptr, instr);
-> -		instr = __mem_to_opcode_arm(instr);
-> +		fault = alignment_get_arm(regs, (void *)instrptr, &instr);
->  	}
->  
->  	if (fault) {
-> -- 
-> 2.7.4
-> 
-> -- 
-> RMK's Patch system: https://www.armlinux.org.uk/developer/patches/
-> FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
-> According to speedtest.net: 11.9Mbps down 500kbps up
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> If Android is the load, this makes it crash safe 99% of the time and
+> that is considerably better than 0% of the time.
 > 
 
--- 
-RMK's Patch system: https://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
-According to speedtest.net: 11.9Mbps down 500kbps up
+Who will use it if it isn't 100% safe?
+
+- Eric
 
