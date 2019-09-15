@@ -2,170 +2,150 @@ Return-Path: <SRS0=FJsX=XK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.1 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D3EDC4CEC7
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 21:38:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 748B7C4CEC7
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 21:46:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3EB2214AF
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 21:38:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 348E920873
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 21:46:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nkfGFVK2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3EB2214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="AQzCzvJE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 348E920873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A44156B0010; Sun, 15 Sep 2019 17:38:43 -0400 (EDT)
+	id BEAE36B0003; Sun, 15 Sep 2019 17:46:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9CE256B0266; Sun, 15 Sep 2019 17:38:43 -0400 (EDT)
+	id B9B5D6B0006; Sun, 15 Sep 2019 17:46:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 896666B0269; Sun, 15 Sep 2019 17:38:43 -0400 (EDT)
+	id A89CE6B0007; Sun, 15 Sep 2019 17:46:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0244.hostedemail.com [216.40.44.244])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B776B0010
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:38:43 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 0DE90181AC9AE
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 21:38:43 +0000 (UTC)
-X-FDA: 75938469726.22.value20_4c0ad1c600f1d
-X-HE-Tag: value20_4c0ad1c600f1d
-X-Filterd-Recvd-Size: 7862
-Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com [209.85.214.196])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 21:38:42 +0000 (UTC)
-Received: by mail-pl1-f196.google.com with SMTP id d3so15910062plr.1
-        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 14:38:42 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0126.hostedemail.com [216.40.44.126])
+	by kanga.kvack.org (Postfix) with ESMTP id 87AF36B0003
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:46:53 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 21FB1181AC9AE
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 21:46:53 +0000 (UTC)
+X-FDA: 75938490306.10.iron74_1d96f5e59450
+X-HE-Tag: iron74_1d96f5e59450
+X-Filterd-Recvd-Size: 5061
+Received: from mail-lj1-f194.google.com (mail-lj1-f194.google.com [209.85.208.194])
+	by imf02.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 21:46:52 +0000 (UTC)
+Received: by mail-lj1-f194.google.com with SMTP id y23so31871213lje.9
+        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 14:46:52 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=MAT1lEQ0+T2ks1DxMnED/jZFBuvcxA8EK3pKbjo1kZQ=;
-        b=nkfGFVK2Mxxbgt9AbNyjlXvJKinTPYewFk9n+uFMt9NHlF1grSbntf37vJBoa+WF8k
-         UEyChop3gE/0R6v0PjW0qnRTJiKizHMZcTqMbNwp1mWZuF9SdhX4v3+w9f/lujl4cg9G
-         XzDKC4eLW5f0lkZcXAAqKTOuifsNzN+jjIymkA/9BQ/z+aDtX4ohdq+TWgIvm+tvHXx4
-         ihsXUsET5qNs/1YXCIk1iqkaM/cAT/gyj1LJtS7JKJTCOyAtLTdvM4NtcfvKwoiDEdYA
-         EHCBqjp+LVBtGz/IthDEDb6NKAy7F9AHvcnajbnJZn2r4xccnoR+0f9CDWAOJULGlYQ3
-         gVFw==
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version
+         :content-transfer-encoding;
+        bh=vGboY1Ug06nQuNjlAhHa47y6oO8ayp/E0vNzgPvoh2A=;
+        b=AQzCzvJEMAzqcUzPAr43Ed9/PeX6iMi2hO/b3aNeOYvSLVO0JbcxrCkbT6TWj3TN5I
+         8gpSrmKYXqvGXkUOntFotwFmLqag7WHFXr3MjgC7JwoMYUT15QWm++9aPiCkklpV1lyo
+         yfvLBWN56y7mgDCLVUb0MR+vKnVteGL0TI2Dz2B/gmXMFZwuQntU2XqEG7IHX0dEuyeW
+         cT4ox7H9LOArjbYVYw94FKzC4k6bxQ347yuzk75Wf/hzgNP0jsp4YYYsQZzkA8dS3n5o
+         UedX4RqvHMygSkQtpiu5Ob3tYtTRTEDBdpkF9mWO4Lvp7Hlcs0C74PCXNrz3eQ0JJxkk
+         SYFQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
-         :references:user-agent:mime-version;
-        bh=MAT1lEQ0+T2ks1DxMnED/jZFBuvcxA8EK3pKbjo1kZQ=;
-        b=uFM/5L9bfdm17fQ7f9/vXbdgGDvVVQ4MZCN8SgTiIIQmDuDPJKwjtxiBSKMFE1FXoo
-         iBKhyOQYtpjSMq1KNvxG6zQD5qivj5SW4qtToH/QluqdqQW1czVVRJc3695wxZS8m59i
-         u0R8orCbUxpJTkNDx9kPC9CXN9M71jSyGCSZF8lZD5JrmeyO9aS4IQm+K5Ysj5QCZ6pG
-         ytMP8Z87nWpqgpfNm8n6towj9OLOuHh33ZU/4joCcRSHxl4+BvS1snL4rPR2ILiQooil
-         ls2qG4nucf+BVkEV+nWYpyUeSEeZId8h6jljmkr0nYuLuA/mbEq9bNLXwxWseTTqo4sX
-         8LCg==
-X-Gm-Message-State: APjAAAW/qzDaPLg0Ph5JlMkCRTrMuxFXeTtsGqD9gxo6A+0nvAHs3zeH
-	CoLtIVO9sxvrOtjW7RoxzkgL9A==
-X-Google-Smtp-Source: APXvYqyw2Tsm/cJheWXSlj1/7n28xc0eKU2c+7R/u6BCb525eniWT7rbuVlsd0rvFatIpx71+uqV0w==
-X-Received: by 2002:a17:902:6b04:: with SMTP id o4mr16436578plk.278.1568583521219;
-        Sun, 15 Sep 2019 14:38:41 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id a1sm30031028pgh.61.2019.09.15.14.38.40
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
+         :content-transfer-encoding;
+        bh=vGboY1Ug06nQuNjlAhHa47y6oO8ayp/E0vNzgPvoh2A=;
+        b=nYPeI+GzWd2Y7c6P/TN+uURYuXeCWV4gORCz5MIwV/zHHcB4EycfdgumnP/5TxYULl
+         v7f2Fl3Jgm0AQD2BX0r6+yetyMQHcs3nnINvfXLvc5wq0eYlNrPxRN809U8L6xFnHSVt
+         MRjwix917xSo40NBSSStXew3fzHyvgWwss+8EvBH0CfIYUC0kreRZ4/PMiU2/uf3Sd0g
+         TnOBNwUrJvUK1kmBOfJBs49eEZDnr05IY+ErCwQu6uA55e2pDCDV1lRljAQgjxYY1y/6
+         9OY7JKXVdOwqxNIq20gV0edJmfeKLDY2fy4mmHVMJNGBZTEaz54M6rd/FS+J7aJuAg3n
+         3Sng==
+X-Gm-Message-State: APjAAAVE2WbDkwwwdMarav8D+2v9k1oD+SENqepddD0mcPMBbvi71kZj
+	AphonEbH6j9yvpHUWruPArr++3I0Ve4=
+X-Google-Smtp-Source: APXvYqwFNn6c8zkLpgJmIk5huSj1K2GFhJIlyaZSseoTobOGvx/CIHfcSOG7spXLVGIIBLBvZL8bvA==
+X-Received: by 2002:a2e:2d5:: with SMTP id y82mr11309975lje.230.1568584010767;
+        Sun, 15 Sep 2019 14:46:50 -0700 (PDT)
+Received: from vitaly-Dell-System-XPS-L322X ([188.150.241.161])
+        by smtp.gmail.com with ESMTPSA id r19sm8012861ljd.95.2019.09.15.14.46.48
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 15 Sep 2019 14:38:40 -0700 (PDT)
-Date: Sun, 15 Sep 2019 14:38:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Pengfei Li <lpf.vector@gmail.com>
-cc: akpm@linux-foundation.org, vbabka@suse.cz, cl@linux.com, 
-    penberg@kernel.org, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, guro@fb.com
-Subject: Re: [RESEND v4 7/7] mm, slab_common: Modify kmalloc_caches[type][idx]
- to kmalloc_caches[idx][type]
-In-Reply-To: <20190915170809.10702-8-lpf.vector@gmail.com>
-Message-ID: <alpine.DEB.2.21.1909151437530.211705@chino.kir.corp.google.com>
-References: <20190915170809.10702-1-lpf.vector@gmail.com> <20190915170809.10702-8-lpf.vector@gmail.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
+        Sun, 15 Sep 2019 14:46:49 -0700 (PDT)
+Date: Mon, 16 Sep 2019 00:46:40 +0300
+From: Vitaly Wool <vitalywool@gmail.com>
+To: Linux-MM <linux-mm@kvack.org>, Andrew Morton
+ <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>
+Subject: [PATCH/RFC] zswap: do not map same object twice
+Message-Id: <20190916004640.b453167d3556c4093af4cf7d@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000488, version=1.2.4
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Sep 2019, Pengfei Li wrote:
+zswap_writeback_entry() maps a handle to read swpentry first, and
+then in the most common case it would map the same handle again.
+This is ok when zbud is the backend since its mapping callback is
+plain and simple, but it slows things down for z3fold.
 
-> KMALLOC_NORMAL is the most frequently accessed, and kmalloc_caches[]
-> is initialized by different types of the same size.
-> 
-> So modifying kmalloc_caches[type][idx] to kmalloc_caches[idx][type]
-> will benefit performance.
-> 
-> $ ./scripts/bloat-o-meter vmlinux.patch_1-6 vmlinux.patch_1-7
-> add/remove: 0/0 grow/shrink: 2/57 up/down: 8/-457 (-449)
-> Function                                     old     new   delta
-> tg3_self_test                               4255    4259      +4
-> nf_queue                                     666     670      +4
-> kmalloc_slab                                  97      93      -4
-> i915_sw_fence_await_dma_fence                441     437      -4
-> __igmp_group_dropped                         619     615      -4
-> gss_import_sec_context                       176     170      -6
-> xhci_alloc_command                           212     205      -7
-> create_kmalloc_caches                        155     148      -7
-> xprt_switch_alloc                            136     128      -8
-> xhci_segment_alloc                           297     289      -8
-> xhci_ring_alloc                              369     361      -8
-> xhci_mem_init                               3664    3656      -8
-> xhci_alloc_virt_device                       496     488      -8
-> xhci_alloc_tt_info                           346     338      -8
-> xhci_alloc_stream_info                       718     710      -8
-> xhci_alloc_container_ctx                     215     207      -8
-> xfrm_policy_alloc                            271     263      -8
-> tcp_sendmsg_locked                          3120    3112      -8
-> tcp_md5_do_add                               774     766      -8
-> tcp_fastopen_defer_connect                   270     262      -8
-> sr_read_tochdr.isra                          251     243      -8
-> sr_read_tocentry.isra                        328     320      -8
-> sr_is_xa                                     376     368      -8
-> sr_get_mcn                                   260     252      -8
-> selinux_sk_alloc_security                    113     105      -8
-> sdev_evt_send_simple                         118     110      -8
-> sdev_evt_alloc                                79      71      -8
-> scsi_probe_and_add_lun                      2938    2930      -8
-> sbitmap_queue_init_node                      418     410      -8
-> ring_buffer_read_prepare                      94      86      -8
-> request_firmware_nowait                      396     388      -8
-> regulatory_hint_found_beacon                 394     386      -8
-> ohci_urb_enqueue                            3176    3168      -8
-> nla_strdup                                   142     134      -8
-> nfs_alloc_seqid                               87      79      -8
-> nfs4_get_state_owner                        1040    1032      -8
-> nfs4_do_close                                578     570      -8
-> nf_ct_tmpl_alloc                              85      77      -8
-> mempool_create_node                          164     156      -8
-> ip_setup_cork                                362     354      -8
-> ip6_setup_cork                              1021    1013      -8
-> gss_create_cred                              140     132      -8
-> drm_flip_work_allocate_task                   70      62      -8
-> dma_pool_alloc                               410     402      -8
-> devres_open_group                            214     206      -8
-> cfg80211_stop_iface                          260     252      -8
-> cfg80211_sinfo_alloc_tid_stats                77      69      -8
-> cfg80211_port_authorized                     212     204      -8
-> cfg80211_parse_mbssid_data                  2397    2389      -8
-> cfg80211_ibss_joined                         335     327      -8
-> call_usermodehelper_setup                    149     141      -8
-> bpf_prog_alloc_no_stats                      182     174      -8
-> blk_alloc_flush_queue                        191     183      -8
-> bdi_alloc_node                               195     187      -8
-> audit_log_d_path                             196     188      -8
-> _netlbl_catmap_getnode                       247     239      -8
-> ____ip_mc_inc_group                          475     467      -8
-> __i915_sw_fence_await_sw_fence               417     405     -12
-> ida_alloc_range                              955     934     -21
-> Total: Before=14874316, After=14873867, chg -0.00%
-> 
-> Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
+Since there's hardly a point in unmapping a handle _that_ fast as
+zswap_writeback_entry() does when it reads swpentry, the
+suggestion is to keep the handle mapped till the end.
 
-This also seems more intuitive.
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/zswap.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-Acked-by: David Rientjes <rientjes@google.com>
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 0e22744a76cb..b35464bc7315 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -856,7 +856,6 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	/* extract swpentry from data */
+ 	zhdr = zpool_map_handle(pool, handle, ZPOOL_MM_RO);
+ 	swpentry = zhdr->swpentry; /* here */
+-	zpool_unmap_handle(pool, handle);
+ 	tree = zswap_trees[swp_type(swpentry)];
+ 	offset = swp_offset(swpentry);
+ 
+@@ -866,6 +865,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	if (!entry) {
+ 		/* entry was invalidated */
+ 		spin_unlock(&tree->lock);
++		zpool_unmap_handle(pool, handle);
+ 		return 0;
+ 	}
+ 	spin_unlock(&tree->lock);
+@@ -886,15 +886,13 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
+ 		/* decompress */
+ 		dlen = PAGE_SIZE;
+-		src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+-				ZPOOL_MM_RO) + sizeof(struct zswap_header);
++		src = (u8 *)zhdr + sizeof(struct zswap_header);
+ 		dst = kmap_atomic(page);
+ 		tfm = *get_cpu_ptr(entry->pool->tfm);
+ 		ret = crypto_comp_decompress(tfm, src, entry->length,
+ 					     dst, &dlen);
+ 		put_cpu_ptr(entry->pool->tfm);
+ 		kunmap_atomic(dst);
+-		zpool_unmap_handle(entry->pool->zpool, entry->handle);
+ 		BUG_ON(ret);
+ 		BUG_ON(dlen != PAGE_SIZE);
+ 
+@@ -940,6 +938,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	spin_unlock(&tree->lock);
+ 
+ end:
++	zpool_unmap_handle(pool, handle);
+ 	return ret;
+ }
+ 
+-- 
+2.17.1
 
