@@ -2,75 +2,74 @@ Return-Path: <SRS0=FJsX=XK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
 	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96D32C4CEC7
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:53:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7128FC4CEC7
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CDBA214D8
-	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 16:53:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1BB3421479
+	for <linux-mm@archiver.kernel.org>; Sun, 15 Sep 2019 17:08:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="E8WwsUWA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CDBA214D8
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sbh56VYo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BB3421479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD83F6B000E; Sun, 15 Sep 2019 12:53:51 -0400 (EDT)
+	id A988B6B0269; Sun, 15 Sep 2019 13:08:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D88366B0010; Sun, 15 Sep 2019 12:53:51 -0400 (EDT)
+	id A22406B026A; Sun, 15 Sep 2019 13:08:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C77B16B0266; Sun, 15 Sep 2019 12:53:51 -0400 (EDT)
+	id 8E9616B026B; Sun, 15 Sep 2019 13:08:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0207.hostedemail.com [216.40.44.207])
-	by kanga.kvack.org (Postfix) with ESMTP id A5C716B000E
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 12:53:51 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 4097C181AC9AE
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:53:51 +0000 (UTC)
-X-FDA: 75937751862.18.fact35_3eabe623bab08
-X-HE-Tag: fact35_3eabe623bab08
-X-Filterd-Recvd-Size: 13001
-Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 16:53:50 +0000 (UTC)
-Received: by mail-pf1-f195.google.com with SMTP id q5so21095553pfg.13
-        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 09:53:50 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
+	by kanga.kvack.org (Postfix) with ESMTP id 69DC06B0269
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 13:08:26 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id F3783824CA36
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:25 +0000 (UTC)
+X-FDA: 75937788570.11.thing66_2c76812cf4601
+X-HE-Tag: thing66_2c76812cf4601
+X-Filterd-Recvd-Size: 10302
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2019 17:08:25 +0000 (UTC)
+Received: by mail-pg1-f195.google.com with SMTP id 4so18022178pgm.12
+        for <linux-mm@kvack.org>; Sun, 15 Sep 2019 10:08:25 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=wnjVX8y3jjuiJNFHe5uOkqxCWTM5n6lVUDEKEUO860s=;
-        b=E8WwsUWAmtESXISewsRUL10pd+pjCIykVXTDnkNjVkLKK+dLjj3NYBn4sVnl+xmbcb
-         NmkspuSNolTXapDYraPsa4n/WcqMNa/GruQT7Xvquq0/N4N3PJ+fbvB9k0YCgROrtCj7
-         RIXmdjTK1Yvvd//ju+XQi0nDD7I2Jybg+DdFuoxJ+WFWz+kGmTZrUEkfHlLqncxF1p4b
-         AKbFsgPFGnj0Tnpc0rGtN2Nij5/F9eS5kzszgGLcqMfg7imWzyjnawOE2gUf1B/+w5C2
-         3YPW84tsT3dcITg5ephoP0/IhLFPHWHK+9kMRNhJbADhx2I4Z9FFX3+BfSU7H9F7VLLU
-         BeFA==
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=ADTfcPArVp8KQvFy/15pzSOdYF1sjsxn9QcodcYLZMM=;
+        b=sbh56VYoYCPgVgo+tM4ATL4gTlAJ6SKDQ6pdL7h/Te02+SWThammuEz1zKtbLmNerg
+         CBrJzV0GFMxc/g/s2woSryM0pJNyD26u7JJLjC5epi712zNWE2MJMryL1DqH12fuR6kw
+         D7Xx2rQHE70/hgxVev534Ci6jSQDNLcWbghf5x4+8WYABCMvhxHZDECYuhInSeyEYACp
+         vGs+3ux8wD7xEH5JXoCn770IJ/el1ixlwjaYL6VMW99SLjPU5gwDVLshhxfDw6+2lDQR
+         88dfvJbQ/Dr0stgovlZTea2cEdt/RM1Zldr7Lx4gTG8kSarQ6M/cvvngj17OakJmGLo5
+         XC/g==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=wnjVX8y3jjuiJNFHe5uOkqxCWTM5n6lVUDEKEUO860s=;
-        b=GpYGgJ4qsONybJnRXp6Rpg1wletjujM4sdze1NwF/f0v9BKc7l2t8zdx9OqGLf9nLu
-         txskUFpq2/FYV7ig7BBr5iNFfPV2WnOdcqCl78oehXx/TU33QCj8Wj38vjFRxXSWsoHe
-         8m5Q0l+dacB5S7bHBkuaQsROnCdtc/jY0Ua16enUidPTFG43JEUEpztzdE7UhE4+jytO
-         WrN6fzNLk3DY8GsuEgf2MI8Gs0wo8xw+PgOIHalErcEDLy4U/6jeePlj1Nrj1Q2un7dx
-         UCOpDqy3JEHGF748qCr+3Oh8JeddQQs6tmlOtofZ8fFcTjLi9mq4flYNo/00c38cPhuC
-         6nrg==
-X-Gm-Message-State: APjAAAU/pYB0+QhM80PVFxIUcrEyOvnjk5AvhXLGzfOh5rsnHVp9ZmoK
-	vtW703Mzht6NHdA5Kz9CtSs=
-X-Google-Smtp-Source: APXvYqzChEGbOonah3YVdUSXfiVbmy1TiA7c1KjPZ5G7w83njdgeeyAUDEx2VggYQbHLFTrTzL/bpA==
-X-Received: by 2002:a62:2702:: with SMTP id n2mr36485622pfn.73.1568566429704;
-        Sun, 15 Sep 2019 09:53:49 -0700 (PDT)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=ADTfcPArVp8KQvFy/15pzSOdYF1sjsxn9QcodcYLZMM=;
+        b=WjQNKtywc/aPFn6FZXrSInWhoq6ubXnCDADJGz0lnTo3HkxO0VyJwZ5K4vrgTUxVZY
+         DIG/2HVCH8F/o5bNMpkmCnYnZ9yAGpUC3mX2gspHntgNAphT5kC/bb70YkFyECBHeYlm
+         hUi2clZPAGId1nwzf8s6PSDsycmI1J4GpgtusE2aFLm/EkMqDpDWcuu1fELTKw+rYm6M
+         2VMgyEHlQ6aBs24IXCksN1NbtoFVn/NDe7H+iUwenGDmWqWih8iFYmesFgRK3CjQENTU
+         LYIf2Cn2MRfnmUfeSz+HX6pgKCDa4LSS3EYOOgsBJy+9JMAnLORLpAiH7b0pRvow6MUU
+         hsVA==
+X-Gm-Message-State: APjAAAWJNWXsm5QMcrMmk9IcmlnnOC9L3QpbdGmXgKCUh/qC8jRZLTW+
+	2/EbZZhP7oKZU7y8D6517+U=
+X-Google-Smtp-Source: APXvYqx9kovc+b+m054f+ug30POGDV7YO/zxPJKVkQA1rgkbMLaveUfUnZ2UsMHjQ43aEs8+XrLIpQ==
+X-Received: by 2002:a17:90a:d354:: with SMTP id i20mr16485031pjx.49.1568567304439;
+        Sun, 15 Sep 2019 10:08:24 -0700 (PDT)
 Received: from localhost.localdomain.localdomain ([2408:823c:c11:160:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id a4sm4383259pgq.6.2019.09.15.09.53.41
+        by smtp.gmail.com with ESMTPSA id r28sm62279134pfg.62.2019.09.15.10.08.16
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Sun, 15 Sep 2019 09:53:49 -0700 (PDT)
+        Sun, 15 Sep 2019 10:08:23 -0700 (PDT)
 From: Pengfei Li <lpf.vector@gmail.com>
 To: akpm@linux-foundation.org
 Cc: vbabka@suse.cz,
@@ -82,250 +81,166 @@ Cc: vbabka@suse.cz,
 	linux-kernel@vger.kernel.org,
 	guro@fb.com,
 	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH v4 7/7] mm, slab_common: Modify kmalloc_caches[type][idx] to kmalloc_caches[idx][type]
-Date: Mon, 16 Sep 2019 00:51:21 +0800
-Message-Id: <20190915165121.7237-13-lpf.vector@gmail.com>
+Subject: [RESEND v4 0/7] mm, slab: Make kmalloc_info[] contain all types of names
+Date: Mon, 16 Sep 2019 01:08:02 +0800
+Message-Id: <20190915170809.10702-1-lpf.vector@gmail.com>
 X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190915165121.7237-1-lpf.vector@gmail.com>
-References: <20190915165121.7237-1-lpf.vector@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001401, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KMALLOC_NORMAL is the most frequently accessed, and kmalloc_caches[]
-is initialized by different types of the same size.
+Changes in v4
+--
+1. [old] abandon patch 4/4
+2. [new] patch 4/7:
+    - return ZERO_SIZE_ALLOC instead 0 for zero sized requests
+3. [new] patch 5/7:
+    - reorder kmalloc_info[], kmalloc_caches[] (in order of size)
+    - hard to split, so slightly larger
+4. [new] patch 6/7:
+    - initialize kmalloc_cache[] with the same size but different
+      types
+5. [new] patch 7/7:
+    - modify kmalloc_caches[type][idx] to kmalloc_caches[idx][type]
 
-So modifying kmalloc_caches[type][idx] to kmalloc_caches[idx][type]
-will benefit performance.
+Patch 4-7 are newly added, more information can be obtained from
+commit messages.
 
-$ ./scripts/bloat-o-meter vmlinux.patch_1-6 vmlinux.patch_1-7
-add/remove: 0/0 grow/shrink: 2/57 up/down: 8/-457 (-449)
+Changes in v3
+--
+1. restore __initconst (patch 1/4)
+2. rename patch 3/4
+3. add more clarification for patch 4/4
+
+Changes in v2
+--
+1. remove __initconst (patch 1/5)
+2. squash patch 2/5
+3. add ack tag from Vlastimil Babka
+
+
+There are three types of kmalloc, KMALLOC_NORMAL, KMALLOC_RECLAIM
+and KMALLOC_DMA.
+
+The name of KMALLOC_NORMAL is contained in kmalloc_info[].name,
+but the names of KMALLOC_RECLAIM and KMALLOC_DMA are dynamically
+generated by kmalloc_cache_name().
+
+Patch1 predefines the names of all types of kmalloc to save
+the time spent dynamically generating names.
+
+These changes make sense, and the time spent by new_kmalloc_cache()
+has been reduced by approximately 36.3%.
+
+                         Time spent by new_kmalloc_cache()
+                                  (CPU cycles)
+5.3-rc7                              66264
+5.3-rc7+patch_1-3                    42188
+
+
+bloat-o-meter
+--
+$ ./scripts/bloat-o-meter vmlinux.5.3-rc8 vmlinux.5.3-rc8+patch_1-7
+add/remove: 1/2 grow/shrink: 6/65 up/down: 872/-1621 (-749)
 Function                                     old     new   delta
+all_kmalloc_info                               -     832    +832
+crypto_create_tfm                            211     225     +14
+ieee80211_key_alloc                         1159    1169     +10
+nl80211_parse_sched_scan                    2787    2795      +8
 tg3_self_test                               4255    4259      +4
-nf_queue                                     666     670      +4
-kmalloc_slab                                  97      93      -4
-i915_sw_fence_await_dma_fence                441     437      -4
-__igmp_group_dropped                         619     615      -4
-gss_import_sec_context                       176     170      -6
-xhci_alloc_command                           212     205      -7
-create_kmalloc_caches                        155     148      -7
-xprt_switch_alloc                            136     128      -8
-xhci_segment_alloc                           297     289      -8
-xhci_ring_alloc                              369     361      -8
-xhci_mem_init                               3664    3656      -8
-xhci_alloc_virt_device                       496     488      -8
-xhci_alloc_tt_info                           346     338      -8
-xhci_alloc_stream_info                       718     710      -8
-xhci_alloc_container_ctx                     215     207      -8
-xfrm_policy_alloc                            271     263      -8
-tcp_sendmsg_locked                          3120    3112      -8
-tcp_md5_do_add                               774     766      -8
-tcp_fastopen_defer_connect                   270     262      -8
-sr_read_tochdr.isra                          251     243      -8
-sr_read_tocentry.isra                        328     320      -8
-sr_is_xa                                     376     368      -8
-sr_get_mcn                                   260     252      -8
-selinux_sk_alloc_security                    113     105      -8
-sdev_evt_send_simple                         118     110      -8
-sdev_evt_alloc                                79      71      -8
-scsi_probe_and_add_lun                      2938    2930      -8
-sbitmap_queue_init_node                      418     410      -8
-ring_buffer_read_prepare                      94      86      -8
-request_firmware_nowait                      396     388      -8
-regulatory_hint_found_beacon                 394     386      -8
-ohci_urb_enqueue                            3176    3168      -8
-nla_strdup                                   142     134      -8
-nfs_alloc_seqid                               87      79      -8
-nfs4_get_state_owner                        1040    1032      -8
-nfs4_do_close                                578     570      -8
-nf_ct_tmpl_alloc                              85      77      -8
-mempool_create_node                          164     156      -8
-ip_setup_cork                                362     354      -8
-ip6_setup_cork                              1021    1013      -8
-gss_create_cred                              140     132      -8
-drm_flip_work_allocate_task                   70      62      -8
-dma_pool_alloc                               410     402      -8
-devres_open_group                            214     206      -8
-cfg80211_stop_iface                          260     252      -8
-cfg80211_sinfo_alloc_tid_stats                77      69      -8
-cfg80211_port_authorized                     212     204      -8
-cfg80211_parse_mbssid_data                  2397    2389      -8
-cfg80211_ibss_joined                         335     327      -8
-call_usermodehelper_setup                    149     141      -8
-bpf_prog_alloc_no_stats                      182     174      -8
-blk_alloc_flush_queue                        191     183      -8
-bdi_alloc_node                               195     187      -8
-audit_log_d_path                             196     188      -8
-_netlbl_catmap_getnode                       247     239      -8
-____ip_mc_inc_group                          475     467      -8
-__i915_sw_fence_await_sw_fence               417     405     -12
-ida_alloc_range                              955     934     -21
-Total: Before=3D14874316, After=3D14873867, chg -0.00%
+find_get_context.isra                        634     637      +3
+sd_probe                                     947     948      +1
+nf_queue                                     671     670      -1
+trace_parser_get_init                         71      69      -2
+pkcs7_verify.cold                            318     316      -2
+units                                        323     320      -3
+nl80211_set_reg                              642     639      -3
+pkcs7_verify                                1503    1495      -8
+i915_sw_fence_await_dma_fence                445     437      -8
+nla_strdup                                   143     134      -9
+kmalloc_slab                                 102      93      -9
+xhci_alloc_tt_info                           349     338     -11
+xhci_segment_alloc                           303     289     -14
+xhci_alloc_container_ctx                     221     207     -14
+xfrm_policy_alloc                            277     263     -14
+selinux_sk_alloc_security                    119     105     -14
+sdev_evt_send_simple                         124     110     -14
+sdev_evt_alloc                                85      71     -14
+sbitmap_queue_init_node                      424     410     -14
+regulatory_hint_found_beacon                 400     386     -14
+nf_ct_tmpl_alloc                              91      77     -14
+gss_create_cred                              146     132     -14
+drm_flip_work_allocate_task                   76      62     -14
+cfg80211_stop_iface                          266     252     -14
+cfg80211_sinfo_alloc_tid_stats                83      69     -14
+cfg80211_port_authorized                     218     204     -14
+cfg80211_ibss_joined                         341     327     -14
+call_usermodehelper_setup                    155     141     -14
+bpf_prog_alloc_no_stats                      188     174     -14
+blk_alloc_flush_queue                        197     183     -14
+bdi_alloc_node                               201     187     -14
+_netlbl_catmap_getnode                       253     239     -14
+__igmp_group_dropped                         629     615     -14
+____ip_mc_inc_group                          481     467     -14
+xhci_alloc_command                           221     205     -16
+audit_log_d_path                             204     188     -16
+xprt_switch_alloc                            145     128     -17
+xhci_ring_alloc                              378     361     -17
+xhci_mem_init                               3673    3656     -17
+xhci_alloc_virt_device                       505     488     -17
+xhci_alloc_stream_info                       727     710     -17
+tcp_sendmsg_locked                          3129    3112     -17
+tcp_md5_do_add                               783     766     -17
+tcp_fastopen_defer_connect                   279     262     -17
+sr_read_tochdr.isra                          260     243     -17
+sr_read_tocentry.isra                        337     320     -17
+sr_is_xa                                     385     368     -17
+sr_get_mcn                                   269     252     -17
+scsi_probe_and_add_lun                      2947    2930     -17
+ring_buffer_read_prepare                     103      86     -17
+request_firmware_nowait                      405     388     -17
+ohci_urb_enqueue                            3185    3168     -17
+nfs_alloc_seqid                               96      79     -17
+nfs4_get_state_owner                        1049    1032     -17
+nfs4_do_close                                587     570     -17
+mempool_create_node                          173     156     -17
+ip6_setup_cork                              1030    1013     -17
+ida_alloc_range                              951     934     -17
+gss_import_sec_context                       187     170     -17
+dma_pool_alloc                               419     402     -17
+devres_open_group                            223     206     -17
+cfg80211_parse_mbssid_data                  2406    2389     -17
+ip_setup_cork                                374     354     -20
+kmalloc_caches                               336     312     -24
+__i915_sw_fence_await_sw_fence               429     405     -24
+kmalloc_cache_name                            57       -     -57
+new_kmalloc_cache                            112       -    -112
+create_kmalloc_caches                        270     148    -122
+kmalloc_info                                 432       8    -424
+Total: Before=3D14874616, After=3D14873867, chg -0.01%
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- include/linux/slab.h |  6 +++---
- mm/slab.c            |  4 ++--
- mm/slab_common.c     |  8 ++++----
- mm/slub.c            | 12 ++++++------
- 4 files changed, 15 insertions(+), 15 deletions(-)
+Pengfei Li (7):
+  mm, slab: Make kmalloc_info[] contain all types of names
+  mm, slab: Remove unused kmalloc_size()
+  mm, slab_common: Use enum kmalloc_cache_type to iterate over kmalloc
+    caches
+  mm, slab: Return ZERO_SIZE_ALLOC for zero sized kmalloc requests
+  mm, slab_common: Make kmalloc_caches[] start at size KMALLOC_MIN_SIZE
+  mm, slab_common: Initialize the same size of kmalloc_caches[]
+  mm, slab_common: Modify kmalloc_caches[type][idx] to
+    kmalloc_caches[idx][type]
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index f53bb6980110..0842db5f7053 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -340,7 +340,7 @@ enum kmalloc_cache_type {
-=20
- #ifndef CONFIG_SLOB
- extern struct kmem_cache *
--kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_CACHE_NUM];
-+kmalloc_caches[KMALLOC_CACHE_NUM][NR_KMALLOC_TYPES];
-=20
- static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
- {
-@@ -582,7 +582,7 @@ static __always_inline void *kmalloc(size_t size, gfp=
-_t flags)
- 			return ZERO_SIZE_PTR;
-=20
- 		return kmem_cache_alloc_trace(
--				kmalloc_caches[kmalloc_type(flags)][index],
-+				kmalloc_caches[index][kmalloc_type(flags)],
- 				flags, size);
- #endif
- 	}
-@@ -600,7 +600,7 @@ static __always_inline void *kmalloc_node(size_t size=
-, gfp_t flags, int node)
- 			return ZERO_SIZE_PTR;
-=20
- 		return kmem_cache_alloc_node_trace(
--				kmalloc_caches[kmalloc_type(flags)][i],
-+				kmalloc_caches[i][kmalloc_type(flags)],
- 						flags, node, size);
- 	}
- #endif
-diff --git a/mm/slab.c b/mm/slab.c
-index 7bc4e90e1147..079c3e6ced1f 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1246,7 +1246,7 @@ void __init kmem_cache_init(void)
- 	 * Initialize the caches that provide memory for the  kmem_cache_node
- 	 * structures first.  Without this, further allocations will bug.
- 	 */
--	kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE] =3D create_kmalloc_cache(
-+	kmalloc_caches[INDEX_NODE][KMALLOC_NORMAL] =3D create_kmalloc_cache(
- 				kmalloc_info[INDEX_NODE].name[KMALLOC_NORMAL],
- 				kmalloc_info[INDEX_NODE].size,
- 				ARCH_KMALLOC_FLAGS, 0,
-@@ -1263,7 +1263,7 @@ void __init kmem_cache_init(void)
- 		for_each_online_node(nid) {
- 			init_list(kmem_cache, &init_kmem_cache_node[CACHE_CACHE + nid], nid);
-=20
--			init_list(kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE],
-+			init_list(kmalloc_caches[INDEX_NODE][KMALLOC_NORMAL],
- 					  &init_kmem_cache_node[SIZE_NODE + nid], nid);
- 		}
- 	}
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index e7903bd28b1f..0f465eae32f6 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1028,7 +1028,7 @@ struct kmem_cache *__init create_kmalloc_cache(cons=
-t char *name,
- }
-=20
- struct kmem_cache *
--kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_CACHE_NUM] __ro_after_init =3D
-+kmalloc_caches[KMALLOC_CACHE_NUM][NR_KMALLOC_TYPES] __ro_after_init =3D
- { /* initialization for https://bugs.llvm.org/show_bug.cgi?id=3D42570 */=
- };
- EXPORT_SYMBOL(kmalloc_caches);
-=20
-@@ -1090,7 +1090,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t =
-flags)
- 		index =3D fls(size - 1) - KMALLOC_IDX_ADJ_2;
- 	}
-=20
--	return kmalloc_caches[kmalloc_type(flags)][index];
-+	return kmalloc_caches[index][kmalloc_type(flags)];
- }
-=20
- #ifdef CONFIG_ZONE_DMA
-@@ -1168,7 +1168,7 @@ void __init setup_kmalloc_cache_index_table(void)
- static __always_inline void __init
- new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t fl=
-ags)
- {
--	kmalloc_caches[type][idx] =3D create_kmalloc_cache(
-+	kmalloc_caches[idx][type] =3D create_kmalloc_cache(
- 					kmalloc_info[idx].name[type],
- 					kmalloc_info[idx].size, flags, 0,
- 					kmalloc_info[idx].size);
-@@ -1184,7 +1184,7 @@ void __init create_kmalloc_caches(slab_flags_t flag=
-s)
- 	int i;
-=20
- 	for (i =3D 0; i < KMALLOC_CACHE_NUM; i++) {
--		if (!kmalloc_caches[KMALLOC_NORMAL][i])
-+		if (!kmalloc_caches[i][KMALLOC_NORMAL])
- 			new_kmalloc_cache(i, KMALLOC_NORMAL, flags);
-=20
- 		new_kmalloc_cache(i, KMALLOC_RECLAIM,
-diff --git a/mm/slub.c b/mm/slub.c
-index 0e92ebdcacc9..e87243a16768 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4711,7 +4711,7 @@ static void __init resiliency_test(void)
- 	pr_err("\n1. kmalloc-16: Clobber Redzone/next pointer 0x12->0x%p\n\n",
- 	       p + 16);
-=20
--	validate_slab_cache(kmalloc_caches[type][1]);
-+	validate_slab_cache(kmalloc_caches[1][type]);
-=20
- 	/* Hmmm... The next two are dangerous */
- 	p =3D kzalloc(32, GFP_KERNEL);
-@@ -4720,33 +4720,33 @@ static void __init resiliency_test(void)
- 	       p);
- 	pr_err("If allocated object is overwritten then not detectable\n\n");
-=20
--	validate_slab_cache(kmalloc_caches[type][2]);
-+	validate_slab_cache(kmalloc_caches[2][type]);
- 	p =3D kzalloc(64, GFP_KERNEL);
- 	p +=3D 64 + (get_cycles() & 0xff) * sizeof(void *);
- 	*p =3D 0x56;
- 	pr_err("\n3. kmalloc-64: corrupting random byte 0x56->0x%p\n",
- 	       p);
- 	pr_err("If allocated object is overwritten then not detectable\n\n");
--	validate_slab_cache(kmalloc_caches[type][3]);
-+	validate_slab_cache(kmalloc_caches[3][type]);
-=20
- 	pr_err("\nB. Corruption after free\n");
- 	p =3D kzalloc(128, GFP_KERNEL);
- 	kfree(p);
- 	*p =3D 0x78;
- 	pr_err("1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
--	validate_slab_cache(kmalloc_caches[type][5]);
-+	validate_slab_cache(kmalloc_caches[5][type]);
-=20
- 	p =3D kzalloc(256, GFP_KERNEL);
- 	kfree(p);
- 	p[50] =3D 0x9a;
- 	pr_err("\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n", p);
--	validate_slab_cache(kmalloc_caches[type][7]);
-+	validate_slab_cache(kmalloc_caches[7][type]);
-=20
- 	p =3D kzalloc(512, GFP_KERNEL);
- 	kfree(p);
- 	p[512] =3D 0xab;
- 	pr_err("\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
--	validate_slab_cache(kmalloc_caches[type][8]);
-+	validate_slab_cache(kmalloc_caches[8][type]);
- }
- #else
- #ifdef CONFIG_SYSFS
+ include/linux/slab.h | 136 ++++++++++++++------------
+ mm/slab.c            |  11 ++-
+ mm/slab.h            |  10 +-
+ mm/slab_common.c     | 224 ++++++++++++++++++-------------------------
+ mm/slub.c            |  12 +--
+ 5 files changed, 183 insertions(+), 210 deletions(-)
+
 --=20
 2.21.0
 
