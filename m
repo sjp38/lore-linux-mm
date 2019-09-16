@@ -2,140 +2,123 @@ Return-Path: <SRS0=CHX8=XL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 947AFC49ED7
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:27:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C1A6C49ED7
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:41:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 636F8206A4
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:27:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 636F8206A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id DF90D214AF
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:41:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="oSAgnCbh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF90D214AF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 154276B0005; Mon, 16 Sep 2019 11:27:59 -0400 (EDT)
+	id 67D156B0005; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 105DA6B0006; Mon, 16 Sep 2019 11:27:59 -0400 (EDT)
+	id 62B9B6B0006; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F37746B0007; Mon, 16 Sep 2019 11:27:58 -0400 (EDT)
+	id 4F25C6B0007; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
-	by kanga.kvack.org (Postfix) with ESMTP id D05C36B0005
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:27:58 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 6B26E824CA38
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:27:58 +0000 (UTC)
-X-FDA: 75941164236.07.group33_629121ee5dd1b
-X-HE-Tag: group33_629121ee5dd1b
-X-Filterd-Recvd-Size: 3559
-Received: from huawei.com (szxga06-in.huawei.com [45.249.212.32])
-	by imf13.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:27:57 +0000 (UTC)
-Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 75CD1E9BD1341E81870C;
-	Mon, 16 Sep 2019 23:27:46 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS414-HUB.china.huawei.com
- (10.3.19.214) with Microsoft SMTP Server id 14.3.439.0; Mon, 16 Sep 2019
- 23:27:38 +0800
-Message-ID: <5D7FA9E9.4050501@huawei.com>
-Date: Mon, 16 Sep 2019 23:27:37 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
-MIME-Version: 1.0
-To: Laurent Dufour <ldufour@linux.ibm.com>
-CC: Vinayak Menon <vinmenon@codeaurora.org>, Linux-MM <linux-mm@kvack.org>,
-	"Wangkefeng (Kevin)" <wangkefeng.wang@huawei.com>, <charante@codeaurora.org>
-Subject: Re: Speculative page faults
-References: <5D74BC65.4070309@huawei.com> <b681a5c4-5bb8-4e6c-3323-30e1645782c3@linux.ibm.com>
-In-Reply-To: <b681a5c4-5bb8-4e6c-3323-30e1645782c3@linux.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
+	by kanga.kvack.org (Postfix) with ESMTP id 2573D6B0005
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D5BBA180AD802
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:41:02 +0000 (UTC)
+X-FDA: 75941197164.19.anger84_434ddf3218756
+X-HE-Tag: anger84_434ddf3218756
+X-Filterd-Recvd-Size: 3629
+Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
+	by imf46.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:41:02 +0000 (UTC)
+Received: by mail-qk1-f193.google.com with SMTP id w2so444324qkf.2
+        for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:41:02 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=2u752yS3oLnDaYH6yTgBbPOp6ynQQ7UEDYNUBRkEYzU=;
+        b=oSAgnCbhD4qDdHEm2xKg8gd+frd0gplSiPL7p871e/IbQ3Xl+AoJriMi48+WtFfMiH
+         Er7h6Ina/mwJDFGre4pqWP4axz9nWEaIsC0Mhg4jWWlTxJLjxt2PTXBMZIrdR7ueylMQ
+         JjnBypKA663HUGsAUZdZa+CJSiDEk7HeQOtW8iN1K2wpYE6VphkL0B7aNMOaXbqeI4fq
+         g7hWJaYnXgwqAaotMNT3gfqh6eze7k6/zlkaN/LbASqJE+8AKlLGIYlLCCa69g0youHX
+         5nbYx0F2ArTT0i4inpzgu4YzObm7Q/JOwgvXXPrTcIMrcswjP8l3AOMi6LPSITs/lgVR
+         ZhFw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id;
+        bh=2u752yS3oLnDaYH6yTgBbPOp6ynQQ7UEDYNUBRkEYzU=;
+        b=untkxP0F+rN8IWSqkThKKo1Lb4LIiLBNeKEB2EPd16XiJ8V1T611W5OLvko3HecR37
+         sCpoQ5TS1lc/aLXT/8I9gcL8kubgixtukexyx49B+owbjdhy01kfLzbZkWXA0Fh+um+n
+         LRonSKBbyXXp+beuRr+OJ7cglmUMzY2dlT7k/r/kBaaVM9rD340hqbeYSk5FlCKeKCcI
+         ABRC83NyU4x2quO6HQDf3jsmBYFQ5NPxcrsHoTTAEySjfi7wJ6EquacyOUa0VrGwbcvA
+         MSgGA3wj45rKtHgAY76BZokxD+ZIqH5cVcwdsf2wvKAUGCMTjk1WZjDNIAdRhJMlZYQP
+         I3Tg==
+X-Gm-Message-State: APjAAAXLWIhrAwxSQvxjNX67EGAI3L3qgm8m8hmvE6I8Hr6/Hf7ithyl
+	Ang4U5oF2JcIEskSjzZmnRPdQw==
+X-Google-Smtp-Source: APXvYqxNJDHhdXo/lPdcN5eN3wfR3/ruQiO+FQksjwQu3q6+KQ4rkXWYO3AyeTVSdow3GMBnLY3bCg==
+X-Received: by 2002:a37:aa02:: with SMTP id t2mr643049qke.154.1568648461865;
+        Mon, 16 Sep 2019 08:41:01 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id o28sm3162570qkk.106.2019.09.16.08.41.00
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Sep 2019 08:41:01 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org,
+	mhocko@kernel.org,
+	vdavydov.dev@gmail.com,
+	cgroups@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/memcontrol: fix a -Wunused-function warning
+Date: Mon, 16 Sep 2019 11:40:53 -0400
+Message-Id: <1568648453-5482-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/9/13 19:12, Laurent Dufour wrote:
-> Le 08/09/2019 =C3=A0 10:31, zhong jiang a =C3=A9crit :
->> Hi, Laurent,  Vinayak
->>
->> I have got the following crash on 4.14 kernel with speculative page fa=
-ults enabled.
->> Unfortunately,  The issue disappears when trying disabling SPF.
->
-> Hi Zhong,
->
-> Sorry for to late answer, I was busy at the LPC.
->
-> I never hit that.
->
-> Is there any steps identified leading to this crash ?
->
-It's strange to me for this situation.
+mem_cgroup_id_get() was introduced in the commit 73f576c04b94
+("mm:memcontrol: fix cgroup creation failure after many small jobs").
 
-The issue doesn't come up recently. I just run testcases in user space.
-And I do noting. I do know why it disappears.
+Later, it no longer has any user since the commits,
 
-It is alway NULL pointer when the panic comes up. I doesn't see any suspi=
-cion
-from the code. And I try to construct some cases about race between spf p=
-ath and
-thread exit. but It fails to recur the issue.
+1f47b61fb407 ("mm: memcontrol: fix swap counter leak on swapout from offline cgroup")
+58fa2a5512d9 ("mm: memcontrol: add sanity checks for memcg->id.ref on get/put")
 
-Thanks,
-zhong jiang
-> Thanks,
-> Laurent.
->
->
->> The call trace is as follows.
->>
->> Unable to handle kernel NULL pointer dereference at virtual address 00=
-000000
->> user pgtable: 4k pages, 39-bit VAs, pgd =3D ffffffc177337000
->> [0000000000000000] *pgd=3D0000000177346003, *pud=3D0000000177346003, *=
-pmd=3D0000000000000000
->> Internal error: Oops: 96000046 [#1] PREEMPT SMP
->>
->> CPU: 0 PID: 3184 Comm: Signal Catcher VIP: 00 Tainted: G           O  =
-  4.14.116 #1
->> PC is at __rb_erase_color+0x54/0x260
->> LR is at anon_vma_interval_tree_remove+0x2ac/0x2c0
->>
->> Call trace:
->> [<ffffff8009aa45c4>] __rb_erase_color+0x54/0x260
->> [<ffffff80083a73f8>] anon_vma_interval_tree_remove+0x2ac/0x2c0
->> [<ffffff80083b96ac>] unlink_anon_vmas+0x84/0x170
->> [<ffffff80083aa8f4>] free_pgtables+0x9c/0x100
->> [<ffffff80083b6814>] exit_mmap+0xb0/0x1d8
->> [<ffffff8008227e8c>] mmput+0x3c/0xe0
->> [ffffff800822ed00>] do_exit+0x2f0/0x954
->> [<ffffff800822f41c>] do_group_exit+0x88/0x9c
->> [<ffffff800823b768>] get_signal+0x360/0x56c
->> [<ffffff8008208eb8>] do_notify_resume+0x150/0x5e4
->> Exception stack(0xffffffc1eac07ec0 to 0xffffffc1eac08000)
->>
->> It seems to rb_node is empty accidentally under anon_vma rwsem when th=
-e process is exiting.
->> I have no idea whether any race existence or not to result in the issu=
-e.
->>
->> Let me know if you have hit the issue or any  suggestions.
->>
->> Thanks,
->> zhong jiang
->>
->
->
->
-> .
->
+so safe to remove it.
 
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memcontrol.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9ec5e12486a7..9a375b376157 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4675,11 +4675,6 @@ static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
+ 	}
+ }
+ 
+-static inline void mem_cgroup_id_get(struct mem_cgroup *memcg)
+-{
+-	mem_cgroup_id_get_many(memcg, 1);
+-}
+-
+ static inline void mem_cgroup_id_put(struct mem_cgroup *memcg)
+ {
+ 	mem_cgroup_id_put_many(memcg, 1);
+-- 
+1.8.3.1
 
 
