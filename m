@@ -2,92 +2,115 @@ Return-Path: <SRS0=CHX8=XL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8773CC4CECF
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 04:54:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EBB5C4CEC7
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 05:47:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55A62214AF
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 04:54:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55A62214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D297A206C2
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 05:47:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D297A206C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A8116B0006; Mon, 16 Sep 2019 00:54:19 -0400 (EDT)
+	id 6FFD06B0005; Mon, 16 Sep 2019 01:47:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30B296B0007; Mon, 16 Sep 2019 00:54:19 -0400 (EDT)
+	id 688756B0006; Mon, 16 Sep 2019 01:47:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 21E8E6B0008; Mon, 16 Sep 2019 00:54:19 -0400 (EDT)
+	id 54FEE6B0007; Mon, 16 Sep 2019 01:47:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0130.hostedemail.com [216.40.44.130])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BC66B0006
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 00:54:18 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 85E144845
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 04:54:18 +0000 (UTC)
-X-FDA: 75939567396.17.milk11_5f9b916be010b
-X-HE-Tag: milk11_5f9b916be010b
-X-Filterd-Recvd-Size: 2493
-Received: from mga02.intel.com (mga02.intel.com [134.134.136.20])
-	by imf44.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 04:54:16 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Sep 2019 21:54:15 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,492,1559545200"; 
-   d="scan'208";a="190964364"
-Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
-  by orsmga006.jf.intel.com with ESMTP; 15 Sep 2019 21:54:12 -0700
-Received: from kbuild by lkp-server01 with local (Exim 4.89)
-	(envelope-from <lkp@intel.com>)
-	id 1i9j1g-0003jq-5a; Mon, 16 Sep 2019 12:54:12 +0800
-Date: Mon, 16 Sep 2019 12:53:50 +0800
-From: kbuild test robot <lkp@intel.com>
-To: Pengfei Li <lpf.vector@gmail.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, vbabka@suse.cz,
-	cl@linux.com, penberg@kernel.org, rientjes@google.com,
-	iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, guro@fb.com,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [RFC PATCH] mm, slab_common: all_kmalloc_info[] can be static
-Message-ID: <20190916045350.2buptf4exdnbxttf@48261080c7f1>
-References: <20190915170809.10702-6-lpf.vector@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190915170809.10702-6-lpf.vector@gmail.com>
-X-Patchwork-Hint: ignore
-User-Agent: NeoMutt/20170113 (1.7.2)
+Received: from forelay.hostedemail.com (smtprelay0146.hostedemail.com [216.40.44.146])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DCDA6B0005
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 01:47:45 -0400 (EDT)
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id C35341F10
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 05:47:44 +0000 (UTC)
+X-FDA: 75939702048.18.pan28_7d81a262ecc28
+X-HE-Tag: pan28_7d81a262ecc28
+X-Filterd-Recvd-Size: 3167
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 05:47:42 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5E2D4337;
+	Sun, 15 Sep 2019 22:47:41 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.43.143])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 6DF843F67D;
+	Sun, 15 Sep 2019 22:50:08 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org,
+	akpm@linux-foundation.org,
+	linux-kernel@vger.kernel.org
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Michal Hocko <mhocko@suse.com>,
+	David Hildenbrand <david@redhat.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: [PATCH] mm/hotplug: Reorder memblock_[free|remove]() calls in try_remove_memory()
+Date: Mon, 16 Sep 2019 11:17:37 +0530
+Message-Id: <1568612857-10395-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+In add_memory_resource() the memory range to be hot added first gets into
+the memblock via memblock_add() before arch_add_memory() is called on it.
+Reverse sequence should be followed during memory hot removal which already
+is being followed in add_memory_resource() error path. This now ensures
+required re-order between memblock_[free|remove]() and arch_remove_memory()
+during memory hot-remove.
 
-Fixes: 95f3b3d20e9b ("mm, slab_common: Make kmalloc_caches[] start at size KMALLOC_MIN_SIZE")
-Signed-off-by: kbuild test robot <lkp@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- slab_common.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Original patch https://lkml.org/lkml/2019/9/3/327
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 2aed30deb0714..bf1cf4ba35f86 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1118,7 +1118,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
-  * time. kmalloc_index() supports up to 2^26=64MB, so the final entry of the
-  * table is kmalloc-67108864.
-  */
--const struct kmalloc_info_struct all_kmalloc_info[] __initconst = {
-+static const struct kmalloc_info_struct all_kmalloc_info[] __initconst = {
- 	SET_KMALLOC_SIZE(       8,    8),    SET_KMALLOC_SIZE(      16,   16),
- 	SET_KMALLOC_SIZE(      32,   32),    SET_KMALLOC_SIZE(      64,   64),
- #if KMALLOC_SIZE_96_EXIST == 1
+Memory hot remove now works on arm64 without this because a recent commit
+60bb462fc7ad ("drivers/base/node.c: simplify unregister_memory_block_under_nodes()").
+
+David mentioned that re-ordering should still make sense for consistency
+purpose (removing stuff in the reverse order they were added). This patch
+is now detached from arm64 hot-remove series.
+
+https://lkml.org/lkml/2019/9/3/326
+
+ mm/memory_hotplug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c73f09913165..355c466e0621 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1770,13 +1770,13 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
+ 
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
+-	memblock_free(start, size);
+-	memblock_remove(start, size);
+ 
+ 	/* remove memory block devices before removing memory */
+ 	remove_memory_block_devices(start, size);
+ 
+ 	arch_remove_memory(nid, start, size, NULL);
++	memblock_free(start, size);
++	memblock_remove(start, size);
+ 	__release_memory_resource(start, size);
+ 
+ 	try_offline_node(nid);
+-- 
+2.20.1
+
 
