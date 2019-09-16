@@ -2,123 +2,82 @@ Return-Path: <SRS0=CHX8=XL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C1A6C49ED7
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:41:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B870CC4CECD
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:52:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF90D214AF
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:41:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6D4462186A
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:52:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="oSAgnCbh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF90D214AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="BjuKfMTA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D4462186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 67D156B0005; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
+	id D9E7E6B0005; Mon, 16 Sep 2019 11:52:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 62B9B6B0006; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
+	id D4E1D6B0006; Mon, 16 Sep 2019 11:52:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F25C6B0007; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
+	id C641F6B0007; Mon, 16 Sep 2019 11:52:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0075.hostedemail.com [216.40.44.75])
-	by kanga.kvack.org (Postfix) with ESMTP id 2573D6B0005
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:41:03 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D5BBA180AD802
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:41:02 +0000 (UTC)
-X-FDA: 75941197164.19.anger84_434ddf3218756
-X-HE-Tag: anger84_434ddf3218756
-X-Filterd-Recvd-Size: 3629
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:41:02 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id w2so444324qkf.2
-        for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:41:02 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=2u752yS3oLnDaYH6yTgBbPOp6ynQQ7UEDYNUBRkEYzU=;
-        b=oSAgnCbhD4qDdHEm2xKg8gd+frd0gplSiPL7p871e/IbQ3Xl+AoJriMi48+WtFfMiH
-         Er7h6Ina/mwJDFGre4pqWP4axz9nWEaIsC0Mhg4jWWlTxJLjxt2PTXBMZIrdR7ueylMQ
-         JjnBypKA663HUGsAUZdZa+CJSiDEk7HeQOtW8iN1K2wpYE6VphkL0B7aNMOaXbqeI4fq
-         g7hWJaYnXgwqAaotMNT3gfqh6eze7k6/zlkaN/LbASqJE+8AKlLGIYlLCCa69g0youHX
-         5nbYx0F2ArTT0i4inpzgu4YzObm7Q/JOwgvXXPrTcIMrcswjP8l3AOMi6LPSITs/lgVR
-         ZhFw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id;
-        bh=2u752yS3oLnDaYH6yTgBbPOp6ynQQ7UEDYNUBRkEYzU=;
-        b=untkxP0F+rN8IWSqkThKKo1Lb4LIiLBNeKEB2EPd16XiJ8V1T611W5OLvko3HecR37
-         sCpoQ5TS1lc/aLXT/8I9gcL8kubgixtukexyx49B+owbjdhy01kfLzbZkWXA0Fh+um+n
-         LRonSKBbyXXp+beuRr+OJ7cglmUMzY2dlT7k/r/kBaaVM9rD340hqbeYSk5FlCKeKCcI
-         ABRC83NyU4x2quO6HQDf3jsmBYFQ5NPxcrsHoTTAEySjfi7wJ6EquacyOUa0VrGwbcvA
-         MSgGA3wj45rKtHgAY76BZokxD+ZIqH5cVcwdsf2wvKAUGCMTjk1WZjDNIAdRhJMlZYQP
-         I3Tg==
-X-Gm-Message-State: APjAAAXLWIhrAwxSQvxjNX67EGAI3L3qgm8m8hmvE6I8Hr6/Hf7ithyl
-	Ang4U5oF2JcIEskSjzZmnRPdQw==
-X-Google-Smtp-Source: APXvYqxNJDHhdXo/lPdcN5eN3wfR3/ruQiO+FQksjwQu3q6+KQ4rkXWYO3AyeTVSdow3GMBnLY3bCg==
-X-Received: by 2002:a37:aa02:: with SMTP id t2mr643049qke.154.1568648461865;
-        Mon, 16 Sep 2019 08:41:01 -0700 (PDT)
-Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id o28sm3162570qkk.106.2019.09.16.08.41.00
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Sep 2019 08:41:01 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org,
-	mhocko@kernel.org,
-	vdavydov.dev@gmail.com,
-	cgroups@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH] mm/memcontrol: fix a -Wunused-function warning
-Date: Mon, 16 Sep 2019 11:40:53 -0400
-Message-Id: <1568648453-5482-1-git-send-email-cai@lca.pw>
-X-Mailer: git-send-email 1.8.3.1
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Received: from forelay.hostedemail.com (smtprelay0150.hostedemail.com [216.40.44.150])
+	by kanga.kvack.org (Postfix) with ESMTP id A72346B0005
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:52:53 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 1B80E181AC9AE
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:52:53 +0000 (UTC)
+X-FDA: 75941227026.26.money17_191f9977ca457
+X-HE-Tag: money17_191f9977ca457
+X-Filterd-Recvd-Size: 2113
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com [54.240.9.46])
+	by imf23.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:52:52 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1568649171;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=5vsv823iDPGFqRA288qUAJ1tOsFdw0E0KGwM0/qQ2Ps=;
+	b=BjuKfMTADiwEeMWyIpJEGOUsDVO+rsGwaTH3gqgSOxtgsdvECTqZ3/s3cCfM2LB+
+	9k7BvUnLTxAQiKLKaXJuhqBKWNu8xCfgQzHeyQBETbfEXUJXAY9POhufCvxdlRNn44g
+	PQau6lgBseHE0pEXOwrqhJg1UafuqcFBpQPGmXpY=
+Date: Mon, 16 Sep 2019 15:52:51 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Pengfei Li <lpf.vector@gmail.com>
+cc: akpm@linux-foundation.org, vbabka@suse.cz, penberg@kernel.org, 
+    rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org, guro@fb.com
+Subject: Re: [PATCH v5 7/7] mm, slab_common: Modify kmalloc_caches[type][idx]
+ to kmalloc_caches[idx][type]
+In-Reply-To: <20190916144558.27282-8-lpf.vector@gmail.com>
+Message-ID: <0100016d3ac6d132-891c437f-2aeb-41de-84d8-aec48bc20ee4-000000@email.amazonses.com>
+References: <20190916144558.27282-1-lpf.vector@gmail.com> <20190916144558.27282-8-lpf.vector@gmail.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.09.16-54.240.9.46
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-mem_cgroup_id_get() was introduced in the commit 73f576c04b94
-("mm:memcontrol: fix cgroup creation failure after many small jobs").
+On Mon, 16 Sep 2019, Pengfei Li wrote:
 
-Later, it no longer has any user since the commits,
+> KMALLOC_NORMAL is the most frequently accessed, and kmalloc_caches[]
+> is initialized by different types of the same size.
+>
+> So modifying kmalloc_caches[type][idx] to kmalloc_caches[idx][type]
+> will benefit performance.
 
-1f47b61fb407 ("mm: memcontrol: fix swap counter leak on swapout from offline cgroup")
-58fa2a5512d9 ("mm: memcontrol: add sanity checks for memcg->id.ref on get/put")
 
-so safe to remove it.
-
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/memcontrol.c | 5 -----
- 1 file changed, 5 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9ec5e12486a7..9a375b376157 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4675,11 +4675,6 @@ static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
- 	}
- }
- 
--static inline void mem_cgroup_id_get(struct mem_cgroup *memcg)
--{
--	mem_cgroup_id_get_many(memcg, 1);
--}
--
- static inline void mem_cgroup_id_put(struct mem_cgroup *memcg)
- {
- 	mem_cgroup_id_put_many(memcg, 1);
--- 
-1.8.3.1
+Why would that increase performance? Using your scheme means that the
+KMALLOC_NORMAL pointers are spread over more cachelines. Since
+KMALLOC_NORMAL is most frequently accessed this would cause
+a performance regression.
 
 
