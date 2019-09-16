@@ -2,122 +2,302 @@ Return-Path: <SRS0=CHX8=XL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA119C4CECD
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:15:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EB9DC4CECE
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:26:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF091214AF
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:15:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 03E72214AF
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 15:26:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Kn07xZZN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF091214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="sJNElFea"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03E72214AF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 46AE16B0006; Mon, 16 Sep 2019 11:15:39 -0400 (EDT)
+	id 8F7346B0005; Mon, 16 Sep 2019 11:26:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F4586B026B; Mon, 16 Sep 2019 11:15:39 -0400 (EDT)
+	id 8A7DC6B0006; Mon, 16 Sep 2019 11:26:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2BC3B6B026C; Mon, 16 Sep 2019 11:15:39 -0400 (EDT)
+	id 7958C6B0007; Mon, 16 Sep 2019 11:26:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0096.hostedemail.com [216.40.44.96])
-	by kanga.kvack.org (Postfix) with ESMTP id 03A7B6B0006
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:15:38 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 6E3B6181AC9B6
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:15:38 +0000 (UTC)
-X-FDA: 75941133156.20.cloud96_887618121de5c
-X-HE-Tag: cloud96_887618121de5c
-X-Filterd-Recvd-Size: 4077
-Received: from mail-oi1-f193.google.com (mail-oi1-f193.google.com [209.85.167.193])
+Received: from forelay.hostedemail.com (smtprelay0243.hostedemail.com [216.40.44.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5397B6B0005
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 11:26:21 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0B8BE180AD801
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:26:21 +0000 (UTC)
+X-FDA: 75941160162.22.snake46_54770e989a33c
+X-HE-Tag: snake46_54770e989a33c
+X-Filterd-Recvd-Size: 8968
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
 	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:15:37 +0000 (UTC)
-Received: by mail-oi1-f193.google.com with SMTP id a127so78878oii.2
-        for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:15:37 -0700 (PDT)
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 15:26:20 +0000 (UTC)
+Received: by mail-ed1-f67.google.com with SMTP id g12so444193eds.6
+        for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:26:20 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=myU5/TC8EM0o03fkgYztHIvhCCZ3n2MmrOaOleMEGcA=;
-        b=Kn07xZZNH8LhKSWctdaltI81HMhS1HytLccqyQ3Yaw7hN3M01YoZBZrXG8xAjz2nX4
-         2MY4xfjSVwq9U2LKNZqm96npY8ZQaSTj6vQOFlVwzxv2QuMtxe4x8HWU0qoXzfRgKvIp
-         trRh8UrXdren7ITIZWvRLdhZZMnwmCR2PV/bpuX5tvYKTT+32gfXtl3MYM9OcrHliWKQ
-         kcg5D1EEcLxLuSjLq0XFepTA0qWt5YsWTrghI771EWdJPPiRKOaR2pFxMSgjAXQJ19GN
-         Xz1byM+4awfK2AdRk1ah6M8xE+KanR7caW8wYgn8mfSw35EZaiLm2lq0SCKXmglCHK/B
-         wkEA==
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=bSIktH9km/kyTVe24lUXRvnlhwyDxHT2TsCMoTfS1so=;
+        b=sJNElFeauOxjMQ8z2ZIZtXIa8pA9pcv/0pSdwPtnjJkhdKgwInXiNvk6uWLpzNQENg
+         QzkWm6a9OBTknXCxjuJX6JQNbYdNL8jnHbT5M96rQZjGGejMxKAdFlijVkz8w+IQMQ+i
+         TM2l73rCktTeQ+X1SzYXAfjHGqpMEDpL8yy7g/ifUasupaLK8YTVSekBJb2b/jgfZWpQ
+         k4Du4KfHMTfbJjN2Sp+0qVafzab1hFbDrZuyVOQ49bhiP3TZxIfBzQeenj1hlF3BPtLP
+         51vaN9MFTyRjL4TsOyfGen/u2aRYX7Q5apccKlDrtfKDsJc6JBBs8fpc7Nt/AkxaNzBw
+         kdJg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=myU5/TC8EM0o03fkgYztHIvhCCZ3n2MmrOaOleMEGcA=;
-        b=ZrGqBIykQ0FgZPAGU/GiHZripp6El5pyES1vXUxQFr6R5q9nTpKbPAw0AOfDtMbyjN
-         YMtgC8TUBK1bl5yDo8bnCxN73DTH2tVZAoKExydiAA/mQJ2QhfbUxUbJz9TNac6MRDrM
-         r3ckwaEa6+4gb1+u/N6nlDZNoGjrBbIV7Qy7ijKjiJFDJV99JOT+QR2tRoRVI9GiVwia
-         u2oYaJOXOt2xzdLmQCIzW+m1e2akUVQLGzFMhX2SF3edhYrC94ALtDC22YeYuHKGQJ/c
-         NSMktrf4bQvfopSEWZbaYNTYziX8Tdez8IZldFysgZ32Ds+RK53YitypNTAUePFjEJZl
-         dpMg==
-X-Gm-Message-State: APjAAAVu6ZDECrT1uiroBljQWMwaQIP7/cj/jIG7ptgN4v0Zu855WOmN
-	O4H/KEtsmb0HiaxFIIeReugY1vp6+nzfTHRyX1o=
-X-Google-Smtp-Source: APXvYqxv0WB7yHn0EYqv/F75KfuLWbRubTIglyprLwvBnqwa7v1kd9h+n3uI3ynbbt0c4wWZPM3b0EN4o6BFmNCQzMg=
-X-Received: by 2002:aca:4f8f:: with SMTP id d137mr61864oib.33.1568646936752;
- Mon, 16 Sep 2019 08:15:36 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=bSIktH9km/kyTVe24lUXRvnlhwyDxHT2TsCMoTfS1so=;
+        b=LUD1UaxiNJEZzcnqF2YFvH0UlSqqEmvU33GtkD8RzLoFsAkjRNlXEZfXHGZk0aXGbK
+         lNRgM0GCIwkcQ4yhH2W1Qv73hIo0W98eNhUG7vDN9CDTe/8010UJZT7aTAMdYaBhbNuf
+         kNxwpLxzjL5aSZ6Gylvh2qFGgQpCF8a9Pawjx/y82xAKHbScC1CjvuP8KOBxP22CUiOW
+         MM7ehPYQVMmYubeLyvI8LiTcWv5dUUgQjPC8tzi2yxJBegdyZx54+KPqemM0tRaig63d
+         ESataHjjZNNKgRN0tH7DHz9PpyrB3iAzkfVlysbiPSEM5iBa32wSgzMFFJtQI4xwb+bN
+         He9Q==
+X-Gm-Message-State: APjAAAVt0jBk2DBkgJjZNNLgkttFb5QMx9SWQwIjsP71yo1GNj9NE/Pm
+	BgJ0EdLvzbFsbNcfmUjp55aquA==
+X-Google-Smtp-Source: APXvYqwCLcAHfbFHqaEByVwi3tAUBFKQkzty77a4gpu/5KG4r7S+5O+7Xnuzhj7550/CudAfoVjKHw==
+X-Received: by 2002:a05:6402:1501:: with SMTP id f1mr8782718edw.76.1568647577966;
+        Mon, 16 Sep 2019 08:26:17 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id y18sm1383264ejw.87.2019.09.16.08.26.17
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Sep 2019 08:26:17 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 0CBDA10019A; Mon, 16 Sep 2019 18:26:19 +0300 (+03)
+Date: Mon, 16 Sep 2019 18:26:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Lucian Adrian Grijincu <lucian@fb.com>
+Cc: linux-mm@kvack.org, Souptick Joarder <jrdr.linux@gmail.com>,
+	linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Rik van Riel <riel@fb.com>, Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v3] mm: memory: fix /proc/meminfo reporting for
+ MLOCK_ONFAULT
+Message-ID: <20190916152619.vbi3chozlrzdiuqy@box>
+References: <20190913211119.416168-1-lucian@fb.com>
 MIME-Version: 1.0
-References: <20190915170809.10702-6-lpf.vector@gmail.com> <201909161257.ykb3lopd%lkp@intel.com>
-In-Reply-To: <201909161257.ykb3lopd%lkp@intel.com>
-From: Pengfei Li <lpf.vector@gmail.com>
-Date: Mon, 16 Sep 2019 23:15:25 +0800
-Message-ID: <CAD7_sbG1_E1ZTRWHb21GaYcjRsr9e6CPSxXRauTOc4sLpCTeDA@mail.gmail.com>
-Subject: Re: [RESEND v4 5/7] mm, slab_common: Make kmalloc_caches[] start at
- size KMALLOC_MIN_SIZE
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, 
-	Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>, penberg@kernel.org, 
-	David Rientjes <rientjes@google.com>, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190913211119.416168-1-lucian@fb.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 16, 2019 at 12:54 PM kbuild test robot <lkp@intel.com> wrote:
->
-> Hi Pengfei,
->
-> Thank you for the patch! Perhaps something to improve:
->
-> [auto build test WARNING on linus/master]
-> [cannot apply to v5.3 next-20190915]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
->
-> url:    https://github.com/0day-ci/linux/commits/Pengfei-Li/mm-slab-Make-kmalloc_info-contain-all-types-of-names/20190916-065820
-> reproduce:
->         # apt-get install sparse
->         # sparse version: v0.6.1-rc1-7-g2b96cd8-dirty
->         make ARCH=x86_64 allmodconfig
->         make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
->
-> If you fix the issue, kindly add following tag
-> Reported-by: kbuild test robot <lkp@intel.com>
->
->
-> sparse warnings: (new ones prefixed by >>)
->
-> >> mm/slab_common.c:1121:34: sparse: sparse: symbol 'all_kmalloc_info' was not declared. Should it be static?
+On Fri, Sep 13, 2019 at 02:11:19PM -0700, Lucian Adrian Grijincu wrote:
+> As pages are faulted in MLOCK_ONFAULT correctly updates
+> /proc/self/smaps, but doesn't update /proc/meminfo's Mlocked field.
 
-Thanks. I will fix it in v5.
+I don't think there's something wrong with this behaviour. It is okay to
+keep the page an evictable LRU list (and not account it to NR_MLOCKED).
+Some pages, like partly mapped THP will never be on unevictable LRU,
+others will be found by vmscan later.
 
->
-> Please review and possibly fold the followup patch.
->
+So, it's not bug per se.
+
+Said that, we probably should try to put pages on unevictable LRU sooner
+rather than later.
+
+> 
+> - Before this /proc/meminfo fields didn't change as pages were faulted in:
+> 
+> = Start =
+> /proc/meminfo
+> Unevictable:       10128 kB
+> Mlocked:           10132 kB
+> = Creating testfile =
+> 
+> = after mlock2(MLOCK_ONFAULT) =
+> /proc/meminfo
+> Unevictable:       10128 kB
+> Mlocked:           10132 kB
+> /proc/self/smaps
+> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
+> Locked:                0 kB
+> 
+> = after reading half of the file =
+> /proc/meminfo
+> Unevictable:       10128 kB
+> Mlocked:           10132 kB
+> /proc/self/smaps
+> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
+> Locked:           524288 kB
+> 
+> = after reading the entire the file =
+> /proc/meminfo
+> Unevictable:       10128 kB
+> Mlocked:           10132 kB
+> /proc/self/smaps
+> 7f8714000000-7f8754000000 rw-s 00000000 08:04 50857050   /root/testfile
+> Locked:          1048576 kB
+> 
+> = after munmap =
+> /proc/meminfo
+> Unevictable:       10128 kB
+> Mlocked:           10132 kB
+> /proc/self/smaps
+> 
+> - After: /proc/meminfo fields are properly updated as pages are touched:
+> 
+> = Start =
+> /proc/meminfo
+> Unevictable:          60 kB
+> Mlocked:              60 kB
+> = Creating testfile =
+> 
+> = after mlock2(MLOCK_ONFAULT) =
+> /proc/meminfo
+> Unevictable:          60 kB
+> Mlocked:              60 kB
+> /proc/self/smaps
+> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
+> Locked:                0 kB
+> 
+> = after reading half of the file =
+> /proc/meminfo
+> Unevictable:      524220 kB
+> Mlocked:          524220 kB
+> /proc/self/smaps
+> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
+> Locked:           524288 kB
+> 
+> = after reading the entire the file =
+> /proc/meminfo
+> Unevictable:     1048496 kB
+> Mlocked:         1048508 kB
+> /proc/self/smaps
+> 7f2b9c600000-7f2bdc600000 rw-s 00000000 08:04 63045798   /root/testfile
+> Locked:          1048576 kB
+> 
+> = after munmap =
+> /proc/meminfo
+> Unevictable:         176 kB
+> Mlocked:              60 kB
+> /proc/self/smaps
+> 
+> Repro code.
 > ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> 
+> int mlock2wrap(const void* addr, size_t len, int flags) {
+>   return syscall(SYS_mlock2, addr, len, flags);
+> }
+> 
+> void smaps() {
+>   char smapscmd[1000];
+>   snprintf(
+>       smapscmd,
+>       sizeof(smapscmd) - 1,
+>       "grep testfile -A 20 /proc/%d/smaps | grep -E '(testfile|Locked)'",
+>       getpid());
+>   printf("/proc/self/smaps\n");
+>   fflush(stdout);
+>   system(smapscmd);
+> }
+> 
+> void meminfo() {
+>   const char* meminfocmd = "grep -E '(Mlocked|Unevictable)' /proc/meminfo";
+>   printf("/proc/meminfo\n");
+>   fflush(stdout);
+>   system(meminfocmd);
+> }
+> 
+>   {                                                 \
+>     int rc = (call);                                \
+>     if (rc != 0) {                                  \
+>       printf("error %d %s\n", rc, strerror(errno)); \
+>       exit(1);                                      \
+>     }                                               \
+>   }
+> int main(int argc, char* argv[]) {
+>   printf("= Start =\n");
+>   meminfo();
+> 
+>   printf("= Creating testfile =\n");
+>   size_t size = 1 << 30; // 1 GiB
+>   int fd = open("testfile", O_CREAT | O_RDWR, 0666);
+>   {
+>     void* buf = malloc(size);
+>     write(fd, buf, size);
+>     free(buf);
+>   }
+>   int ret = 0;
+>   void* addr = NULL;
+>   addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+> 
+>   if (argc > 1) {
+>     PCHECK(mlock2wrap(addr, size, MLOCK_ONFAULT));
+>     printf("= after mlock2(MLOCK_ONFAULT) =\n");
+>     meminfo();
+>     smaps();
+> 
+>     for (size_t i = 0; i < size / 2; i += 4096) {
+>       ret += ((char*)addr)[i];
+>     }
+>     printf("= after reading half of the file =\n");
+>     meminfo();
+>     smaps();
+> 
+>     for (size_t i = 0; i < size; i += 4096) {
+>       ret += ((char*)addr)[i];
+>     }
+>     printf("= after reading the entire the file =\n");
+>     meminfo();
+>     smaps();
+> 
+>   } else {
+>     PCHECK(mlock(addr, size));
+>     printf("= after mlock =\n");
+>     meminfo();
+>     smaps();
+>   }
+> 
+>   PCHECK(munmap(addr, size));
+>   printf("= after munmap =\n");
+>   meminfo();
+>   smaps();
+> 
+>   return ret;
+> }
+> 
+> ---
+> 
+> Signed-off-by: Lucian Adrian Grijincu <lucian@fb.com>
+> Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
+> ---
+>  mm/memory.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e0c232fe81d9..55da24f33bc4 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3311,6 +3311,8 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
+>  	} else {
+>  		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+>  		page_add_file_rmap(page, false);
+> +		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(page))
+> +			mlock_vma_page(page);
+
+Why do you only do this for file pages?
+
+>  	}
+>  	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
+>  
+> -- 
+> 2.17.1
+> 
+> 
+
+-- 
+ Kirill A. Shutemov
 
