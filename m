@@ -7,122 +7,168 @@ X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 27F3CC49ED7
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 08:50:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD723C49ED7
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 08:59:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBE76214D9
-	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 08:50:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBE76214D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 839A4206C2
+	for <linux-mm@archiver.kernel.org>; Mon, 16 Sep 2019 08:59:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 839A4206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B9BD6B0005; Mon, 16 Sep 2019 04:50:40 -0400 (EDT)
+	id 3FFA56B0005; Mon, 16 Sep 2019 04:59:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 368F86B0006; Mon, 16 Sep 2019 04:50:40 -0400 (EDT)
+	id 3B05E6B0006; Mon, 16 Sep 2019 04:59:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27DF56B0007; Mon, 16 Sep 2019 04:50:40 -0400 (EDT)
+	id 29F026B0007; Mon, 16 Sep 2019 04:59:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 08B9E6B0005
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 04:50:40 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0022.hostedemail.com [216.40.44.22])
+	by kanga.kvack.org (Postfix) with ESMTP id 08F326B0005
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 04:59:13 -0400 (EDT)
 Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id A4CB06D9D
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:50:39 +0000 (UTC)
-X-FDA: 75940162998.21.wool40_79d865fba2b5e
-X-HE-Tag: wool40_79d865fba2b5e
-X-Filterd-Recvd-Size: 4015
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf22.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:50:37 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2AE8E1000;
-	Mon, 16 Sep 2019 01:50:36 -0700 (PDT)
-Received: from [10.162.43.143] (p8cg001049571a15.blr.arm.com [10.162.43.143])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AC6BE3F59C;
-	Mon, 16 Sep 2019 01:50:33 -0700 (PDT)
-Subject: Re: [PATCH] mm/hotplug: Reorder memblock_[free|remove]() calls in
- try_remove_memory()
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org,
- linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>,
- Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>,
+	by forelay05.hostedemail.com (Postfix) with SMTP id 8948A181AC9AE
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:59:12 +0000 (UTC)
+X-FDA: 75940184544.21.tray68_3332b10889d0c
+X-HE-Tag: tray68_3332b10889d0c
+X-Filterd-Recvd-Size: 6727
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2019 08:59:11 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 534AE7F748;
+	Mon, 16 Sep 2019 08:59:10 +0000 (UTC)
+Received: from [10.36.117.103] (ovpn-117-103.ams2.redhat.com [10.36.117.103])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 429AF60619;
+	Mon, 16 Sep 2019 08:59:07 +0000 (UTC)
+Subject: Re: [PATCH v2 2/2] mm: Add a bounds check in devm_memremap_pages()
+To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
  Pavel Tatashin <pasha.tatashin@soleen.com>,
- Dan Williams <dan.j.williams@intel.com>
-References: <1568612857-10395-1-git-send-email-anshuman.khandual@arm.com>
- <20190916063612.GA1502@linux.ibm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <987dfde7-53f9-b013-5841-2c27c03d62d6@arm.com>
-Date: Mon, 16 Sep 2019 14:20:47 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+ Wei Yang <richard.weiyang@gmail.com>, Dan Williams
+ <dan.j.williams@intel.com>, Qian Cai <cai@lca.pw>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
+ Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190916060544.21824-1-alastair@au1.ibm.com>
+ <20190916060544.21824-3-alastair@au1.ibm.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <fa9d30ca-72fe-9ecf-b92c-e651fc117d42@redhat.com>
+Date: Mon, 16 Sep 2019 10:59:06 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190916063612.GA1502@linux.ibm.com>
+In-Reply-To: <20190916060544.21824-3-alastair@au1.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.71]); Mon, 16 Sep 2019 08:59:10 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 09/16/2019 12:06 PM, Mike Rapoport wrote:
-> On Mon, Sep 16, 2019 at 11:17:37AM +0530, Anshuman Khandual wrote:
->> In add_memory_resource() the memory range to be hot added first gets into
->> the memblock via memblock_add() before arch_add_memory() is called on it.
->> Reverse sequence should be followed during memory hot removal which already
->> is being followed in add_memory_resource() error path. This now ensures
->> required re-order between memblock_[free|remove]() and arch_remove_memory()
->> during memory hot-remove.
->>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Oscar Salvador <osalvador@suse.de>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: David Hildenbrand <david@redhat.com>
->> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->> Cc: Dan Williams <dan.j.williams@intel.com>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->> Original patch https://lkml.org/lkml/2019/9/3/327
->>
->> Memory hot remove now works on arm64 without this because a recent commit
->> 60bb462fc7ad ("drivers/base/node.c: simplify unregister_memory_block_under_nodes()").
->>
->> David mentioned that re-ordering should still make sense for consistency
->> purpose (removing stuff in the reverse order they were added). This patch
->> is now detached from arm64 hot-remove series.
->>
->> https://lkml.org/lkml/2019/9/3/326
->>
->>  mm/memory_hotplug.c | 4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index c73f09913165..355c466e0621 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1770,13 +1770,13 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
->>
->>  	/* remove memmap entry */
->>  	firmware_map_remove(start, start + size, "System RAM");
->> -	memblock_free(start, size);
->> -	memblock_remove(start, size);
->>
->>  	/* remove memory block devices before removing memory */
->>  	remove_memory_block_devices(start, size);
->>
->>  	arch_remove_memory(nid, start, size, NULL);
->> +	memblock_free(start, size);
+On 16.09.19 08:05, Alastair D'Silva wrote:
+> From: Alastair D'Silva <alastair@d-silva.org>
 > 
-> I don't see memblock_reserve() anywhere in memory_hotplug.c, so the
-> memblock_free() call here seems superfluous. I think it can be simply
-> dropped.
+> The call to check_hotplug_memory_addressable() validates that the memory
+> is fully addressable.
+> 
+> Without this call, it is possible that we may remap pages that is
+> not physically addressable, resulting in bogus section numbers
+> being returned from __section_nr().
+> 
+> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
+> ---
+>  mm/memremap.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/mm/memremap.c b/mm/memremap.c
+> index 86432650f829..fd00993caa3e 100644
+> --- a/mm/memremap.c
+> +++ b/mm/memremap.c
+> @@ -269,6 +269,13 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  
+>  	mem_hotplug_begin();
+>  
+> +	error = check_hotplug_memory_addressable(res->start,
+> +						 resource_size(res));
+> +	if (error) {
+> +		mem_hotplug_done();
+> +		goto err_checkrange;
+> +	}
 
-I had observed that previously but was not sure whether or not there are
-still scenarios where it might be true. Error path in add_memory_resource()
-even just calls memblock_remove() not memblock_free(). Unless there is any
-objection, can just drop it.
+As I said in reply to v1, please move this out of the memory hotplug
+lock. These are static checks.
+
+> +
+>  	/*
+>  	 * For device private memory we call add_pages() as we only need to
+>  	 * allocate and initialize struct page for the device memory. More-
+> @@ -324,6 +331,7 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  
+>   err_add_memory:
+>  	kasan_remove_zero_shadow(__va(res->start), resource_size(res));
+> + err_checkrange:
+>   err_kasan:
+>  	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
+>   err_pfn_remap:
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
