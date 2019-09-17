@@ -2,120 +2,252 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6DD9C4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 12:06:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5513C4CECD
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 12:08:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AA1552067B
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 12:06:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 96C5E21881
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 12:08:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="f0GiGBSi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA1552067B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="MWDcXo4T"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96C5E21881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F6E36B0003; Tue, 17 Sep 2019 08:06:55 -0400 (EDT)
+	id 3097C6B0003; Tue, 17 Sep 2019 08:08:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A5DD6B0005; Tue, 17 Sep 2019 08:06:55 -0400 (EDT)
+	id 2BA086B0005; Tue, 17 Sep 2019 08:08:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2BC036B0006; Tue, 17 Sep 2019 08:06:55 -0400 (EDT)
+	id 1A9B56B0006; Tue, 17 Sep 2019 08:08:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0063.hostedemail.com [216.40.44.63])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C6E96B0003
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 08:06:55 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 9CA74181AC9B4
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:06:54 +0000 (UTC)
-X-FDA: 75944286348.17.shake81_21117153325b
-X-HE-Tag: shake81_21117153325b
-X-Filterd-Recvd-Size: 4257
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:06:54 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=WtFpIzP9ddukNyTBh2VDuhFoeOJpHrS1zm1sINk/rN0=; b=f0GiGBSiNPWx+gnLoXYpg4d91
-	E6bAGBemjUa7DY7GiGB0/Y8Q5UCFAAMb4yKW7PIgA/Wyvz90H3bpu3IMekvAaqBjc4rbG/LZRUbTK
-	i6kQ2gn3mE/zC5KNpEWv9jTJpS7wbjd0qjR2ixSgFY2ul9REv2SacUYUL0KrNAifu+iJ1JkVRYjje
-	gDL3d+IO6L2E2RcgKvgcs1ajNYaaS25iB6JhPIVPXAWecAZF4GE+yL6DfGuU4yTrbOoxueCdC1VRM
-	gvITAFSxp6E3Vi1ZlhGOWQ8v5VZBI5L01SPc0RqXpkGCbFf8M3tV0TtQrKJQA3TxzzdmR5hWEGXi9
-	9+Qit4r1w==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92.2 #3 (Red Hat Linux))
-	id 1iACFq-0007sA-IY; Tue, 17 Sep 2019 12:06:46 +0000
-Date: Tue, 17 Sep 2019 05:06:46 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Lin Feng <linf@wangsu.com>
-Cc: corbet@lwn.net, mcgrof@kernel.org, akpm@linux-foundation.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	keescook@chromium.org, mchehab+samsung@kernel.org,
-	mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com,
-	ktkhai@virtuozzo.com, hannes@cmpxchg.org
-Subject: Re: [PATCH] [RFC] vmscan.c: add a sysctl entry for controlling
- memory reclaim IO congestion_wait length
-Message-ID: <20190917120646.GT29434@bombadil.infradead.org>
-References: <20190917115824.16990-1-linf@wangsu.com>
+Received: from forelay.hostedemail.com (smtprelay0080.hostedemail.com [216.40.44.80])
+	by kanga.kvack.org (Postfix) with ESMTP id ECCF86B0003
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 08:08:53 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 9C6AD8158
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:08:53 +0000 (UTC)
+X-FDA: 75944291346.12.bath39_135e7593df633
+X-HE-Tag: bath39_135e7593df633
+X-Filterd-Recvd-Size: 9083
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:08:52 +0000 (UTC)
+Received: by mail-ed1-f67.google.com with SMTP id v8so3109240eds.2
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 05:08:52 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ZeQ/1nXTTrle8KmSh5j6zE8zudmgS+wCxY0/be2bjcg=;
+        b=MWDcXo4T7JxMWIkBCc8lU+Ny/cxvG9pyCUHx1cl+8D+TIWgDxdmdynGoWQOtHnYTHS
+         xWI+FZrl7UixBxU1PizQee/JkI6OHyRWf64Zl4maQ+OD6Z+uknbMnjL1rr4FHUE71Dgb
+         D/5pCKiq+d9KzcyiHwFelYySGlA/UEVWBy8jElpgwoQv8Tna6ArQ8uciVzEhHhhqMRUg
+         HQ42+P74bhTLOIoBrC8/HZI1jzHfTNiEzktjuH4UtdLSyFyQ9DfZjo0POvAm9/fwld54
+         Cfpo5k2cX8LRl4cuXPb+T4i5vSeoPb/0goLuMLXAD7mCYR5z9bZAU90tuWrh0UEw9aL2
+         2tHQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=ZeQ/1nXTTrle8KmSh5j6zE8zudmgS+wCxY0/be2bjcg=;
+        b=m/Pt1RCSxAPKeDsyBE6mPoRmepsnvo6RsmKA7ZRc7eKaygv5OZbQoTbbyr/BfeTH3Q
+         tXpZCk1lREIeUxF0KaJz1bMwTCa1mlLE/L7csWNuyRreDtBf0E9eDya7WTYzhmuHi/+W
+         URH+hM3w6MOsTPoDoPJmXReUeTiti6RCvuoW2aIWiNbWglhosDQWyVcy8EuoD9fgp9Ic
+         2N1aCpP8nelT2AstHNwA3NjuQE3otaOqbn5+YqbAC2QJWb05zw9YwGJ99ljB/L+KuSlG
+         6vx84ObJZKI+zm0tHPKpP1KNVSFjG0oI6ClloUart/JLwH4QNRi8PB1zPRs1ijwjtK5g
+         EfIQ==
+X-Gm-Message-State: APjAAAXlLq1uQQS5DrgkePQ40jQsDWoouMdi7cz0rcRH1cQ+tYqQZ/bi
+	U+yzVy99uInszjlDhLQCEt6kzw==
+X-Google-Smtp-Source: APXvYqzmu0Kl2boVfXe9EcmtKusJSgFe0nuy9Lo88Wd9TFkOaWGoi9DYOpTYSJCBlM1xc61DdHEsbA==
+X-Received: by 2002:a17:906:60d0:: with SMTP id f16mr4362508ejk.267.1568722131705;
+        Tue, 17 Sep 2019 05:08:51 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id f21sm181972edt.52.2019.09.17.05.08.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Sep 2019 05:08:50 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 326F9101C0B; Tue, 17 Sep 2019 15:08:53 +0300 (+03)
+Date: Tue, 17 Sep 2019 15:08:53 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Hillf Danton <hdanton@sina.com>,
+	syzbot <syzbot+03ee87124ee05af991bd@syzkaller.appspotmail.com>,
+	hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	syzkaller-bugs@googlegroups.com
+Subject: Re: KASAN: use-after-free Read in shmem_fault (2)
+Message-ID: <20190917120852.x6x3aypwvh573kfa@box>
+References: <20190831045826.748-1-hdanton@sina.com>
+ <20190902135254.GC2431@bombadil.infradead.org>
+ <20190902142029.fyq3dwn72pqqlzul@box>
+ <20190909135521.GD29434@bombadil.infradead.org>
+ <20190909150412.ut6fbshii4sohwag@box>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190917115824.16990-1-linf@wangsu.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190909150412.ut6fbshii4sohwag@box>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 17, 2019 at 07:58:24PM +0800, Lin Feng wrote:
-> In direct and background(kswapd) pages reclaim paths both may fall into
-> calling msleep(100) or congestion_wait(HZ/10) or wait_iff_congested(HZ/10)
-> while under IO pressure, and the sleep length is hard-coded and the later
-> two will introduce 100ms iowait length per time.
+On Mon, Sep 09, 2019 at 06:04:12PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Sep 09, 2019 at 06:55:21AM -0700, Matthew Wilcox wrote:
+> > On Mon, Sep 02, 2019 at 05:20:30PM +0300, Kirill A. Shutemov wrote:
+> > > On Mon, Sep 02, 2019 at 06:52:54AM -0700, Matthew Wilcox wrote:
+> > > > On Sat, Aug 31, 2019 at 12:58:26PM +0800, Hillf Danton wrote:
+> > > > > On Fri, 30 Aug 2019 12:40:06 -0700
+> > > > > > syzbot found the following crash on:
+> > > > > > 
+> > > > > > HEAD commit:    a55aa89a Linux 5.3-rc6
+> > > > > > git tree:       upstream
+> > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=12f4beb6600000
+> > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=2a6a2b9826fdadf9
+> > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=03ee87124ee05af991bd
+> > > > > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > > > > > 
+> > > > > > ==================================================================
+> > > > > > BUG: KASAN: use-after-free in perf_trace_lock_acquire+0x401/0x530  
+> > > > > > include/trace/events/lock.h:13
+> > > > > > Read of size 8 at addr ffff8880a5cf2c50 by task syz-executor.0/26173
+> > > > > 
+> > > > > --- a/mm/shmem.c
+> > > > > +++ b/mm/shmem.c
+> > > > > @@ -2021,6 +2021,12 @@ static vm_fault_t shmem_fault(struct vm_
+> > > > >  			shmem_falloc_waitq = shmem_falloc->waitq;
+> > > > >  			prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
+> > > > >  					TASK_UNINTERRUPTIBLE);
+> > > > > +			/*
+> > > > > +			 * it is not trivial to see what will take place after
+> > > > > +			 * releasing i_lock and taking a nap, so hold inode to
+> > > > > +			 * be on the safe side.
+> > > > 
+> > > > I think the comment could be improved.  How about:
+> > > > 
+> > > > 			 * The file could be unmapped by another thread after
+> > > > 			 * releasing i_lock, and the inode then freed.  Hold
+> > > > 			 * a reference to the inode to prevent this.
+> > > 
+> > > It only can happen if mmap_sem was released, so it's better to put
+> > > __iget() to the branch above next to up_read(). I've got confused at first
+> > > how it is possible from ->fault().
+> > > 
+> > > This way iput() below should only be called for ret == VM_FAULT_RETRY.
+> > 
+> > Looking at the rather similar construct in filemap.c, should we solve
+> > it the same way, where we inc the refcount on the struct file instead
+> > of the inode before releasing the mmap_sem?
 > 
-> So if pages reclaim is relatively active in some circumstances such as high
-> order pages reappings, it's possible to see a lot of iowait introduced by
-> congestion_wait(HZ/10) and wait_iff_congested(HZ/10).
+> Are you talking about maybe_unlock_mmap_for_io()? Yeah, worth moving it to
+> mm/internal.h and reuse.
 > 
-> The 100ms sleep length is proper if the backing drivers are slow like
-> traditionnal rotation disks. While if the backing drivers are high-end
-> storages such as high iops ssds or even faster drivers, the high iowait
-> inroduced by pages reclaim is really misleading, because the storage IO
-> utils seen by iostat is quite low, in this case the congestion_wait time
-> modified to 1ms is likely enough for high-end ssds.
-> 
-> Another benifit is that it's potentially shorter the direct reclaim blocked
-> time when kernel falls into sync reclaim path, which may improve user
-> applications response time.
+> Care to prepare the patch? :P
 
-This is a great description of the problem.
+Something like this? Untested.
 
-> +mm_reclaim_congestion_wait_jiffies
-> +==========
-> +
-> +This control is used to define how long kernel will wait/sleep while
-> +system memory is under pressure and memroy reclaim is relatively active.
-> +Lower values will decrease the kernel wait/sleep time.
-> +
-> +It's suggested to lower this value on high-end box that system is under memory
-> +pressure but with low storage IO utils and high CPU iowait, which could also
-> +potentially decrease user application response time in this case.
-> +
-> +Keep this control as it were if your box are not above case.
-> +
-> +The default value is HZ/10, which is of equal value to 100ms independ of how
-> +many HZ is defined.
-
-Adding a new tunable is not the right solution.  The right way is
-to make Linux auto-tune itself to avoid the problem.  For example,
-bdi_writeback contains an estimated write bandwidth (calculated by the
-memory management layer).  Given that, we should be able to make an
-estimate for how long to wait for the queues to drain.
-
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d0cf700bf201..a542f72f57cc 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2349,26 +2349,6 @@ EXPORT_SYMBOL(generic_file_read_iter);
+ 
+ #ifdef CONFIG_MMU
+ #define MMAP_LOTSAMISS  (100)
+-static struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
+-					     struct file *fpin)
+-{
+-	int flags = vmf->flags;
+-
+-	if (fpin)
+-		return fpin;
+-
+-	/*
+-	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
+-	 * anything, so we only pin the file and drop the mmap_sem if only
+-	 * FAULT_FLAG_ALLOW_RETRY is set.
+-	 */
+-	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) ==
+-	    FAULT_FLAG_ALLOW_RETRY) {
+-		fpin = get_file(vmf->vma->vm_file);
+-		up_read(&vmf->vma->vm_mm->mmap_sem);
+-	}
+-	return fpin;
+-}
+ 
+ /*
+  * lock_page_maybe_drop_mmap - lock the page, possibly dropping the mmap_sem
+diff --git a/mm/internal.h b/mm/internal.h
+index e32390802fd3..75ffa646de82 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -362,6 +362,27 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+ 	return max(start, vma->vm_start);
+ }
+ 
++static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
++					     struct file *fpin)
++{
++	int flags = vmf->flags;
++
++	if (fpin)
++		return fpin;
++
++	/*
++	 * FAULT_FLAG_RETRY_NOWAIT means we don't want to wait on page locks or
++	 * anything, so we only pin the file and drop the mmap_sem if only
++	 * FAULT_FLAG_ALLOW_RETRY is set.
++	 */
++	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) ==
++	    FAULT_FLAG_ALLOW_RETRY) {
++		fpin = get_file(vmf->vma->vm_file);
++		up_read(&vmf->vma->vm_mm->mmap_sem);
++	}
++	return fpin;
++}
++
+ #else /* !CONFIG_MMU */
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 2bed4761f279..551fa49eb7f6 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2007,16 +2007,14 @@ static vm_fault_t shmem_fault(struct vm_fault *vmf)
+ 		    shmem_falloc->waitq &&
+ 		    vmf->pgoff >= shmem_falloc->start &&
+ 		    vmf->pgoff < shmem_falloc->next) {
++			struct file *fpin = NULL;
+ 			wait_queue_head_t *shmem_falloc_waitq;
+ 			DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
+ 
+ 			ret = VM_FAULT_NOPAGE;
+-			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
+-			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+-				/* It's polite to up mmap_sem if we can */
+-				up_read(&vma->vm_mm->mmap_sem);
++			fpin = maybe_unlock_mmap_for_io(vmf, fpin);
++			if (fpin)
+ 				ret = VM_FAULT_RETRY;
+-			}
+ 
+ 			shmem_falloc_waitq = shmem_falloc->waitq;
+ 			prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
+@@ -2034,6 +2032,9 @@ static vm_fault_t shmem_fault(struct vm_fault *vmf)
+ 			spin_lock(&inode->i_lock);
+ 			finish_wait(shmem_falloc_waitq, &shmem_fault_wait);
+ 			spin_unlock(&inode->i_lock);
++
++			if (fpin)
++				fput(fpin);
+ 			return ret;
+ 		}
+ 		spin_unlock(&inode->i_lock);
+-- 
+ Kirill A. Shutemov
 
