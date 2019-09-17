@@ -2,148 +2,107 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C877C4CECE
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:21:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38614C4CECD
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:36:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F5D520665
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:21:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EB5262067B
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:36:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="IPKfWlnk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F5D520665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uS+mNOPW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB5262067B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 978696B0006; Tue, 17 Sep 2019 12:21:48 -0400 (EDT)
+	id 85C1E6B0005; Tue, 17 Sep 2019 12:36:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9509B6B0008; Tue, 17 Sep 2019 12:21:48 -0400 (EDT)
+	id 80B6B6B0008; Tue, 17 Sep 2019 12:36:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8655F6B000A; Tue, 17 Sep 2019 12:21:48 -0400 (EDT)
+	id 722176B000A; Tue, 17 Sep 2019 12:36:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0106.hostedemail.com [216.40.44.106])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E056B0006
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:21:48 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id E492D348D
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:21:47 +0000 (UTC)
-X-FDA: 75944928654.19.fan99_2cba5cb4d0937
-X-HE-Tag: fan99_2cba5cb4d0937
-X-Filterd-Recvd-Size: 5901
-Received: from mail-qk1-f195.google.com (mail-qk1-f195.google.com [209.85.222.195])
-	by imf47.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:21:47 +0000 (UTC)
-Received: by mail-qk1-f195.google.com with SMTP id f16so4610779qkl.9
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 09:21:47 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=7zcxfoeB93t2LFv4lA/iGGDzpuTwdsiMs4R0hCM94F0=;
-        b=IPKfWlnk6g+8xYh6QPDOV11rgt8hSjZYNydSSMeCC5lKQ3BAPdYcMVFhqlL6/hwZ0L
-         EpNpNap6RxUM7xANzt7U00kSQeknoPyQ0uViAZwm0bLghRCvcpjwrSukCB7LJP0jbqug
-         AEambkcgJO2Rxl/j3spzefDlO8/yGcnoM6b3xgAltN01rOEE6NQh4V3K1/Vx98YKkQOu
-         BrnCaimHtq85qpZJuiNfl/zuqz/jg+n6ZacxHKeAFoTQdf6eXO07ENRaIErUPzEcfZvG
-         6VqeXfW7mFmajNBrjUD4+IoP3kIZdGCGAI9/IPGQK/9dVx4ArRCNMufP0PkHULbLyK6g
-         Vglw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=7zcxfoeB93t2LFv4lA/iGGDzpuTwdsiMs4R0hCM94F0=;
-        b=PFYy40dT+HfxNWWW7B1NWmKe5cRRk4sPd0m9Bq38g+TLL1o4+NIiU2yQwIjWjZ+nrh
-         nvuANl6t31GoVqePmrAKTPF7CpGQQRxI+bGabjVTGaQSleui4pp0kJZyAvup3q3yqs6k
-         SXqhHeLt5sW95t52Oyrqbb4oN4/KH4Q6uDxG8kGd89x6PJV4VHuNAlzHhE3FNbjhKuXg
-         RmCF7iZMkJkeizLG4N/v76/sFV6woxbUm6vWe6zah6mgjpIX3drBqYFwc8mpsB4+dY5S
-         oNEgA+uOmmPAMzYBD38+83vJdYt7WA0HRk0e0wsZ8MCpWrdBQ6LmEbNHsFKK5wocLKsG
-         5fpA==
-X-Gm-Message-State: APjAAAUhVSsRk6YlsPbnen5x9Ieo8PJ8Z7Q1zvTd3SviiA1yUoxF2d/n
-	Q7AR2rZ9d2RDypjnyeHjHwkIhA==
-X-Google-Smtp-Source: APXvYqwb/MFu85JM4GcuDSGF0uOmP1Zyl45W9YDIPitIpFmqcKkM4HZhLZjsrcEi4qbiBF9otNjRKQ==
-X-Received: by 2002:a05:620a:1458:: with SMTP id i24mr4660603qkl.361.1568737306585;
-        Tue, 17 Sep 2019 09:21:46 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id b16sm1824587qtk.65.2019.09.17.09.21.44
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Sep 2019 09:21:45 -0700 (PDT)
-Message-ID: <1568737304.5576.162.camel@lca.pw>
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-From: Qian Cai <cai@lca.pw>
-To: Waiman Long <longman@redhat.com>, David Hildenbrand <david@redhat.com>, 
- Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>, "linux-mm@kvack.org"
- <linux-mm@kvack.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"akpm@linux-foundation.org"
-	 <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, 
-	"adobriyan@gmail.com"
-	 <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>, "sfr@canb.auug.org.au"
-	 <sfr@canb.auug.org.au>, "mst@redhat.com" <mst@redhat.com>, Naoya Horiguchi
-	 <n-horiguchi@ah.jp.nec.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>
-Date: Tue, 17 Sep 2019 12:21:44 -0400
-In-Reply-To: <59c946f8-843d-c017-f342-d007a5e14a85@redhat.com>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
-	 <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
-	 <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
-	 <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com>
-	 <6a99e003-e1ab-b9e8-7b25-bc5605ab0eb2@vx.jp.nec.com>
-	 <e4e54258-e83b-cf0b-b66e-9874be6b5122@redhat.com>
-	 <31fd3c86-5852-1863-93bd-8df9da9f95b4@vx.jp.nec.com>
-	 <38e58d23-c20b-4e68-5f56-20bba2be2d6c@redhat.com>
-	 <59c946f8-843d-c017-f342-d007a5e14a85@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0093.hostedemail.com [216.40.44.93])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C526B0005
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:36:08 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E625168AB
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:36:07 +0000 (UTC)
+X-FDA: 75944964774.21.air73_186277b541863
+X-HE-Tag: air73_186277b541863
+X-Filterd-Recvd-Size: 3507
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:36:07 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=GqRJ2GhiTNh8OtBngBM3P/jCzeuLxp057cr1YC1H4dQ=; b=uS+mNOPWA66TCc3Sdi47jrH+3
+	mpiiPL+sdOSO+bkMGO0J+UDueJaneeNZJyRKkHb7OyxKxBFOXUle3lPb3Iskzkzzd62nExmCS4HqM
+	bSzls4wrq57D7HXd6I2Og2biO4paFtUn6W8QLyYCZLL/d9k24JfewfNS1/lwy02M82T5HgCaasL5I
+	UVGrzbMOeidW0SyTYs8NcW1ySxM1ddC8eeEGT7Qh8rKZXAwpzPLJ7V7JAjUJbzbtJ6CtbVRV3Cl03
+	+eStJWdCArjl5NLZgww+/7iFEKtotH3oJJNXGLgQ58Y+ugr+DU9mHE4pusJDHSwn7vP9EbhBas7gb
+	h0xA1Vz1w==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92.2 #3 (Red Hat Linux))
+	id 1iAGSU-0002Sy-7A; Tue, 17 Sep 2019 16:36:06 +0000
+Date: Tue, 17 Sep 2019 09:36:06 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH] usercopy: Skip HIGHMEM page checking
+Message-ID: <20190917163606.GU29434@bombadil.infradead.org>
+References: <201909161431.E69B29A0@keescook>
+ <20190917003209.GS29434@bombadil.infradead.org>
+ <201909162003.FEEAC65@keescook>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201909162003.FEEAC65@keescook>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-09-17 at 11:49 -0400, Waiman Long wrote:
-> On 9/17/19 3:13 AM, David Hildenbrand wrote:
-> > On 17.09.19 04:34, Toshiki Fukasawa wrote:
-> > > On 2019/09/09 16:46, David Hildenbrand wrote:
-> > > > Let's take a step back here to understand the issues I am aware of. I
-> > > > think we should solve this for good now:
-> > > > 
-> > > > A PFN walker takes a look at a random PFN at a random point in time. It
-> > > > finds a PFN with SECTION_MARKED_PRESENT && !SECTION_IS_ONLINE. The
-> > > > options are:
-> > > > 
-> > > > 1. It is buddy memory (add_memory()) that has not been online yet. The
-> > > > memmap contains garbage. Don't access.
-> > > > 
-> > > > 2. It is ZONE_DEVICE memory with a valid memmap. Access it.
-> > > > 
-> > > > 3. It is ZONE_DEVICE memory with an invalid memmap, because the section
-> > > > is only partially present: E.g., device starts at offset 64MB within a
-> > > > section or the device ends at offset 64MB within a section. Don't access it.
+On Mon, Sep 16, 2019 at 08:05:00PM -0700, Kees Cook wrote:
+> On Mon, Sep 16, 2019 at 05:32:09PM -0700, Matthew Wilcox wrote:
+> > On Mon, Sep 16, 2019 at 02:32:56PM -0700, Kees Cook wrote:
+> > > When running on a system with >512MB RAM with a 32-bit kernel built with:
 > > > 
-> > > I don't agree with case #3. In the case, struct page area is not allocated on
-> > > ZONE_DEVICE, but is allocated on system memory. So I think we can access the
-> > > struct pages. What do you mean "invalid memmap"?
+> > > 	CONFIG_DEBUG_VIRTUAL=y
+> > > 	CONFIG_HIGHMEM=y
+> > > 	CONFIG_HARDENED_USERCOPY=y
+> > > 
+> > > all execve()s will fail due to argv copying into kmap()ed pages, and on
+> > > usercopy checking the calls ultimately of virt_to_page() will be looking
+> > > for "bad" kmap (highmem) pointers due to CONFIG_DEBUG_VIRTUAL=y:
 > > 
-> > No, that's not the case. There is no memory, especially not system
-> > memory. We only allow partially present sections (sub-section memory
-> > hotplug) for ZONE_DEVICE.
-> > 
-> > invalid memmap == memmap was not initialized == struct pages contains
-> > garbage. There is a memmap, but accessing it (e.g., pfn_to_nid()) will
-> > trigger a BUG.
-> > 
+> > I don't understand why you want to skip the check.  We must not cross a
+> > page boundary of a kmapped page.
 > 
-> As long as the page structures exist, they should be initialized to some
-> known state. We could set PagePoison for those invalid memmap. It is the
+> That requires a new test which hasn't existed before. First I need to
+> fix the bug, and then we can add a new test and get that into -next,
+> etc.
 
-Sounds like you want to run page_init_poison() by default.
+I suppose that depends where your baseline is.  From the perspective
+of "before Kees added this feature", your point of view makes sense.
+From the perspective of "what's been shipping for the last six months",
+this is a case which has simply not happened before now (or we'd've seen
+a bug report).
 
+I don't think you need to change anything for check_page_span() to do
+the right thing.  The rodata/data/bss checks will all fall through.
+If the copy has the correct bounds, the 'wholly within one base page'
+check will pass and it'll return.  If the copy does span a page,
+the virt_to_head_page(end) call will return something bogus, then the
+PageReserved and CMA test will cause the usercopy_abort() test to fail.
 
-> garbage that are in those page structures that can cause problem if a
-> struct page walker scan those pages and try to make sense of it.
-
+So I think your first patch is the right patch.
 
