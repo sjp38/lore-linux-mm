@@ -2,160 +2,123 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1F5FC4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 07:27:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33BA7C4CEC9
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 07:34:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C00DB21924
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 07:27:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C00DB21924
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E506420644
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 07:34:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IL8kpvCE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E506420644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 58AC36B0008; Tue, 17 Sep 2019 03:27:33 -0400 (EDT)
+	id 622776B0003; Tue, 17 Sep 2019 03:34:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 53B6E6B000A; Tue, 17 Sep 2019 03:27:33 -0400 (EDT)
+	id 5D0EE6B0005; Tue, 17 Sep 2019 03:34:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3DCD56B000C; Tue, 17 Sep 2019 03:27:33 -0400 (EDT)
+	id 4C0426B0006; Tue, 17 Sep 2019 03:34:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0123.hostedemail.com [216.40.44.123])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE6B6B0008
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 03:27:33 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id C6D9E6119
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 07:27:32 +0000 (UTC)
-X-FDA: 75943582344.24.cough01_249e0c5fd9b43
-X-HE-Tag: cough01_249e0c5fd9b43
-X-Filterd-Recvd-Size: 6312
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf03.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 07:27:31 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5CCB0191864C;
-	Tue, 17 Sep 2019 07:27:30 +0000 (UTC)
-Received: from [10.36.117.113] (ovpn-117-113.ams2.redhat.com [10.36.117.113])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 921335D6C8;
-	Tue, 17 Sep 2019 07:27:27 +0000 (UTC)
-Subject: Re: [PATCH v3 2/2] mm: Add a bounds check in devm_memremap_pages()
-To: Alastair D'Silva <alastair@au1.ibm.com>, alastair@d-silva.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Dan Williams
- <dan.j.williams@intel.com>, Qian Cai <cai@lca.pw>,
- Jason Gunthorpe <jgg@ziepe.ca>, Logan Gunthorpe <logang@deltatee.com>,
- Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190917010752.28395-1-alastair@au1.ibm.com>
- <20190917010752.28395-3-alastair@au1.ibm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <9208cdeb-6f14-6237-c919-a2d31e8d506a@redhat.com>
-Date: Tue, 17 Sep 2019 09:27:26 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0105.hostedemail.com [216.40.44.105])
+	by kanga.kvack.org (Postfix) with ESMTP id 259116B0003
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 03:34:49 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D4232180AD802
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 07:34:48 +0000 (UTC)
+X-FDA: 75943600656.23.ship72_642b52ccd5720
+X-HE-Tag: ship72_642b52ccd5720
+X-Filterd-Recvd-Size: 4193
+Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com [209.85.221.68])
+	by imf35.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 07:34:48 +0000 (UTC)
+Received: by mail-wr1-f68.google.com with SMTP id o18so1889633wrv.13
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 00:34:48 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=xs5COs3IFBd+FU/QFyQ3V/NOMrJdgrZhptW2Dami03g=;
+        b=IL8kpvCE28nFFBT5ewdnx0MtB6s7TsEGoptgdI4Y+30ms6qfnxHYUM+UtkEylM/2CG
+         2iM5TOPcuukLf1Mz+aovOvsWokmGozZ2WstnF0Rm5BiNGGaIm9Owvhs6U6Q0sVhId9P/
+         ORz+sMoWT7j0vJkQ4+izd4AX6x/xA6+mWHGzlheOJgnq1L/FSSKFxbrLMS4hnWCcoDUx
+         6EBhrnADj/hhlNhN4wKW71yXSmLI+KgHHtrgvd1YKNv96XffMqpIOwjaF9b7cJqOD7/o
+         QO1jgvezxWUmWc+c6x/7BxtxDvud6P/TmSEYOh6jdaxB4vI18J1msXrcBUp0OsOBoPGK
+         4EUQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
+         :content-disposition:user-agent;
+        bh=xs5COs3IFBd+FU/QFyQ3V/NOMrJdgrZhptW2Dami03g=;
+        b=lkJr+UqRv7xEwKFA+BhumHi63qEJ/H7Q8XFK+0Za1jo5KImBczgwGh26caW/7do7Xo
+         GuKXdcnPCiq6ChQ49bPELgpPAlRdhciHf+BRzMo4fj5fIvGWQ5PvZdE1bv4hSUHc43b6
+         GKvlWiqim8Oa/Ovk4i2wC2eUvoGzlyMNFH4xYAG1b13hWASBwIXaWbsm5+eB6eK0kkcy
+         Clasrvj4XL8mAghN0AdLcY4CEjEoxWFmy1VVWcR42hDhLwg7CMvrSJWVIzc/vJ6w+YVN
+         MBJgW0XtsVpbUNoboMBozyXF+PP+G0YcbsAbOHgEZABQjW0QhJ8aeFsyQzpqRGfhRime
+         uKXQ==
+X-Gm-Message-State: APjAAAWbN0j98/e5HqpxEgS/OZMhk2quT03dcT5jrpB3PwW6eCspUADl
+	ter7PU+oW2GWKdxgH2wnN1s=
+X-Google-Smtp-Source: APXvYqzc9gk0rGJOd6X1aLB0zOg4Owp7daVyjtd6vMkyJuFXT0Ltseh/ttbZCjDjiJi1ywrIedUZpA==
+X-Received: by 2002:a5d:46c4:: with SMTP id g4mr1596417wrs.189.1568705686890;
+        Tue, 17 Sep 2019 00:34:46 -0700 (PDT)
+Received: from archlinux-threadripper ([2a01:4f8:222:2f1b::2])
+        by smtp.gmail.com with ESMTPSA id s19sm1494984wrb.14.2019.09.17.00.34.46
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 17 Sep 2019 00:34:46 -0700 (PDT)
+Date: Tue, 17 Sep 2019 00:34:44 -0700
+From: Nathan Chancellor <natechancellor@gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>,
+	Davidlohr Bueso <dave@stgolabs.net>
+Cc: Nick Desaulniers <ndesaulniers@google.com>,
+	Ilie Halip <ilie.halip@gmail.com>,
+	David Bolvansky <david.bolvansky@gmail.com>, linux-mm@kvack.org,
+	clang-built-linux@googlegroups.com
+Subject: -Wsizeof-array-div in mm/hugetlb.c
+Message-ID: <20190917073444.GA14505@archlinux-threadripper>
 MIME-Version: 1.0
-In-Reply-To: <20190917010752.28395-3-alastair@au1.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.70]); Tue, 17 Sep 2019 07:27:30 +0000 (UTC)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.085813, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17.09.19 03:07, Alastair D'Silva wrote:
-> From: Alastair D'Silva <alastair@d-silva.org>
-> 
-> The call to check_hotplug_memory_addressable() validates that the memory
-> is fully addressable.
-> 
-> Without this call, it is possible that we may remap pages that is
-> not physically addressable, resulting in bogus section numbers
-> being returned from __section_nr().
-> 
-> Signed-off-by: Alastair D'Silva <alastair@d-silva.org>
-> ---
->  mm/memremap.c | 5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/mm/memremap.c b/mm/memremap.c
-> index 86432650f829..de2b67586401 100644
-> --- a/mm/memremap.c
-> +++ b/mm/memremap.c
-> @@ -175,6 +175,11 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
->  	int error, nid, is_ram;
->  	bool need_devmap_managed = true;
->  
-> +	error = check_hotplug_memory_addressable(res->start,
-> +						 resource_size(res));
-> +	if (error)
-> +		return ERR_PTR(error);
-> +
->  	switch (pgmap->type) {
->  	case MEMORY_DEVICE_PRIVATE:
->  		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-> 
+Hi all,
 
-Acked-by: David Hildenbrand <david@redhat.com>
+Clang recently added a new diagnostic in r371605, -Wsizeof-array-div,
+that tries to warn when sizeof(X) / sizeof(Y) does not compute the
+number of elements in an array X (i.e., sizeof(Y) is wrong). See that
+commit for more details:
 
--- 
+https://github.com/llvm/llvm-project/commit/3240ad4ced0d3223149b72a4fc2a4d9b67589427
 
-Thanks,
+There is a warning in mm/hugetlb.c in hugetlb_fault_mutex_hash:
 
-David / dhildenb
+mm/hugetlb.c:4055:40: warning: expression does not compute the number of
+elements in this array; element type is 'unsigned long', not 'u32' (aka
+'unsigned int') [-Wsizeof-array-div]
+        hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
+                                          ~~~ ^
+mm/hugetlb.c:4049:16: note: array 'key' declared here
+        unsigned long key[2];
+                      ^
+1 warning generated.
+
+Should this warning be silenced? What is the reasoning behind having key
+be an array of unsigned longs but representing it as an array of u32s?
+Would it be better to avoid the cast and have it just be an array of
+u32s directly? I am not familiar with this code so I may be naive for
+asking such questions but we'd like to get these warnings cleaned up so
+that this warning can be useful down the road.
+
+Cheers,
+Nathan
 
