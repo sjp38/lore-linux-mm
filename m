@@ -2,66 +2,80 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CA14C4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 23:37:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB3B3C4CECD
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 23:40:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAF9B206C2
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 23:37:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAF9B206C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 7B588206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 23:40:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="i4VgHBmh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B588206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F4786B026A; Tue, 17 Sep 2019 19:37:41 -0400 (EDT)
+	id 19E7E6B026D; Tue, 17 Sep 2019 19:40:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CB126B026B; Tue, 17 Sep 2019 19:37:41 -0400 (EDT)
+	id 14E8F6B026E; Tue, 17 Sep 2019 19:40:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E1BF6B026C; Tue, 17 Sep 2019 19:37:41 -0400 (EDT)
+	id 0B3906B026F; Tue, 17 Sep 2019 19:40:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0149.hostedemail.com [216.40.44.149])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EF046B026A
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 19:37:41 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id E245F909B
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 23:37:40 +0000 (UTC)
-X-FDA: 75946027080.14.loaf63_430273977ed06
-X-HE-Tag: loaf63_430273977ed06
-X-Filterd-Recvd-Size: 1284
-Received: from mail.test.com (pc-246-229-214-201.cm.vtr.net [201.214.229.246])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 23:37:40 +0000 (UTC)
-Received: by mail.test.com (Postfix, from userid 1001)
-	id C625E127B; Tue, 17 Sep 2019 18:37:38 -0500 (CDT)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.test.com (Postfix) with ESMTP id C1DB1E32;
-	Tue, 17 Sep 2019 18:37:38 -0500 (CDT)
-Date: Tue, 17 Sep 2019 18:37:38 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-X-X-Sender: cl@lameter.cl
-To: David Rientjes <rientjes@google.com>
-cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, penberg@kernel.org, 
-    linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/slub: fix -Wunused-function compiler warnings
-In-Reply-To: <alpine.DEB.2.21.1909171423000.168624@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.21.1909171837250.9981@lameter.cl>
-References: <1568752232-5094-1-git-send-email-cai@lca.pw> <alpine.DEB.2.21.1909171423000.168624@chino.kir.corp.google.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.220403, version=1.2.4
+Received: from forelay.hostedemail.com (smtprelay0062.hostedemail.com [216.40.44.62])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A386B026D
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 19:40:26 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 745EA180AD805
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 23:40:26 +0000 (UTC)
+X-FDA: 75946034052.22.sun15_5b1ded9684857
+X-HE-Tag: sun15_5b1ded9684857
+X-Filterd-Recvd-Size: 1910
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 23:40:26 +0000 (UTC)
+Subject: Re: [GIT PULL] percpu changes for v5.4-rc1
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1568763624;
+	bh=m4VZQRJNxhNh/vWBR0nZ19WBq20PaY34jKQbmAf8Ocw=;
+	h=From:In-Reply-To:References:Date:To:Cc:From;
+	b=i4VgHBmhPkcz7n56J4J8dL6eFOCQXwVCEWqMnF9LfWld9a6ZDs5R7Y0FLWlwtfa1t
+	 M+1gEaz/1IBkMP3Dusw5rWjCbhqM9Vdaktt8WYynuip3bHoA49/KeDu5D4bxJVjtg7
+	 /y0GjRB00sGRmYb12o+2LJGg0O6uKewID7NrIhpU=
+From: pr-tracker-bot@kernel.org
+In-Reply-To: <20190917164300.GA77280@dennisz-mbp.dhcp.thefacebook.com>
+References: <20190917164300.GA77280@dennisz-mbp.dhcp.thefacebook.com>
+X-PR-Tracked-List-Id: <linux-kernel.vger.kernel.org>
+X-PR-Tracked-Message-Id: <20190917164300.GA77280@dennisz-mbp.dhcp.thefacebook.com>
+X-PR-Tracked-Remote: git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.4
+X-PR-Tracked-Commit-Id: 14d3761245551bdfc516abd8214a9f76bfd51435
+X-PR-Merge-Tree: torvalds/linux.git
+X-PR-Merge-Refname: refs/heads/master
+X-PR-Merge-Commit-Id: 1902314157b19754e0ff25b44527654847cfd127
+Message-Id: <156876362478.26432.1158576179751599537.pr-tracker-bot@kernel.org>
+Date: Tue, 17 Sep 2019 23:40:24 +0000
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>,
+ Christoph Lameter <cl@linux.com>, 
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000009, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Sep 2019, David Rientjes wrote:
+The pull request you sent on Tue, 17 Sep 2019 17:43:00 +0100:
 
-> Acked-by: David Rientjes <rientjes@google.com>
+> git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.4
 
-Ditto
+has been merged into torvalds/linux.git:
+https://git.kernel.org/torvalds/c/1902314157b19754e0ff25b44527654847cfd127
 
+Thank you!
+
+-- 
+Deet-doot-dot, I am a bot.
+https://korg.wiki.kernel.org/userdoc/prtracker
 
