@@ -2,296 +2,228 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 468CCC4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 13:40:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93F86C4CEC9
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 14:10:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEBBC2053B
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 13:40:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 46A27206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 14:10:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="mf3ylWv/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEBBC2053B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ja14gtvZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46A27206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B7F86B0003; Tue, 17 Sep 2019 09:40:05 -0400 (EDT)
+	id CE99F6B0003; Tue, 17 Sep 2019 10:10:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 841666B0005; Tue, 17 Sep 2019 09:40:05 -0400 (EDT)
+	id C97C56B0005; Tue, 17 Sep 2019 10:10:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 709616B000A; Tue, 17 Sep 2019 09:40:05 -0400 (EDT)
+	id BAE3E6B0006; Tue, 17 Sep 2019 10:10:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
-	by kanga.kvack.org (Postfix) with ESMTP id 481F96B0003
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 09:40:05 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id E50418790
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 13:40:04 +0000 (UTC)
-X-FDA: 75944521128.14.quiet64_57f351a921d44
-X-HE-Tag: quiet64_57f351a921d44
-X-Filterd-Recvd-Size: 10010
-Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 13:40:04 +0000 (UTC)
-Received: by mail-qt1-f195.google.com with SMTP id g16so4386919qto.9
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 06:40:04 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0090.hostedemail.com [216.40.44.90])
+	by kanga.kvack.org (Postfix) with ESMTP id 9971F6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 10:10:20 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 3D39B52C2
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 14:10:20 +0000 (UTC)
+X-FDA: 75944597400.10.slip05_3d18b62b38510
+X-HE-Tag: slip05_3d18b62b38510
+X-Filterd-Recvd-Size: 8934
+Received: from mail-ot1-f66.google.com (mail-ot1-f66.google.com [209.85.210.66])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 14:10:19 +0000 (UTC)
+Received: by mail-ot1-f66.google.com with SMTP id z6so3181624otb.2
+        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 07:10:19 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=Q2t22cvAHte1ch8tj9lxq14REfgJnpMH2IQOWoISxZk=;
-        b=mf3ylWv/P6KKZLCmcDbvPDClWNE/yl8qC43ao/9coxSAnnpECS5gdQYATZ9ERdVNkB
-         OL9mHdvCjmD9rGlwANsJBNE/jw2OzUoUb7qV/fKDihddwKuKM26xSdlNHtop8eImzCyl
-         G6PepKApbQ49kcSkiWCsKs9i9wCgpwb5Wr6HmfmtdnTNL9l0Is7gR1vAnZOh6L7Zl6Vm
-         21973yXAlXWUmsEscaUdyc116p1CaPqquPXgNHAwxjX4fKkgqAY+hhjJaK4A8Ehv2G+K
-         HGfhabv1vu7ynxaRSu25/vJm7jRaTvhJmfJl490tK+iFsWZjIYVTO3oSgkmKqBrxdmrc
-         FP+g==
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=8UALXrAF8WnpelFZ4otiIrYrkhsux0g2WXlYWe7ggk4=;
+        b=Ja14gtvZdjyDosPDl0vXmCPksiwz1GkRkxKFdo1NirVHi8UWI0mDgDRvkDLsenfFYL
+         +pnMVu50T4c8WNurYKwB/9e+Bjmhkmy8YbJZrQLVWEbW+yyBtil/BiqQpNxEuwu0YZ1+
+         ERQEnpbQxfMDEIGiOUPOerXZHqBx5Y/ZuInS2+FcpajqfH5LLO9ILuhhL26gHyEwtowX
+         9EurAe6mGc1fEFmYM0rV7lF3PYqIlf9MhweitSIiLGaKGA8lMhA9oaKPRNVAkf7ldEXC
+         wLvpsy+//OHx26RcuDMtfLDnDfoIJM+7F6hh4Oz5uhQhUo+xWi5zkMF0AXWL8ks7ojem
+         Arwg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:message-id:subject:from:to:cc:date:in-reply-to
-         :references:mime-version:content-transfer-encoding;
-        bh=Q2t22cvAHte1ch8tj9lxq14REfgJnpMH2IQOWoISxZk=;
-        b=TLRdO7mlSmDtGmYP/p9c9OE8w981p4H2GKFuOjMhx1c9DojIidhzG+YQnhEZxNc8Ob
-         JD8pw11ZtfgNTGH76NriQrufw8i8M9mYUb8gZ7tpq3XPP4hf/Z9iAWo7ETCFgQaRUpS0
-         8uUb54FFU4DtMd0NvXBaQJQpk0iBT6TECB7FB8FtthMTT5oBizoJdr6YyvqGvrA4f5m8
-         9TGYCIYQdCRMzqPRIkzrU1GFkeEiXD1jSHEs1uI3BTcmS2jhJ1FhXIg0Dmzk/TJV30fC
-         Ytt/uP1dN7b7GxorC6r4/TTu6l/tCT5XAp0E2h++VjaNiDevVO20ltDjPk7RZRLwErLa
-         QNjw==
-X-Gm-Message-State: APjAAAU4nFr0VeVdx8RxX71+KdCQYb+1G6Flw2jqA/A4ggkdJ6E0QA9C
-	4GVQQA6prL3byva/kulNvbVccA==
-X-Google-Smtp-Source: APXvYqxxE1JteTH87odhllssonVdekVi7hpPC+xb0XTDUBCG6B+wXwcAmYOqAGEvGpKicctPFHY+rg==
-X-Received: by 2002:ac8:75cd:: with SMTP id z13mr3591864qtq.87.1568727603712;
-        Tue, 17 Sep 2019 06:40:03 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id 131sm1141820qkg.1.2019.09.17.06.40.02
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Sep 2019 06:40:03 -0700 (PDT)
-Message-ID: <1568727601.5576.160.camel@lca.pw>
-Subject: Re: [RFC PATCH] mm/slub: remove left-over debugging code
-From: Qian Cai <cai@lca.pw>
-To: David Rientjes <rientjes@google.com>, Pengfei Li <lpf.vector@gmail.com>
-Cc: cl@linux.com, penberg@kernel.org, Andrew Morton
- <akpm@linux-foundation.org>,  linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Date: Tue, 17 Sep 2019 09:40:01 -0400
-In-Reply-To: <alpine.DEB.2.21.1909161128480.105847@chino.kir.corp.google.com>
-References: <1568650294-8579-1-git-send-email-cai@lca.pw>
-	 <alpine.DEB.2.21.1909161128480.105847@chino.kir.corp.google.com>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=8UALXrAF8WnpelFZ4otiIrYrkhsux0g2WXlYWe7ggk4=;
+        b=JnvqvQYO5kHw59hrG9qeU0ILu74HPSak6YGuBhZqWkDMjiO+jqY2dOkeGk8lo6T18U
+         JxDzgsIW4eVCU9iiwHtSX6RjNbs8Ura685PnapZls7Xb2N11nOof/4MUASoMxK7+z5gT
+         gyrqJIs5Q4WW5zSiCD1pAPqSB4segj/nKiBDtiewsqoSN17mhscWv/tFNWfV3TCzSyur
+         45e+Q2Emdp5qmeNyzkMav5Il9BPJtd5M+JMtrsrnoiX8Ep5q/RJVNGTPfaxjqEjufNbu
+         EOleLVbvk69P8bvNd2+s04sJzot4Olguj7Qc+v36tS9MDh9+oXTIMgXfG/EjTFlfhWnc
+         I4lQ==
+X-Gm-Message-State: APjAAAX+cILxhR7wOXpGRUp5lGurSEs3R+7NPCMhw/y7cjhgpJ42ZXX+
+	5ulPtaGckIR+CkrN/n8qI/fcQqdIKr6bVxDeRfs=
+X-Google-Smtp-Source: APXvYqyds89hV8IjAloUM/+5NGhwLVhpl1GVga/SeSIVPZz/XiqQ1nIlWXDsPIydRM6CO03+PXzKbTapTxLc+pTjTls=
+X-Received: by 2002:a05:6830:1e05:: with SMTP id s5mr2068860otr.173.1568729418876;
+ Tue, 17 Sep 2019 07:10:18 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190915170809.10702-1-lpf.vector@gmail.com> <20190915170809.10702-6-lpf.vector@gmail.com>
+ <alpine.DEB.2.21.1909151425490.211705@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1909151425490.211705@chino.kir.corp.google.com>
+From: Pengfei Li <lpf.vector@gmail.com>
+Date: Tue, 17 Sep 2019 22:10:07 +0800
+Message-ID: <CAD7_sbEVsPEJUGpvd=M13=gW316=T71cXbE9jGJG61TZRD7ZtQ@mail.gmail.com>
+Subject: Re: [RESEND v4 5/7] mm, slab_common: Make kmalloc_caches[] start at
+ size KMALLOC_MIN_SIZE
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, 
+	Christopher Lameter <cl@linux.com>, penberg@kernel.org, iamjoonsoo.kim@lge.com, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Roman Gushchin <guro@fb.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-09-16 at 11:32 -0700, David Rientjes wrote:
-> On Mon, 16 Sep 2019, Qian Cai wrote:
-> 
-> > SLUB_RESILIENCY_TEST and SLUB_DEBUG_CMPXCHG look like some left-over
-> > debugging code during the internal development that probably nobody uses
-> > it anymore. Remove them to make the world greener.
-> 
-> Adding Pengfei Li who has been working on a patchset for modified handling 
-> of kmalloc cache initialization and touches the resiliency test.
-> 
-> I still find the resiliency test to be helpful/instructional for handling 
-> unexpected conditions in these caches, so I'd suggest against removing it: 
-> the only downside is that it's additional source code.  But it's helpful 
-> source code for reference.
-> 
-> The cmpxchg failures could likely be more generalized beyond SLUB since 
-> there will be other dependencies in the kernel than just this allocator.
+On Mon, Sep 16, 2019 at 5:38 AM David Rientjes <rientjes@google.com> wrote:
+>
+> On Mon, 16 Sep 2019, Pengfei Li wrote:
+>
+> > Currently, kmalloc_cache[] is not sorted by size, kmalloc_cache[0]
+> > is kmalloc-96, kmalloc_cache[1] is kmalloc-192 (when ARCH_DMA_MINALIGN
+> > is not defined).
+> >
+> > As suggested by Vlastimil Babka,
+> >
+> > "Since you're doing these cleanups, have you considered reordering
+> > kmalloc_info, size_index, kmalloc_index() etc so that sizes 96 and 192
+> > are ordered naturally between 64, 128 and 256? That should remove
+> > various special casing such as in create_kmalloc_caches(). I can't
+> > guarantee it will be possible without breaking e.g. constant folding
+> > optimizations etc., but seems to me it should be feasible. (There are
+> > definitely more places to change than those I listed.)"
+> >
+> > So this patch reordered kmalloc_info[], kmalloc_caches[], and modified
+> > kmalloc_index() and kmalloc_slab() accordingly.
+> >
+> > As a result, there is no subtle judgment about size in
+> > create_kmalloc_caches(). And initialize kmalloc_cache[] from 0 instead
+> > of KMALLOC_SHIFT_LOW.
+> >
+> > I used ./scripts/bloat-o-meter to measure the impact of this patch on
+> > performance. The results show that it brings some benefits.
+> >
+> > Considering the size change of kmalloc_info[], the size of the code is
+> > actually about 641 bytes less.
+> >
+>
+> bloat-o-meter is reporting a net benefit of -241 bytes for this, so not
+> sure about relevancy of the difference for only kmalloc_info.
+>
 
-OK, SLUB_RESILIENCY_TEST is fine to keep around and maybe be turned into a
-Kconfig option to make it more visible.
+Thanks for your comments.
 
-Is it fine to remove SLUB_DEBUG_CMPXCHG? If somebody later want to generalize it
-beyond SLUB, he/she can always find the old code somewhere anyway.
+The size of kmalloc_info has been increased from 432 to 832 (it was
+renamed to all_kmalloc_info ). So when the change in kmalloc_info size
+is not included, it actually reduces 641 bytes.
 
-> 
-> (I assume you didn't send a Signed-off-by line because this is an RFC.)
-> 
-> > ---
-> >  mm/slub.c | 110 --------------------------------------------------------------
-> >  1 file changed, 110 deletions(-)
-> > 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 8834563cdb4b..f97155ba097d 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -150,12 +150,6 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
-> >   * - Variable sizing of the per node arrays
-> >   */
-> >  
-> > -/* Enable to test recovery from slab corruption on boot */
-> > -#undef SLUB_RESILIENCY_TEST
-> > -
-> > -/* Enable to log cmpxchg failures */
-> > -#undef SLUB_DEBUG_CMPXCHG
-> > -
-> >  /*
-> >   * Mininum number of partial slabs. These will be left on the partial
-> >   * lists even if they are empty. kmem_cache_shrink may reclaim them.
-> > @@ -392,10 +386,6 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
-> >  	cpu_relax();
-> >  	stat(s, CMPXCHG_DOUBLE_FAIL);
-> >  
-> > -#ifdef SLUB_DEBUG_CMPXCHG
-> > -	pr_info("%s %s: cmpxchg double redo ", n, s->name);
-> > -#endif
-> > -
-> >  	return false;
-> >  }
-> >  
-> > @@ -433,10 +423,6 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
-> >  	cpu_relax();
-> >  	stat(s, CMPXCHG_DOUBLE_FAIL);
-> >  
-> > -#ifdef SLUB_DEBUG_CMPXCHG
-> > -	pr_info("%s %s: cmpxchg double redo ", n, s->name);
-> > -#endif
-> > -
-> >  	return false;
-> >  }
-> >  
-> > @@ -2004,45 +1990,11 @@ static inline unsigned long next_tid(unsigned long tid)
-> >  	return tid + TID_STEP;
-> >  }
-> >  
-> > -static inline unsigned int tid_to_cpu(unsigned long tid)
-> > -{
-> > -	return tid % TID_STEP;
-> > -}
-> > -
-> > -static inline unsigned long tid_to_event(unsigned long tid)
-> > -{
-> > -	return tid / TID_STEP;
-> > -}
-> > -
-> >  static inline unsigned int init_tid(int cpu)
-> >  {
-> >  	return cpu;
-> >  }
-> >  
-> > -static inline void note_cmpxchg_failure(const char *n,
-> > -		const struct kmem_cache *s, unsigned long tid)
-> > -{
-> > -#ifdef SLUB_DEBUG_CMPXCHG
-> > -	unsigned long actual_tid = __this_cpu_read(s->cpu_slab->tid);
-> > -
-> > -	pr_info("%s %s: cmpxchg redo ", n, s->name);
-> > -
-> > -#ifdef CONFIG_PREEMPT
-> > -	if (tid_to_cpu(tid) != tid_to_cpu(actual_tid))
-> > -		pr_warn("due to cpu change %d -> %d\n",
-> > -			tid_to_cpu(tid), tid_to_cpu(actual_tid));
-> > -	else
-> > -#endif
-> > -	if (tid_to_event(tid) != tid_to_event(actual_tid))
-> > -		pr_warn("due to cpu running other code. Event %ld->%ld\n",
-> > -			tid_to_event(tid), tid_to_event(actual_tid));
-> > -	else
-> > -		pr_warn("for unknown reason: actual=%lx was=%lx target=%lx\n",
-> > -			actual_tid, tid, next_tid(tid));
-> > -#endif
-> > -	stat(s, CMPXCHG_DOUBLE_CPU_FAIL);
-> > -}
-> > -
-> >  static void init_kmem_cache_cpus(struct kmem_cache *s)
-> >  {
-> >  	int cpu;
-> > @@ -2751,7 +2703,6 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
-> >  				object, tid,
-> >  				next_object, next_tid(tid)))) {
-> >  
-> > -			note_cmpxchg_failure("slab_alloc", s, tid);
-> >  			goto redo;
-> >  		}
-> >  		prefetch_freepointer(s, next_object);
-> > @@ -4694,66 +4645,6 @@ static int list_locations(struct kmem_cache *s, char *buf,
-> >  }
-> >  #endif	/* CONFIG_SLUB_DEBUG */
-> >  
-> > -#ifdef SLUB_RESILIENCY_TEST
-> > -static void __init resiliency_test(void)
-> > -{
-> > -	u8 *p;
-> > -	int type = KMALLOC_NORMAL;
-> > -
-> > -	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 16 || KMALLOC_SHIFT_HIGH < 10);
-> > -
-> > -	pr_err("SLUB resiliency testing\n");
-> > -	pr_err("-----------------------\n");
-> > -	pr_err("A. Corruption after allocation\n");
-> > -
-> > -	p = kzalloc(16, GFP_KERNEL);
-> > -	p[16] = 0x12;
-> > -	pr_err("\n1. kmalloc-16: Clobber Redzone/next pointer 0x12->0x%p\n\n",
-> > -	       p + 16);
-> > -
-> > -	validate_slab_cache(kmalloc_caches[type][4]);
-> > -
-> > -	/* Hmmm... The next two are dangerous */
-> > -	p = kzalloc(32, GFP_KERNEL);
-> > -	p[32 + sizeof(void *)] = 0x34;
-> > -	pr_err("\n2. kmalloc-32: Clobber next pointer/next slab 0x34 -> -0x%p\n",
-> > -	       p);
-> > -	pr_err("If allocated object is overwritten then not detectable\n\n");
-> > -
-> > -	validate_slab_cache(kmalloc_caches[type][5]);
-> > -	p = kzalloc(64, GFP_KERNEL);
-> > -	p += 64 + (get_cycles() & 0xff) * sizeof(void *);
-> > -	*p = 0x56;
-> > -	pr_err("\n3. kmalloc-64: corrupting random byte 0x56->0x%p\n",
-> > -	       p);
-> > -	pr_err("If allocated object is overwritten then not detectable\n\n");
-> > -	validate_slab_cache(kmalloc_caches[type][6]);
-> > -
-> > -	pr_err("\nB. Corruption after free\n");
-> > -	p = kzalloc(128, GFP_KERNEL);
-> > -	kfree(p);
-> > -	*p = 0x78;
-> > -	pr_err("1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
-> > -	validate_slab_cache(kmalloc_caches[type][7]);
-> > -
-> > -	p = kzalloc(256, GFP_KERNEL);
-> > -	kfree(p);
-> > -	p[50] = 0x9a;
-> > -	pr_err("\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n", p);
-> > -	validate_slab_cache(kmalloc_caches[type][8]);
-> > -
-> > -	p = kzalloc(512, GFP_KERNEL);
-> > -	kfree(p);
-> > -	p[512] = 0xab;
-> > -	pr_err("\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
-> > -	validate_slab_cache(kmalloc_caches[type][9]);
-> > -}
-> > -#else
-> > -#ifdef CONFIG_SYSFS
-> > -static void resiliency_test(void) {};
-> > -#endif
-> > -#endif	/* SLUB_RESILIENCY_TEST */
-> > -
-> >  #ifdef CONFIG_SYSFS
-> >  enum slab_stat_type {
-> >  	SL_ALL,			/* All slabs */
-> > @@ -5875,7 +5766,6 @@ static int __init slab_sysfs_init(void)
-> >  	}
-> >  
-> >  	mutex_unlock(&slab_mutex);
-> > -	resiliency_test();
-> >  	return 0;
-> >  }
-> >  
-> > -- 
-> > 1.8.3.1
-> > 
-> > 
+> This, to me, looks like increased complexity for the statically allocated
+> arrays vs the runtime complexity when initializing the caches themselves.
+
+For runtime kmalloc requests, the implementation of kmalloc_slab() is
+no different than before.
+For constant kmalloc requests, the smaller size of .text means better
+(the compiler does constant optimization).
+Therefore, I don't think this patch adds complexity.
+
+> Not sure that this is an improvement given that you still need to do
+> things like
+>
+> +#if KMALLOC_SIZE_96_EXIST == 1
+> +       if (size > 64 && size <= 96) return (7 - KMALLOC_IDX_ADJ_0);
+> +#endif
+> +
+> +#if KMALLOC_SIZE_192_EXIST == 1
+> +       if (size > 128 && size <= 192) return (8 - KMALLOC_IDX_ADJ_1);
+> +#endif
+
+kmalloc_index() is difficult to handle for me.
+
+At first, I made the judgment in the order of size in kmalloc_index(),
+
+----
+/* Order 96, 192 */
+static __always_inline unsigned int kmalloc_index(size_t size)
+{
+...
+if (size <=                8) return ( 3 - KMALLOC_IDX_ADJ_0);
+if (size <=               16) return ( 4 - KMALLOC_IDX_ADJ_0);
+if (size <=               32) return ( 5 - KMALLOC_IDX_ADJ_0);
+if (size <=               64) return ( 6 - KMALLOC_IDX_ADJ_0);
+#if KMALLOC_SIZE_96_EXIST == 1
+if (size <=               96) return ( 7 - KMALLOC_IDX_ADJ_0);
+#endif
+if (size <=              128) return ( 7 - KMALLOC_IDX_ADJ_1);
+#if KMALLOC_SIZE_192_EXIST == 1
+if (size <=              192) return ( 8 - KMALLOC_IDX_ADJ_1);
+#endif
+if (size <=              256) return ( 8 - KMALLOC_IDX_ADJ_2);
+...
+}
+
+but bloat-o-meter shows that I did a bad job.
+----
+$ ./scripts/bloat-o-meter vmlinux-base vmlinux-patch_1-5-order_96_192
+add/remove: 3/7 grow/shrink: 129/167 up/down: 3691/-2530 (1161)
+Function                                     old     new   delta
+all_kmalloc_info                               -     832    +832
+jhash                                        744    1119    +375
+__regmap_init                               3252    3411    +159
+drm_mode_atomic_ioctl                       2373    2479    +106
+apply_wqattrs_prepare                        449     531     +82
+process_preds                               1772    1851     +79
+amd_uncore_cpu_up_prepare                    251     327     +76
+property_entries_dup.part                    789     861     +72
+pnp_register_port_resource                    98     167     +69
+pnp_register_mem_resource                     98     167     +69
+pnp_register_irq_resource                    146     206     +60
+pnp_register_dma_resource                     61     121     +60
+pcpu_get_vm_areas                           3086    3139     +53
+sr_probe                                    1360    1409     +49
+fl_create                                    675     724     +49
+ext4_expand_extra_isize_ea                  2218    2265     +47
+fib6_info_alloc                               60     105     +45
+init_worker_pool                             247     291     +44
+ctnetlink_alloc_filter.part                    -      43     +43
+alloc_workqueue                             1229    1270     +41
+...
+Total: Before=14789209, After=14790370, chg +0.01%
+
+It increased by 1161 bytes.
+
+I tried to modify it many times until the special judgment of 96, 192
+was placed at the beginning of the function, and the bloat-o-meter
+showed a reduction of 241 bytes.
+
+$ ./scripts/bloat-o-meter vmlinux-base vmlinux-patch_1-5
+add/remove: 1/2 grow/shrink: 6/64 up/down: 872/-1113 (-241)
+Total: Before=14789209, After=14788968, chg -0.00%
+
+Therefore, the implementation of kmalloc_index() in the patch is
+intentional.
+
+In addition, the above data was generated from my laptop. But with the
+same code and kernel configuration, it shows different test results on
+my PC (probably due to different versions of GCC).
+
+$ ./scripts/bloat-o-meter vmlinux-base vmlinux-patch_1-5
+add/remove: 1/2 grow/shrink: 6/70 up/down: 856/-1062 (-206)
+
+$ ./scripts/bloat-o-meter vmlinux-base vmlinux-patch_1-5-order_96_192
+add/remove: 1/2 grow/shrink: 12/71 up/down: 989/-1165 (-176)
+
+Sorting 96 and 192 by size in a timely manner makes the result worse,
+but at least the sum is still negative.
 
