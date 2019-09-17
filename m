@@ -2,128 +2,122 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25119C4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:31:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E25EC4CEC9
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:49:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3C32206C2
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:31:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3C32206C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C00B2171F
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:49:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C00B2171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 61D4E6B0006; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
+	id A2C486B0003; Tue, 17 Sep 2019 11:49:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CAB36B0008; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
+	id 9B6306B0005; Tue, 17 Sep 2019 11:49:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4BA206B000A; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
+	id 87C536B0006; Tue, 17 Sep 2019 11:49:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0102.hostedemail.com [216.40.44.102])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F6C96B0006
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id BF850181AC9AE
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:31:45 +0000 (UTC)
-X-FDA: 75944802570.28.soap50_2c6962b762d53
-X-HE-Tag: soap50_2c6962b762d53
-X-Filterd-Recvd-Size: 3982
-Received: from mx0b-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:31:45 +0000 (UTC)
-Received: from pps.filterd (m0127361.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8HFMYUB172692;
-	Tue, 17 Sep 2019 11:31:43 -0400
-Received: from ppma03wdc.us.ibm.com (ba.79.3fa9.ip4.static.sl-reverse.com [169.63.121.186])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2v30fsccvc-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Tue, 17 Sep 2019 11:31:41 -0400
-Received: from pps.filterd (ppma03wdc.us.ibm.com [127.0.0.1])
-	by ppma03wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8HFPhnc018654;
-	Tue, 17 Sep 2019 15:31:37 GMT
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by ppma03wdc.us.ibm.com with ESMTP id 2v0t3d9r6u-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Tue, 17 Sep 2019 15:31:37 +0000
-Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
-	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8HFVaL054460834
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 17 Sep 2019 15:31:36 GMT
-Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D8B93AE060;
-	Tue, 17 Sep 2019 15:31:36 +0000 (GMT)
-Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2796CAE063;
-	Tue, 17 Sep 2019 15:31:35 +0000 (GMT)
-Received: from skywalker.ibmuc.com (unknown [9.199.41.201])
-	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
-	Tue, 17 Sep 2019 15:31:34 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com, akpm@linux-foundation.org
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH v6] mm/pgmap: Use correct alignment when looking at first pfn from a region
-Date: Tue, 17 Sep 2019 21:01:29 +0530
-Message-Id: <20190917153129.12905-1-aneesh.kumar@linux.ibm.com>
-X-Mailer: git-send-email 2.21.0
+Received: from forelay.hostedemail.com (smtprelay0033.hostedemail.com [216.40.44.33])
+	by kanga.kvack.org (Postfix) with ESMTP id 618796B0003
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 11:49:43 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id E8F8D82437CF
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:49:42 +0000 (UTC)
+X-FDA: 75944847804.10.scent00_37aa5627e6a4c
+X-HE-Tag: scent00_37aa5627e6a4c
+X-Filterd-Recvd-Size: 4156
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:49:42 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 577B81895A51;
+	Tue, 17 Sep 2019 15:49:41 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5EB101000343;
+	Tue, 17 Sep 2019 15:49:21 +0000 (UTC)
+Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
+ ZONE_DEVICE driver.
+To: David Hildenbrand <david@redhat.com>,
+ Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "dan.j.williams@intel.com" <dan.j.williams@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+ "mhocko@kernel.org" <mhocko@kernel.org>,
+ "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
+ "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
+ "mst@redhat.com" <mst@redhat.com>,
+ Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+ Junichi Nomura <j-nomura@ce.jp.nec.com>
+References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
+ <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
+ <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
+ <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com>
+ <6a99e003-e1ab-b9e8-7b25-bc5605ab0eb2@vx.jp.nec.com>
+ <e4e54258-e83b-cf0b-b66e-9874be6b5122@redhat.com>
+ <31fd3c86-5852-1863-93bd-8df9da9f95b4@vx.jp.nec.com>
+ <38e58d23-c20b-4e68-5f56-20bba2be2d6c@redhat.com>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <59c946f8-843d-c017-f342-d007a5e14a85@redhat.com>
+Date: Tue, 17 Sep 2019 11:49:20 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-17_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=900 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1908290000 definitions=main-1909170149
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <38e58d23-c20b-4e68-5f56-20bba2be2d6c@redhat.com>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (mx1.redhat.com [10.5.110.62]); Tue, 17 Sep 2019 15:49:41 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-vmem_altmap_offset() adjust the section aligned base_pfn offset.
-So we need to make sure we account for the same when computing base_pfn.
+On 9/17/19 3:13 AM, David Hildenbrand wrote:
+> On 17.09.19 04:34, Toshiki Fukasawa wrote:
+>> On 2019/09/09 16:46, David Hildenbrand wrote:
+>>> Let's take a step back here to understand the issues I am aware of. I
+>>> think we should solve this for good now:
+>>>
+>>> A PFN walker takes a look at a random PFN at a random point in time. It
+>>> finds a PFN with SECTION_MARKED_PRESENT && !SECTION_IS_ONLINE. The
+>>> options are:
+>>>
+>>> 1. It is buddy memory (add_memory()) that has not been online yet. The
+>>> memmap contains garbage. Don't access.
+>>>
+>>> 2. It is ZONE_DEVICE memory with a valid memmap. Access it.
+>>>
+>>> 3. It is ZONE_DEVICE memory with an invalid memmap, because the section
+>>> is only partially present: E.g., device starts at offset 64MB within a
+>>> section or the device ends at offset 64MB within a section. Don't access it.
+>> I don't agree with case #3. In the case, struct page area is not allocated on
+>> ZONE_DEVICE, but is allocated on system memory. So I think we can access the
+>> struct pages. What do you mean "invalid memmap"?
+> No, that's not the case. There is no memory, especially not system
+> memory. We only allow partially present sections (sub-section memory
+> hotplug) for ZONE_DEVICE.
+>
+> invalid memmap == memmap was not initialized == struct pages contains
+> garbage. There is a memmap, but accessing it (e.g., pfn_to_nid()) will
+> trigger a BUG.
+>
+As long as the page structures exist, they should be initialized to some
+known state. We could set PagePoison for those invalid memmap. It is the
+garbage that are in those page structures that can cause problem if a
+struct page walker scan those pages and try to make sense of it.
 
-ie, for altmap_valid case, our pfn_first should be:
-
-pfn_first =3D altmap->base_pfn + vmem_altmap_offset(altmap);
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
-* changes from v5
-* update commit subject and use linux-mm for merge
-
- mm/memremap.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memremap.c b/mm/memremap.c
-index ed70c4e8e52a..233908d7df75 100644
---- a/mm/memremap.c
-+++ b/mm/memremap.c
-@@ -54,8 +54,16 @@ static void pgmap_array_delete(struct resource *res)
-=20
- static unsigned long pfn_first(struct dev_pagemap *pgmap)
- {
--	return PHYS_PFN(pgmap->res.start) +
--		vmem_altmap_offset(pgmap_altmap(pgmap));
-+	const struct resource *res =3D &pgmap->res;
-+	struct vmem_altmap *altmap =3D pgmap_altmap(pgmap);
-+	unsigned long pfn;
-+
-+	if (altmap) {
-+		pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
-+	} else
-+		pfn =3D PHYS_PFN(res->start);
-+
-+	return pfn;
- }
-=20
- static unsigned long pfn_end(struct dev_pagemap *pgmap)
---=20
-2.21.0
+Cheers,
+Longman
 
 
