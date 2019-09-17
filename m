@@ -2,146 +2,153 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 034C9C4CECD
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:53:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CBAD0C4CEC9
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:13:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD4B7214AF
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:53:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kAOn5Shr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD4B7214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 696AF206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 16:13:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 696AF206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BC086B0003; Tue, 17 Sep 2019 11:53:57 -0400 (EDT)
+	id CB2E76B0006; Tue, 17 Sep 2019 12:13:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 592F96B0005; Tue, 17 Sep 2019 11:53:57 -0400 (EDT)
+	id C627A6B0008; Tue, 17 Sep 2019 12:13:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4AA616B0006; Tue, 17 Sep 2019 11:53:57 -0400 (EDT)
+	id B9EC96B000A; Tue, 17 Sep 2019 12:13:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0122.hostedemail.com [216.40.44.122])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BFE86B0003
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 11:53:57 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id BB87883E2
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:53:56 +0000 (UTC)
-X-FDA: 75944858472.14.fuel85_5c98c3774670e
-X-HE-Tag: fuel85_5c98c3774670e
-X-Filterd-Recvd-Size: 4799
-Received: from mail-lj1-f195.google.com (mail-lj1-f195.google.com [209.85.208.195])
-	by imf40.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:53:56 +0000 (UTC)
-Received: by mail-lj1-f195.google.com with SMTP id 7so4062361ljw.7
-        for <linux-mm@kvack.org>; Tue, 17 Sep 2019 08:53:56 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version
-         :content-transfer-encoding;
-        bh=2YOj06cPPvgsZx9maFNFvfyY5twtTMJtLzahT6UKWkM=;
-        b=kAOn5ShrNvK4JRjqibsxIgC3tnVF3yLFi1pJnhx52obG35TjwggxRBvh7USQv2jDlh
-         SaXa5YI0QDhVDM0XOtk2uIbz6dnWhZwPCnKx7aj/1dv5EwEEJhm24G5CSugX93SklLME
-         6ClLDZZvexTAhqhrhsnupobLStLlEZEIn0lVbIjpFCQ+VTRgmAS1lf0XFPM2tscrZIWi
-         MUPhhPUnjkeAkQEzIvs8qXv9f+zwOWPRxKva89MthTxTIRNnnQvcXmOSlh0xq9pm+ysI
-         wVLuqnzz39t3+DrPVleBmISEaUxgBdqhprHTOH9K/NQ+ozoqAHxtEJQnXnZIMvvLDbEd
-         Ye2w==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
-         :content-transfer-encoding;
-        bh=2YOj06cPPvgsZx9maFNFvfyY5twtTMJtLzahT6UKWkM=;
-        b=YA1Hv1K5/yGMV7w+CARBLyhE12HNcpXjrw9Z3/PUkFWuEbiVMTkKeiT8Mo59bQetpK
-         9+yG0CTdJh+2fLXyhkk7M0NjDa1WCkv5PxTXLNSo6D4bIxVa4uLQr2X5WkPoSIK6DFvX
-         zJQ4rpE/dLIW4nu2xJkqriX+Dy7bwjQ2EjrHpenhjxZ0TDiU1XTyVST0rFaZutBu6aUt
-         PlgRhsu2bIHd6Fj9dEybXw+BD8/zb2YEj6qjgWqO5FgKqOUmW6w9tC98aB91IgUKpm+H
-         NjX3ZDsSBctU0antT68Gx1cekAF1UoIlDvdhnYsrPUsGqXYOa8KcC6XCzQnXIFih5PmV
-         7yuA==
-X-Gm-Message-State: APjAAAUDw6r73FKdxSaOjQGO98EzbKe2nBJT89xXRik0ao3wWhIOZPLa
-	paRr23hTCvEIK1skrcrZYatFTOFsG0ecyw==
-X-Google-Smtp-Source: APXvYqxInzgwwA/H7snjGtaKT2ZKQl55koT6+1i82eeg1Fid52kHKD8WfWEvLiVsSbaoNPgPXI6hVA==
-X-Received: by 2002:a2e:9d0d:: with SMTP id t13mr2297429lji.169.1568735634420;
-        Tue, 17 Sep 2019 08:53:54 -0700 (PDT)
-Received: from vitaly-Dell-System-XPS-L322X ([188.150.241.161])
-        by smtp.gmail.com with ESMTPSA id x76sm604083ljb.81.2019.09.17.08.53.53
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 17 Sep 2019 08:53:53 -0700 (PDT)
-Date: Tue, 17 Sep 2019 18:53:52 +0300
-From: Vitaly Wool <vitalywool@gmail.com>
-To: Linux-MM <linux-mm@kvack.org>, Andrew Morton
- <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Vlastimil Babka <vbabka@suse.cz>,
- markus.linnala@gmail.com
-Subject: [PATCH] z3fold: fix memory leak in kmem cache
-Message-Id: <20190917185352.44cf285d3ebd9e64548de5de@gmail.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
+	by kanga.kvack.org (Postfix) with ESMTP id 96F386B0006
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 12:13:12 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 128F1127C
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:13:12 +0000 (UTC)
+X-FDA: 75944907024.25.ink47_7331b3a1a1661
+X-HE-Tag: ink47_7331b3a1a1661
+X-Filterd-Recvd-Size: 5854
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 16:13:11 +0000 (UTC)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8HGCJC3064345;
+	Tue, 17 Sep 2019 12:13:03 -0400
+Received: from pps.reinject (localhost [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2v327r9n33-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 17 Sep 2019 12:13:02 -0400
+Received: from m0098419.ppops.net (m0098419.ppops.net [127.0.0.1])
+	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x8HGCK2k064389;
+	Tue, 17 Sep 2019 12:13:02 -0400
+Received: from ppma04wdc.us.ibm.com (1a.90.2fa9.ip4.static.sl-reverse.com [169.47.144.26])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2v327r9n2g-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 17 Sep 2019 12:13:02 -0400
+Received: from pps.filterd (ppma04wdc.us.ibm.com [127.0.0.1])
+	by ppma04wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8HGAZsW013676;
+	Tue, 17 Sep 2019 16:13:01 GMT
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by ppma04wdc.us.ibm.com with ESMTP id 2v0t9asvr6-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 17 Sep 2019 16:13:01 +0000
+Received: from b03ledav002.gho.boulder.ibm.com (b03ledav002.gho.boulder.ibm.com [9.17.130.233])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8HGCx3p45154578
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 17 Sep 2019 16:12:59 GMT
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 978C2136072;
+	Tue, 17 Sep 2019 16:12:59 +0000 (GMT)
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2D0D513606E;
+	Tue, 17 Sep 2019 16:12:57 +0000 (GMT)
+Received: from [9.199.41.201] (unknown [9.199.41.201])
+	by b03ledav002.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Tue, 17 Sep 2019 16:12:56 +0000 (GMT)
+Subject: Re: [PATCH v2 0/2] powerpc/mm: Conditionally call H_BLOCK_REMOVE
+To: Laurent Dufour <ldufour@linux.ibm.com>, mpe@ellerman.id.au,
+        benh@kernel.crashing.org, paulus@samba.org, npiggin@gmail.com,
+        linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+References: <20190916095543.17496-1-ldufour@linux.ibm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Message-ID: <1ba1bfc7-66c2-5298-2ef2-4117cb72ee13@linux.ibm.com>
+Date: Tue, 17 Sep 2019 21:42:55 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <20190916095543.17496-1-ldufour@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-17_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1908290000 definitions=main-1909170154
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently there is a leak in init_z3fold_page() -- it allocates
-handles from kmem cache even for headless pages, but then they are
-never used and never freed, so eventually kmem cache may get
-exhausted. This patch provides a fix for that.
+On 9/16/19 3:25 PM, Laurent Dufour wrote:
+> Since the commit ba2dd8a26baa ("powerpc/pseries/mm: call H_BLOCK_REMOVE"),
+> the call to H_BLOCK_REMOVE is always done if the feature is exhibited.
+> 
+> However, the hypervisor may not support all the block size for the hcall
+> H_BLOCK_REMOVE depending on the segment base page size and actual page
+> size.
+> 
+> When unsupported block size is used, the hcall H_BLOCK_REMOVE is returning
+> H_PARAM, which is triggering a BUG_ON check leading to a panic like this:
+> 
+> The PAPR document specifies the TLB Block Invalidate Characteristics which
+> tells for each couple segment base page size, actual page size, the size of
+> the block the hcall H_BLOCK_REMOVE is supporting.
+> 
+> Supporting various block sizes doesn't seem needed at that time since all
+> systems I was able to play with was supporting an 8 addresses block size,
+> which is the maximum through the hcall, or none at all. Supporting various
+> size would complexify the algorithm in call_block_remove() so unless this
+> is required, this is not done.
+> 
+> In the case of block size different from 8, a warning message is displayed
+> at boot time and that block size will be ignored checking for the
+> H_BLOCK_REMOVE support.
+> 
+> Due to the minimal amount of hardware showing a limited set of
+> H_BLOCK_REMOVE supported page size, I don't think there is a need to push
+> this series to the stable mailing list.
+> 
+> The first patch is reading the characteristic through the hcall
+> ibm,get-system-parameter and record the supported block size for each page
+> size.  The second patch is changing the check used to detect the
+> H_BLOCK_REMOVE availability to take care of the base page size and page
+> size couple.
+> 
+> Changes since V1:
+> 
+>   - Remove penc initialisation, this is already done in
+>     mmu_psize_set_default_penc()
+>   - Add details on the TLB Block Invalidate Characteristics's buffer format
+>   - Introduce #define instead of using direct numerical values
+>   - Function reading the characteristics is now directly called from
+>     pSeries_setup_arch()
+>   - The characteristics are now stored in a dedciated table static to lpar.c
+> 
 
-Reported-by: Markus Linnala <markus.linnala@gmail.com>
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+you can use
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 6397725b5ec6..7dffef2599c3 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -301,14 +301,11 @@ static void z3fold_unregister_migration(struct z3fold_pool *pool)
-  }
- 
- /* Initializes the z3fold header of a newly allocated z3fold page */
--static struct z3fold_header *init_z3fold_page(struct page *page,
-+static struct z3fold_header *init_z3fold_page(struct page *page, bool headless,
- 					struct z3fold_pool *pool, gfp_t gfp)
- {
- 	struct z3fold_header *zhdr = page_address(page);
--	struct z3fold_buddy_slots *slots = alloc_slots(pool, gfp);
--
--	if (!slots)
--		return NULL;
-+	struct z3fold_buddy_slots *slots;
- 
- 	INIT_LIST_HEAD(&page->lru);
- 	clear_bit(PAGE_HEADLESS, &page->private);
-@@ -316,6 +313,12 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
- 	clear_bit(NEEDS_COMPACTING, &page->private);
- 	clear_bit(PAGE_STALE, &page->private);
- 	clear_bit(PAGE_CLAIMED, &page->private);
-+	if (headless)
-+		return zhdr;
-+
-+	slots = alloc_slots(pool, gfp);
-+	if (!slots)
-+		return NULL;
- 
- 	spin_lock_init(&zhdr->page_lock);
- 	kref_init(&zhdr->refcount);
-@@ -962,7 +965,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 	if (!page)
- 		return -ENOMEM;
- 
--	zhdr = init_z3fold_page(page, pool, gfp);
-+	zhdr = init_z3fold_page(page, bud == HEADLESS, pool, gfp);
- 	if (!zhdr) {
- 		__free_page(page);
- 		return -ENOMEM;
--- 
-2.17.1
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+
+for the series.
+
+-aneesh
 
