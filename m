@@ -2,140 +2,128 @@ Return-Path: <SRS0=uo52=XM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AE3BC4CEC9
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:09:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25119C4CECD
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:31:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 296052189D
-	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:09:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 296052189D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E3C32206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 17 Sep 2019 15:31:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3C32206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D53A6B0008; Tue, 17 Sep 2019 11:09:02 -0400 (EDT)
+	id 61D4E6B0006; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 95E4C6B0006; Tue, 17 Sep 2019 11:09:02 -0400 (EDT)
+	id 5CAB36B0008; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8740C6B000C; Tue, 17 Sep 2019 11:09:02 -0400 (EDT)
+	id 4BA206B000A; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0183.hostedemail.com [216.40.44.183])
-	by kanga.kvack.org (Postfix) with ESMTP id 6186C6B0008
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 11:09:02 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id F0FE318DD
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:09:01 +0000 (UTC)
-X-FDA: 75944745282.14.doll36_88b6eb6cd0128
-X-HE-Tag: doll36_88b6eb6cd0128
-X-Filterd-Recvd-Size: 5446
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:08:59 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3F63915A2;
-	Tue, 17 Sep 2019 08:08:58 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 58DA63F575;
-	Tue, 17 Sep 2019 08:08:55 -0700 (PDT)
-Date: Tue, 17 Sep 2019 16:08:53 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	will@kernel.org, mark.rutland@arm.com, mhocko@suse.com,
-	ira.weiny@intel.com, david@redhat.com, cai@lca.pw,
-	logang@deltatee.com, cpandya@codeaurora.org, arunks@codeaurora.org,
-	dan.j.williams@intel.com, mgorman@techsingularity.net,
-	osalvador@suse.de, ard.biesheuvel@arm.com, steve.capper@arm.com,
-	broonie@kernel.org, valentin.schneider@arm.com,
-	Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
-Subject: Re: [PATCH V7 3/3] arm64/mm: Enable memory hot remove
-Message-ID: <20190917150852.GC7305@arrakis.emea.arm.com>
-References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
- <1567503958-25831-4-git-send-email-anshuman.khandual@arm.com>
- <20190912201517.GB1068@C02TF0J2HF1T.local>
- <ce127798-3863-0f28-de04-84b177418310@arm.com>
- <20190913100955.GB55043@arrakis.emea.arm.com>
- <a1962cde-b4df-e4a0-de61-252c0d0a25b2@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0102.hostedemail.com [216.40.44.102])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6C96B0006
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 11:31:46 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id BF850181AC9AE
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:31:45 +0000 (UTC)
+X-FDA: 75944802570.28.soap50_2c6962b762d53
+X-HE-Tag: soap50_2c6962b762d53
+X-Filterd-Recvd-Size: 3982
+Received: from mx0b-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 15:31:45 +0000 (UTC)
+Received: from pps.filterd (m0127361.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8HFMYUB172692;
+	Tue, 17 Sep 2019 11:31:43 -0400
+Received: from ppma03wdc.us.ibm.com (ba.79.3fa9.ip4.static.sl-reverse.com [169.63.121.186])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2v30fsccvc-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 17 Sep 2019 11:31:41 -0400
+Received: from pps.filterd (ppma03wdc.us.ibm.com [127.0.0.1])
+	by ppma03wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x8HFPhnc018654;
+	Tue, 17 Sep 2019 15:31:37 GMT
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by ppma03wdc.us.ibm.com with ESMTP id 2v0t3d9r6u-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Tue, 17 Sep 2019 15:31:37 +0000
+Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8HFVaL054460834
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 17 Sep 2019 15:31:36 GMT
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id D8B93AE060;
+	Tue, 17 Sep 2019 15:31:36 +0000 (GMT)
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2796CAE063;
+	Tue, 17 Sep 2019 15:31:35 +0000 (GMT)
+Received: from skywalker.ibmuc.com (unknown [9.199.41.201])
+	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
+	Tue, 17 Sep 2019 15:31:34 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com, akpm@linux-foundation.org
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH v6] mm/pgmap: Use correct alignment when looking at first pfn from a region
+Date: Tue, 17 Sep 2019 21:01:29 +0530
+Message-Id: <20190917153129.12905-1-aneesh.kumar@linux.ibm.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a1962cde-b4df-e4a0-de61-252c0d0a25b2@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-17_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=900 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1908290000 definitions=main-1909170149
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 17, 2019 at 10:06:11AM +0530, Anshuman Khandual wrote:
-> On 09/13/2019 03:39 PM, Catalin Marinas wrote:
-> > On Fri, Sep 13, 2019 at 11:28:01AM +0530, Anshuman Khandual wrote:
-> >> The problem (race) is not because of the inability to deal with partially
-> >> filled table. We can handle that correctly as explained below [1]. The
-> >> problem is with inadequate kernel page table locking during vmalloc()
-> >> which might be accessing intermediate kernel page table pointers which is
-> >> being freed with free_empty_tables() concurrently. Hence we cannot free
-> >> any page table page which can ever have entries from vmalloc() range.
-> > 
-> > The way you deal with the partially filled table in this patch is to
-> > avoid freeing if there is a non-empty entry (!p*d_none()). This is what
-> > causes the race with vmalloc. If you simply avoid freeing a pmd page,
-> > for example, if the range floor/ceiling is not aligned to PUD_SIZE,
-> > irrespective of whether the other entries are empty or not, you
-> > shouldn't have this problem. You do free the pte page if the range is
-[...]
-> > We may have some pgtable pages not freed at both ends of the range
-> > (maximum 6 in total) but I don't really see this an issue. They could be
-> > reused if something else gets mapped in that range.
-> 
-> I assume that the number 6 for maximum page possibility came from
-> 
-> (floor edge + ceiling edge) * (PTE table + PMD table + PUD table)
+vmem_altmap_offset() adjust the section aligned base_pfn offset.
+So we need to make sure we account for the same when computing base_pfn.
 
-Yes.
+ie, for altmap_valid case, our pfn_first should be:
 
-> >> Though not completely sure, whether I really understood the suggestion above
-> >> with respect to the floor-ceiling mechanism as in free_pgd_range(). Are you
-> >> suggesting that we should only attempt to free up those vmemmap range page
-> >> table pages which *definitely* could never overlap with vmalloc by working
-> >> on a modified (i.e cut down with floor-ceiling while avoiding vmalloc range
-> >> at each level) vmemmap range instead ?
-> > 
-> > You can ignore the overlap check altogether, only free the page tables
-> > with floor/ceiling set to the start/size passed to arch_remove_memory()
-> > and vmemmap_free().
-> 
-> Wondering if it will be better to use [VMEMMAP_START - VMEMMAP_END] and
-> [PAGE_OFFSET - PAGE_END] as floor/ceiling respectively with vmemmap_free()
-> and arch_remove_memory(). Not only it is safe to free all page table pages
-> which span over these maximum possible mapping range but also it reduces
-> the risk for alignment related wastage.
+pfn_first =3D altmap->base_pfn + vmem_altmap_offset(altmap);
 
-That's indeed better. You pass the floor/ceiling as the enclosing range
-and start/end as the actual range to unmap is. We avoid the potential
-"leak" around the edges when falling within the floor/ceiling range (I
-think that's close to what free_pgd_range() does).
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+* changes from v5
+* update commit subject and use linux-mm for merge
 
-> >> This can be one restrictive version of the function
-> >> free_empty_tables() called in case there is an overlap. So we will
-> >> maintain two versions for free_empty_tables(). Please correct me if
-> >> any the above assumptions or understanding is wrong.
-> > 
-> > I'd rather have a single version of free_empty_tables(). As I said
-> > above, the only downside is that a partially filled pgtable page would
-> > not be freed even though the other entries are empty.
-> 
-> Sure. Also practically the limitation will be applicable only for vmemmap
-> mapping but not for linear mappings where the chances of overlap might be
-> negligible as it covers half kernel virtual address space.
+ mm/memremap.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-If you have a common set of functions, it doesn't heart to pass the
-correct floor/ceiling in both cases.
+diff --git a/mm/memremap.c b/mm/memremap.c
+index ed70c4e8e52a..233908d7df75 100644
+--- a/mm/memremap.c
++++ b/mm/memremap.c
+@@ -54,8 +54,16 @@ static void pgmap_array_delete(struct resource *res)
+=20
+ static unsigned long pfn_first(struct dev_pagemap *pgmap)
+ {
+-	return PHYS_PFN(pgmap->res.start) +
+-		vmem_altmap_offset(pgmap_altmap(pgmap));
++	const struct resource *res =3D &pgmap->res;
++	struct vmem_altmap *altmap =3D pgmap_altmap(pgmap);
++	unsigned long pfn;
++
++	if (altmap) {
++		pfn =3D altmap->base_pfn + vmem_altmap_offset(altmap);
++	} else
++		pfn =3D PHYS_PFN(res->start);
++
++	return pfn;
+ }
+=20
+ static unsigned long pfn_end(struct dev_pagemap *pgmap)
+--=20
+2.21.0
 
--- 
-Catalin
 
