@@ -2,188 +2,212 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30D5FC4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 17:44:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 453E4C4CECE
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 17:52:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFD7C21920
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 17:44:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E12A421920
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 17:52:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="msZ9svm4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFD7C21920
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qyqlBWw1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E12A421920
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 242DB6B02DD; Wed, 18 Sep 2019 13:44:19 -0400 (EDT)
+	id 809B66B02DF; Wed, 18 Sep 2019 13:52:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1CCF36B02DE; Wed, 18 Sep 2019 13:44:19 -0400 (EDT)
+	id 7934D6B02E0; Wed, 18 Sep 2019 13:52:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 093716B02DF; Wed, 18 Sep 2019 13:44:19 -0400 (EDT)
+	id 65A2C6B02E1; Wed, 18 Sep 2019 13:52:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0088.hostedemail.com [216.40.44.88])
-	by kanga.kvack.org (Postfix) with ESMTP id D510E6B02DD
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:44:18 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 8027D181AC9AE
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 17:44:18 +0000 (UTC)
-X-FDA: 75948765396.25.juice76_5f8cec008fd4b
-X-HE-Tag: juice76_5f8cec008fd4b
-X-Filterd-Recvd-Size: 7195
-Received: from pio-pvt-msa2.bahnhof.se (pio-pvt-msa2.bahnhof.se [79.136.2.41])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 17:44:16 +0000 (UTC)
-Received: from localhost (localhost [127.0.0.1])
-	by pio-pvt-msa2.bahnhof.se (Postfix) with ESMTP id 87B663F712;
-	Wed, 18 Sep 2019 19:44:09 +0200 (CEST)
-Authentication-Results: pio-pvt-msa2.bahnhof.se;
-	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b=msZ9svm4;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at bahnhof.se
-Received: from pio-pvt-msa2.bahnhof.se ([127.0.0.1])
-	by localhost (pio-pvt-msa2.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bGAvdWARNseX; Wed, 18 Sep 2019 19:44:05 +0200 (CEST)
-Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
-	(Authenticated sender: mb878879)
-	by pio-pvt-msa2.bahnhof.se (Postfix) with ESMTPA id 8D1B63F3BA;
-	Wed, 18 Sep 2019 19:44:03 +0200 (CEST)
-Received: from localhost.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
-	by mail1.shipmail.org (Postfix) with ESMTPSA id D789636020A;
-	Wed, 18 Sep 2019 19:44:02 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
-	t=1568828642; bh=GJRbag8de5OLyDKo8HWyVkbRJublreoNXwx3gXTOWdM=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=msZ9svm4xkJZX+qV+94dYAuQRk1LlAJIYDeI17uYtpNt8JMLrQwI7n109FFlIW4BG
-	 fI+HNrYUbUA8iZJ313W6y2HYjGi3Md8g/Exh2KQzd9nyvwFFQbfhgPOnUfeJof6Syx
-	 IxmSAE+DNQB/TcE07nLEFbjFi7wDUUEDYkeLD7x4=
-Subject: Re: [PATCH 1/7] mm: Add write-protect and clean utilities for address
- space ranges
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
- linux-mm@kvack.org, pv-drivers@vmware.com,
- linux-graphics-maintainer@vmware.com,
- Thomas Hellstrom <thellstrom@vmware.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Matthew Wilcox <willy@infradead.org>, Will Deacon <will.deacon@arm.com>,
- Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@surriel.com>,
- Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>,
- Huang Ying <ying.huang@intel.com>, Souptick Joarder <jrdr.linux@gmail.com>,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Ralph Campbell <rcampbell@nvidia.com>
-References: <20190918125914.38497-1-thomas_os@shipmail.org>
- <20190918125914.38497-2-thomas_os@shipmail.org>
- <20190918144102.jkukmhifmweagmwt@box>
-From: =?UTF-8?Q?Thomas_Hellstr=c3=b6m_=28VMware=29?= <thomas_os@shipmail.org>
-Organization: VMware Inc.
-Message-ID: <8b710686-af78-d85a-d8a9-e4d92be4be57@shipmail.org>
-Date: Wed, 18 Sep 2019 19:44:02 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+Received: from forelay.hostedemail.com (smtprelay0148.hostedemail.com [216.40.44.148])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EF0F6B02DF
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:52:30 -0400 (EDT)
+Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id DA8B2180AD807
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 17:52:29 +0000 (UTC)
+X-FDA: 75948786018.02.burst18_15c0b088ef31b
+X-HE-Tag: burst18_15c0b088ef31b
+X-Filterd-Recvd-Size: 9834
+Received: from mail-oi1-f195.google.com (mail-oi1-f195.google.com [209.85.167.195])
+	by imf44.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 17:52:29 +0000 (UTC)
+Received: by mail-oi1-f195.google.com with SMTP id k25so299081oiw.13
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2019 10:52:29 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=mGxYN8fKLFN6z5avB+andfhVV4A+WX96NEccYZ4KSJ0=;
+        b=qyqlBWw1TSg7WCQxN8G2wS400TI3RlB/WNNQy/BASpbQH7dai4KuaUPYwfRbQJqr83
+         tymtB88GT+36Ujs21eCz4GigdJaiPddygAeTaQj1gzZJ+74zk4+UB0saoe9kz5DZz2M6
+         G0BSXzcf3Q2OPAQHUYbpfqWO4wu8YWfOR9EIHVjmO3q4XxLsPDkl0HprogQDrFPkYkfP
+         /lr+jzZfDtW7yiTnakt1uKvk8Ma3MPDNgQgzxsp30RXU8TY7OJjOFvZJ3qs41Q5uHrPA
+         0InuSyusYyAZKzh4u57bf27Dr8GqXXXVKWk3VzKLHtEQr4qbjklhAn9g1vtqdMpKtLI3
+         E6Gw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:from:to:cc:date:message-id:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=mGxYN8fKLFN6z5avB+andfhVV4A+WX96NEccYZ4KSJ0=;
+        b=fwR2H0bT1o/8SVYnh05cnRwHS9fImEwIEJ4/RmtMr2faTaIMykr+3aCZixqYwIHtsk
+         7Kh+viGFdG48SDskqXm/fckJVMuEA9CAA7FB2qrIpUFrnsn1FkqIUyTOb6aC2lyOrmAF
+         /VAGm2ivUSazSecpcG743a8wSW27DDDZ1ydCgZUiwXMich7H5UK5UGl4dDcRMVmCnO99
+         k2T/iyjx2OTxjY4kUW7zx5YQoGf9BaWbVWzIzyc54MGM2Yy3ZMqlPDSs8bB/uq3ADwIY
+         lCobnDsHKqAjSae+GWiSV2NsSvPijeo7LQPIv0il2UgQG7k2ce/hwuelsONynzOuiB5C
+         6NIA==
+X-Gm-Message-State: APjAAAUzgq1F1LU1spvIJlDeocHbpGW7YII9m0c/3/YjrvHxu2/6DiJV
+	fI2PcVlr/nd0CbHuI6dEiAg=
+X-Google-Smtp-Source: APXvYqx3VRfarQJCxejKo+vbLPE/nAA+u3uNVEGvbb5/nNYHkpfJs6nxS+UG8lCLMNOa7yifkgs3Cg==
+X-Received: by 2002:a54:4f8a:: with SMTP id g10mr3314526oiy.147.1568829148372;
+        Wed, 18 Sep 2019 10:52:28 -0700 (PDT)
+Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
+        by smtp.gmail.com with ESMTPSA id r7sm1994572oih.41.2019.09.18.10.52.26
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Sep 2019 10:52:27 -0700 (PDT)
+Subject: [PATCH v10 0/6] mm / virtio: Provide support for unused page
+ reporting
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, mst@redhat.com,
+ david@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org,
+ willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org, vbabka@suse.cz,
+ akpm@linux-foundation.org, mgorman@techsingularity.net,
+ linux-arm-kernel@lists.infradead.org, osalvador@suse.de
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, konrad.wilk@oracle.com,
+ nitesh@redhat.com, riel@surriel.com, lcapitulino@redhat.com,
+ wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
+ dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
+Date: Wed, 18 Sep 2019 10:52:25 -0700
+Message-ID: <20190918175109.23474.67039.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-In-Reply-To: <20190918144102.jkukmhifmweagmwt@box>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/18/19 4:41 PM, Kirill A. Shutemov wrote:
-> On Wed, Sep 18, 2019 at 02:59:08PM +0200, Thomas Hellstr=C3=B6m (VMware=
-) wrote:
->> From: Thomas Hellstrom <thellstrom@vmware.com>
->>
->> Add two utilities to a) write-protect and b) clean all ptes pointing i=
-nto
->> a range of an address space.
->> The utilities are intended to aid in tracking dirty pages (either
->> driver-allocated system memory or pci device memory).
->> The write-protect utility should be used in conjunction with
->> page_mkwrite() and pfn_mkwrite() to trigger write page-faults on page
->> accesses. Typically one would want to use this on sparse accesses into
->> large memory regions. The clean utility should be used to utilize
->> hardware dirtying functionality and avoid the overhead of page-faults,
->> typically on large accesses into small memory regions.
->>
->> The added file "as_dirty_helpers.c" is initially listed as maintained =
-by
->> VMware under our DRM driver. If somebody would like it elsewhere,
->> that's of course no problem.
-> After quick glance, it looks a lot as rmap code duplication. Why not
-> extend rmap_walk() interface instead to cover range of pages?
+This series provides an asynchronous means of reporting to a hypervisor
+that a guest page is no longer in use and can have the data associated
+with it dropped. To do this I have implemented functionality that allows
+for what I am referring to as unused page reporting. The advantage of
+unused page reporting is that we can support a significant amount of
+memory over-commit with improved performance as we can avoid having to
+write/read memory from swap as the VM will instead actively participate
+in freeing unused memory so it doesn't have to be written.
 
-There appears to exist quite a few pagetable walks in the mm code. "Take=20
-1" of this patch series modified the "apply_to_page_range" interface and=20
-used that. But the interface modification was actually what eventually=20
-caused Linus to reject the code. While it is entirely possible to do a=20
-proper modification following Linus' and Christoph's guidelines, that=20
-code doesn't allow for huge pages and populates all page table levels.=20
-We will soon probably want to support huge pages and do not want to=20
-populate. The number of altered code-paths itself IMO motivates yet=20
-another pagetable walk implementation.
+The functionality for this is fairly simple. When enabled it will allocate
+statistics to track the number of reported pages in a given free area.
+When the number of free pages exceeds this value plus a high water value,
+currently 32, it will begin performing page reporting which consists of
+pulling non-reported pages off of the free lists of a given zone and
+placing them into a scatterlist. The scatterlist is then given to the page
+reporting device and it will perform the required action to make the pages
+"reported", in the case of virtio-balloon this results in the pages being
+madvised as MADV_DONTNEED. After this they are placed back on their
+original free list. If they are not merged in freeing an additional bit is
+set indicating that they are a "reported" buddy page instead of a standard
+buddy page. The cycle then repeats with additional non-reported pages
+being pulled until the free areas all consist of reported pages.
 
-The walk code currently resembling the present patch the most is the=20
-unmap_mapping_range() implementation.
+In order to try and keep the time needed to find a non-reported page to
+a minimum we maintain a "reported_boundary" pointer. This pointer is used
+by the get_unreported_pages iterator to determine at what point it should
+resume searching for non-reported pages. In order to guarantee pages do
+not get past the scan I have modified add_to_free_list_tail so that it
+will not insert pages behind the reported_boundary.
 
-The rmap_walk() is not very well suited since it operates on a struct=20
-page and the code of this patch has no notion of struct pages.
+If another process needs to perform a massive manipulation of the free
+list, such as compaction, it can either reset a given individual boundary
+which will push the boundary back to the list_head, or it can clear the
+bit indicating the zone is actively processing which will result in the
+reporting process resetting all of the boundaries for a given zone.
 
-So my thoughts on this is that the interface should in time move towards=20
-the code in mm/pagewalk.c. If we eventually have more users of an=20
-address-space pagewalk or want to re-implement unmap_mapping_range()=20
-using a generic pagewalk, we should move the walk to pagewalk.c and=20
-reuse its structures, but implement separate code for the walk since we=20
-can't split huge pages and we can't take the mmap_sem. Meanwhile we=20
-should keep the code separate in as_dirty_helpers.c
+I am leaving a number of things hard-coded such as limiting the lowest
+order processed to pageblock_order, and have left it up to the guest to
+determine what the limit is on how many pages it wants to allocate to
+process the hints. The upper limit for this is based on the size of the
+queue used to store the scatterlist.
 
->
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Matthew Wilcox <willy@infradead.org>
->> Cc: Will Deacon <will.deacon@arm.com>
->> Cc: Peter Zijlstra <peterz@infradead.org>
->> Cc: Rik van Riel <riel@surriel.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Huang Ying <ying.huang@intel.com>
->> Cc: Souptick Joarder <jrdr.linux@gmail.com>
->> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
->> Cc: linux-mm@kvack.org
->> Cc: linux-kernel@vger.kernel.org
->>
->> Signed-off-by: Thomas Hellstrom <thellstrom@vmware.com>
->> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com> #v1
->> ---
->>   MAINTAINERS           |   1 +
->>   include/linux/mm.h    |  13 +-
->>   mm/Kconfig            |   3 +
->>   mm/Makefile           |   1 +
->>   mm/as_dirty_helpers.c | 392 ++++++++++++++++++++++++++++++++++++++++=
-++
->>   5 files changed, 409 insertions(+), 1 deletion(-)
->>   create mode 100644 mm/as_dirty_helpers.c
->>
->> diff --git a/MAINTAINERS b/MAINTAINERS
->> index c2d975da561f..b596c7cf4a85 100644
->> --- a/MAINTAINERS
->> +++ b/MAINTAINERS
->> @@ -5287,6 +5287,7 @@ T:	git git://people.freedesktop.org/~thomash/lin=
-ux
->>   S:	Supported
->>   F:	drivers/gpu/drm/vmwgfx/
->>   F:	include/uapi/drm/vmwgfx_drm.h
->> +F:	mm/as_dirty_helpers.c
-> Emm.. No. Core MM functinality cannot belong to random driver.
+I wanted to avoid gaming the performance testing for this. As far as
+possible gain a significant performance improvement should be visible in
+cases where guests are forced to write/read from swap. As such, testing
+it would be more of a benchmark of copying a page from swap versus just
+allocating a zero page. I have been verifying that the memory is being
+freed using memhog to allocate all the memory on the guest, and then
+watching /proc/meminfo to verify the host sees the memory returned after
+the test completes.
 
-OK. I'll put it under core MM.
+As far as possible regressions I have focused on cases where performing
+the hinting would be non-optimal, such as cases where the code isn't
+needed as memory is not over-committed, or the functionality is not in
+use. I have been using the will-it-scale/page_fault1 test running with 16
+vcpus and have modified it to use Transparent Huge Pages. With this I see
+almost no difference with the patches applied and the feature disabled.
+Likewise I see almost no difference with the feature enabled, but the
+madvise disabled in the hypervisor due to a device being assigned. With
+the feature fully enabled in both guest and hypervisor I see a regression
+between -1.86% and -8.84% versus the baseline. I found that most of the
+overhead was due to the page faulting/zeroing that comes as a result of
+the pages having been evicted from the guest.
 
-/Thomas
+For info on earlier versions you will need to follow the links provided
+with the respective versions.
+
+Changes from v9:
+https://lore.kernel.org/lkml/20190907172225.10910.34302.stgit@localhost.localdomain/
+Updated cover page
+Dropped per-cpu page randomization entropy patch
+Added "to_tail" boolean value to __free_one_page to improve readability
+Renamed __shuffle_pick_tail to shuffle_pick_tail, avoiding extra inline function
+Dropped arm64 HUGLE_TLB_ORDER movement patch since it is no longer needed
+Significant rewrite of page reporting functionality
+  Updated logic to support interruptions from compaction
+  get_unreported_page will now walk through reported sections
+  Moved free_list manipulators out of mmzone.h and into page_alloc.c
+  Removed page_reporting.h include from mmzone.h
+  Split page_reporting.h between include/linux/ and mm/
+  Added #include <asm/pgtable.h>" to mm/page_reporting.h
+  Renamed page_reporting_startup/shutdown to page_reporting_register/unregister
+Updated comments related to virtio page poison tracking feature
+
+---
+
+Alexander Duyck (6):
+      mm: Adjust shuffle code to allow for future coalescing
+      mm: Use zone and order instead of free area in free_list manipulators
+      mm: Introduce Reported pages
+      mm: Add device side and notifier for unused page reporting
+      virtio-balloon: Pull page poisoning config out of free page hinting
+      virtio-balloon: Add support for providing unused page reports to host
 
 
+ drivers/virtio/Kconfig              |    1 
+ drivers/virtio/virtio_balloon.c     |   87 ++++++++-
+ include/linux/mmzone.h              |   60 ++----
+ include/linux/page-flags.h          |   11 +
+ include/linux/page_reporting.h      |   31 +++
+ include/uapi/linux/virtio_balloon.h |    1 
+ mm/Kconfig                          |   11 +
+ mm/Makefile                         |    1 
+ mm/compaction.c                     |    5 +
+ mm/memory_hotplug.c                 |    2 
+ mm/page_alloc.c                     |  194 +++++++++++++++----
+ mm/page_reporting.c                 |  350 +++++++++++++++++++++++++++++++++++
+ mm/page_reporting.h                 |  224 ++++++++++++++++++++++
+ mm/shuffle.c                        |   12 +
+ mm/shuffle.h                        |    6 +
+ 15 files changed, 893 insertions(+), 103 deletions(-)
+ create mode 100644 include/linux/page_reporting.h
+ create mode 100644 mm/page_reporting.c
+ create mode 100644 mm/page_reporting.h
 
+--
 
