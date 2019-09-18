@@ -2,183 +2,357 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CCCB6C4CECE
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:28:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E7B4C4CEC9
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:53:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F127214AF
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:28:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F127214AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DBF3A218AF
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:53:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBF3A218AF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wangsu.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 230646B028F; Wed, 18 Sep 2019 05:28:38 -0400 (EDT)
+	id 664246B0291; Wed, 18 Sep 2019 05:53:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E3636B0290; Wed, 18 Sep 2019 05:28:38 -0400 (EDT)
+	id 5EF156B0292; Wed, 18 Sep 2019 05:53:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D1A46B0291; Wed, 18 Sep 2019 05:28:38 -0400 (EDT)
+	id 4DB426B0293; Wed, 18 Sep 2019 05:53:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0135.hostedemail.com [216.40.44.135])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6A36B028F
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 05:28:37 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 7BA8E181AC9AE
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:28:37 +0000 (UTC)
-X-FDA: 75947516274.06.team19_852817ec59d60
-X-HE-Tag: team19_852817ec59d60
-X-Filterd-Recvd-Size: 7219
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:28:34 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 23566337;
-	Wed, 18 Sep 2019 02:28:34 -0700 (PDT)
-Received: from [10.162.40.136] (p8cg001049571a15.blr.arm.com [10.162.40.136])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A134F3F59C;
-	Wed, 18 Sep 2019 02:28:26 -0700 (PDT)
-Subject: Re: [PATCH V7 1/3] mm/hotplug: Reorder memblock_[free|remove]() calls
- in try_remove_memory()
-To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- akpm@linux-foundation.org, catalin.marinas@arm.com, will@kernel.org
-Cc: mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
- david@redhat.com, cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com,
- mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
- steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
- Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
-References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
- <1567503958-25831-2-git-send-email-anshuman.khandual@arm.com>
- <74bcbd36-3bec-be67-917d-60cd74cbcef0@gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <91efada2-23e3-1982-47bc-82fb93ce944a@arm.com>
-Date: Wed, 18 Sep 2019 14:58:40 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Received: from forelay.hostedemail.com (smtprelay0042.hostedemail.com [216.40.44.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FDC36B0291
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 05:53:08 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 93A6E181AC9B4
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:53:07 +0000 (UTC)
+X-FDA: 75947578014.07.side19_382965debd22a
+X-HE-Tag: side19_382965debd22a
+X-Filterd-Recvd-Size: 12233
+Received: from wangsu.com (unknown [123.103.51.227])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:53:05 +0000 (UTC)
+Received: from bogon.wangsu.com (unknown [218.85.123.226])
+	by app2 (Coremail) with SMTP id 4zNnewC3vORQ_oFdDGl5AA--.39905S2;
+	Wed, 18 Sep 2019 17:52:24 +0800 (CST)
+From: Lin Feng <linf@wangsu.com>
+To: corbet@lwn.net,
+	mcgrof@kernel.org,
+	akpm@linux-foundation.org,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: keescook@chromium.org,
+	mchehab+samsung@kernel.org,
+	mgorman@techsingularity.net,
+	vbabka@suse.cz,
+	mhocko@suse.com,
+	ktkhai@virtuozzo.com,
+	hannes@cmpxchg.org,
+	linf@wangsu.com,
+	willy@infradead.org,
+	kbuild test robot <lkp@intel.com>
+Subject: [PATCH] [RESEND] vmscan.c: add a sysctl entry for controlling memory reclaim IO congestion_wait length
+Date: Wed, 18 Sep 2019 17:51:59 +0800
+Message-Id: <20190918095159.27098-1-linf@wangsu.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <74bcbd36-3bec-be67-917d-60cd74cbcef0@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-CM-TRANSID:4zNnewC3vORQ_oFdDGl5AA--.39905S2
+X-Coremail-Antispam: 1UD129KBjvJXoWxtFy3tr43Wry7GrW7Aw17Awb_yoWfKF4kpF
+	9rZr1Sva4UJFWfJFZxA3WUJFn5J3s7CFyDtw4UGr1FvryUXFykGwn5CF1UZa48ur1UG398
+	tF4qqws5Gr18JFUanT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
+	9KBjDU0xBIdaVrnRJUUUyG1xkIjI8I6I8E6xAIw20EY4v20xvaj40_Wr0E3s1l8cAvFVAK
+	0II2c7xJM28CjxkF64kEwVA0rcxSw2x7M28EF7xvwVC0I7IYx2IY67AKxVWDJVCq3wA2z4
+	x0Y4vE2Ix0cI8IcVCY1x0267AKxVW0oVCq3wA2z4x0Y4vEx4A2jsIE14v26rxl6s0DM28E
+	F7xvwVC2z280aVCY1x0267AKxVW0oVCq3wAS0I0E0xvYzxvE52x082IY62kv0487Mc02F4
+	0EFcxC0VAKzVAqx4xG6I80ewAv7VCjz48v1sIEY20_Gr4lOx8S6xCaFVCjc4AY6r1j6r4U
+	M4x0Y48IcxkI7VAKI48JM4x0x7Aq67IIx4CEVc8vx2IErcIFxwACI402YVCY1x02628vn2
+	kIc2xKxwCY02Avz4vE14v_GFWl42xK82IYc2Ij64vIr41l42xK82IY6x8ErcxFaVAv8VW8
+	GwCFx2IqxVCFs4IE7xkEbVWUJVW8JwC20s026c02F40E14v26r1j6r18MI8I3I0E7480Y4
+	vE14v26r106r1rMI8E67AF67kF1VAFwI0_Jw0_GFylIxkGc2Ij64vIr41lIxAIcVC0I7IY
+	x2IY67AKxVWUJVWUCwCI42IY6xIIjxv20xvEc7CjxVAFwI0_Gr0_Cr1lIxAIcVCF04k26c
+	xKx2IYs7xG6rW3Jr0E3s1lIxAIcVC2z280aVAFwI0_Jr0_Gr1lIxAIcVC2z280aVCY1x02
+	67AKxVW8JVW8JrUvcSsGvfC2KfnxnUUI43ZEXa7VU0F_M3UUUUU==
+X-CM-SenderInfo: holqwq5zdqw23xof0z/
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This sysctl is named as mm_reclaim_congestion_wait_jiffies, default to
+HZ/10 as unchanged to old codes.
+It is in jiffies unit and can be set in range between [1, 100], so
+refers to CONFIG_HZ before tuning.
 
+In a high-end production environment(all high iops ssds) we found that
+CPU iowait spikes a lot as server under memory pressure(a lot of order
+2 or 3 pages allocations), but in the meantime IO pressure is nearly
+none, await and util% seen by iostat are quite healthy.
 
-On 09/16/2019 07:14 AM, Balbir Singh wrote:
-> 
-> 
-> On 3/9/19 7:45 pm, Anshuman Khandual wrote:
->> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
-> 
-> I could not find this path in the code, the only called for get_nid_for_pfn()
-> was register_mem_sect_under_node() when the system is under boot.
-> 
->> entries between memory block and node. It first checks pfn validity with
->> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
->> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
->>
->> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
->> which scans all mapped memblock regions with memblock_is_map_memory(). This
->> creates a problem in memory hot remove path which has already removed given
->> memory range from memory block with memblock_[remove|free] before arriving
->> at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
->> skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
->> sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
->> of existing sysfs entries.
->>
->> [   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
->> [   62.052517] ------------[ cut here ]------------
-> 
-> This seems like arm64 is not ready for probe_store() via drivers/base/memory.c/ode.c
-> 
->> [   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
-> 
-> 
-> 
->> [   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
->> [   62.054589] Modules linked in:
->> [   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
->> [   62.056274] Hardware name: linux,dummy-virt (DT)
->> [   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
->> [   62.058083] pc : add_memory_resource+0x1cc/0x1d8
->> [   62.058961] lr : add_memory_resource+0x10c/0x1d8
->> [   62.059842] sp : ffff0000168b3ce0
->> [   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
->> [   62.061501] x27: 0000000000000000 x26: 0000000000000000
->> [   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
->> [   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
->> [   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
->> [   62.065558] x19: 0000000000680000 x18: 0000000000000024
->> [   62.066566] x17: 0000000000000000 x16: 0000000000000000
->> [   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
->> [   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
->> [   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
->> [   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
->> [   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
->> [   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
->> [   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
->> [   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
->> [   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
->> [   62.076930] Call trace:
->> [   62.077411]  add_memory_resource+0x1cc/0x1d8
->> [   62.078227]  __add_memory+0x70/0xa8
->> [   62.078901]  probe_store+0xa4/0xc8
->> [   62.079561]  dev_attr_store+0x18/0x28
->> [   62.080270]  sysfs_kf_write+0x40/0x58
->> [   62.080992]  kernfs_fop_write+0xcc/0x1d8
->> [   62.081744]  __vfs_write+0x18/0x40
->> [   62.082400]  vfs_write+0xa4/0x1b0
->> [   62.083037]  ksys_write+0x5c/0xc0
->> [   62.083681]  __arm64_sys_write+0x18/0x20
->> [   62.084432]  el0_svc_handler+0x88/0x100
->> [   62.085177]  el0_svc+0x8/0xc
->>
->> Re-ordering memblock_[free|remove]() with arch_remove_memory() solves the
->> problem on arm64 as pfn_valid() behaves correctly and returns positive
->> as memblock for the address range still exists. arch_remove_memory()
->> removes applicable memory sections from zone with __remove_pages() and
->> tears down kernel linear mapping. Removing memblock regions afterwards
->> is safe because there is no other memblock (bootmem) allocator user that
->> late. So nobody is going to allocate from the removed range just to blow
->> up later. Also nobody should be using the bootmem allocated range else
->> we wouldn't allow to remove it. So reordering is indeed safe.
->>
->> Reviewed-by: David Hildenbrand <david@redhat.com>
->> Reviewed-by: Oscar Salvador <osalvador@suse.de>
->> Acked-by: Mark Rutland <mark.rutland@arm.com>
->> Acked-by: Michal Hocko <mhocko@suse.com>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
-> 
-> Honestly, the issue is not clear from the changelog, largely
-> because I can't find the use of get_nid_for_pfn()  being used
-> in memory hotunplug. I can see why using pfn_valid() after
-> memblock_free/remove is bad on the architecture.
-> 
-> I think the checks to pfn_valid() can be avoided from the
-> remove paths if we did the following
-> 
-> memblock_isolate_regions()
-> for each isolate_region {
-> 	memblock_free
-> 	memblock_remove
-> 	arch_memory_remove
-> 
-> 	# ensure that __remove_memory can avoid calling pfn_valid
-> }
-> 
-> Having said that, your patch is easier and if your assumption
-> about not using the memblocks is valid (after arch_memory_remove())
-> then might be the least resistant way forward
+In direct and background(kswapd) pages reclaim paths both may fall into
+calling msleep(100) or congestion_wait(HZ/10) or wait_iff_congested(HZ/10=
+)
+while under IO pressure, and the sleep length is hard-coded and the later
+two will introduce 100ms iowait length per time.
 
-The context for this patch has changed a bit which now reflects in
-it's current posting (https://patchwork.kernel.org/patch/11146361/)
+So if pages reclaim is relatively active in some circumstances such as hi=
+gh
+order pages reappings, it's possible to see a lot of iowait introduced by
+congestion_wait(HZ/10) and wait_iff_congested(HZ/10).
+
+The 100ms sleep length is proper if the backing drivers are slow like
+traditionnal rotation disks. While if the backing drivers are high-end
+storages such as high iops ssds or even faster drivers, the high iowait
+inroduced by pages reclaim is really misleading, because the storage IO
+utils seen by iostat is quite low, in this case the congestion_wait time
+modified to 1ms is likely enough for high-end ssds.
+
+Another benifit is that it's potentially shorter the direct reclaim block=
+ed
+time when kernel falls into sync reclaim path, which may improve user
+applications response time.
+
+All ssds box is a trend, so introduce this sysctl entry for making a way
+to relieving the concerns of system administrators.
+
+Tested:
+1. Before this patch:
+
+top - 10:10:40 up 8 days, 16:22,  4 users,  load average: 2.21, 2.15, 2.1=
+0
+Tasks: 718 total,   5 running, 712 sleeping,   0 stopped,   1 zombie
+Cpu0  :  0.3%us,  3.4%sy,  0.0%ni, 95.3%id,  1.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu1  :  1.4%us,  1.7%sy,  0.0%ni, 95.2%id,  0.0%wa,  0.0%hi,  1.7%si,  0=
+.0%st
+Cpu2  :  4.7%us,  3.3%sy,  0.0%ni, 91.0%id,  0.0%wa,  0.0%hi,  1.0%si,  0=
+.0%st
+Cpu3  :  7.0%us,  3.7%sy,  0.0%ni, 87.7%id,  1.0%wa,  0.0%hi,  0.7%si,  0=
+.0%st
+Cpu4  :  1.0%us,  2.0%sy,  0.0%ni, 96.3%id,  0.0%wa,  0.0%hi,  0.7%si,  0=
+.0%st
+Cpu5  :  1.0%us,  2.0%sy,  0.0%ni,  1.7%id, 95.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu6  :  1.0%us,  1.3%sy,  0.0%ni, 97.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu7  :  1.3%us,  1.0%sy,  0.0%ni, 97.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu8  :  4.3%us,  1.3%sy,  0.0%ni, 94.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu9  :  0.7%us,  0.7%sy,  0.0%ni, 98.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu10 :  0.7%us,  1.0%sy,  0.0%ni, 98.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu11 :  1.0%us,  1.0%sy,  0.0%ni, 97.7%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu12 :  3.0%us,  1.0%sy,  0.0%ni, 95.3%id,  0.3%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu13 :  0.3%us,  1.3%sy,  0.0%ni, 88.6%id,  9.4%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu14 :  3.3%us,  2.3%sy,  0.0%ni, 93.7%id,  0.3%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu15 :  6.4%us,  3.0%sy,  0.0%ni, 90.2%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu16 :  2.7%us,  1.7%sy,  0.0%ni, 95.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu17 :  1.0%us,  1.7%sy,  0.0%ni, 97.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu18 :  1.3%us,  1.0%sy,  0.0%ni, 97.0%id,  0.3%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu19 :  4.3%us,  1.7%sy,  0.0%ni, 86.0%id,  7.7%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu20 :  0.7%us,  1.3%sy,  0.0%ni, 97.7%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu21 :  0.3%us,  1.7%sy,  0.0%ni, 50.2%id, 47.5%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu22 :  0.7%us,  0.7%sy,  0.0%ni, 98.7%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu23 :  0.7%us,  0.7%sy,  0.0%ni, 98.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+
+2. After this patch and set mm_reclaim_congestion_wait_jiffies to 1:
+
+top - 10:12:19 up 8 days, 16:24,  4 users,  load average: 1.32, 1.93, 2.0=
+3
+Tasks: 724 total,   2 running, 721 sleeping,   0 stopped,   1 zombie
+Cpu0  :  4.4%us,  3.0%sy,  0.0%ni, 90.3%id,  1.3%wa,  0.0%hi,  1.0%si,  0=
+.0%st
+Cpu1  :  2.1%us,  1.4%sy,  0.0%ni, 93.5%id,  0.7%wa,  0.0%hi,  2.4%si,  0=
+.0%st
+Cpu2  :  2.7%us,  1.0%sy,  0.0%ni, 96.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu3  :  1.0%us,  1.0%sy,  0.0%ni, 97.7%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu4  :  0.7%us,  1.0%sy,  0.0%ni, 97.7%id,  0.3%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu5  :  1.0%us,  0.7%sy,  0.0%ni, 97.7%id,  0.3%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu6  :  1.7%us,  1.0%sy,  0.0%ni, 97.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu7  :  2.0%us,  0.7%sy,  0.0%ni, 94.3%id,  2.7%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu8  :  2.0%us,  0.7%sy,  0.0%ni, 97.0%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu9  :  0.7%us,  1.0%sy,  0.0%ni, 97.7%id,  0.7%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu10 :  0.3%us,  0.3%sy,  0.0%ni, 99.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu11 :  0.7%us,  0.3%sy,  0.0%ni, 99.0%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu12 :  0.7%us,  1.0%sy,  0.0%ni, 98.0%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu13 :  0.0%us,  0.3%sy,  0.0%ni, 99.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu14 :  1.7%us,  0.7%sy,  0.0%ni, 97.3%id,  0.3%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu15 :  4.3%us,  1.0%sy,  0.0%ni, 94.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu16 :  1.7%us,  1.3%sy,  0.0%ni, 96.3%id,  0.0%wa,  0.0%hi,  0.7%si,  0=
+.0%st
+Cpu17 :  2.0%us,  1.3%sy,  0.0%ni, 96.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu18 :  0.3%us,  0.3%sy,  0.0%ni, 99.3%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu19 :  1.0%us,  1.0%sy,  0.0%ni, 97.6%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu20 :  1.3%us,  0.7%sy,  0.0%ni, 97.0%id,  0.7%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu21 :  0.7%us,  0.7%sy,  0.0%ni, 98.3%id,  0.0%wa,  0.0%hi,  0.3%si,  0=
+.0%st
+Cpu22 :  1.0%us,  1.0%sy,  0.0%ni, 98.0%id,  0.0%wa,  0.0%hi,  0.0%si,  0=
+.0%st
+Cpu23 :  0.7%us,  0.3%sy,  0.0%ni, 98.3%id,  0.0%wa,  0.0%hi,  0.7%si,  0=
+.0%st
+
+Chagelog:
+V1: Fix a compile error reported by kbuild test robot and a checkpatch
+error. Also more detailed the background for the commit log of this patch=
+.
+
+Signed-off-by: Lin Feng <linf@wangsu.com>
+Reported-by: kbuild test robot <lkp@intel.com>
+---
+ Documentation/admin-guide/sysctl/vm.rst | 17 +++++++++++++++++
+ kernel/sysctl.c                         | 10 ++++++++++
+ mm/vmscan.c                             | 14 +++++++++++---
+ 3 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admi=
+n-guide/sysctl/vm.rst
+index 64aeee1009ca..fbe9a04583ac 100644
+--- a/Documentation/admin-guide/sysctl/vm.rst
++++ b/Documentation/admin-guide/sysctl/vm.rst
+@@ -837,6 +837,23 @@ than the high water mark in a zone.
+ The default value is 60.
+=20
+=20
++mm_reclaim_congestion_wait_jiffies
++=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
++
++This control is used to define how long kernel will wait/sleep while
++system memory is under pressure and memroy reclaim is relatively active.
++Lower values will decrease the kernel wait/sleep time.
++
++It's suggested to lower this value on high-end box that system is under =
+memory
++pressure but with low storage IO utils and high CPU iowait, which could =
+also
++potentially decrease user application response time in this case.
++
++Keep this control as it were if your box is not above case.
++
++The default value is HZ/10, which is of equal value to 100ms independ of=
+ how
++many HZ is defined.
++
++
+ unprivileged_userfaultfd
+ =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+=20
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 078950d9605b..5d02f137bdf9 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -114,6 +114,7 @@ extern int pid_max;
+ extern int pid_max_min, pid_max_max;
+ extern int percpu_pagelist_fraction;
+ extern int latencytop_enabled;
++extern int mm_reclaim_congestion_wait_jiffies;
+ extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
+ #ifndef CONFIG_MMU
+ extern int sysctl_nr_trim_pages;
+@@ -1413,6 +1414,15 @@ static struct ctl_table vm_table[] =3D {
+ 		.extra1		=3D SYSCTL_ZERO,
+ 		.extra2		=3D &one_hundred,
+ 	},
++	{
++		.procname	=3D "mm_reclaim_congestion_wait_jiffies",
++		.data		=3D &mm_reclaim_congestion_wait_jiffies,
++		.maxlen		=3D sizeof(mm_reclaim_congestion_wait_jiffies),
++		.mode		=3D 0644,
++		.proc_handler	=3D proc_dointvec_minmax,
++		.extra1		=3D SYSCTL_ONE,
++		.extra2		=3D &one_hundred,
++	},
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	{
+ 		.procname	=3D "nr_hugepages",
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a6c5d0b28321..a1eab811772a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -165,6 +165,12 @@ struct scan_control {
+  * From 0 .. 100.  Higher means more swappy.
+  */
+ int vm_swappiness =3D 60;
++
++/*
++ * From 0 .. 100.  Lower means shorter memory reclaim IO congestion wait=
+ time.
++ */
++int mm_reclaim_congestion_wait_jiffies =3D HZ / 10;
++
+ /*
+  * The total number of pages which are beyond the high watermark within =
+all
+  * zones.
+@@ -1966,7 +1972,7 @@ shrink_inactive_list(unsigned long nr_to_scan, stru=
+ct lruvec *lruvec,
+ 			return 0;
+=20
+ 		/* wait a bit for the reclaimer. */
+-		msleep(100);
++		msleep(jiffies_to_msecs(mm_reclaim_congestion_wait_jiffies));
+ 		stalled =3D true;
+=20
+ 		/* We are about to die and free our memory. Return now. */
+@@ -2788,7 +2794,8 @@ static bool shrink_node(pg_data_t *pgdat, struct sc=
+an_control *sc)
+ 			 * faster than they are written so also forcibly stall.
+ 			 */
+ 			if (sc->nr.immediate)
+-				congestion_wait(BLK_RW_ASYNC, HZ/10);
++				congestion_wait(BLK_RW_ASYNC,
++					mm_reclaim_congestion_wait_jiffies);
+ 		}
+=20
+ 		/*
+@@ -2807,7 +2814,8 @@ static bool shrink_node(pg_data_t *pgdat, struct sc=
+an_control *sc)
+ 		 */
+ 		if (!sc->hibernation_mode && !current_is_kswapd() &&
+ 		   current_may_throttle() && pgdat_memcg_congested(pgdat, root))
+-			wait_iff_congested(BLK_RW_ASYNC, HZ/10);
++			wait_iff_congested(BLK_RW_ASYNC,
++				mm_reclaim_congestion_wait_jiffies);
+=20
+ 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed=
+,
+ 					 sc->nr_scanned - nr_scanned, sc));
+--=20
+2.20.1
+
 
