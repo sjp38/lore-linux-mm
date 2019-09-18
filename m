@@ -2,115 +2,66 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48CA2C4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 07:35:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87685C4CECE
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:12:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0574721920
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 07:35:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0574721920
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 2BD23218AE
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 09:12:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BD23218AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 62E8D6B028B; Wed, 18 Sep 2019 03:35:39 -0400 (EDT)
+	id 76C526B028D; Wed, 18 Sep 2019 05:12:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5DE786B028C; Wed, 18 Sep 2019 03:35:39 -0400 (EDT)
+	id 71D696B028E; Wed, 18 Sep 2019 05:12:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47E126B028D; Wed, 18 Sep 2019 03:35:39 -0400 (EDT)
+	id 60EC56B028F; Wed, 18 Sep 2019 05:12:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0155.hostedemail.com [216.40.44.155])
-	by kanga.kvack.org (Postfix) with ESMTP id 2186C6B028B
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 03:35:39 -0400 (EDT)
-Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id CAD3E6D92
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 07:35:38 +0000 (UTC)
-X-FDA: 75947231556.27.drug22_141e8d1417e0e
-X-HE-Tag: drug22_141e8d1417e0e
-X-Filterd-Recvd-Size: 7724
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 07:35:38 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 106DCB6B2;
-	Wed, 18 Sep 2019 07:35:36 +0000 (UTC)
-Subject: Re: [PATCH] z3fold: fix memory leak in kmem cache
-To: Vitaly Wool <vitalywool@gmail.com>, Linux-MM <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, markus.linnala@gmail.com
-References: <20190917185352.44cf285d3ebd9e64548de5de@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <d6214fbd-e757-43a9-ab12-4b61fde434db@suse.cz>
-Date: Wed, 18 Sep 2019 09:31:40 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0169.hostedemail.com [216.40.44.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB596B028D
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 05:12:42 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id CCED12A4AB
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:12:41 +0000 (UTC)
+X-FDA: 75947476122.15.cloth53_8bdc48e6dad1c
+X-HE-Tag: cloth53_8bdc48e6dad1c
+X-Filterd-Recvd-Size: 4418
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:12:41 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 098C5337;
+	Wed, 18 Sep 2019 02:12:40 -0700 (PDT)
+Received: from [10.162.40.136] (p8cg001049571a15.blr.arm.com [10.162.40.136])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A4B083F59C;
+	Wed, 18 Sep 2019 02:12:33 -0700 (PDT)
+Subject: Re: [PATCH V7 2/3] arm64/mm: Hold memory hotplug lock while walking
+ for kernel page table dump
+To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ akpm@linux-foundation.org, catalin.marinas@arm.com, will@kernel.org
+Cc: mark.rutland@arm.com, mhocko@suse.com, ira.weiny@intel.com,
+ david@redhat.com, cai@lca.pw, logang@deltatee.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com,
+ mgorman@techsingularity.net, osalvador@suse.de, ard.biesheuvel@arm.com,
+ steve.capper@arm.com, broonie@kernel.org, valentin.schneider@arm.com,
+ Robin.Murphy@arm.com, steven.price@arm.com, suzuki.poulose@arm.com
+References: <1567503958-25831-1-git-send-email-anshuman.khandual@arm.com>
+ <1567503958-25831-3-git-send-email-anshuman.khandual@arm.com>
+ <66922798-9de7-a230-8548-1f205e79ea50@gmail.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <8e47831f-c28e-a174-24b3-b3bbf1f365ec@arm.com>
+Date: Wed, 18 Sep 2019 14:42:47 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190917185352.44cf285d3ebd9e64548de5de@gmail.com>
+In-Reply-To: <66922798-9de7-a230-8548-1f205e79ea50@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -120,64 +71,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9/17/19 5:53 PM, Vitaly Wool wrote:
-> Currently there is a leak in init_z3fold_page() -- it allocates
-> handles from kmem cache even for headless pages, but then they are
-> never used and never freed, so eventually kmem cache may get
-> exhausted. This patch provides a fix for that.
-> 
-> Reported-by: Markus Linnala <markus.linnala@gmail.com>
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 
-Can a Fixes: commit be pinpointed, and CC stable added?
 
-> ---
->  mm/z3fold.c | 15 +++++++++------
->  1 file changed, 9 insertions(+), 6 deletions(-)
+On 09/15/2019 08:05 AM, Balbir Singh wrote:
 > 
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 6397725b5ec6..7dffef2599c3 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -301,14 +301,11 @@ static void z3fold_unregister_migration(struct z3fold_pool *pool)
->   }
->  
->  /* Initializes the z3fold header of a newly allocated z3fold page */
-> -static struct z3fold_header *init_z3fold_page(struct page *page,
-> +static struct z3fold_header *init_z3fold_page(struct page *page, bool headless,
->  					struct z3fold_pool *pool, gfp_t gfp)
->  {
->  	struct z3fold_header *zhdr = page_address(page);
-> -	struct z3fold_buddy_slots *slots = alloc_slots(pool, gfp);
-> -
-> -	if (!slots)
-> -		return NULL;
-> +	struct z3fold_buddy_slots *slots;
->  
->  	INIT_LIST_HEAD(&page->lru);
->  	clear_bit(PAGE_HEADLESS, &page->private);
-> @@ -316,6 +313,12 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
->  	clear_bit(NEEDS_COMPACTING, &page->private);
->  	clear_bit(PAGE_STALE, &page->private);
->  	clear_bit(PAGE_CLAIMED, &page->private);
-> +	if (headless)
-> +		return zhdr;
-> +
-> +	slots = alloc_slots(pool, gfp);
-> +	if (!slots)
-> +		return NULL;
->  
->  	spin_lock_init(&zhdr->page_lock);
->  	kref_init(&zhdr->refcount);
-> @@ -962,7 +965,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
->  	if (!page)
->  		return -ENOMEM;
->  
-> -	zhdr = init_z3fold_page(page, pool, gfp);
-> +	zhdr = init_z3fold_page(page, bud == HEADLESS, pool, gfp);
->  	if (!zhdr) {
->  		__free_page(page);
->  		return -ENOMEM;
 > 
+> On 3/9/19 7:45 pm, Anshuman Khandual wrote:
+>> The arm64 page table dump code can race with concurrent modification of the
+>> kernel page tables. When a leaf entries are modified concurrently, the dump
+>> code may log stale or inconsistent information for a VA range, but this is
+>> otherwise not harmful.
+>>
+>> When intermediate levels of table are freed, the dump code will continue to
+>> use memory which has been freed and potentially reallocated for another
+>> purpose. In such cases, the dump code may dereference bogus addresses,
+>> leading to a number of potential problems.
+>>
+>> Intermediate levels of table may by freed during memory hot-remove,
+>> which will be enabled by a subsequent patch. To avoid racing with
+>> this, take the memory hotplug lock when walking the kernel page table.
+>>
+>> Acked-by: David Hildenbrand <david@redhat.com>
+>> Acked-by: Mark Rutland <mark.rutland@arm.com>
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>> ---
+>>  arch/arm64/mm/ptdump_debugfs.c | 4 ++++
+>>  1 file changed, 4 insertions(+)
+>>
+>> diff --git a/arch/arm64/mm/ptdump_debugfs.c b/arch/arm64/mm/ptdump_debugfs.c
+>> index 064163f25592..b5eebc8c4924 100644
+>> --- a/arch/arm64/mm/ptdump_debugfs.c
+>> +++ b/arch/arm64/mm/ptdump_debugfs.c
+>> @@ -1,5 +1,6 @@
+>>  // SPDX-License-Identifier: GPL-2.0
+>>  #include <linux/debugfs.h>
+>> +#include <linux/memory_hotplug.h>
+>>  #include <linux/seq_file.h>
+>>  
+>>  #include <asm/ptdump.h>
+>> @@ -7,7 +8,10 @@
+>>  static int ptdump_show(struct seq_file *m, void *v)
+>>  {
+>>  	struct ptdump_info *info = m->private;
+>> +
+>> +	get_online_mems();
+>>  	ptdump_walk_pgd(m, info);
+>> +	put_online_mems();
+> 
+> Looks sane, BTW, checking other arches they might have the same race.
 
+The problem can be present on other architectures which can dump kernel page
+table during memory hot-remove operation where it actually frees up page table
+pages. If there is no freeing involved the race condition here could cause
+inconsistent or garbage information capture for a given VA range. Same is true
+even for concurrent vmalloc() operations as well. But removal of page tables
+pages can make it worse. Freeing page table pages during hot-remove is a platform
+decision, so would be adding these locks while walking kernel page table during
+ptdump.
+
+> Is there anything special about the arch?
+
+AFAICS, no.
+
+> 
+> Acked-by: Balbir Singh <bsingharora@gmail.com>
+> 
+> 
 
