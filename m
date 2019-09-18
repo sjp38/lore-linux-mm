@@ -2,82 +2,79 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.9 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AD2FC4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 15:51:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D58CC4CECE
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 15:58:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF11121928
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 15:51:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D7057207FC
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 15:58:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DNze13Zq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF11121928
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="l0A2z1TL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7057207FC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FCF56B02CF; Wed, 18 Sep 2019 11:51:06 -0400 (EDT)
+	id 6FF936B02D0; Wed, 18 Sep 2019 11:58:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1867C6B02D0; Wed, 18 Sep 2019 11:51:06 -0400 (EDT)
+	id 688E96B02D2; Wed, 18 Sep 2019 11:58:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F416D6B02D1; Wed, 18 Sep 2019 11:51:05 -0400 (EDT)
+	id 52A156B02D3; Wed, 18 Sep 2019 11:58:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0080.hostedemail.com [216.40.44.80])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B306B02CF
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 11:51:05 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 74AA71E069
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 15:51:05 +0000 (UTC)
-X-FDA: 75948480090.28.cake53_7dd2624279b11
-X-HE-Tag: cake53_7dd2624279b11
-X-Filterd-Recvd-Size: 16034
-Received: from mail-pl1-f196.google.com (mail-pl1-f196.google.com [209.85.214.196])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 15:51:04 +0000 (UTC)
-Received: by mail-pl1-f196.google.com with SMTP id t10so138117plr.8
-        for <linux-mm@kvack.org>; Wed, 18 Sep 2019 08:51:04 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0179.hostedemail.com [216.40.44.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C7BF6B02D0
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 11:58:29 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id B4070181AC9B6
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 15:58:28 +0000 (UTC)
+X-FDA: 75948498696.04.birds63_2cda7f172695a
+X-HE-Tag: birds63_2cda7f172695a
+X-Filterd-Recvd-Size: 4154
+Received: from mail-pg1-f179.google.com (mail-pg1-f179.google.com [209.85.215.179])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 15:58:28 +0000 (UTC)
+Received: by mail-pg1-f179.google.com with SMTP id 4so69020pgm.12
+        for <linux-mm@kvack.org>; Wed, 18 Sep 2019 08:58:28 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=jTTWKpsvlDAAGPBEiAK3KNt1r6uKkJveEDVY0RCCMk8=;
-        b=DNze13ZqH9jWL1S269TGdPGoDbwatxps0RjOVStSzrkveCBcc5wDJiADRZISQeMum2
-         j2pcdEW7ldqhqBlPeQQHGam2bcOVcFM4AqM7lyLby2iK5yHUr5cbxdsCSUYx16MB0wVB
-         H8BlefBaDZuC+3U6EefprdmbHebqVCOYNAT6HneMAqhlA/KsIylyrS+ht21twDTnrAmF
-         6FXwK4s1elerP7UJQjTZ95F1enoq95yQR1ulYypA7p3BtOmAe7hIJbmEc7zSx+1c/y3p
-         GfdNvGtShvpfLkx7qQNrBIaZCQO9cPpU+xDFY67JGCu0gvgcO/a+vMVErM52/QfxH2WG
-         uMgQ==
+         :content-disposition:in-reply-to:user-agent;
+        bh=kuawgKYd1ZO4hmm7LLtvr0pa9no04t6i2+r3+Gwk4x4=;
+        b=l0A2z1TLXgxmmedq5++QkoO8DwxSNyr+T1b6Mzqo0NATMUz3eiscRJLFqMoH5KhzsJ
+         u9dyUkO3k2ighuZYzJxywBe/eWWl+32r/Y/l+o07U5SrYgIhkRDUpBWizrmYf44rKcfW
+         frSb0JL/ygJ++bYP1sXMh+kpZRLdaeaqOrdI/M65JpZNmgd9wbmzHPmBIC0V679HJwXz
+         zZL+y8vQ7/5QoUQ2EDFCOE62C2B+/gjgcUkTmQf3ZgRU5FPX+w/SU4hPNN6uVQoPWNaW
+         gtI/dqGgHOiAXMdvt69Mabmhz8JVgNf/eLcM/b6HFkLdmo2+vmk9W/ZG8OCgkoLXgZhR
+         n9XA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:date:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=jTTWKpsvlDAAGPBEiAK3KNt1r6uKkJveEDVY0RCCMk8=;
-        b=VJ1JTr13IWJJZXyChhBnUBfCh8YfkiJTwLkH31zXtmfxcVYIb+W5zWX2T9Z9gUNZ+B
-         upAZOvLE7S0shxzkK56rIujlOJuU6wMC4hPwIcISmjAkZVD+WqisutZusft+NGEmAwZQ
-         CpzGQvV1i6SBQ3j+JSeFYPsyhzvdqbVbHrkpx603ITXGJ5UOXoRS/kd8dmXlEtzDmhhO
-         xi1d5AkZQL3+jf8G6BXFWCtlz2EVkcrZj5sAjeWy1xh0RM2NnxcRW7QOTuJ7l5zvCRHK
-         roduUqXVuUNw4Nr7g+1ngXo+tfsuW+vwCvZ/HqO5EFnTC6+ou2xG3g8Ky0T8l0GtMnpr
-         lA4Q==
-X-Gm-Message-State: APjAAAVGC/SHZR5RF6oazex513/vdeuhyUXhKCVgZ31AXUtPfEPrClcT
-	uV6UAnWG5i83x3iyVBxkTk0=
-X-Google-Smtp-Source: APXvYqyIKJEjwnZ+fBfJHBVtZs1ScWtbuqV0j9hLldeHtCy7n5HIQLT2YNa80/DMuOUunnEA2S0png==
-X-Received: by 2002:a17:902:7c14:: with SMTP id x20mr4834409pll.289.1568821862962;
-        Wed, 18 Sep 2019 08:51:02 -0700 (PDT)
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=kuawgKYd1ZO4hmm7LLtvr0pa9no04t6i2+r3+Gwk4x4=;
+        b=i82MiGMM5ybjBORLOs223LZRU7UvDs1Xh6Uwk/pKg346n3hiMNkG/Y02zFEkFiqJco
+         a0kij3qhLR0LVxxwWo2SxyjOjo5K74JB7swGjH7AgLLQQ4VMDLdTusHIZ4oQXd/lXeyT
+         uO5plPvCKOqfl+0Fi80uPxpgO86klUT7D/+YBn7qqtdDxPi9wtpWIJ6pzSK4dy1I+ux0
+         +ms29u1aCQiCgpgwcMbr/orUmFKhyeDm9RCKzw7SOhVIH3hTs4AKBHPBYC3fFk1dpDsf
+         IZMypY3DThqmuQmrTVGaIwdKmwT3l8aWYUb66bbPi6JgRwWdVJnUcS63tZt/jAREfBou
+         9wdw==
+X-Gm-Message-State: APjAAAUaZKGVcJpbqe9Qc8sjpxS+vj3xDVbRTn/87kiHpuAcDnhtombo
+	+ZxXgbGacdrEUoR5cjtrY48=
+X-Google-Smtp-Source: APXvYqwl+D35M1mGQ5CVkx5D9cM30xhSLxrYJ8pZoQLGMu0DhVC153jK58vKQJWknJASA2CRgx/Sjw==
+X-Received: by 2002:a17:90a:c24e:: with SMTP id d14mr4793076pjx.0.1568822306830;
+        Wed, 18 Sep 2019 08:58:26 -0700 (PDT)
 Received: from localhost ([121.137.63.184])
-        by smtp.gmail.com with ESMTPSA id 4sm2489770pja.29.2019.09.18.08.51.01
+        by smtp.gmail.com with ESMTPSA id m24sm5190036pgj.71.2019.09.18.08.58.24
         (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Wed, 18 Sep 2019 08:51:01 -0700 (PDT)
+        Wed, 18 Sep 2019 08:58:25 -0700 (PDT)
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 X-Google-Original-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Date: Thu, 19 Sep 2019 00:50:59 +0900
-To: Qian Cai <cai@lca.pw>
-Cc: Steven Rostedt <rostedt@goodmis.org>,
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
+Date: Thu, 19 Sep 2019 00:58:23 +0900
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Qian Cai <cai@lca.pw>, Steven Rostedt <rostedt@goodmis.org>,
 	Petr Mladek <pmladek@suse.com>,
 	Catalin Marinas <catalin.marinas@arm.com>,
 	Will Deacon <will@kernel.org>,
@@ -90,7 +87,7 @@ Cc: Steven Rostedt <rostedt@goodmis.org>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Subject: Re: printk() + memory offline deadlock (WAS Re: page_alloc.shuffle=1
  + CONFIG_PROVE_LOCKING=y = arm64 hang)
-Message-ID: <20190918155059.GA158834@tigerII.localdomain>
+Message-ID: <20190918155823.GB158834@tigerII.localdomain>
 References: <1566509603.5576.10.camel@lca.pw>
  <1567717680.5576.104.camel@lca.pw>
  <1568128954.5576.129.camel@lca.pw>
@@ -98,326 +95,34 @@ References: <1566509603.5576.10.camel@lca.pw>
  <1568289941.5576.140.camel@lca.pw>
  <20190916104239.124fc2e5@gandalf.local.home>
  <1568817579.5576.172.camel@lca.pw>
+ <20190918155059.GA158834@tigerII.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1568817579.5576.172.camel@lca.pw>
+In-Reply-To: <20190918155059.GA158834@tigerII.localdomain>
 User-Agent: Mutt/1.12.1 (2019-06-15)
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (09/18/19 10:39), Qian Cai wrote:
-> > Perhaps for a quick fix (and a comment that says this needs to be fix=
-ed
-> > properly). I think the changes to printk() that was discussed at
-> > Plumbers may also solve this properly.
->=20
-> I assume that the new printk() stuff will also fix this deadlock betwee=
-n
-> printk() and memory offline.
+A correction:
 
-Mother chicken...
-
-Do you actually see a deadlock? I'd rather expect a lockdep splat, but
-anyway...
-
-> [=A0=A0317.337595] WARNING: possible circular locking dependency detect=
-ed
-> [=A0=A0317.337596] 5.3.0-next-20190917+ #9 Not tainted
-> [=A0=A0317.337597] ----------------------------------------------------=
---
-> [=A0=A0317.337597] test.sh/8738 is trying to acquire lock:
-> [=A0=A0317.337598] ffffffffb33a4978 ((console_sem).lock){-.-.}, at:> do=
-wn_trylock+0x16/0x50
->=20
-> [=A0=A0317.337602] but task is already holding lock:
-> [=A0=A0317.337602] ffff88883fff4318 (&(&zone->lock)->rlock){-.-.}, at:>=
- start_isolate_page_range+0x1f7/0x570
->=20
-> [=A0=A0317.337606] which lock already depends on the new lock.
+On (09/19/19 00:51), Sergey Senozhatsky wrote:
+[..]
 >
-> [=A0=A0317.337608] the existing dependency chain (in reverse order) is:
->=20
-> [=A0=A0317.337609] -> #3 (&(&zone->lock)->rlock){-.-.}:
-> [=A0=A0317.337612]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5b3/0xb40
-> [=A0=A0317.337613]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x126/0x280
-> [=A0=A0317.337613]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock+0x2f/0x40
-> [=A0=A0317.337614]=A0=A0=A0=A0=A0=A0=A0=A0rmqueue_bulk.constprop.21+0xb=
-6/0x1160
-> [=A0=A0317.337615]=A0=A0=A0=A0=A0=A0=A0=A0get_page_from_freelist+0x898/=
-0x22c0
-> [=A0=A0317.337616]=A0=A0=A0=A0=A0=A0=A0=A0__alloc_pages_nodemask+0x2f3/=
-0x1cd0
-> [=A0=A0317.337617]=A0=A0=A0=A0=A0=A0=A0=A0alloc_page_interleave+0x18/0x=
-130
-> [=A0=A0317.337618]=A0=A0=A0=A0=A0=A0=A0=A0alloc_pages_current+0xf6/0x11=
-0
-> [=A0=A0317.337619]=A0=A0=A0=A0=A0=A0=A0=A0allocate_slab+0x4c6/0x19c0
-> [=A0=A0317.337620]=A0=A0=A0=A0=A0=A0=A0=A0new_slab+0x46/0x70
-> [=A0=A0317.337621]=A0=A0=A0=A0=A0=A0=A0=A0___slab_alloc+0x58b/0x960
-> [=A0=A0317.337621]=A0=A0=A0=A0=A0=A0=A0=A0__slab_alloc+0x43/0x70
-> [=A0=A0317.337622]=A0=A0=A0=A0=A0=A0=A0=A0kmem_cache_alloc+0x354/0x460
-> [=A0=A0317.337623]=A0=A0=A0=A0=A0=A0=A0=A0fill_pool+0x272/0x4b0
-> [=A0=A0317.337624]=A0=A0=A0=A0=A0=A0=A0=A0__debug_object_init+0x86/0x79=
-0
-> [=A0=A0317.337624]=A0=A0=A0=A0=A0=A0=A0=A0debug_object_init+0x16/0x20
-> [=A0=A0317.337625]=A0=A0=A0=A0=A0=A0=A0=A0hrtimer_init+0x27/0x1e0
-> [=A0=A0317.337626]=A0=A0=A0=A0=A0=A0=A0=A0init_dl_task_timer+0x20/0x40
-> [=A0=A0317.337627]=A0=A0=A0=A0=A0=A0=A0=A0__sched_fork+0x10b/0x1f0
-> [=A0=A0317.337627]=A0=A0=A0=A0=A0=A0=A0=A0init_idle+0xac/0x520
-> [=A0=A0317.337628]=A0=A0=A0=A0=A0=A0=A0=A0idle_thread_get+0x7c/0xc0
-> [=A0=A0317.337629]=A0=A0=A0=A0=A0=A0=A0=A0bringup_cpu+0x1a/0x1e0
-> [=A0=A0317.337630]=A0=A0=A0=A0=A0=A0=A0=A0cpuhp_invoke_callback+0x197/0=
-x1120
-> [=A0=A0317.337630]=A0=A0=A0=A0=A0=A0=A0=A0_cpu_up+0x171/0x280
-> [=A0=A0317.337631]=A0=A0=A0=A0=A0=A0=A0=A0do_cpu_up+0xb1/0x120
-> [=A0=A0317.337632]=A0=A0=A0=A0=A0=A0=A0=A0cpu_up+0x13/0x20
-> [=A0=A0317.337632]=A0=A0=A0=A0=A0=A0=A0=A0smp_init+0xa4/0x12d
-> [=A0=A0317.337633]=A0=A0=A0=A0=A0=A0=A0=A0kernel_init_freeable+0x37e/0x=
-76e
-> [=A0=A0317.337634]=A0=A0=A0=A0=A0=A0=A0=A0kernel_init+0x11/0x12f
-> [=A0=A0317.337635]=A0=A0=A0=A0=A0=A0=A0=A0ret_from_fork+0x3a/0x50
+> zone->lock --> console_sem->lock
+> 
+> So then we have
+> 
+> 	zone->lock --> console_sem->lock --> pi_lock --> rq->lock
+> 
+>   vs. the reverse chain
+> 
+> 	rq->lock --> console_sem->lock
 
-So you have debug objects enabled. Right? This thing does not behave
-when it comes to printing. debug_objects are slightly problematic.
-
-This thing does
-
-	rq->lock --> zone->lock
-
-It takes rq->lock and then calls into __sched_fork()->hrtimer_init()->deb=
-ug_objects()->MM
-
-This doesn't look very right - a dive into MM under rq->lock.
-
-Peter, Thomas am I wrong?
-
-> [=A0=A0317.337635] -> #2 (&rq->lock){-.-.}:
-> [=A0=A0317.337638]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5b3/0xb40
-> [=A0=A0317.337639]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x126/0x280
-> [=A0=A0317.337639]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock+0x2f/0x40
-> [=A0=A0317.337640]=A0=A0=A0=A0=A0=A0=A0=A0task_fork_fair+0x43/0x200
-> [=A0=A0317.337641]=A0=A0=A0=A0=A0=A0=A0=A0sched_fork+0x29b/0x420
-> [=A0=A0317.337642]=A0=A0=A0=A0=A0=A0=A0=A0copy_process+0xf3c/0x2fd0
-> [=A0=A0317.337642]=A0=A0=A0=A0=A0=A0=A0=A0_do_fork+0xef/0x950
-> [=A0=A0317.337643]=A0=A0=A0=A0=A0=A0=A0=A0kernel_thread+0xa8/0xe0
-> [=A0=A0317.337644]=A0=A0=A0=A0=A0=A0=A0=A0rest_init+0x28/0x311
-> [=A0=A0317.337645]=A0=A0=A0=A0=A0=A0=A0=A0arch_call_rest_init+0xe/0x1b
-> [=A0=A0317.337645]=A0=A0=A0=A0=A0=A0=A0=A0start_kernel+0x6eb/0x724
-> [=A0=A0317.337646]=A0=A0=A0=A0=A0=A0=A0=A0x86_64_start_reservations+0x2=
-4/0x26
-> [=A0=A0317.337647]=A0=A0=A0=A0=A0=A0=A0=A0x86_64_start_kernel+0xf4/0xfb
-> [=A0=A0317.337648]=A0=A0=A0=A0=A0=A0=A0=A0secondary_startup_64+0xb6/0xc=
-0
-
-pi_lock --> rq->lock
-
-> [=A0=A0317.337649] -> #1 (&p->pi_lock){-.-.}:
-> [=A0=A0317.337651]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5b3/0xb40
-> [=A0=A0317.337652]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x126/0x280
-> [=A0=A0317.337653]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock_irqsave+0x3a/0=
-x50
-> [=A0=A0317.337653]=A0=A0=A0=A0=A0=A0=A0=A0try_to_wake_up+0xb4/0x1030
-> [=A0=A0317.337654]=A0=A0=A0=A0=A0=A0=A0=A0wake_up_process+0x15/0x20
-> [=A0=A0317.337655]=A0=A0=A0=A0=A0=A0=A0=A0__up+0xaa/0xc0
-> [=A0=A0317.337655]=A0=A0=A0=A0=A0=A0=A0=A0up+0x55/0x60
-> [=A0=A0317.337656]=A0=A0=A0=A0=A0=A0=A0=A0__up_console_sem+0x37/0x60
-> [=A0=A0317.337657]=A0=A0=A0=A0=A0=A0=A0=A0console_unlock+0x3a0/0x750
-> [=A0=A0317.337658]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_emit+0x10d/0x340
-> [=A0=A0317.337658]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_default+0x1f/0x30
-> [=A0=A0317.337659]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_func+0x44/0xd4
-> [=A0=A0317.337660]=A0=A0=A0=A0=A0=A0=A0=A0printk+0x9f/0xc5
-> [=A0=A0317.337660]=A0=A0=A0=A0=A0=A0=A0=A0crng_reseed+0x3cc/0x440
-> [=A0=A0317.337661]=A0=A0=A0=A0=A0=A0=A0=A0credit_entropy_bits+0x3e8/0x4=
-f0
-> [=A0=A0317.337662]=A0=A0=A0=A0=A0=A0=A0=A0random_ioctl+0x1eb/0x250
-> [=A0=A0317.337663]=A0=A0=A0=A0=A0=A0=A0=A0do_vfs_ioctl+0x13e/0xa70
-> [=A0=A0317.337663]=A0=A0=A0=A0=A0=A0=A0=A0ksys_ioctl+0x41/0x80
-> [=A0=A0317.337664]=A0=A0=A0=A0=A0=A0=A0=A0__x64_sys_ioctl+0x43/0x4c
-> [=A0=A0317.337665]=A0=A0=A0=A0=A0=A0=A0=A0do_syscall_64+0xcc/0x76c
-> [=A0=A0317.337666]=A0=A0=A0=A0=A0=A0=A0=A0entry_SYSCALL_64_after_hwfram=
-e+0x49/0xbe
-
-console_sem->lock --> pi_lock
-
-This also covers console_sem->lock --> rq->lock, and maintains
-pi_lock --> rq->lock
-
-So we have
-
-	console_sem->lock --> pi_lock --> rq->lock
-
-> [=A0=A0317.337667] -> #0 ((console_sem).lock){-.-.}:
-> [=A0=A0317.337669]=A0=A0=A0=A0=A0=A0=A0=A0check_prev_add+0x107/0xea0
-> [=A0=A0317.337670]=A0=A0=A0=A0=A0=A0=A0=A0validate_chain+0x8fc/0x1200
-> [=A0=A0317.337671]=A0=A0=A0=A0=A0=A0=A0=A0__lock_acquire+0x5b3/0xb40
-> [=A0=A0317.337671]=A0=A0=A0=A0=A0=A0=A0=A0lock_acquire+0x126/0x280
-> [=A0=A0317.337672]=A0=A0=A0=A0=A0=A0=A0=A0_raw_spin_lock_irqsave+0x3a/0=
-x50
-> [=A0=A0317.337673]=A0=A0=A0=A0=A0=A0=A0=A0down_trylock+0x16/0x50
-> [=A0=A0317.337674]=A0=A0=A0=A0=A0=A0=A0=A0__down_trylock_console_sem+0x=
-2b/0xa0
-> [=A0=A0317.337675]=A0=A0=A0=A0=A0=A0=A0=A0console_trylock+0x16/0x60
-> [=A0=A0317.337676]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_emit+0x100/0x340
-> [=A0=A0317.337677]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_default+0x1f/0x30
-> [=A0=A0317.337678]=A0=A0=A0=A0=A0=A0=A0=A0vprintk_func+0x44/0xd4
-> [=A0=A0317.337678]=A0=A0=A0=A0=A0=A0=A0=A0printk+0x9f/0xc5
-> [=A0=A0317.337679]=A0=A0=A0=A0=A0=A0=A0=A0__dump_page.cold.2+0x73/0x210
-> [=A0=A0317.337680]=A0=A0=A0=A0=A0=A0=A0=A0dump_page+0x12/0x50
-> [=A0=A0317.337680]=A0=A0=A0=A0=A0=A0=A0=A0has_unmovable_pages+0x3e9/0x4=
-b0
-> [=A0=A0317.337681]=A0=A0=A0=A0=A0=A0=A0=A0start_isolate_page_range+0x3b=
-4/0x570
-> [=A0=A0317.337682]=A0=A0=A0=A0=A0=A0=A0=A0__offline_pages+0x1ad/0xa10
-> [=A0=A0317.337683]=A0=A0=A0=A0=A0=A0=A0=A0offline_pages+0x11/0x20
-> [=A0=A0317.337683]=A0=A0=A0=A0=A0=A0=A0=A0memory_subsys_offline+0x7e/0x=
-c0
-> [=A0=A0317.337684]=A0=A0=A0=A0=A0=A0=A0=A0device_offline+0xd5/0x110
-> [=A0=A0317.337685]=A0=A0=A0=A0=A0=A0=A0=A0state_store+0xc6/0xe0
-> [=A0=A0317.337686]=A0=A0=A0=A0=A0=A0=A0=A0dev_attr_store+0x3f/0x60
-> [=A0=A0317.337686]=A0=A0=A0=A0=A0=A0=A0=A0sysfs_kf_write+0x89/0xb0
-> [=A0=A0317.337687]=A0=A0=A0=A0=A0=A0=A0=A0kernfs_fop_write+0x188/0x240
-> [=A0=A0317.337688]=A0=A0=A0=A0=A0=A0=A0=A0__vfs_write+0x50/0xa0
-> [=A0=A0317.337688]=A0=A0=A0=A0=A0=A0=A0=A0vfs_write+0x105/0x290
-> [=A0=A0317.337689]=A0=A0=A0=A0=A0=A0=A0=A0ksys_write+0xc6/0x160
-> [=A0=A0317.337690]=A0=A0=A0=A0=A0=A0=A0=A0__x64_sys_write+0x43/0x50
-> [=A0=A0317.337691]=A0=A0=A0=A0=A0=A0=A0=A0do_syscall_64+0xcc/0x76c
-> [=A0=A0317.337691]=A0=A0=A0=A0=A0=A0=A0=A0entry_SYSCALL_64_after_hwfram=
-e+0x49/0xbe
-
-zone->lock --> console_sem->lock
-
-So then we have
-
-	zone->lock --> console_sem->lock --> pi_lock --> rq->lock
-
-  vs. the reverse chain
-
-	rq->lock --> console_sem->lock
-
-If I get this right.
-
-> [=A0=A0317.337693] other info that might help us debug this:
->=20
-> [=A0=A0317.337694] Chain exists of:
-> [=A0=A0317.337694]=A0=A0=A0(console_sem).lock --> &rq->lock --> &(&zone=
-->lock)->rlock
->=20
-> [=A0=A0317.337699]=A0=A0Possible unsafe locking scenario:
->=20
-> [=A0=A0317.337700]=A0=A0=A0=A0=A0=A0=A0=A0CPU0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0CPU1
-> [=A0=A0317.337701]=A0=A0=A0=A0=A0=A0=A0=A0----=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0----
-> [=A0=A0317.337701]=A0=A0=A0lock(&(&zone->lock)->rlock);
-> [=A0=A0317.337703]=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0lock(&rq->lock);
-> [=A0=A0317.337705]=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
-=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0lock(&(&zone->lock)->rlock);
-> [=A0=A0317.337706]=A0=A0=A0lock((console_sem).lock);
->
-> [=A0=A0317.337708]=A0=A0*** DEADLOCK ***
->=20
-> [=A0=A0317.337710] 8 locks held by test.sh/8738:
-> [=A0=A0317.337710]=A0=A0#0: ffff8883940b5408 (sb_writers#4){.+.+}, at: =
-vfs_write+0x25f/0x290
-> [=A0=A0317.337713]=A0=A0#1: ffff889fce310280 (&of->mutex){+.+.}, at: ke=
-rnfs_fop_write+0x128/0x240
-> [=A0=A0317.337716]=A0=A0#2: ffff889feb6d4830 (kn->count#115){.+.+}, at:=
- kernfs_fop_write+0x138/0x240
-> [=A0=A0317.337720]=A0=A0#3: ffffffffb3762d40 (device_hotplug_lock){+.+.=
-}, at: lock_device_hotplug_sysfs+0x16/0x50
-> [=A0=A0317.337723]=A0=A0#4: ffff88981f0dc990 (&dev->mutex){....}, at: d=
-evice_offline+0x70/0x110
-> [=A0=A0317.337726]=A0=A0#5: ffffffffb3315250 (cpu_hotplug_lock.rw_sem){=
-++++}, at: __offline_pages+0xbf/0xa10
-> [=A0=A0317.337729]=A0=A0#6: ffffffffb35408b0 (mem_hotplug_lock.rw_sem){=
-++++}, at:  percpu_down_write+0x87/0x2f0
-> [=A0=A0317.337732]=A0=A0#7: ffff88883fff4318 (&(&zone->lock)->rlock){-.=
--.}, at: start_isolate_page_range+0x1f7/0x570
-> [=A0=A0317.337736] stack backtrace:
-> [=A0=A0317.337737] CPU: 58 PID: 8738 Comm: test.sh Not tainted 5.3.0-ne=
-xt-20190917+ #9
-> [=A0=A0317.337738] Hardware name: HPE ProLiant DL560 Gen10/ProLiant DL5=
-60 Gen10, BIOS U34 05/21/2019
-> [=A0=A0317.337739] Call Trace:
-> [=A0=A0317.337739]=A0=A0dump_stack+0x86/0xca
-> [=A0=A0317.337740]=A0=A0print_circular_bug.cold.31+0x243/0x26e
-> [=A0=A0317.337741]=A0=A0check_noncircular+0x29e/0x2e0
-> [=A0=A0317.337742]=A0=A0? debug_lockdep_rcu_enabled+0x4b/0x60
-> [=A0=A0317.337742]=A0=A0? print_circular_bug+0x120/0x120
-> [=A0=A0317.337743]=A0=A0? is_ftrace_trampoline+0x9/0x20
-> [=A0=A0317.337744]=A0=A0? kernel_text_address+0x59/0xc0
-> [=A0=A0317.337744]=A0=A0? __kernel_text_address+0x12/0x40
-> [=A0=A0317.337745]=A0=A0check_prev_add+0x107/0xea0
-> [=A0=A0317.337746]=A0=A0validate_chain+0x8fc/0x1200
-> [=A0=A0317.337746]=A0=A0? check_prev_add+0xea0/0xea0
-> [=A0=A0317.337747]=A0=A0? format_decode+0xd6/0x600
-> [=A0=A0317.337748]=A0=A0? file_dentry_name+0xe0/0xe0
-> [=A0=A0317.337749]=A0=A0__lock_acquire+0x5b3/0xb40
-> [=A0=A0317.337749]=A0=A0lock_acquire+0x126/0x280
-> [=A0=A0317.337750]=A0=A0? down_trylock+0x16/0x50
-> [=A0=A0317.337751]=A0=A0? vprintk_emit+0x100/0x340
-> [=A0=A0317.337752]=A0=A0_raw_spin_lock_irqsave+0x3a/0x50
-> [=A0=A0317.337753]=A0=A0? down_trylock+0x16/0x50
-> [=A0=A0317.337753]=A0=A0down_trylock+0x16/0x50
-> [=A0=A0317.337754]=A0=A0? vprintk_emit+0x100/0x340
-> [=A0=A0317.337755]=A0=A0__down_trylock_console_sem+0x2b/0xa0
-> [=A0=A0317.337756]=A0=A0console_trylock+0x16/0x60
-> [=A0=A0317.337756]=A0=A0vprintk_emit+0x100/0x340
-> [=A0=A0317.337757]=A0=A0vprintk_default+0x1f/0x30
-> [=A0=A0317.337758]=A0=A0vprintk_func+0x44/0xd4
-> [=A0=A0317.337758]=A0=A0printk+0x9f/0xc5
-> [=A0=A0317.337759]=A0=A0? kmsg_dump_rewind_nolock+0x64/0x64
-> [=A0=A0317.337760]=A0=A0? __dump_page+0x1d7/0x430
-> [=A0=A0317.337760]=A0=A0__dump_page.cold.2+0x73/0x210
-> [=A0=A0317.337761]=A0=A0dump_page+0x12/0x50
-> [=A0=A0317.337762]=A0=A0has_unmovable_pages+0x3e9/0x4b0
-> [=A0=A0317.337763]=A0=A0start_isolate_page_range+0x3b4/0x570
-> [=A0=A0317.337763]=A0=A0? unset_migratetype_isolate+0x280/0x280
-> [=A0=A0317.337764]=A0=A0? rcu_read_lock_bh_held+0xc0/0xc0
-> [=A0=A0317.337765]=A0=A0__offline_pages+0x1ad/0xa10
-> [=A0=A0317.337765]=A0=A0? lock_acquire+0x126/0x280
-> [=A0=A0317.337766]=A0=A0? __add_memory+0xc0/0xc0
-> [=A0=A0317.337767]=A0=A0? __kasan_check_write+0x14/0x20
-> [=A0=A0317.337767]=A0=A0? __mutex_lock+0x344/0xcd0
-> [=A0=A0317.337768]=A0=A0? _raw_spin_unlock_irqrestore+0x49/0x50
-> [=A0=A0317.337769]=A0=A0? device_offline+0x70/0x110
-> [=A0=A0317.337770]=A0=A0? klist_next+0x1c1/0x1e0
-> [=A0=A0317.337770]=A0=A0? __mutex_add_waiter+0xc0/0xc0
-> [=A0=A0317.337771]=A0=A0? klist_next+0x10b/0x1e0
-> [=A0=A0317.337772]=A0=A0? klist_iter_exit+0x16/0x40
-> [=A0=A0317.337772]=A0=A0? device_for_each_child+0xd0/0x110
-> [=A0=A0317.337773]=A0=A0offline_pages+0x11/0x20
-> [=A0=A0317.337774]=A0=A0memory_subsys_offline+0x7e/0xc0
-> [=A0=A0317.337774]=A0=A0device_offline+0xd5/0x110
-> [=A0=A0317.337775]=A0=A0? auto_online_blocks_show+0x70/0x70
-> [=A0=A0317.337776]=A0=A0state_store+0xc6/0xe0
-> [=A0=A0317.337776]=A0=A0dev_attr_store+0x3f/0x60
-> [=A0=A0317.337777]=A0=A0? device_match_name+0x40/0x40
-> [=A0=A0317.337778]=A0=A0sysfs_kf_write+0x89/0xb0
-> [=A0=A0317.337778]=A0=A0? sysfs_file_ops+0xa0/0xa0
-> [=A0=A0317.337779]=A0=A0kernfs_fop_write+0x188/0x240
-> [=A0=A0317.337780]=A0=A0__vfs_write+0x50/0xa0
-> [=A0=A0317.337780]=A0=A0vfs_write+0x105/0x290
-> [=A0=A0317.337781]=A0=A0ksys_write+0xc6/0x160
-> [=A0=A0317.337782]=A0=A0? __x64_sys_read+0x50/0x50
-> [=A0=A0317.337782]=A0=A0? do_syscall_64+0x79/0x76c
-> [=A0=A0317.337783]=A0=A0? do_syscall_64+0x79/0x76c
-> [=A0=A0317.337784]=A0=A0__x64_sys_write+0x43/0x50
-> [=A0=A0317.337784]=A0=A0do_syscall_64+0xcc/0x76c
-> [=A0=A0317.337785]=A0=A0? trace_hardirqs_on_thunk+0x1a/0x20
-> [=A0=A0317.337786]=A0=A0? syscall_return_slowpath+0x210/0x210
-> [=A0=A0317.337787]=A0=A0? entry_SYSCALL_64_after_hwframe+0x3e/0xbe
-> [=A0=A0317.337787]=A0=A0? trace_hardirqs_off_caller+0x3a/0x150
-> [=A0=A0317.337788]=A0=A0? trace_hardirqs_off_thunk+0x1a/0x20
-> [=A0=A0317.337789]=A0=A0entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-Lovely.
+                     ^^^ zone->lock
 
 	-ss
 
