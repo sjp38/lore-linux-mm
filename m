@@ -2,161 +2,151 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9ECF8C4CEC9
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 02:43:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB884C4CEC9
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 03:21:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6429A21848
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 02:43:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6429A21848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=vx.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id 76B2220862
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 03:21:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76B2220862
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wangsu.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 163C76B0273; Tue, 17 Sep 2019 22:43:45 -0400 (EDT)
+	id 0AC186B0275; Tue, 17 Sep 2019 23:21:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 115B96B0274; Tue, 17 Sep 2019 22:43:45 -0400 (EDT)
+	id 05D0F6B0276; Tue, 17 Sep 2019 23:21:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 052876B0275; Tue, 17 Sep 2019 22:43:45 -0400 (EDT)
+	id E8D006B0277; Tue, 17 Sep 2019 23:21:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id D8AFB6B0273
-	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 22:43:44 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 70D69180AD808
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 02:43:44 +0000 (UTC)
-X-FDA: 75946495968.21.toe88_5ac647a4ee443
-X-HE-Tag: toe88_5ac647a4ee443
-X-Filterd-Recvd-Size: 5883
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp [114.179.232.161])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 02:43:43 +0000 (UTC)
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x8I2hZUN003725
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Wed, 18 Sep 2019 11:43:35 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8I2hZOM024135;
-	Wed, 18 Sep 2019 11:43:35 +0900
-Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x8I2h1PV029819;
-	Wed, 18 Sep 2019 11:43:35 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.152] [10.38.151.152]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-8629292; Wed, 18 Sep 2019 11:28:45 +0900
-Received: from BPXM20GP.gisp.nec.co.jp ([10.38.151.212]) by
- BPXC24GP.gisp.nec.co.jp ([10.38.151.152]) with mapi id 14.03.0439.000; Wed,
- 18 Sep 2019 11:28:44 +0900
-From: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-To: Waiman Long <longman@redhat.com>, Qian Cai <cai@lca.pw>,
-        David Hildenbrand <david@redhat.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "dan.j.williams@intel.com" <dan.j.williams@intel.com>
-CC: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-        "mhocko@kernel.org" <mhocko@kernel.org>,
-        "adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>,
-        "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>,
-        "mst@redhat.com" <mst@redhat.com>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Junichi Nomura <j-nomura@ce.jp.nec.com>
-Subject: Re: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-Thread-Topic: [RFC PATCH v2] mm: initialize struct pages reserved by
- ZONE_DEVICE driver.
-Thread-Index: AQHVZIp2xk1cU6nEkk+ez7kL5reVFKcdvuyAgAAVnwCAAAk8gIAEZuMAgAAgogCADDvdgIAATZsAgACQNwCAAAkNAIAAC/EAgACd24A=
-Date: Wed, 18 Sep 2019 02:28:44 +0000
-Message-ID: <bc8719ed-3624-ad57-4c92-f1d1e1a43321@vx.jp.nec.com>
-References: <20190906081027.15477-1-t-fukasawa@vx.jp.nec.com>
- <b7732a55-4a10-2c1d-c2f5-ca38ee60964d@redhat.com>
- <e762ee45-43e3-975a-ad19-065f07d1440f@vx.jp.nec.com>
- <40a1ce2e-1384-b869-97d0-7195b5b47de0@redhat.com>
- <6a99e003-e1ab-b9e8-7b25-bc5605ab0eb2@vx.jp.nec.com>
- <e4e54258-e83b-cf0b-b66e-9874be6b5122@redhat.com>
- <31fd3c86-5852-1863-93bd-8df9da9f95b4@vx.jp.nec.com>
- <38e58d23-c20b-4e68-5f56-20bba2be2d6c@redhat.com>
- <59c946f8-843d-c017-f342-d007a5e14a85@redhat.com>
- <1568737304.5576.162.camel@lca.pw>
- <bd6ea535-b228-8de0-1454-e512ccbfb4fa@redhat.com>
-In-Reply-To: <bd6ea535-b228-8de0-1454-e512ccbfb4fa@redhat.com>
-Accept-Language: ja-JP, en-US
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.135]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <89A9A5B4A12A6343BA851F1A768C718D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0190.hostedemail.com [216.40.44.190])
+	by kanga.kvack.org (Postfix) with ESMTP id C00296B0275
+	for <linux-mm@kvack.org>; Tue, 17 Sep 2019 23:21:26 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 3A5C14835
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 03:21:26 +0000 (UTC)
+X-FDA: 75946590972.09.hands57_80c8a94145745
+X-HE-Tag: hands57_80c8a94145745
+X-Filterd-Recvd-Size: 5891
+Received: from wangsu.com (mail.wangsu.com [123.103.51.198])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 03:21:24 +0000 (UTC)
+Received: from [10.8.148.37] (unknown [218.85.123.226])
+	by app1 (Coremail) with SMTP id xjNnewCHZ9CgooFdnSR5AA--.80S2;
+	Wed, 18 Sep 2019 11:21:06 +0800 (CST)
+Subject: Re: [PATCH] [RFC] vmscan.c: add a sysctl entry for controlling memory
+ reclaim IO congestion_wait length
+To: Matthew Wilcox <willy@infradead.org>
+Cc: corbet@lwn.net, mcgrof@kernel.org, akpm@linux-foundation.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, keescook@chromium.org,
+ mchehab+samsung@kernel.org, mgorman@techsingularity.net, vbabka@suse.cz,
+ mhocko@suse.com, ktkhai@virtuozzo.com, hannes@cmpxchg.org
+References: <20190917115824.16990-1-linf@wangsu.com>
+ <20190917120646.GT29434@bombadil.infradead.org>
+From: Lin Feng <linf@wangsu.com>
+Message-ID: <3fbb428e-9466-b56b-0be8-c0f510e3aa99@wangsu.com>
+Date: Wed, 18 Sep 2019 11:21:04 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-X-TM-AS-MML: disable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.001408, version=1.2.4
+In-Reply-To: <20190917120646.GT29434@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-CM-TRANSID:xjNnewCHZ9CgooFdnSR5AA--.80S2
+X-Coremail-Antispam: 1UD129KBjvJXoWxWF1UKw15Zw48ury3ZF1xuFg_yoW5urykpF
+	WxKFZ3Ka1UAry3tFs2y3Zrur1Fqay8Ary3Jr98Wry5Ary5ZF1IkFWfKF4YvFyxCrn3Cr9I
+	vr45u3srur4YyFJanT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
+	9KBjDU0xBIdaVrnRJUUUvKb7Iv0xC_Kw4lb4IE77IF4wAFc2x0x2IEx4CE42xK8VAvwI8I
+	cIk0rVWrJVCq3wA2ocxC64kIII0Yj41l84x0c7CEw4AK67xGY2AK021l84ACjcxK6xIIjx
+	v20xvE14v26w1j6s0DM28EF7xvwVC0I7IYx2IY6xkF7I0E14v26rxl6s0DM28EF7xvwVC2
+	z280aVAFwI0_GcCE3s1l84ACjcxK6I8E87Iv6xkF7I0E14v26rxl6s0DM2AIxVAIcxkEcV
+	Aq07x20xvEncxIr21l5I8CrVACY4xI64kE6c02F40Ex7xfMcIj6x8ErcxFaVAv8VW8GwAv
+	7VCY1x0262k0Y48FwI0_Gr0_Cr1lOx8S6xCaFVCjc4AY6r1j6r4UM4x0Y48IcVAKI48JM4
+	IIrI8v6xkF7I0E8cxan2IY04v7Mxk0xIA0c2IEe2xFo4CEbIxvr21lc2xSY4AK67AK6r48
+	MxAIw28IcxkI7VAKI48JMxAIw28IcVCjz48v1sIEY20_Gr4l4I8I3I0E4IkC6x0Yz7v_Jr
+	0_Gr1lx2IqxVAqx4xG67AKxVWUJVWUGwC20s026x8GjcxK67AKxVWUGVWUWwC2zVAF1VAY
+	17CE14v26r1q6r43MIIYrxkI7VAKI48JMIIF0xvE2Ix0cI8IcVAFwI0_Jr0_JF4lIxAIcV
+	C0I7IYx2IY6xkF7I0E14v26r4j6F4UMIIF0xvE42xK8VAvwI8IcIk0rVWrZr1j6s0DMIIF
+	0xvEx4A2jsIE14v26r1j6r4UMIIF0xvEx4A2jsIEc7CjxVAFwI0_Gr0_Gr1UYxBIdaVFxh
+	VjvjDU0xZFpf9x07j_XocUUUUU=
+X-CM-SenderInfo: holqwq5zdqw23xof0z/
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/09/18 2:04, Waiman Long wrote:
-> On 9/17/19 12:21 PM, Qian Cai wrote:
->> On Tue, 2019-09-17 at 11:49 -0400, Waiman Long wrote:
->>> On 9/17/19 3:13 AM, David Hildenbrand wrote:
->>>> On 17.09.19 04:34, Toshiki Fukasawa wrote:
->>>>> On 2019/09/09 16:46, David Hildenbrand wrote:
->>>>>> Let's take a step back here to understand the issues I am aware of. =
-I
->>>>>> think we should solve this for good now:
->>>>>>
->>>>>> A PFN walker takes a look at a random PFN at a random point in time.=
- It
->>>>>> finds a PFN with SECTION_MARKED_PRESENT && !SECTION_IS_ONLINE. The
->>>>>> options are:
->>>>>>
->>>>>> 1. It is buddy memory (add_memory()) that has not been online yet. T=
-he
->>>>>> memmap contains garbage. Don't access.
->>>>>>
->>>>>> 2. It is ZONE_DEVICE memory with a valid memmap. Access it.
->>>>>>
->>>>>> 3. It is ZONE_DEVICE memory with an invalid memmap, because the sect=
-ion
->>>>>> is only partially present: E.g., device starts at offset 64MB within=
- a
->>>>>> section or the device ends at offset 64MB within a section. Don't ac=
-cess it.
->>>>> I don't agree with case #3. In the case, struct page area is not allo=
-cated on
->>>>> ZONE_DEVICE, but is allocated on system memory. So I think we can acc=
-ess the
->>>>> struct pages. What do you mean "invalid memmap"?
->>>> No, that's not the case. There is no memory, especially not system
->>>> memory. We only allow partially present sections (sub-section memory
->>>> hotplug) for ZONE_DEVICE.
->>>>
->>>> invalid memmap =3D=3D memmap was not initialized =3D=3D struct pages c=
-ontains
->>>> garbage. There is a memmap, but accessing it (e.g., pfn_to_nid()) will
->>>> trigger a BUG.
->>>>
->>> As long as the page structures exist, they should be initialized to som=
-e
->>> known state. We could set PagePoison for those invalid memmap. It is th=
-e
->> Sounds like you want to run page_init_poison() by default.
->=20
-> Yes for those pages that are not initialized otherwise. I don't want to
-> run page_init_poison() for the whole ZONE_DEVICE memory range as it can
-> take a while if we are talking about TBs of persistent memory. Also most
-> of the pages will be reinitialized anyway in the init process. So it is
-> mostly a wasted effort. However, for those reserved pages that are not
-> being exported to the memory management layer, having them initialized
-> to a known state will cause less problem down the road.
->=20
-The same can be said about altmap->reserve. I think it should be initialize=
-d
-since the struct page exists.
 
-Thanks,
-Toshiki Fukasawa=
+
+On 9/17/19 20:06, Matthew Wilcox wrote:
+> On Tue, Sep 17, 2019 at 07:58:24PM +0800, Lin Feng wrote:
+>> In direct and background(kswapd) pages reclaim paths both may fall into
+>> calling msleep(100) or congestion_wait(HZ/10) or wait_iff_congested(HZ/10)
+>> while under IO pressure, and the sleep length is hard-coded and the later
+>> two will introduce 100ms iowait length per time.
+>>
+>> So if pages reclaim is relatively active in some circumstances such as high
+>> order pages reappings, it's possible to see a lot of iowait introduced by
+>> congestion_wait(HZ/10) and wait_iff_congested(HZ/10).
+>>
+>> The 100ms sleep length is proper if the backing drivers are slow like
+>> traditionnal rotation disks. While if the backing drivers are high-end
+>> storages such as high iops ssds or even faster drivers, the high iowait
+>> inroduced by pages reclaim is really misleading, because the storage IO
+>> utils seen by iostat is quite low, in this case the congestion_wait time
+>> modified to 1ms is likely enough for high-end ssds.
+>>
+>> Another benifit is that it's potentially shorter the direct reclaim blocked
+>> time when kernel falls into sync reclaim path, which may improve user
+>> applications response time.
+> 
+> This is a great description of the problem.
+The always 100ms blocked time sometimes is not necessary :)
+
+> 
+>> +mm_reclaim_congestion_wait_jiffies
+>> +==========
+>> +
+>> +This control is used to define how long kernel will wait/sleep while
+>> +system memory is under pressure and memroy reclaim is relatively active.
+>> +Lower values will decrease the kernel wait/sleep time.
+>> +
+>> +It's suggested to lower this value on high-end box that system is under memory
+>> +pressure but with low storage IO utils and high CPU iowait, which could also
+>> +potentially decrease user application response time in this case.
+>> +
+>> +Keep this control as it were if your box are not above case.
+>> +
+>> +The default value is HZ/10, which is of equal value to 100ms independ of how
+>> +many HZ is defined.
+> 
+> Adding a new tunable is not the right solution.  The right way is
+> to make Linux auto-tune itself to avoid the problem.  For example,
+> bdi_writeback contains an estimated write bandwidth (calculated by the
+> memory management layer).  Given that, we should be able to make an
+> estimate for how long to wait for the queues to drain.
+> 
+
+Yes, I had ever considered that, auto-tuning is definitely the senior AI way.
+While considering all kinds of production environments hybird storage solution
+is also common today, servers' dirty pages' bdi drivers can span from high end
+ssds to low end sata disk, so we have to think of a *formula(AI core)* by using
+the factors of dirty pages' amount and bdis' write bandwidth, and this AI-core
+will depend on if the estimated write bandwidth is sane and moreover the to be
+written back dirty pages is sequential or random if the bdi is rotational disk,
+it's likey to give a not-sane number and hurt guys who dont't want that, while
+if only consider ssd is relatively simple.
+
+So IMHO it's not sane to brute force add a guessing logic into memory writeback
+codes and pray on inventing a formula that caters everyone's need.
+Add a sysctl entry may be a right choice that give people who need it and
+doesn't hurt people who don't want it.
+
+thanks,
+linfeng
 
 
