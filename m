@@ -2,62 +2,59 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA7ACC4CED0
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 12:31:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CC84C4CEC4
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 12:33:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74097205F4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 12:31:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74097205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 0AFE8205F4
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 12:33:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AFE8205F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BEC26B0007; Wed, 18 Sep 2019 08:31:17 -0400 (EDT)
+	id A57AB6B029D; Wed, 18 Sep 2019 08:33:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06D2D6B029C; Wed, 18 Sep 2019 08:31:17 -0400 (EDT)
+	id A07CA6B029E; Wed, 18 Sep 2019 08:33:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC5656B029D; Wed, 18 Sep 2019 08:31:16 -0400 (EDT)
+	id 91D706B029F; Wed, 18 Sep 2019 08:33:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5AD6B0007
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 08:31:16 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 4DADA8243772
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 12:31:16 +0000 (UTC)
-X-FDA: 75947976552.19.cook52_7f7237bebc01a
-X-HE-Tag: cook52_7f7237bebc01a
-X-Filterd-Recvd-Size: 2984
+Received: from forelay.hostedemail.com (smtprelay0133.hostedemail.com [216.40.44.133])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FAB06B029D
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 08:33:45 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1B60C1A4D8
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 12:33:45 +0000 (UTC)
+X-FDA: 75947982810.20.music88_398ed37cd730
+X-HE-Tag: music88_398ed37cd730
+X-Filterd-Recvd-Size: 2868
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 12:31:15 +0000 (UTC)
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 12:33:44 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id ED106AD2B;
-	Wed, 18 Sep 2019 12:31:13 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 07F751E4201; Wed, 18 Sep 2019 14:31:24 +0200 (CEST)
-Date: Wed, 18 Sep 2019 14:31:24 +0200
-From: Jan Kara <jack@suse.cz>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	Amir Goldstein <amir73il@gmail.com>,
-	Boaz Harrosh <boaz@plexistor.com>, linux-fsdevel@vger.kernel.org,
-	stable@vger.kernel.org
-Subject: Re: [PATCH 3/3] xfs: Fix stale data exposure when readahead races
- with hole punch
-Message-ID: <20190918123123.GC31891@quack2.suse.cz>
-References: <20190829131034.10563-1-jack@suse.cz>
- <20190829131034.10563-4-jack@suse.cz>
- <20190829155204.GD5354@magnolia>
- <20190830152449.GA25069@quack2.suse.cz>
+	by mx1.suse.de (Postfix) with ESMTP id 0E333AD4E;
+	Wed, 18 Sep 2019 12:33:43 +0000 (UTC)
+Date: Wed, 18 Sep 2019 14:33:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Lin Feng <linf@wangsu.com>, corbet@lwn.net, mcgrof@kernel.org,
+	akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, keescook@chromium.org,
+	mchehab+samsung@kernel.org, mgorman@techsingularity.net,
+	vbabka@suse.cz, ktkhai@virtuozzo.com, hannes@cmpxchg.org
+Subject: Re: [PATCH] [RFC] vmscan.c: add a sysctl entry for controlling
+ memory reclaim IO congestion_wait length
+Message-ID: <20190918123342.GF12770@dhcp22.suse.cz>
+References: <20190917115824.16990-1-linf@wangsu.com>
+ <20190917120646.GT29434@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190830152449.GA25069@quack2.suse.cz>
+In-Reply-To: <20190917120646.GT29434@bombadil.infradead.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -65,39 +62,38 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 30-08-19 17:24:49, Jan Kara wrote:
-> On Thu 29-08-19 08:52:04, Darrick J. Wong wrote:
-> > On Thu, Aug 29, 2019 at 03:10:34PM +0200, Jan Kara wrote:
-> > > Hole puching currently evicts pages from page cache and then goes on to
-> > > remove blocks from the inode. This happens under both XFS_IOLOCK_EXCL
-> > > and XFS_MMAPLOCK_EXCL which provides appropriate serialization with
-> > > racing reads or page faults. However there is currently nothing that
-> > > prevents readahead triggered by fadvise() or madvise() from racing with
-> > > the hole punch and instantiating page cache page after hole punching has
-> > > evicted page cache in xfs_flush_unmap_range() but before it has removed
-> > > blocks from the inode. This page cache page will be mapping soon to be
-> > > freed block and that can lead to returning stale data to userspace or
-> > > even filesystem corruption.
-> > > 
-> > > Fix the problem by protecting handling of readahead requests by
-> > > XFS_IOLOCK_SHARED similarly as we protect reads.
-> > > 
-> > > CC: stable@vger.kernel.org
-> > > Link: https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
-> > > Reported-by: Amir Goldstein <amir73il@gmail.com>
-> > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > 
-> > Is there a test on xfstests to demonstrate this race?
+On Tue 17-09-19 05:06:46, Matthew Wilcox wrote:
+> On Tue, Sep 17, 2019 at 07:58:24PM +0800, Lin Feng wrote:
+[...]
+> > +mm_reclaim_congestion_wait_jiffies
+> > +==========
+> > +
+> > +This control is used to define how long kernel will wait/sleep while
+> > +system memory is under pressure and memroy reclaim is relatively active.
+> > +Lower values will decrease the kernel wait/sleep time.
+> > +
+> > +It's suggested to lower this value on high-end box that system is under memory
+> > +pressure but with low storage IO utils and high CPU iowait, which could also
+> > +potentially decrease user application response time in this case.
+> > +
+> > +Keep this control as it were if your box are not above case.
+> > +
+> > +The default value is HZ/10, which is of equal value to 100ms independ of how
+> > +many HZ is defined.
 > 
-> No, but I can try to create one.
+> Adding a new tunable is not the right solution.  The right way is
+> to make Linux auto-tune itself to avoid the problem.
 
-I was experimenting with this but I could not reproduce the issue in my
-test VM without inserting artificial delay at appropriate place... So I
-don't think there's much point in the fstest for this.
-
-								Honza
-
+I absolutely agree here. From you changelog it is also not clear what is
+the underlying problem. Both congestion_wait and wait_iff_congested
+should wake up early if the congestion is handled. Is this not the case?
+Why? Are you sure a shorter timeout is not just going to cause problems
+elsewhere. These sleeps are used to throttle the reclaim. I do agree
+there is no great deal of design behind them so they are more of "let's
+hope it works" kinda thing but making their timeout configurable just
+doesn't solve this at all. You are effectively exporting a very subtle
+implementation detail into the userspace.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
