@@ -2,158 +2,190 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5439C4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 21:32:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0F61C4CEC9
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 22:24:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6147321907
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 21:32:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 25F6921848
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 22:24:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="SMwcRfBY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6147321907
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="hCWf2ey6";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="ds87+fGU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25F6921848
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 124626B0309; Wed, 18 Sep 2019 17:32:30 -0400 (EDT)
+	id 8C2C06B030B; Wed, 18 Sep 2019 18:24:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D5046B030A; Wed, 18 Sep 2019 17:32:30 -0400 (EDT)
+	id 873746B030C; Wed, 18 Sep 2019 18:24:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F2DB36B030B; Wed, 18 Sep 2019 17:32:29 -0400 (EDT)
+	id 739686B030D; Wed, 18 Sep 2019 18:24:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0171.hostedemail.com [216.40.44.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D0C6B0309
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 17:32:29 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 5D0AD180AD806
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 21:32:29 +0000 (UTC)
-X-FDA: 75949340418.21.girls61_32c2e97966914
-X-HE-Tag: girls61_32c2e97966914
-X-Filterd-Recvd-Size: 5150
-Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 21:32:28 +0000 (UTC)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8ILFhMv067452;
-	Wed, 18 Sep 2019 21:32:24 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2019-08-05;
- bh=ydH1j+B0xRX/SyIsv01NtDcbV5mWghGk55r8xlV3jfk=;
- b=SMwcRfBYTin9EkIMiakRaKvNbt2UtbqLVWLDhkyt7TI0c0Hk7U1+Wvgljevi8GbKC+7U
- NT8pHcrfWkCjCyPHRAMaO0eF4OdOMEEfzvzx4pmGaxZVif+R4sVAtDXbBGZTwr8MNsKo
- W5p/jDvp2HAqhddgAYyWWuccs6tm1J+5C2OrlN8m8oQ2RlmQdJfKavC5lvef//cSaW+u
- +wCNffqOExhpO7ZreCvOZyuraXPimIgN1Os10O1R3Tr1RURmkk94p40X+Pjf3TBuApNr
- Vti+dr7XZJ92Wht7HB0vmShvG6utD0DoYtTLmobZm3OgRLFMqnf09mBLcFURcIKWKMPU Qw== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2v3vb4r1y6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 18 Sep 2019 21:32:24 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x8ILFHdQ071228;
-	Wed, 18 Sep 2019 21:32:23 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3030.oracle.com with ESMTP id 2v3vb8rw1w-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 18 Sep 2019 21:32:23 +0000
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x8ILWMEB002379;
-	Wed, 18 Sep 2019 21:32:22 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 18 Sep 2019 14:32:22 -0700
-Date: Wed, 18 Sep 2019 14:32:21 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, hch@lst.de, linux-xfs@vger.kernel.org,
-        linux-mm@kvack.org
-Subject: Re: [PATCH v2 5/5] xfs: Pass a page to xfs_finish_page_writeback
-Message-ID: <20190918213221.GF2229799@magnolia>
-References: <20190821003039.12555-1-willy@infradead.org>
- <20190821003039.12555-6-willy@infradead.org>
+Received: from forelay.hostedemail.com (smtprelay0010.hostedemail.com [216.40.44.10])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3206B030B
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 18:24:20 -0400 (EDT)
+Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 9D7BD824377F
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 22:24:19 +0000 (UTC)
+X-FDA: 75949471038.09.thing99_42c899226e107
+X-HE-Tag: thing99_42c899226e107
+X-Filterd-Recvd-Size: 9714
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com [67.231.145.42])
+	by imf30.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 22:24:18 +0000 (UTC)
+Received: from pps.filterd (m0109333.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.42/8.16.0.42) with SMTP id x8IMAi56027355;
+	Wed, 18 Sep 2019 15:23:23 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=jorFgc9ZnWSadbbiIvozUV0N/52mi2w8mPxWWMYTL4Q=;
+ b=hCWf2ey6JI6cuwasm99wmuSOJ8wlXm4OCFwvIowcnkj5ptSUfKzUVQGxNhiZyoIX89U+
+ /o1efh9/LKt7TuH3gUIfRTeHoYv1HSaLuvej8CLr7uyhB9RtK8bozZtX+MVlzBH46ZtA
+ J2vjrmVKN/bS60Yt5x+OP7/A2qeX3rkaAro= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2v3vdqg876-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 18 Sep 2019 15:23:23 -0700
+Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
+ prn-hub05.TheFacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 18 Sep 2019 15:23:22 -0700
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 18 Sep 2019 15:23:22 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=KStx6Jw1XV0+i5Ju2ViguwNCIzzUHHVwManapXNFk3dnwdeTTLVIa7lDFfZAu5dt2/aFWQW3rao/yuMrs4j1HdobAL2HGpnXmQhYx+MX1kmWNZJuYZ1SnZELn7luIPaajPlR5bUIaDjVgEJn5jD/NZqLVBnDYqLEFU5rjvfI9DV8pv5O7b+HLezRyZTrpotpM2u5wWOLjbzSXmId9vLx1qzqiFHLdgk0wRNKS1jqf75qIUeXOMq7EqAxQrMKDJBx6n8LARcmP4NxUbfeTre1zM6E9YH9TMH54+OMCR6FYkzz+EJrA0g1qi+/HpI5MnVa+Zk3ENJbLH1tyxKv67fdJQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=jorFgc9ZnWSadbbiIvozUV0N/52mi2w8mPxWWMYTL4Q=;
+ b=MXsUjrer/k4/ZCeOlEMW+jbzHWlUBLHLbD3DxG2OuSPvKXOyMvC8YMJYPeJWtUXh/+85At6r2RWMxo13rGKAHsv/85nGOFE5F6CmxJFAyMTxy8qzbcGdzY0Das8emMo+uOf/AYoBqD6lg621oXUUxj+NkPQTCL1m9I0u06Wb+IfYLDol7P9JKq2fnYOenlnvqk1cCe0rSIzcAmHGrWIIMk44DUTBvHUXw0KUqHbJVw38uCQ0pAJeNoYX+o7IsnC2F6dtlyx/mxPFrLMSAFUcToZadMadZoSZJZROVn9lv1BvmxysH067lNSiiOcSBNQyQqqCAXGCj1J9n9khU8MNgg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
+ header.d=fb.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=jorFgc9ZnWSadbbiIvozUV0N/52mi2w8mPxWWMYTL4Q=;
+ b=ds87+fGUcy8mHA5RdyrBUUeg0tpmRt8IlxEopsLAKAQULr2tDl4844CzmvLies8yY6Dw7EDzYeVpZomg9gwHNvbRE6SU85I4vl3EuXOhtzyQTg+24LEiLCme8g77TKnhRH199sxmd9zJf+nsMwISOGKx46VMUc/2enRvvx0iMm4=
+Received: from BN8PR15MB2626.namprd15.prod.outlook.com (20.179.137.220) by
+ BN8PR15MB2833.namprd15.prod.outlook.com (20.178.218.83) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2263.24; Wed, 18 Sep 2019 22:23:21 +0000
+Received: from BN8PR15MB2626.namprd15.prod.outlook.com
+ ([fe80::8174:3438:91db:ec29]) by BN8PR15MB2626.namprd15.prod.outlook.com
+ ([fe80::8174:3438:91db:ec29%5]) with mapi id 15.20.2284.009; Wed, 18 Sep 2019
+ 22:23:21 +0000
+From: Roman Gushchin <guro@fb.com>
+To: "Saeed Karimabadi (skarimab)" <skarimab@cisco.com>
+CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+        "David Rientjes" <rientjes@google.com>,
+        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+        "Andrew Morton" <akpm@linux-foundation.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>,
+        Li Zefan
+	<lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>,
+        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
+        Michal Hocko
+	<mhocko@kernel.org>,
+        Vladimir Davydov <vdavydov.dev@gmail.com>,
+        "xe-linux-external(mailer list)" <xe-linux-external@cisco.com>
+Subject: Re: CGroup unused allocated slab objects will not get released
+Thread-Topic: CGroup unused allocated slab objects will not get released
+Thread-Index: AdVuYAXsyqrfLm5yRGqVq9iRkUoA5QAD6QWA
+Date: Wed, 18 Sep 2019 22:23:21 +0000
+Message-ID: <20190918222315.GA16105@castle>
+References: <BYAPR11MB2582482E28ACA901B35AF777CC8E0@BYAPR11MB2582.namprd11.prod.outlook.com>
+In-Reply-To: <BYAPR11MB2582482E28ACA901B35AF777CC8E0@BYAPR11MB2582.namprd11.prod.outlook.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR21CA0030.namprd21.prod.outlook.com
+ (2603:10b6:300:129::16) To BN8PR15MB2626.namprd15.prod.outlook.com
+ (2603:10b6:408:c7::28)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:180::e152]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: d1b0ab54-ff0f-4a77-1129-08d73c86cfec
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600167)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:BN8PR15MB2833;
+x-ms-traffictypediagnostic: BN8PR15MB2833:
+x-ms-exchange-purlcount: 3
+x-microsoft-antispam-prvs: <BN8PR15MB2833FA8AE794BB812ED875BEBE8E0@BN8PR15MB2833.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 01644DCF4A
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(7916004)(376002)(136003)(366004)(39860400002)(346002)(396003)(199004)(189003)(99286004)(6116002)(86362001)(1076003)(305945005)(52116002)(7416002)(66556008)(33716001)(6486002)(4326008)(486006)(66476007)(7736002)(71200400001)(316002)(64756008)(66446008)(6306002)(8936002)(66946007)(71190400001)(186003)(46003)(6436002)(76176011)(6512007)(229853002)(9686003)(14454004)(478600001)(11346002)(476003)(25786009)(6916009)(54906003)(102836004)(5660300002)(446003)(6246003)(33656002)(81166006)(966005)(81156014)(8676002)(386003)(2906002)(256004)(6506007);DIR:OUT;SFP:1102;SCL:1;SRVR:BN8PR15MB2833;H:BN8PR15MB2626.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: k/3FBimWZ3X//TxW2fG3fymyA8dUKFk6TlFmgZ40MMwmoQbSyW/xD4LtwUPt56THx4BrGzWsF7DFAvjypKUhXxQ3RNCGNVD6zd7J86XRghVhgIA2Rwxf1j/G7LaOIuYh6ekcl+ARZleCsKkg2uiNWv3KVA4rIZJgVjK4oBu3z9sbJNYZRXGRdYRQ7bjAiA/2rnVAk0yEgE8al9k5B1gRfo4hui9I7RTuD1IT2Zap+Cbnk2QrPnPp/nJ9ZX4w1wHp7b4WLBxQGWPYVymw/ppLoENxG4BSa5sPr1jfW9go+jSdqVEv9m7j3Azg2EvzZkahVBwMzqWWURvbAiSBoU6HvukUXah+XUtHT9kLU7+1oTkXSSJzZy35/migKigBQh22bqkESDRtRnW0YL60OtTVsf5xOxF+hN8nKCIvpj9gZcc=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <FE66DBCC21C40A4E821DE15D66FA409E@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190821003039.12555-6-willy@infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9384 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1908290000 definitions=main-1909180182
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9384 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1908290000
- definitions=main-1909180182
+X-MS-Exchange-CrossTenant-Network-Message-Id: d1b0ab54-ff0f-4a77-1129-08d73c86cfec
+X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Sep 2019 22:23:21.0901
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: aYRPMd1GD7wWcqRjVMhJYtHT48fe1P7ANmaPQTx279/tEyNPmdBPZtkcY9vEY9vq
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN8PR15MB2833
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:6.0.70,1.0.8
+ definitions=2019-09-18_10:2019-09-18,2019-09-18 signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 phishscore=0 mlxscore=0
+ spamscore=0 suspectscore=0 mlxlogscore=999 lowpriorityscore=0
+ clxscore=1011 malwarescore=0 priorityscore=1501 bulkscore=0
+ impostorscore=0 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.12.0-1908290000 definitions=main-1909180187
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 20, 2019 at 05:30:39PM -0700, Matthew Wilcox wrote:
-> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-> 
-> The only part of the bvec we were accessing was the bv_page, so just
-> pass that instead of the whole bvec.
-> 
-> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
+On Wed, Sep 18, 2019 at 08:31:18PM +0000, Saeed Karimabadi (skarimab) wrote=
+:
+> Hi =A0Kernel Maintainers,
+>=20
+> We are chasing an issue where slab allocator is not releasing task_struct=
+ slab objects allocated by cgroups=20
+> and we are wondering if this is a known issue or an expected behavior ?
+> If we stress test the system and spawn multiple tasks with different cgro=
+ups, number of active allocated=20
+> task_struct objects will increase but kernel will never release those mem=
+ory later on, even though if system=20
+> goes to the idle state with lower number of the running processes.
 
-Seems fine but same caveats about tree churn as the previous patch.
+Hi Saeed!
 
---D
+I've recently proposed a new slab memory cgroup controller, which aims to s=
+olve
+the problem you're describing: https://lwn.net/Articles/798605/ . It also g=
+enerally
+reduces the amount of memory used by slabs.
 
-> ---
->  fs/xfs/xfs_aops.c | 12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 1a26e9ca626b..edcb4797fcc2 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -58,21 +58,21 @@ xfs_find_daxdev_for_inode(
->  static void
->  xfs_finish_page_writeback(
->  	struct inode		*inode,
-> -	struct bio_vec	*bvec,
-> +	struct page		*page,
->  	int			error)
->  {
-> -	struct iomap_page	*iop = to_iomap_page(bvec->bv_page);
-> +	struct iomap_page	*iop = to_iomap_page(page);
->  
->  	if (error) {
-> -		SetPageError(bvec->bv_page);
-> +		SetPageError(page);
->  		mapping_set_error(inode->i_mapping, -EIO);
->  	}
->  
-> -	ASSERT(iop || i_blocks_per_page(inode, bvec->bv_page) <= 1);
-> +	ASSERT(iop || i_blocks_per_page(inode, page) <= 1);
->  	ASSERT(!iop || atomic_read(&iop->write_count) > 0);
->  
->  	if (!iop || atomic_dec_and_test(&iop->write_count))
-> -		end_page_writeback(bvec->bv_page);
-> +		end_page_writeback(page);
->  }
->  
->  /*
-> @@ -106,7 +106,7 @@ xfs_destroy_ioend(
->  
->  		/* walk each page on bio, ending page IO on them */
->  		bio_for_each_segment_all(bvec, bio, iter_all)
-> -			xfs_finish_page_writeback(inode, bvec, error);
-> +			xfs_finish_page_writeback(inode, bvec->bv_page, error);
->  		bio_put(bio);
->  	}
->  
-> -- 
-> 2.23.0.rc1
-> 
+I've been told that not all e-mails in the patchset reached lkml,
+so, please, find the original patchset here:
+  https://github.com/rgushchin/linux/tree/new_slab.rfc
+and it's backport to the 5.3 release here:
+  https://github.com/rgushchin/linux/tree/new_slab.rfc.v5.3
+
+If you can try it on your setup, I'd appreciate it a lot, and it also can
+help with merging it upstream soon.
+
+Thank you!
+
+Roman
 
