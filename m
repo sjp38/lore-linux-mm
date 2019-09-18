@@ -2,196 +2,149 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.8 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E957FC4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 13:19:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49C1DC4CEC9
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 13:42:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B88E4218AF
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 13:19:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B88E4218AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0F8E7208C0
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 13:42:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ellerman.id.au header.i=@ellerman.id.au header.b="OwZKzVnP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F8E7208C0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B2486B02B5; Wed, 18 Sep 2019 09:19:48 -0400 (EDT)
+	id 9D6B26B02B9; Wed, 18 Sep 2019 09:42:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 663516B02B6; Wed, 18 Sep 2019 09:19:48 -0400 (EDT)
+	id 986BB6B02BA; Wed, 18 Sep 2019 09:42:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 551E16B02B7; Wed, 18 Sep 2019 09:19:48 -0400 (EDT)
+	id 875F46B02BB; Wed, 18 Sep 2019 09:42:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0252.hostedemail.com [216.40.44.252])
-	by kanga.kvack.org (Postfix) with ESMTP id 357266B02B5
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:19:48 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 9C8D7824CA2D
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:19:47 +0000 (UTC)
-X-FDA: 75948098814.22.cave42_728ef8ef9b11e
-X-HE-Tag: cave42_728ef8ef9b11e
-X-Filterd-Recvd-Size: 5866
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf29.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:19:47 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 34E841576;
-	Wed, 18 Sep 2019 06:19:46 -0700 (PDT)
-Received: from localhost.localdomain (entos-thunderx2-02.shanghai.arm.com [10.169.40.54])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id DA9F83F575;
-	Wed, 18 Sep 2019 06:19:40 -0700 (PDT)
-From: Jia He <justin.he@arm.com>
-To: Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	James Morse <james.morse@arm.com>,
-	Marc Zyngier <maz@kernel.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Suzuki Poulose <Suzuki.Poulose@arm.com>
-Cc: Punit Agrawal <punitagrawal@gmail.com>,
-	Anshuman Khandual <anshuman.khandual@arm.com>,
-	Jun Yao <yaojun8558363@gmail.com>,
-	Alex Van Brunt <avanbrunt@nvidia.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	hejianet@gmail.com,
-	Kaly Xin <Kaly.Xin@arm.com>,
-	Jia He <justin.he@arm.com>
-Subject: [PATCH v4 3/3] mm: fix double page fault on arm64 if PTE_AF is cleared
-Date: Wed, 18 Sep 2019 21:19:14 +0800
-Message-Id: <20190918131914.38081-4-justin.he@arm.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190918131914.38081-1-justin.he@arm.com>
-References: <20190918131914.38081-1-justin.he@arm.com>
+Received: from forelay.hostedemail.com (smtprelay0055.hostedemail.com [216.40.44.55])
+	by kanga.kvack.org (Postfix) with ESMTP id 6632A6B02B9
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 09:42:08 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0B79B180AD802
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:42:08 +0000 (UTC)
+X-FDA: 75948155136.26.bed46_127b4f220df07
+X-HE-Tag: bed46_127b4f220df07
+X-Filterd-Recvd-Size: 4962
+Received: from ozlabs.org (ozlabs.org [203.11.71.1])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 13:42:06 +0000 (UTC)
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 46YLkJ3x8Wz9sNf;
+	Wed, 18 Sep 2019 23:42:00 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=ellerman.id.au;
+	s=201909; t=1568814121;
+	bh=PKzP62Nhvc6oxy8JJMN0bYExGBIfXoqSAQasn8gwXuA=;
+	h=From:To:Subject:In-Reply-To:References:Date:From;
+	b=OwZKzVnPPxA/NqCnMz3jRwzgz5VkboxsZdCsDilcuaqGxXSQzkug+SKu50ElyRH41
+	 aL4CgFQi2yvWq6iSWNuhCtFEbF20uXeVpqyCr62hregLFjlOSeLU9CzyBYZI1S6CSM
+	 S+gNF2LSQ4GC9DhFumiyQ2at54xiVQaw5dpGYcpedPgVbfaEvg0iYGVS/TnPSFv48V
+	 TeQXosEnhhLTJ5cm4835fEpfiVOyBoFA2LWCrFdQpO6gbrIwBOg0hxqeQlRYCFeb4S
+	 Utg9lzTO7IE0SQb5tT3WHGzQzIsEu0AlN1iUheMhYb4Hv3vkrRhUfQc4kBF8ufIzex
+	 gDL9gWKr4NGrQ==
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Laurent Dufour <ldufour@linux.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, aneesh.kumar@linux.ibm.com, npiggin@gmail.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2 0/2] powerpc/mm: Conditionally call H_BLOCK_REMOVE
+In-Reply-To: <20190916095543.17496-1-ldufour@linux.ibm.com>
+References: <20190916095543.17496-1-ldufour@linux.ibm.com>
+Date: Wed, 18 Sep 2019 23:41:54 +1000
+Message-ID: <871rwdwwkd.fsf@mpe.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When we tested pmdk unit test [1] vmmalloc_fork TEST1 in arm64 guest, there
-will be a double page fault in __copy_from_user_inatomic of cow_user_page.
+Hi Laurent,
 
-Below call trace is from arm64 do_page_fault for debugging purpose
-[  110.016195] Call trace:
-[  110.016826]  do_page_fault+0x5a4/0x690
-[  110.017812]  do_mem_abort+0x50/0xb0
-[  110.018726]  el1_da+0x20/0xc4
-[  110.019492]  __arch_copy_from_user+0x180/0x280
-[  110.020646]  do_wp_page+0xb0/0x860
-[  110.021517]  __handle_mm_fault+0x994/0x1338
-[  110.022606]  handle_mm_fault+0xe8/0x180
-[  110.023584]  do_page_fault+0x240/0x690
-[  110.024535]  do_mem_abort+0x50/0xb0
-[  110.025423]  el0_da+0x20/0x24
+Thanks for fixing this, just a few comments.
 
-The pte info before __copy_from_user_inatomic is (PTE_AF is cleared):
-[ffff9b007000] pgd=000000023d4f8003, pud=000000023da9b003, pmd=000000023d4b3003, pte=360000298607bd3
+Laurent Dufour <ldufour@linux.ibm.com> writes:
+> Since the commit ba2dd8a26baa ("powerpc/pseries/mm: call H_BLOCK_REMOVE"),
+> the call to H_BLOCK_REMOVE is always done if the feature is exhibited.
+>
+> However, the hypervisor may not support all the block size for the hcall
+> H_BLOCK_REMOVE depending on the segment base page size and actual page
+> size.
+>
+> When unsupported block size is used, the hcall H_BLOCK_REMOVE is returning
+> H_PARAM, which is triggering a BUG_ON check leading to a panic like this:
 
-As told by Catalin: "On arm64 without hardware Access Flag, copying from
-user will fail because the pte is old and cannot be marked young. So we
-always end up with zeroed page after fork() + CoW for pfn mappings. we
-don't always have a hardware-managed access flag on arm64."
+Missing panic :)
 
-This patch fix it by calling pte_mkyoung. Also, the parameter is
-changed because vmf should be passed to cow_user_page()
+Also can you put that detail in the 2nd commit, so that it's obvious
+that it is a fix for an oops.
 
-[1] https://github.com/pmem/pmdk/tree/master/src/test/vmmalloc_fork
+> The PAPR document specifies the TLB Block Invalidate Characteristics which
 
-Reported-by: Yibo Cai <Yibo.Cai@arm.com>
-Signed-off-by: Jia He <justin.he@arm.com>
----
- mm/memory.c | 35 ++++++++++++++++++++++++++++++-----
- 1 file changed, 30 insertions(+), 5 deletions(-)
+Can you give a section/page number for the PAPR reference.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index e2bb51b6242e..d2c130a5883b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -118,6 +118,13 @@ int randomize_va_space __read_mostly =
- 					2;
- #endif
- 
-+#ifndef arch_faults_on_old_pte
-+static inline bool arch_faults_on_old_pte(void)
-+{
-+	return false;
-+}
-+#endif
-+
- static int __init disable_randmaps(char *s)
- {
- 	randomize_va_space = 0;
-@@ -2140,8 +2147,12 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
- 	return same;
- }
- 
--static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-+static inline void cow_user_page(struct page *dst, struct page *src,
-+				 struct vm_fault *vmf)
- {
-+	struct vm_area_struct *vma = vmf->vma;
-+	unsigned long addr = vmf->address;
-+
- 	debug_dma_assert_idle(src);
- 
- 	/*
-@@ -2152,20 +2163,34 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
- 	 */
- 	if (unlikely(!src)) {
- 		void *kaddr = kmap_atomic(dst);
--		void __user *uaddr = (void __user *)(va & PAGE_MASK);
-+		void __user *uaddr = (void __user *)(addr & PAGE_MASK);
-+		pte_t entry;
- 
- 		/*
- 		 * This really shouldn't fail, because the page is there
- 		 * in the page tables. But it might just be unreadable,
- 		 * in which case we just give up and fill the result with
--		 * zeroes.
-+		 * zeroes. On architectures with software "accessed" bits,
-+		 * we would take a double page fault here, so mark it
-+		 * accessed here.
- 		 */
-+		if (arch_faults_on_old_pte() && !pte_young(vmf->orig_pte)) {
-+			spin_lock(vmf->ptl);
-+			if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
-+				entry = pte_mkyoung(vmf->orig_pte);
-+				if (ptep_set_access_flags(vma, addr,
-+							  vmf->pte, entry, 0))
-+					update_mmu_cache(vma, addr, vmf->pte);
-+			}
-+			spin_unlock(vmf->ptl);
-+		}
-+
- 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
- 			clear_page(kaddr);
- 		kunmap_atomic(kaddr);
- 		flush_dcache_page(dst);
- 	} else
--		copy_user_highpage(dst, src, va, vma);
-+		copy_user_highpage(dst, src, addr, vma);
- }
- 
- static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
-@@ -2318,7 +2343,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 				vmf->address);
- 		if (!new_page)
- 			goto oom;
--		cow_user_page(new_page, old_page, vmf->address, vma);
-+		cow_user_page(new_page, old_page, vmf);
- 	}
- 
- 	if (mem_cgroup_try_charge_delay(new_page, mm, GFP_KERNEL, &memcg, false))
--- 
-2.17.1
+> tells for each couple segment base page size, actual page size, the size of
+                 ^
+                 "pair of" is better than "couple" I think
 
+> the block the hcall H_BLOCK_REMOVE is supporting.
+>
+> Supporting various block sizes doesn't seem needed at that time since all
+> systems I was able to play with was supporting an 8 addresses block size,
+> which is the maximum through the hcall, or none at all. Supporting various
+> size would complexify the algorithm in call_block_remove() so unless this
+> is required, this is not done.
+>
+> In the case of block size different from 8, a warning message is displayed
+> at boot time and that block size will be ignored checking for the
+> H_BLOCK_REMOVE support.
+>
+> Due to the minimal amount of hardware showing a limited set of
+> H_BLOCK_REMOVE supported page size, I don't think there is a need to push
+> this series to the stable mailing list.
+
+But the hardware that is exhibiting it, by crashing and not booting, is
+mostly (all?) older hardware. So I think we probably should send it back
+to stable, otherwise those machines may never get an updated kernel.
+
+Can you add Fixes: tags to the commits, they should point at the commit
+that added H_BLOCK_REMOVE support.
+
+cheers
+
+> The first patch is reading the characteristic through the hcall
+> ibm,get-system-parameter and record the supported block size for each page
+> size.  The second patch is changing the check used to detect the
+> H_BLOCK_REMOVE availability to take care of the base page size and page
+> size couple.
+>
+> Changes since V1:
+>
+>  - Remove penc initialisation, this is already done in
+>    mmu_psize_set_default_penc()
+>  - Add details on the TLB Block Invalidate Characteristics's buffer format
+>  - Introduce #define instead of using direct numerical values
+>  - Function reading the characteristics is now directly called from
+>    pSeries_setup_arch()
+>  - The characteristics are now stored in a dedciated table static to lpar.c
+>
+> Laurent Dufour (2):
+>   powperc/mm: read TLB Block Invalidate Characteristics
+>   powerpc/mm: call H_BLOCK_REMOVE when supported
+>
+>  .../include/asm/book3s/64/tlbflush-hash.h     |   1 +
+>  arch/powerpc/platforms/pseries/lpar.c         | 173 +++++++++++++++++-
+>  arch/powerpc/platforms/pseries/setup.c        |   1 +
+>  3 files changed, 173 insertions(+), 2 deletions(-)
+>
+> -- 
+> 2.23.0
 
