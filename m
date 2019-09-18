@@ -2,103 +2,183 @@ Return-Path: <SRS0=QF98=XN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CF3CC4CEC4
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 18:05:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2357EC4CEC9
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 18:23:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B74E21897
-	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 18:05:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B74E21897
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E688E21D7A
+	for <linux-mm@archiver.kernel.org>; Wed, 18 Sep 2019 18:23:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E688E21D7A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B336D6B02F6; Wed, 18 Sep 2019 14:05:13 -0400 (EDT)
+	id 707C76B02F8; Wed, 18 Sep 2019 14:23:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE46F6B02F8; Wed, 18 Sep 2019 14:05:13 -0400 (EDT)
+	id 6B7D76B02FA; Wed, 18 Sep 2019 14:23:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D3766B02F9; Wed, 18 Sep 2019 14:05:13 -0400 (EDT)
+	id 5585C6B02FB; Wed, 18 Sep 2019 14:23:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0039.hostedemail.com [216.40.44.39])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC9E6B02F6
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 14:05:13 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 2B6AA1F86A
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 18:05:13 +0000 (UTC)
-X-FDA: 75948818106.21.slave92_84cb43b45055d
-X-HE-Tag: slave92_84cb43b45055d
-X-Filterd-Recvd-Size: 3104
-Received: from mga07.intel.com (mga07.intel.com [134.134.136.100])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 18:05:12 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Sep 2019 11:05:10 -0700
-X-IronPort-AV: E=Sophos;i="5.64,521,1559545200"; 
-   d="scan'208";a="338407459"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga004-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Sep 2019 11:05:10 -0700
-Message-ID: <38429bdb416bdb33f3c7f740f903380af3129a36.camel@linux.intel.com>
-Subject: Re: [PATCH v10 5/6] virtio-balloon: Pull page poisoning config out
- of free page hinting
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, david@redhat.com, 
- dave.hansen@intel.com, linux-kernel@vger.kernel.org, willy@infradead.org, 
- mhocko@kernel.org, linux-mm@kvack.org, vbabka@suse.cz,
- akpm@linux-foundation.org,  mgorman@techsingularity.net,
- linux-arm-kernel@lists.infradead.org,  osalvador@suse.de,
- yang.zhang.wz@gmail.com, pagupta@redhat.com,  konrad.wilk@oracle.com,
- nitesh@redhat.com, riel@surriel.com,  lcapitulino@redhat.com,
- wei.w.wang@intel.com, aarcange@redhat.com,  pbonzini@redhat.com,
- dan.j.williams@intel.com
-Date: Wed, 18 Sep 2019 11:05:10 -0700
-In-Reply-To: <20190918135833-mutt-send-email-mst@kernel.org>
-References: <20190918175109.23474.67039.stgit@localhost.localdomain>
-	 <20190918175305.23474.34783.stgit@localhost.localdomain>
-	 <20190918135833-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+Received: from forelay.hostedemail.com (smtprelay0193.hostedemail.com [216.40.44.193])
+	by kanga.kvack.org (Postfix) with ESMTP id 350EC6B02F8
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 14:23:02 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id E690620BD7
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 18:23:01 +0000 (UTC)
+X-FDA: 75948862962.05.camp37_8ecd0963b7b22
+X-HE-Tag: camp37_8ecd0963b7b22
+X-Filterd-Recvd-Size: 7024
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com [148.163.156.1])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 18:23:01 +0000 (UTC)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x8IIMMQa097527
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 14:23:00 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2v3se6gsgn-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 14:22:59 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Wed, 18 Sep 2019 19:22:57 +0100
+Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 18 Sep 2019 19:22:47 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x8IIMkOY40436054
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 18 Sep 2019 18:22:46 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4D57D11C058;
+	Wed, 18 Sep 2019 18:22:46 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 02F0511C04A;
+	Wed, 18 Sep 2019 18:22:45 +0000 (GMT)
+Received: from thinkpad (unknown [9.152.212.222])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed, 18 Sep 2019 18:22:44 +0000 (GMT)
+Date: Wed, 18 Sep 2019 20:22:43 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Vlastimil Babka
+ <vbabka@suse.cz>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Thomas
+ Gleixner <tglx@linutronix.de>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>,
+        Jason Gunthorpe <jgg@ziepe.ca>,
+        Dan Williams <dan.j.williams@intel.com>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Michal Hocko <mhocko@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
+        Mark Brown <broonie@kernel.org>, Steven Price <Steven.Price@arm.com>,
+        Ard Biesheuvel
+ <ard.biesheuvel@linaro.org>,
+        Masahiro Yamada
+ <yamada.masahiro@socionext.com>,
+        Kees Cook <keescook@chromium.org>,
+        Tetsuo
+ Handa <penguin-kernel@i-love.sakura.ne.jp>,
+        Matthew Wilcox
+ <willy@infradead.org>,
+        Sri Krishna chowdary <schowdary@nvidia.com>,
+        Dave
+ Hansen <dave.hansen@intel.com>,
+        Russell King - ARM Linux
+ <linux@armlinux.org.uk>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        Paul
+ Mackerras <paulus@samba.org>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        "David S. Miller"
+ <davem@davemloft.net>,
+        Vineet Gupta <vgupta@synopsys.com>, James Hogan
+ <jhogan@kernel.org>,
+        Paul Burton <paul.burton@mips.com>,
+        Ralf Baechle
+ <ralf@linux-mips.org>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH V2 2/2] mm/pgtable/debug: Add test validating
+ architecture page table helpers
+In-Reply-To: <64504101-d9dd-f273-02f9-e9a8b178eecc@c-s.fr>
+References: <1568268173-31302-1-git-send-email-anshuman.khandual@arm.com>
+	<1568268173-31302-3-git-send-email-anshuman.khandual@arm.com>
+	<ab0ca38b-1e4f-b636-f8b4-007a15903984@c-s.fr>
+	<502c497a-9bf1-7d2e-95f2-cfebcd9cf1d9@arm.com>
+	<95ed9d92-dd43-4c45-2e52-738aed7f2fb5@c-s.fr>
+	<f872e6f4-a5cb-069d-2034-78961930cb9f@arm.com>
+	<64504101-d9dd-f273-02f9-e9a8b178eecc@c-s.fr>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19091818-0008-0000-0000-000003180C76
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19091818-0009-0000-0000-00004A368EF9
+Message-Id: <20190918202243.37e709df@thinkpad>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-09-18_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1908290000 definitions=main-1909180162
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-09-18 at 13:58 -0400, Michael S. Tsirkin wrote:
-> On Wed, Sep 18, 2019 at 10:53:05AM -0700, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > 
-> > Currently the page poisoning setting wasn't being enabled unless free page
-> > hinting was enabled. However we will need the page poisoning tracking logic
-> > as well for unused page reporting. As such pull it out and make it a
-> > separate bit of config in the probe function.
-> > 
-> > In addition we can actually wrap the code in a check for NO_SANITY. If we
-> > don't care what is actually in the page we can just default to 0 and leave
-> > it there.
-> > 
-> > Reviewed-by: David Hildenbrand <david@redhat.com>
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+On Wed, 18 Sep 2019 18:26:03 +0200
+Christophe Leroy <christophe.leroy@c-s.fr> wrote:
+
+[..] 
+> My suggestion was not to completely drop the #ifdef but to do like you 
+> did in pgd_clear_tests() for instance, ie to add the following test on 
+> top of the function:
 > 
-> I think this one can go in directly. Do you want me to merge it now?
+> 	if (mm_pud_folded(mm) || is_defined(__ARCH_HAS_5LEVEL_HACK))
+> 		return;
+> 
 
-That sounds good to me.
+Ah, very nice, this would also fix the remaining issues for s390. Since
+we have dynamic page table folding, neither __PAGETABLE_PXX_FOLDED nor
+__ARCH_HAS_XLEVEL_HACK is defined, but mm_pxx_folded() will work.
 
-Do you know if you can also pull in QEMU 1/3 into QEMU as well since the
-feature wasn't pulled into QEMU originally?
-https://lore.kernel.org/lkml/20190918175342.23606.12400.stgit@localhost.localdomain/
+mm_alloc() returns with a 3-level page table by default on s390, so we
+will run into issues in p4d_clear/populate_tests(), and also at the end
+with p4d/pud_free() (double free).
 
-Thanks.
+So, adding the mm_pud_folded() check to p4d_clear/populate_tests(),
+and also adding mm_p4d/pud_folded() checks at the end before calling
+p4d/pud_free(), would make it all work on s390.
 
-- Alex
+BTW, regarding p4d/pud_free(), I'm not sure if we should rather check
+the folding inside our s390 functions, similar to how we do it for
+p4d/pud_free_tlb(), instead of relying on not being called for folded
+p4d/pud. So far, I see no problem with this behavior, all callers of
+p4d/pud_free() should be fine because of our folding check within
+p4d/pud_present/none(). But that doesn't mean that it is correct not
+to check for the folding inside p4d/pud_free(). At least, with this
+test module we do now have a caller of p4d/pud_free() on potentially
+folded entries, so instead of adding pxx_folded() checks to this
+test module, we could add them to our p4d/pud_free() functions.
+Any thoughts on this?
 
+Regards,
+Gerald
 
 
