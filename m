@@ -2,124 +2,111 @@ Return-Path: <SRS0=3rjY=XO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C5F3C4CEC4
-	for <linux-mm@archiver.kernel.org>; Thu, 19 Sep 2019 02:33:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F74DC49ED7
+	for <linux-mm@archiver.kernel.org>; Thu, 19 Sep 2019 03:50:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCBA420578
-	for <linux-mm@archiver.kernel.org>; Thu, 19 Sep 2019 02:33:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCBA420578
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wangsu.com
+	by mail.kernel.org (Postfix) with ESMTP id 34BC1217D6
+	for <linux-mm@archiver.kernel.org>; Thu, 19 Sep 2019 03:50:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Jy0Yk/Rd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34BC1217D6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 720406B032D; Wed, 18 Sep 2019 22:33:21 -0400 (EDT)
+	id 86D156B0330; Wed, 18 Sep 2019 23:50:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D0D86B032F; Wed, 18 Sep 2019 22:33:21 -0400 (EDT)
+	id 81DF16B0331; Wed, 18 Sep 2019 23:50:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E7026B0330; Wed, 18 Sep 2019 22:33:21 -0400 (EDT)
+	id 733496B0332; Wed, 18 Sep 2019 23:50:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0083.hostedemail.com [216.40.44.83])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E17E6B032D
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 22:33:21 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D2FF9824376C
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2019 02:33:20 +0000 (UTC)
-X-FDA: 75950098560.20.crime15_3a25340cb3d26
-X-HE-Tag: crime15_3a25340cb3d26
-X-Filterd-Recvd-Size: 4517
-Received: from wangsu.com (mail.wangsu.com [123.103.51.198])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 19 Sep 2019 02:33:19 +0000 (UTC)
-Received: from localhost.localdomain (unknown [218.85.123.226])
-	by app1 (Coremail) with SMTP id xjNnewBnBOjm6IJdKGYBAA--.30S2;
-	Thu, 19 Sep 2019 10:33:11 +0800 (CST)
-Subject: Re: [PATCH] [RFC] vmscan.c: add a sysctl entry for controlling memory
- reclaim IO congestion_wait length
-To: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
-Cc: corbet@lwn.net, mcgrof@kernel.org, akpm@linux-foundation.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, keescook@chromium.org,
- mchehab+samsung@kernel.org, mgorman@techsingularity.net, vbabka@suse.cz,
- ktkhai@virtuozzo.com, hannes@cmpxchg.org
+Received: from forelay.hostedemail.com (smtprelay0048.hostedemail.com [216.40.44.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF8F6B0330
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2019 23:50:03 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id F15C0824376E
+	for <linux-mm@kvack.org>; Thu, 19 Sep 2019 03:50:02 +0000 (UTC)
+X-FDA: 75950291844.04.pies09_52fd9076c03
+X-HE-Tag: pies09_52fd9076c03
+X-Filterd-Recvd-Size: 3624
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 19 Sep 2019 03:50:02 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=dIaTx+Cw6W1z2kh8erm4sN6OIGIJmSGITOU+49mfvpU=; b=Jy0Yk/Rd26StseUe6OJL3CH6q
+	2rTWzns+Br6nwBlrgwrUu0ms90xlJr2TUerpgXXrz3lK8w5KV+3tIeEg6+KFsKaOz/uUujXRzzOIi
+	x9gskoDIrBNBg68RTQMrxd/SA9PnC9s/6+i3FJGwd8ncqXM94dw2rpD1YDWcvSkYpN7n72lWLtjCt
+	DOcRPY0cMNpt4A0pi7oVgmfYS1EmgLXpDfCkQYIBt4B0W8vSTbLGNisKGpEgyREPE+EkknGfsmLBy
+	h1zZaNLoTx33ojutcoknm9FlLeJxxSEGHJ1Byox5ClyJI7tcIfK2Zmi/SiDm2I069p0DauYfEJ36o
+	KtGKJB0Gw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92.2 #3 (Red Hat Linux))
+	id 1iAnS1-0004CN-AJ; Thu, 19 Sep 2019 03:49:49 +0000
+Date: Wed, 18 Sep 2019 20:49:49 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Lin Feng <linf@wangsu.com>
+Cc: Michal Hocko <mhocko@kernel.org>, corbet@lwn.net, mcgrof@kernel.org,
+	akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, keescook@chromium.org,
+	mchehab+samsung@kernel.org, mgorman@techsingularity.net,
+	vbabka@suse.cz, ktkhai@virtuozzo.com, hannes@cmpxchg.org,
+	Jens Axboe <axboe@kernel.dk>, Omar Sandoval <osandov@fb.com>,
+	Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH] [RFC] vmscan.c: add a sysctl entry for controlling
+ memory reclaim IO congestion_wait length
+Message-ID: <20190919034949.GF9880@bombadil.infradead.org>
 References: <20190917115824.16990-1-linf@wangsu.com>
  <20190917120646.GT29434@bombadil.infradead.org>
  <20190918123342.GF12770@dhcp22.suse.cz>
-From: Lin Feng <linf@wangsu.com>
-Message-ID: <6ae57d3e-a3f4-a3db-5654-4ec6001941a9@wangsu.com>
-Date: Thu, 19 Sep 2019 10:33:10 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ <6ae57d3e-a3f4-a3db-5654-4ec6001941a9@wangsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20190918123342.GF12770@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-CM-TRANSID:xjNnewBnBOjm6IJdKGYBAA--.30S2
-X-Coremail-Antispam: 1UD129KBjvJXoW7CF1xGF4UZFyUGrW8tFyrJFb_yoW8CFy5pF
-	WfWFZ2yr1DA343CFs293Z7W34vya1UKrW3CF1agryUAr9Iyrn2kr4Fk3yruFyjkry8C34q
-	vr4qgw1UC398AaDanT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
-	9KBjDU0xBIdaVrnRJUUUvEb7Iv0xC_Kw4lb4IE77IF4wAFc2x0x2IEx4CE42xK8VAvwI8I
-	cIk0rVWrJVCq3wA2ocxC64kIII0Yj41l84x0c7CEw4AK67xGY2AK021l84ACjcxK6xIIjx
-	v20xvE14v26w1j6s0DM28EF7xvwVC0I7IYx2IY6xkF7I0E14v26rxl6s0DM28EF7xvwVC2
-	z280aVAFwI0_GcCE3s1l84ACjcxK6I8E87Iv6xkF7I0E14v26rxl6s0DM2AIxVAIcxkEcV
-	Aq07x20xvEncxIr21l5I8CrVACY4xI64kE6c02F40Ex7xfMcIj6x8ErcxFaVAv8VW8GwAv
-	7VCY1x0262k0Y48FwI0_Jr0_Gr1lOx8S6xCaFVCjc4AY6r1j6r4UM4x0Y48IcVAKI48JM4
-	IIrI8v6xkF7I0E8cxan2IY04v7Mxk0xIA0c2IEe2xFo4CEbIxvr21lc2xSY4AK67AK6r4U
-	MxAIw28IcxkI7VAKI48JMxAIw28IcVCjz48v1sIEY20_Gr4l4I8I3I0E4IkC6x0Yz7v_Jr
-	0_Gr1lx2IqxVAqx4xG67AKxVWUJVWUGwC20s026x8GjcxK67AKxVWUGVWUWwC2zVAF1VAY
-	17CE14v26r1q6r43MIIYrxkI7VAKI48JMIIF0xvE2Ix0cI8IcVAFwI0_Jr0_JF4lIxAIcV
-	C0I7IYx2IY6xkF7I0E14v26r4j6F4UMIIF0xvE42xK8VAvwI8IcIk0rVWrJr0_WFyUJwCI
-	42IY6I8E87Iv67AKxVWUJVW8JwCI42IY6I8E87Iv6xkF7I0E14v26r4j6r4UJbIYCTnIWI
-	evJa73UjIFyTuYvjxUfIJmUUUUU
-X-CM-SenderInfo: holqwq5zdqw23xof0z/
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6ae57d3e-a3f4-a3db-5654-4ec6001941a9@wangsu.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Sep 19, 2019 at 10:33:10AM +0800, Lin Feng wrote:
+> On 9/18/19 20:33, Michal Hocko wrote:
+> > I absolutely agree here. From you changelog it is also not clear what is
+> > the underlying problem. Both congestion_wait and wait_iff_congested
+> > should wake up early if the congestion is handled. Is this not the case?
+> 
+> For now I don't know why, codes seem should work as you said, maybe I need to
+> trace more of the internals.
+> But weird thing is that once I set the people-disliked-tunable iowait
+> drop down instantly, this is contradictory to the code design.
 
+Yes, this is quite strange.  If setting a smaller timeout makes a
+difference, that indicates we're not waking up soon enough.  I see
+two possibilities; one is that a wakeup is missing somewhere -- ie the
+conditions under which we call clear_wb_congested() are wrong.  Or we
+need to wake up sooner.
 
-On 9/18/19 20:33, Michal Hocko wrote:
->>> +mm_reclaim_congestion_wait_jiffies
->>> +==========
->>> +
->>> +This control is used to define how long kernel will wait/sleep while
->>> +system memory is under pressure and memroy reclaim is relatively active.
->>> +Lower values will decrease the kernel wait/sleep time.
->>> +
->>> +It's suggested to lower this value on high-end box that system is under memory
->>> +pressure but with low storage IO utils and high CPU iowait, which could also
->>> +potentially decrease user application response time in this case.
->>> +
->>> +Keep this control as it were if your box are not above case.
->>> +
->>> +The default value is HZ/10, which is of equal value to 100ms independ of how
->>> +many HZ is defined.
->> Adding a new tunable is not the right solution.  The right way is
->> to make Linux auto-tune itself to avoid the problem.
-> I absolutely agree here. From you changelog it is also not clear what is
-> the underlying problem. Both congestion_wait and wait_iff_congested
-> should wake up early if the congestion is handled. Is this not the case?
+Umm.  We have clear_wb_congested() called from exactly one spot --
+clear_bdi_congested().  That is only called from:
 
-For now I don't know why, codes seem should work as you said, maybe I need to
-trace more of the internals.
-But weird thing is that once I set the people-disliked-tunable iowait
-drop down instantly, this is contradictory to the code design.
+drivers/block/pktcdvd.c
+fs/ceph/addr.c
+fs/fuse/control.c
+fs/fuse/dev.c
+fs/nfs/write.c
 
-
-> Why? Are you sure a shorter timeout is not just going to cause problems
-> elsewhere. These sleeps are used to throttle the reclaim. I do agree
-> there is no great deal of design behind them so they are more of "let's
-> hope it works" kinda thing but making their timeout configurable just
-> doesn't solve this at all. You are effectively exporting a very subtle
-> implementation detail into the userspace.
-
-Kind of agree, but it does fix the issue at least mine and user response
-time also improve in the meantime.
-So, just make it as it were and exported to someone needs it..
+Jens, is something supposed to be calling clear_bdi_congested() in the
+block layer?  blk_clear_congested() used to exist until October 29th
+last year.  Or is something else supposed to be waking up tasks that
+are sleeping on congestion?
 
 
